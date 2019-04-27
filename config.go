@@ -17,7 +17,6 @@ func LoadConf(confFile string) (*Config, error) {
 		return nil, err
 	}
 	if err = json.Unmarshal(rawContent, &config); err != nil {
-		panic(err)
 		return nil, err
 	}
 	return &config, nil

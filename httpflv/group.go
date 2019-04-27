@@ -2,7 +2,8 @@ package httpflv
 
 import (
 	"fmt"
-	"log"
+	"github.com/q191201771/lal/log"
+	"github.com/q191201771/lal/util"
 	"sync"
 	"time"
 )
@@ -12,21 +13,28 @@ type Group struct {
 	appName    string
 	streamName string
 
-	exitChan chan bool
-
+	exitChan        chan bool
 	pullSession     *PullSession
 	subSessionList  map[*SubSession]bool
 	turnToEmptyTick int64 // trace while sub session list turn to empty
+	gopCache        *GopCache
 	mutex           sync.Mutex
+
+	UniqueKey string
 }
 
 func NewGroup(appName string, streamName string, config Config) *Group {
+	uk := util.GenUniqueKey("FLVGROUP")
+	log.Infof("lifecycle new Group. [%s] appName=%s streamName=%s", uk, appName, streamName)
+
 	return &Group{
 		Config:         config,
 		appName:        appName,
 		streamName:     streamName,
 		exitChan:       make(chan bool),
 		subSessionList: make(map[*SubSession]bool),
+		gopCache:       NewGopCache(config.GopCacheNum),
+		UniqueKey:uk,
 	}
 }
 
@@ -50,9 +58,9 @@ func (group *Group) RunLoop() {
 						continue
 					}
 					if _, diff := sub.GetStat(); diff.writeByte == 0 {
-						log.Println("sub idle timeout.", sub.StreamName)
-						sub.ForceClose()
+						log.Warnf("SubSession idle timeout. session:%s", sub.UniqueKey)
 						delete(group.subSessionList, sub)
+						sub.Dispose(fxxkErr)
 					}
 				}
 				group.mutex.Unlock()
@@ -63,9 +71,8 @@ func (group *Group) RunLoop() {
 				if group.pullSession != nil {
 					if now-group.pullSession.StartTick > group.PullReadTimeout {
 						if _, diff := group.pullSession.GetStat(); diff.readByte == 0 {
-							log.Println("pull read timeout.")
-							group.pullSession.ForceClose()
-							group.pullSession = nil
+							log.Warnf("read timeout. [%s]", group.pullSession.UniqueKey)
+							group.disposePullSession(fxxkErr)
 						}
 					}
 				}
@@ -77,9 +84,8 @@ func (group *Group) RunLoop() {
 				if group.pullSession != nil && group.turnToEmptyTick != 0 && len(group.subSessionList) == 0 &&
 					now-group.turnToEmptyTick > group.StopPullWhileNoSubTimeout {
 
-					log.Println("stop pull while no sub.")
-					group.pullSession.ForceClose()
-					group.pullSession = nil
+					log.Debugf("stop pull while no SubSession. [%s]", group.pullSession.UniqueKey)
+					group.disposePullSession(fxxkErr)
 				}
 				group.mutex.Unlock()
 			}
@@ -87,27 +93,33 @@ func (group *Group) RunLoop() {
 	}
 }
 
-func (group *Group) Dispose() {
+func (group *Group) Dispose(err error) {
+	log.Infof("lifecycle dispose Group. [%s] reason=%v", group.UniqueKey, err)
 	group.exitChan <- true
 }
 
 func (group *Group) AddSubSession(session *SubSession) {
 	group.mutex.Lock()
-	log.Println("add sub session in group.")
+	log.Debugf("add SubSession into group. [%s]", session.UniqueKey)
 	group.subSessionList[session] = true
 	group.turnToEmptyTick = 0
+
+	session.WriteHttpResponseHeader()
+	session.WriteFlvHeader()
+	if hasKeyFrame, cache := group.gopCache.GetWholeThings(); cache != nil {
+		session.HasKeyFrame = hasKeyFrame
+		session.WritePacket(cache)
+	}
 	group.mutex.Unlock()
 
-	session.writeHttpResponseHeader()
-	session.writeFlvHeader()
 	go func() {
 		if err := session.RunLoop(); err != nil {
-			log.Println(err)
+			log.Debugf("SubSession loop done. [%s] err=%v", session.UniqueKey, err)
 		}
 
 		group.mutex.Lock()
 		defer group.mutex.Unlock()
-		log.Println("erase sub session in group.")
+		log.Infof("del SubSession out of group. [%s]", session.UniqueKey)
 		delete(group.subSessionList, session)
 		if len(group.subSessionList) == 0 {
 			group.turnToEmptyTick = time.Now().Unix()
@@ -121,27 +133,29 @@ func (group *Group) PullIfNeeded(httpFlvPullAddr string) {
 	if group.pullSession != nil {
 		return
 	}
-	log.Println("set pull session in group.")
 	pullSession := NewPullSession(group)
 	group.pullSession = pullSession
+
 	go func() {
 		defer func() {
 			group.mutex.Lock()
 			defer group.mutex.Unlock()
 			group.pullSession = nil
-			log.Println("erase pull session in group.")
+			log.Infof("del PullSession out of group. [%s]", pullSession.UniqueKey)
 		}()
 
+		log.Infof("<----- connect. [%s]", pullSession.UniqueKey)
 		url := fmt.Sprintf("http://%s/%s/%s.flv", httpFlvPullAddr, group.appName, group.streamName)
 		err := pullSession.Connect(url, time.Duration(group.PullConnectTimeout)*time.Second)
-		log.Println("pull session connected. ", url)
 		if err != nil {
-			log.Println("pull session connect failed.", err)
+			log.Errorf("-----> connect error. [%s] err=%v", pullSession.UniqueKey, err)
 			return
 		}
+		log.Infof("-----> connect succ. [%s]", pullSession.UniqueKey)
 
 		err = pullSession.RunLoop()
 		if err != nil {
+			log.Debugf("PullSession loop done. [%s] err=%v", pullSession.UniqueKey, err)
 			return
 		}
 	}()
@@ -154,20 +168,36 @@ func (group *Group) IsTotalEmpty() bool {
 	return group.pullSession == nil && len(group.subSessionList) == 0
 }
 
+func (group *Group) disposePullSession(err error) {
+	group.pullSession.Dispose(err)
+	group.pullSession = nil
+	group.gopCache.ClearAll()
+}
+
 func (group *Group) ReadHttpRespHeaderCb() {
-	log.Println("ReadHttpRespHeaderCb")
+	//log.Debugf("ReadHttpRespHeaderCb. [%s]", group.UniqueKey)
 }
 
 func (group *Group) ReadFlvHeaderCb(flvHeader []byte) {
-	log.Println("ReadFlvHeaderCb")
+	//log.Debugf("ReadFlvHeaderCb. [%s]", group.UniqueKey)
 }
 
-func (group *Group) ReadTagCb(header *TagHeader, tag []byte) {
-	//log.Println(header.t, header.timestamp)
+func (group *Group) ReadTagCb(tag *Tag) {
+	//log.Debug(header.t, header.timestamp)
 	group.mutex.Lock()
 	defer group.mutex.Unlock()
 	// TODO chef: assume that write fast and would not block
 	for session := range group.subSessionList {
-		session.WritePacket(tag)
+		if session.HasKeyFrame {
+			session.WritePacket(tag.Raw)
+		} else {
+			if tag.isMetaData() || tag.isAvcKeySeqHeader() || tag.isAacSeqHeader() || tag.isAvcKeyNalu() {
+				if tag.isAvcKeyNalu() {
+					session.HasKeyFrame = true
+				}
+				session.WritePacket(tag.Raw)
+			}
+		}
 	}
+	group.gopCache.Push(tag)
 }

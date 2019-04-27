@@ -1,7 +1,7 @@
 package httpflv
 
 import (
-	"log"
+	"github.com/q191201771/lal/log"
 	"net"
 )
 
@@ -25,10 +25,10 @@ func (server *Server) RunLoop() error {
 	if err != nil {
 		return err
 	}
+	log.Infof("listen. addr=%s", server.addr)
 	for {
 		conn, err := server.ln.Accept()
 		if err != nil {
-			log.Println(err)
 			return err
 		}
 		go server.handleSubSessionConnect(conn)
@@ -42,19 +42,19 @@ func (server *Server) Accept() (session *SubSession, ok bool) {
 
 func (server *Server) Dispose() {
 	if err := server.ln.Close(); err != nil {
-		log.Println(err)
+		log.Error(err)
 	}
 	close(server.sessionChan)
 }
 
 func (server *Server) handleSubSessionConnect(conn net.Conn) {
-	log.Println("accept a http flv sub connection. ", conn.RemoteAddr())
+	log.Infof("accept a http flv connection. remoteAddr=%v", conn.RemoteAddr())
 	subSession := NewSubSession(conn)
-	err := subSession.ReadRequest()
-	if err != nil {
+	if err := subSession.ReadRequest(); err != nil {
+		log.Errorf("read SubSession request error. [%s]", subSession.UniqueKey)
 		return
 	}
-	log.Println("read sub session request. ", subSession.StreamName)
+	log.Infof("-----> http request. [%s] uri=%s", subSession.UniqueKey, subSession.Uri)
 
 	server.sessionChan <- subSession
 }

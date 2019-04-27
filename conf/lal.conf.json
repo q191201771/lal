@@ -1,0 +1,11 @@
+{
+  "httpflv": {
+    "sub_listen_addr": ":8080",
+    "pull_addr": "pull.xxx.com",
+    "pull_connect_timeout": 2,
+    "pull_read_timeout": 20,
+    "sub_idle_timeout": 10,
+    "stop_pull_while_no_sub_timeout": 5,
+    "gop_cache_num": 2
+  }
+}

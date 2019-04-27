@@ -2,15 +2,16 @@ package httpflv
 
 import (
 	"bufio"
-	"io"
-	"log"
+	"github.com/q191201771/lal/log"
+	"github.com/q191201771/lal/util"
 	"net"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 )
 
-var flvHttpResponseHeader = "HTTP/1.1 200 OK\r\n" +
+var flvHttpResponseHeaderStr = "HTTP/1.1 200 OK\r\n" +
 	"Cache-Control: no-cache\r\n" +
 	"Content-Type: video/x-flv\r\n" +
 	"Connection: close\r\n" +
@@ -18,15 +19,11 @@ var flvHttpResponseHeader = "HTTP/1.1 200 OK\r\n" +
 	"Pragma: no-cache\r\n" +
 	"\r\n"
 
+var flvHttpResponseHeader = []byte(flvHttpResponseHeaderStr)
+
 var flvHeaderBuf13 = []byte{0x46, 0x4c, 0x56, 0x01, 0x05, 0x0, 0x0, 0x0, 0x09, 0x0, 0x0, 0x0, 0x0}
 
-var wChanSize = 32
-
-// TODO chef: type use enum inside Go style.
-type writeMsg struct {
-	t   int
-	pkt []byte
-}
+var wChanSize = 1024 // TODO chef: 1024
 
 type SubSessionStat struct {
 	wannaWriteCount int64
@@ -42,30 +39,46 @@ type SubSession struct {
 	Uri        string
 	Headers    map[string]string
 
-	conn      net.Conn
-	rb        *bufio.Reader
-	closeChan chan int
-	wChan     chan writeMsg
+	HasKeyFrame bool
+
+	conn  net.Conn
+	rb    *bufio.Reader
+	wChan chan []byte
 
 	stat      SubSessionStat
 	prevStat  SubSessionStat
 	statMutex sync.Mutex
+
+	closeOnce     sync.Once
+	exitChan      chan struct{}
+	hasClosedFlag  uint32
+
+	UniqueKey string
 }
 
 func NewSubSession(conn net.Conn) *SubSession {
+	uk := util.GenUniqueKey("FLVSUB")
+	log.Infof("lifecycle new SubSession. [%s] remoteAddr=%s", uk, conn.RemoteAddr().String())
 	return &SubSession{
-		conn:      conn,
-		rb:        bufio.NewReaderSize(conn, readBufSize),
-		wChan:     make(chan writeMsg, wChanSize),
-		closeChan: make(chan int, 1),
+		conn:     conn,
+		rb:       bufio.NewReaderSize(conn, readBufSize),
+		wChan:    make(chan []byte, wChanSize),
+		exitChan: make(chan struct{}),
+		UniqueKey: uk,
 	}
 }
 
-func (session *SubSession) ReadRequest() error {
+func (session *SubSession) ReadRequest() (err error) {
 	session.StartTick = time.Now().Unix()
 
-	var err error
 	var firstLine string
+
+	defer func() {
+		if err != nil {
+			session.Dispose(err)
+		}
+	}()
+
 	firstLine, session.Headers, err = parseHttpHeader(session.rb)
 	if err != nil {
 		return err
@@ -73,21 +86,24 @@ func (session *SubSession) ReadRequest() error {
 
 	items := strings.Split(string(firstLine), " ")
 	if len(items) != 3 || items[0] != "GET" {
-		return fxxkErr
+		err = fxxkErr
+		return
 	}
 	session.Uri = items[1]
 	if !strings.HasSuffix(session.Uri, ".flv") {
-		return fxxkErr
+		err = fxxkErr
+		return
 	}
-	//log.Println("uri:", session.uri)
 	items = strings.Split(session.Uri, "/")
 	if len(items) != 3 {
-		return fxxkErr
+		err = fxxkErr
+		return
 	}
 	session.AppName = items[1]
 	items = strings.Split(items[2], ".")
 	if len(items) < 2 {
-		return fxxkErr
+		err = fxxkErr
+		return
 	}
 	session.StreamName = items[0]
 
@@ -96,22 +112,41 @@ func (session *SubSession) ReadRequest() error {
 
 func (session *SubSession) RunLoop() error {
 	go func() {
-		// TODO chef: close by self.
 		buf := make([]byte, 128)
-		_, err := session.conn.Read(buf)
-		if err != nil {
-			session.closeChan <- 1
+		if _, err := session.conn.Read(buf); err != nil {
+			log.Errorf("read failed. [%s] err=%v", session.UniqueKey, err)
+			session.Dispose(err)
 		}
 	}()
 
-	err := session.runWriteLoop()
-	session.conn.Close()
-	return err
+	return session.runWriteLoop()
+}
+
+func (session *SubSession) WriteHttpResponseHeader() {
+	log.Infof("<----- http response header. [%s]", session.UniqueKey)
+	session.WritePacket(flvHttpResponseHeader)
+}
+
+func (session *SubSession) WriteFlvHeader() {
+	log.Infof("<----- http flv header. [%s]", session.UniqueKey)
+	session.WritePacket(flvHeaderBuf13)
 }
 
 func (session *SubSession) WritePacket(pkt []byte) {
+	if session.hasClosed() {
+		return
+	}
 	session.addWannaWriteStat(len(pkt))
-	session.wChan <- writeMsg{t: 2, pkt: pkt}
+	for {
+		select {
+		case session.wChan <- pkt:
+			return
+		default:
+			if session.hasClosed() {
+				return
+			}
+		}
+	}
 }
 
 func (session *SubSession) GetStat() (now SubSessionStat, diff SubSessionStat) {
@@ -126,45 +161,40 @@ func (session *SubSession) GetStat() (now SubSessionStat, diff SubSessionStat) {
 	return
 }
 
-func (session *SubSession) ForceClose() {
-	session.closeChan <- 2
+func (session *SubSession) Dispose(err error) {
+	session.closeOnce.Do(func() {
+		log.Infof("lifecycle dispose SubSession. [%s] reason=%v", session.UniqueKey, err)
+		atomic.StoreUint32(&session.hasClosedFlag, 1)
+		close(session.exitChan)
+		if err := session.conn.Close(); err != nil {
+			log.Error("conn close error. [%s] err=%v", session.UniqueKey, err)
+		}
+	})
 }
 
 func (session *SubSession) runWriteLoop() error {
 	for {
 		select {
-		case msg := <-session.wChan:
-			// TODO chef: fix me write less than pkt
-			n, err := session.conn.Write(msg.pkt)
+		case <-session.exitChan:
+			return fxxkErr
+		case pkt := <-session.wChan:
+			if session.hasClosed() {
+				return fxxkErr
+			}
+
+			n, err := session.conn.Write(pkt)
 			if err != nil {
-				log.Println("sub session write failed. ", err)
+				session.Dispose(err)
 				return err
 			} else {
 				session.addWriteStat(n)
-			}
-
-		case closeFlag := <-session.closeChan:
-			// TODO chef: hardcode number
-			switch closeFlag {
-			case 1:
-				log.Println("sub session close by peer.")
-				return io.EOF
-			case 2:
-				log.Println("sub session close by self.")
-				return nil
 			}
 		}
 	}
 }
 
-func (session *SubSession) writeHttpResponseHeader() {
-	session.addWannaWriteStat(len(flvHttpResponseHeader))
-	session.wChan <- writeMsg{t: 0, pkt: []byte(flvHttpResponseHeader)}
-}
-
-func (session *SubSession) writeFlvHeader() {
-	session.addWannaWriteStat(len(flvHeaderBuf13))
-	session.wChan <- writeMsg{t: 1, pkt: flvHeaderBuf13}
+func (session *SubSession) hasClosed() bool {
+	return atomic.LoadUint32(&session.hasClosedFlag) == 1
 }
 
 func (session *SubSession) addWannaWriteStat(wannaWriteByte int) {

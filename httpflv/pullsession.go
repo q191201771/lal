@@ -3,12 +3,12 @@ package httpflv
 import (
 	"bufio"
 	"fmt"
+	"github.com/q191201771/lal/log"
+	"github.com/q191201771/lal/util"
 	"io"
-	"log"
 	"net"
 	"strings"
 	"sync"
-	"sync/atomic"
 	"time"
 )
 
@@ -24,24 +24,32 @@ type PullSessionStat struct {
 type PullSession struct {
 	StartTick int64
 
-	obs          PullSessionObserver
-	*net.TCPConn // after Connect success, can direct visit net.TCPConn, useful for set socket options.
-	rb           *bufio.Reader
-	closed       uint32
+	obs  PullSessionObserver
+	Conn *net.TCPConn // after Connect success, can direct visit net.TCPConn, useful for set socket options.
+	rb   *bufio.Reader
 
 	stat      PullSessionStat
 	prevStat  PullSessionStat
 	statMutex sync.Mutex
+
+	closeOnce sync.Once
+
+	UniqueKey string
 }
 
 type PullSessionObserver interface {
 	ReadHttpRespHeaderCb()
 	ReadFlvHeaderCb(flvHeader []byte)
-	ReadTagCb(header *TagHeader, tag []byte)
+	ReadTagCb(tag *Tag)
 }
 
 func NewPullSession(obs PullSessionObserver) *PullSession {
-	return &PullSession{obs: obs}
+	uk := util.GenUniqueKey("FLVPULL")
+	log.Infof("lifecycle new PullSession. [%s]", uk)
+	return &PullSession{
+		obs: obs,
+		UniqueKey:uk,
+	}
 }
 
 // @param timeout: timeout for connect operate. if 0, then no timeout
@@ -78,30 +86,32 @@ func (session *PullSession) Connect(url string, timeout time.Duration) error {
 	if err != nil {
 		return err
 	}
-	session.TCPConn = conn.(*net.TCPConn)
-	session.rb = bufio.NewReaderSize(session.TCPConn, readBufSize)
+	session.Conn = conn.(*net.TCPConn)
+	session.rb = bufio.NewReaderSize(session.Conn, readBufSize)
 
-	// TODO chef: write succ len
-	_, err = fmt.Fprintf(session.TCPConn,
+	_, err = fmt.Fprintf(session.Conn,
 		"GET %s HTTP/1.0\r\nAccept: */*\r\nRange: byte=0-\r\nConnection: close\r\nHost: %s\r\nIcy-MetaData: 1\r\n\r\n",
 		uri, host)
 	if err != nil {
-		return nil
+		return err
 	}
 
 	return nil
 }
 
-// if close by peer, return EOF
 func (session *PullSession) RunLoop() error {
 	err := session.runReadLoop()
-	session.close()
+	session.Dispose(err)
 	return err
 }
 
-func (session *PullSession) ForceClose() {
-	log.Println("force close pull session.")
-	session.close()
+func (session *PullSession) Dispose(err error) {
+	session.closeOnce.Do(func() {
+		log.Infof("lifecycle dispose PullSession. [%s] reason=%v", session.UniqueKey, err)
+		if err := session.Conn.Close(); err != nil {
+			log.Error("conn close error. [%s] err=%v", session.UniqueKey, err)
+		}
+	})
 }
 
 func (session *PullSession) GetStat() (now PullSessionStat, diff PullSessionStat) {
@@ -114,15 +124,8 @@ func (session *PullSession) GetStat() (now PullSessionStat, diff PullSessionStat
 	return
 }
 
-func (session *PullSession) close() {
-	if atomic.CompareAndSwapUint32(&session.closed, 0, 1) {
-		session.Close()
-	}
-}
-
 func (session *PullSession) runReadLoop() error {
-	err := session.readHttpRespHeader()
-	if err != nil {
+	if err := session.readHttpRespHeader(); err != nil {
 		return err
 	}
 	session.obs.ReadHttpRespHeaderCb()
@@ -134,11 +137,11 @@ func (session *PullSession) runReadLoop() error {
 	session.obs.ReadFlvHeaderCb(flvHeader)
 
 	for {
-		h, tag, err := session.readTag()
+		tag, err := session.readTag()
 		if err != nil {
 			return err
 		}
-		session.obs.ReadTagCb(h, tag)
+		session.obs.ReadTagCb(tag)
 	}
 }
 
@@ -151,7 +154,7 @@ func (session *PullSession) readHttpRespHeader() error {
 	if !strings.Contains(firstLine, "200") || len(headers) == 0 {
 		return fxxkErr
 	}
-	log.Println("readHttpRespHeader")
+	log.Infof("-----> http response header. [%s]", session.UniqueKey)
 
 	return nil
 }
@@ -162,32 +165,33 @@ func (session *PullSession) readFlvHeader() ([]byte, error) {
 	if err != nil {
 		return flvHeader, err
 	}
-	log.Println("readFlvHeader")
+	log.Infof("-----> http flv header. [%s]", session.UniqueKey)
+
 	// TODO chef: check flv header's value
 	return flvHeader, nil
 }
 
-func (session *PullSession) readTag() (*TagHeader, []byte, error) {
-	h, rawHeader, err := readTagHeader(session.rb)
+func (session *PullSession) readTag() (*Tag, error) {
+	header, rawHeader, err := readTagHeader(session.rb)
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 	session.addStat(tagHeaderSize)
 
-	needed := int(h.dataSize) + flvPrevTagFieldSize
+	needed := int(header.DataSize) + flvPrevTagFieldSize
 	rawBody := make([]byte, needed)
 	if _, err := io.ReadAtLeast(session.rb, rawBody, needed); err != nil {
-		log.Println(err)
-		return nil, nil, err
+		return nil, err
 	}
 	session.addStat(needed)
 
-	var tag []byte
-	tag = append(tag, rawHeader...)
-	tag = append(tag, rawBody...)
+	tag := &Tag{}
+	tag.Header = header
+	tag.Raw = append(tag.Raw, rawHeader...)
+	tag.Raw = append(tag.Raw, rawBody...)
 	//log.Println(h.t, h.timestamp, h.dataSize)
 
-	return h, tag, nil
+	return tag, nil
 }
 
 func (session *PullSession) addStat(readByte int) {

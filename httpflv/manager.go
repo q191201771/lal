@@ -1,7 +1,7 @@
 package httpflv
 
 import (
-	"log"
+	"github.com/q191201771/lal/log"
 	"sync"
 	"time"
 )
@@ -24,7 +24,7 @@ func NewManager(config Config) *Manager {
 	}
 }
 
-func (manager *Manager) SubSessionHandler(session *SubSession) {
+func (manager *Manager) subSessionHandler(session *SubSession) {
 	group := manager.getOrCreateGroup(session.AppName, session.StreamName)
 	group.AddSubSession(session)
 	if manager.PullAddr != "" {
@@ -36,9 +36,9 @@ func (manager *Manager) RunLoop() {
 	go func() {
 		for {
 			if subSession, ok := manager.server.Accept(); ok {
-				manager.SubSessionHandler(subSession)
+				manager.subSessionHandler(subSession)
 			} else {
-				log.Println("accept sub session from httpflv server failed.")
+				log.Error("accept sub session failed.")
 				return
 			}
 		}
@@ -46,30 +46,35 @@ func (manager *Manager) RunLoop() {
 
 	go func() {
 		if err := manager.server.RunLoop(); err != nil {
-			log.Println(err)
+			log.Error(err)
 		}
 	}()
 
 	t := time.NewTicker(1 * time.Second)
 	defer t.Stop()
+	// TODO chef: erase me, just for debug
+	tmpT := time.NewTicker(30 * time.Second)
+	defer tmpT.Stop()
 	for {
 		select {
 		case <-manager.exitChan:
 			return
 		case <-t.C:
 			manager.check()
+		case <-tmpT.C:
+			log.Debugf("group size:%d", len(manager.groups))
 		}
 	}
 }
 
 func (manager *Manager) Dispose() {
-	log.Println("Dispose manager.")
+	log.Debug("Dispose manager.")
 	manager.server.Dispose()
 	manager.exitChan <- true
 	manager.mutex.Lock()
 	defer manager.mutex.Unlock()
 	for _, group := range manager.groups {
-		group.Dispose()
+		group.Dispose(fxxkErr)
 	}
 	manager.groups = nil
 }
@@ -79,8 +84,8 @@ func (manager *Manager) check() {
 	defer manager.mutex.Unlock()
 	for k, group := range manager.groups {
 		if group.IsTotalEmpty() {
-			log.Println("erase empty group.", k)
-			group.Dispose()
+			log.Infof("erase empty group. [%s]", group.UniqueKey)
+			group.Dispose(fxxkErr)
 			delete(manager.groups, k)
 		}
 	}
@@ -91,7 +96,6 @@ func (manager *Manager) getOrCreateGroup(appName string, streamName string) *Gro
 	defer manager.mutex.Unlock()
 	group, exist := manager.groups[streamName]
 	if !exist {
-		log.Println("create group. ", streamName)
 		group = NewGroup(appName, streamName, manager.Config)
 		manager.groups[streamName] = group
 	}

@@ -1,0 +1,11 @@
+<seelog minlevel="info">
+    <outputs formatid="common">
+        <rollingfile type="date" filename="./logs/lal.log" datepattern="2006-01-02" />
+        <filter levels="warn,error,critical">
+            <rollingfile type="date" filename="./logs/lal_error.log" datepattern="2006-01-02" />
+        </filter>
+    </outputs>
+    <formats>
+        <format id="common" format="%Date(2006-01-02 15:04:05) %LEV %Msg%n" />
+    </formats>
+</seelog>

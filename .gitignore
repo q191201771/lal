@@ -1,7 +1,10 @@
-/.idea
-/rtmp
-/demo
-/conf/lal.conf.json
-/demo/httpflvpull/httpflvpull.go
+/demo/
+/conf/self.conf.json
+
+/rtmp/
+/.idea/
+/logs/
 /TODO.md
 /lal
+/lal_linux
+/build_linux.sh

@@ -18,7 +18,10 @@ func parseHttpHeader(r *bufio.Reader) (firstLine string, headers map[string]stri
 	var line []byte
 	var isPrefix bool
 	line, isPrefix, err = r.ReadLine()
-	if len(line) == 0 || isPrefix || err != nil {
+	if err != nil {
+		return
+	}
+	if len(line) == 0 || isPrefix {
 		err = fxxkErr
 		return
 	}
@@ -29,8 +32,11 @@ func parseHttpHeader(r *bufio.Reader) (firstLine string, headers map[string]stri
 		if len(line) == 0 {
 			break
 		}
-		if isPrefix || err != nil {
+		if isPrefix {
 			err = fxxkErr
+			return
+		}
+		if err != nil {
 			return
 		}
 		l := string(line)
