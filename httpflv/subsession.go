@@ -51,7 +51,7 @@ type SubSession struct {
 
 	closeOnce     sync.Once
 	exitChan      chan struct{}
-	hasClosedFlag  uint32
+	hasClosedFlag uint32
 
 	UniqueKey string
 }
@@ -60,10 +60,10 @@ func NewSubSession(conn net.Conn) *SubSession {
 	uk := util.GenUniqueKey("FLVSUB")
 	log.Infof("lifecycle new SubSession. [%s] remoteAddr=%s", uk, conn.RemoteAddr().String())
 	return &SubSession{
-		conn:     conn,
-		rb:       bufio.NewReaderSize(conn, readBufSize),
-		wChan:    make(chan []byte, wChanSize),
-		exitChan: make(chan struct{}),
+		conn:      conn,
+		rb:        bufio.NewReaderSize(conn, readBufSize),
+		wChan:     make(chan []byte, wChanSize),
+		exitChan:  make(chan struct{}),
 		UniqueKey: uk,
 	}
 }
@@ -132,6 +132,10 @@ func (session *SubSession) WriteFlvHeader() {
 	session.WritePacket(flvHeaderBuf13)
 }
 
+func (session *SubSession) Write(tag *Tag) {
+	session.WritePacket(tag.Raw)
+}
+
 func (session *SubSession) WritePacket(pkt []byte) {
 	if session.hasClosed() {
 		return
@@ -182,6 +186,7 @@ func (session *SubSession) runWriteLoop() error {
 				return fxxkErr
 			}
 
+			// TODO chef: use bufio.Writer
 			n, err := session.conn.Write(pkt)
 			if err != nil {
 				session.Dispose(err)

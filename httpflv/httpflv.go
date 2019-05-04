@@ -6,10 +6,14 @@ import (
 	"strings"
 )
 
-var fxxkErr = errors.New("fxxk")
+type Writer interface {
+	// TODO chef: return error
+	Write(tag *Tag)
+}
 
-var readBufSize = 4096
-var writeBufSize = 4096
+var fxxkErr = errors.New("httpflv: fxxk")
+
+var readBufSize = 16384
 
 // return 1st line and other headers with kv format
 func parseHttpHeader(r *bufio.Reader) (firstLine string, headers map[string]string, err error) {

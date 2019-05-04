@@ -53,7 +53,7 @@ func (manager *Manager) RunLoop() {
 	t := time.NewTicker(1 * time.Second)
 	defer t.Stop()
 	// TODO chef: erase me, just for debug
-	tmpT := time.NewTicker(30 * time.Second)
+	tmpT := time.NewTicker(10 * time.Second)
 	defer tmpT.Stop()
 	for {
 		select {
@@ -62,7 +62,8 @@ func (manager *Manager) RunLoop() {
 		case <-t.C:
 			manager.check()
 		case <-tmpT.C:
-			log.Debugf("group size:%d", len(manager.groups))
+			// TODO chef: lock
+			log.Infof("group size:%d", len(manager.groups))
 		}
 	}
 }

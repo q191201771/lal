@@ -34,7 +34,7 @@ func NewGroup(appName string, streamName string, config Config) *Group {
 		exitChan:       make(chan bool),
 		subSessionList: make(map[*SubSession]bool),
 		gopCache:       NewGopCache(config.GopCacheNum),
-		UniqueKey:uk,
+		UniqueKey:      uk,
 	}
 }
 
@@ -106,9 +106,8 @@ func (group *Group) AddSubSession(session *SubSession) {
 
 	session.WriteHttpResponseHeader()
 	session.WriteFlvHeader()
-	if hasKeyFrame, cache := group.gopCache.GetWholeThings(); cache != nil {
-		session.HasKeyFrame = hasKeyFrame
-		session.WritePacket(cache)
+	if group.gopCache.WriteWholeThings(session) {
+		session.HasKeyFrame = true
 	}
 	group.mutex.Unlock()
 

@@ -33,7 +33,7 @@ func parseAvcSeqHeader(buf []byte) (sps, pps []byte, err error) {
 	// TODO chef: if the situation of multi sps exist?
 	// only take the last one.
 	for i := 0; i < numOfSps; i++ {
-		lenOfSps := int(bele.BeUInt16(buf[index:]))
+		lenOfSps := int(bele.BeUint16(buf[index:]))
 		index += 2
 		sps = append(sps, buf[index:index+lenOfSps]...)
 		index += lenOfSps
@@ -42,7 +42,7 @@ func parseAvcSeqHeader(buf []byte) (sps, pps []byte, err error) {
 	numOfPps := int(buf[index] & 0x1F)
 	index++
 	for i := 0; i < numOfPps; i++ {
-		lenOfPps := int(bele.BeUInt16(buf[index:]))
+		lenOfPps := int(bele.BeUint16(buf[index:]))
 		index += 2
 		pps = append(pps, buf[index:index+lenOfPps]...)
 		index += lenOfPps

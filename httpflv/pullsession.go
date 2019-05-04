@@ -7,6 +7,7 @@ import (
 	"github.com/q191201771/lal/util"
 	"io"
 	"net"
+	"net/url"
 	"strings"
 	"sync"
 	"time"
@@ -40,34 +41,33 @@ type PullSession struct {
 type PullSessionObserver interface {
 	ReadHttpRespHeaderCb()
 	ReadFlvHeaderCb(flvHeader []byte)
-	ReadTagCb(tag *Tag)
+	ReadTagCb(tag *Tag) // after cb, PullSession won't use this tag data
 }
 
 func NewPullSession(obs PullSessionObserver) *PullSession {
 	uk := util.GenUniqueKey("FLVPULL")
 	log.Infof("lifecycle new PullSession. [%s]", uk)
 	return &PullSession{
-		obs: obs,
-		UniqueKey:uk,
+		obs:       obs,
+		UniqueKey: uk,
 	}
 }
 
 // @param timeout: timeout for connect operate. if 0, then no timeout
-func (session *PullSession) Connect(url string, timeout time.Duration) error {
+func (session *PullSession) Connect(rawurl string, timeout time.Duration) error {
 	session.StartTick = time.Now().Unix()
 
-	if !strings.HasPrefix(url, "http://") || !strings.HasSuffix(url, ".flv") {
+	url, err := url.Parse(rawurl)
+	if err != nil {
+		return err
+	}
+	if url.Scheme != "http" || !strings.HasSuffix(url.Path, ".flv") {
 		return fxxkErr
 	}
-	p1 := 7 // len of "http://"
-	p2 := strings.Index(url[p1:], "/")
-	if p2 == -1 || p2 == 0 || p2 == len(url)-1 {
-		return fxxkErr
-	}
-	p2 += p1
 
-	host := url[p1:p2]
-	uri := url[p2:]
+	host := url.Host
+	// TODO chef: uri with url.RawQuery?
+	uri := url.Path
 
 	var addr string
 	if strings.Contains(host, ":") {
@@ -76,7 +76,6 @@ func (session *PullSession) Connect(url string, timeout time.Duration) error {
 		addr = host + ":80"
 	}
 
-	var err error
 	var conn net.Conn
 	if timeout == 0 {
 		conn, err = net.Dial("tcp", addr)
@@ -179,17 +178,15 @@ func (session *PullSession) readTag() (*Tag, error) {
 	session.addStat(tagHeaderSize)
 
 	needed := int(header.DataSize) + flvPrevTagFieldSize
-	rawBody := make([]byte, needed)
-	if _, err := io.ReadAtLeast(session.rb, rawBody, needed); err != nil {
+	tag := &Tag{}
+	tag.Header = header
+	tag.Raw = make([]byte, tagHeaderSize+needed)
+	copy(tag.Raw, rawHeader)
+
+	if _, err := io.ReadAtLeast(session.rb, tag.Raw[tagHeaderSize:], needed); err != nil {
 		return nil, err
 	}
 	session.addStat(needed)
-
-	tag := &Tag{}
-	tag.Header = header
-	tag.Raw = append(tag.Raw, rawHeader...)
-	tag.Raw = append(tag.Raw, rawBody...)
-	//log.Println(h.t, h.timestamp, h.dataSize)
 
 	return tag, nil
 }

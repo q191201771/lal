@@ -61,8 +61,8 @@ func readTagHeader(rd io.Reader) (h TagHeader, rawHeader []byte, err error) {
 	}
 
 	h.T = rawHeader[0]
-	h.DataSize = bele.BeUInt24(rawHeader[1:])
-	h.Timestamp = (uint32(rawHeader[7]) << 24) + bele.BeUInt24(rawHeader[4:])
+	h.DataSize = bele.BeUint24(rawHeader[1:])
+	h.Timestamp = (uint32(rawHeader[7]) << 24) + bele.BeUint24(rawHeader[4:])
 	return
 }
 

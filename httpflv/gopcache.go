@@ -7,7 +7,8 @@ import (
 )
 
 type Gop struct {
-	raw            []byte
+	tags []*Tag
+	//raw            []byte
 	firstTimestamp uint32
 }
 
@@ -82,7 +83,8 @@ func (c *GopCache) Push(tag *Tag) {
 		if tag.isAvcKeyNalu() {
 			gop := &Gop{}
 			gop.firstTimestamp = tag.Header.Timestamp
-			gop.raw = append(gop.raw, tag.Raw...)
+			gop.tags = append(gop.tags, tag)
+			//gop.raw = append(gop.raw, tag.Raw...)
 			c.gops = append(c.gops, gop)
 			c.syncOldestKeyNaluTimestampToSeqHeader()
 		}
@@ -90,21 +92,23 @@ func (c *GopCache) Push(tag *Tag) {
 		if tag.isAvcKeyNalu() {
 			gop := &Gop{}
 			gop.firstTimestamp = tag.Header.Timestamp
-			gop.raw = append(gop.raw, tag.Raw...)
+			gop.tags = append(gop.tags, tag)
+			//gop.raw = append(gop.raw, tag.Raw...)
 			c.gops = append(c.gops, gop)
 			if len(c.gops) > c.gopNum+1 {
 				c.gops = c.gops[1:]
 				c.syncOldestKeyNaluTimestampToSeqHeader()
 			}
 		} else {
-			c.gops[len(c.gops)-1].raw = append(c.gops[len(c.gops)-1].raw, tag.Raw...)
+			//c.gops[len(c.gops)-1].raw = append(c.gops[len(c.gops)-1].raw, tag.Raw...)
+			c.gops[len(c.gops)-1].tags = append(c.gops[len(c.gops)-1].tags, tag)
 		}
 	}
 }
 
-func (c *GopCache) GetWholeThings() (hasKeyFrame bool, res []byte) {
+func (c *GopCache) WriteWholeThings(writer Writer) (hasKeyFrame bool) {
 	if tag := c.getMetadata(); tag != nil {
-		res = append(res, tag.Raw...)
+		writer.Write(tag)
 	}
 
 	avc := c.getAvcSeqHeader()
@@ -112,25 +116,56 @@ func (c *GopCache) GetWholeThings() (hasKeyFrame bool, res []byte) {
 	// TODO chef: if nessary to sort them by timestamp
 	if avc != nil && aac != nil {
 		if avc.Header.Timestamp <= aac.Header.Timestamp {
-			res = append(res, avc.Raw...)
-			res = append(res, aac.Raw...)
+			writer.Write(avc)
+			writer.Write(aac)
 		} else {
-			res = append(res, aac.Raw...)
-			res = append(res, avc.Raw...)
+			writer.Write(aac)
+			writer.Write(avc)
 		}
 	} else if avc != nil && aac == nil {
-		res = append(res, avc.Raw...)
+		writer.Write(avc)
 	} else if avc == nil && aac != nil {
-		res = append(res, aac.Raw...)
+		writer.Write(aac)
 	}
+	c.writeGops(writer, false)
 
-	if gops := c.getGops(false); gops != nil {
-		res = append(res, gops...)
-		log.Debug("cache match.")
-		hasKeyFrame = true
-	}
+	//if gops := c.getGops(false); gops != nil {
+	//	res = append(res, gops...)
+	//	log.Debug("cache match.")
+	//	hasKeyFrame = true
+	//}
 	return
 }
+
+//func (c *GopCache) GetWholeThings() (hasKeyFrame bool, res []byte) {
+//	if tag := c.getMetadata(); tag != nil {
+//		res = append(res, tag.Raw...)
+//	}
+//
+//	avc := c.getAvcSeqHeader()
+//	aac := c.getAacSeqHeader()
+//	// TODO chef: if nessary to sort them by timestamp
+//	if avc != nil && aac != nil {
+//		if avc.Header.Timestamp <= aac.Header.Timestamp {
+//			res = append(res, avc.Raw...)
+//			res = append(res, aac.Raw...)
+//		} else {
+//			res = append(res, aac.Raw...)
+//			res = append(res, avc.Raw...)
+//		}
+//	} else if avc != nil && aac == nil {
+//		res = append(res, avc.Raw...)
+//	} else if avc == nil && aac != nil {
+//		res = append(res, aac.Raw...)
+//	}
+//
+//	if gops := c.getGops(false); gops != nil {
+//		res = append(res, gops...)
+//		log.Debug("cache match.")
+//		hasKeyFrame = true
+//	}
+//	return
+//}
 
 func (c *GopCache) ClearAll() {
 	c.mutex.Lock()
@@ -141,7 +176,7 @@ func (c *GopCache) ClearAll() {
 	c.gops = nil
 }
 
-func (c *GopCache) getGops(mustCompleted bool) []byte {
+func (c *GopCache) writeGops(write Writer, mustCompleted bool) bool {
 	c.mutex.Lock()
 	defer c.mutex.Unlock()
 
@@ -150,15 +185,38 @@ func (c *GopCache) getGops(mustCompleted bool) []byte {
 		neededLen--
 	}
 	if neededLen <= 0 {
-		return nil
+		return false
 	}
 
-	var res []byte
 	for i := 0; i != neededLen; i++ {
-		res = append(res, c.gops[i].raw...)
+		for j := 0; j != len(c.gops[i].tags); j++ {
+			write.Write(c.gops[i].tags[j])
+		}
 	}
-	return res
+	return true
 }
+
+//func (c *GopCache) getGops(mustCompleted bool) []byte {
+//	c.mutex.Lock()
+//	defer c.mutex.Unlock()
+//
+//	neededLen := len(c.gops)
+//	if mustCompleted {
+//		neededLen--
+//	}
+//	if neededLen <= 0 {
+//		return nil
+//	}
+//
+//	var res []byte
+//	for i := 0; i != neededLen; i++ {
+//		for j := 0; j != len(c.gops[i].tags); j++ {
+//			res = append(res, c.gops[i].tags[j].Raw...)
+//		}
+//		//res = append(res, c.gops[i].raw...)
+//	}
+//	return res
+//}
 
 func (c *GopCache) getMetadata() (res *Tag) {
 	c.mutex.Lock()

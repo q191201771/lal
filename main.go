@@ -14,7 +14,7 @@ var config *Config
 
 func main() {
 	go func() {
-		if err := http.ListenAndServe("0.0.0.0:10000", nil); err != nil {
+		if err := http.ListenAndServe("0.0.0.0:10001", nil); err != nil {
 
 		}
 	}()
