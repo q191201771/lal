@@ -1,6 +1,7 @@
 package rtmp
 
 import (
+	"bytes"
 	"github.com/q191201771/lal/bele"
 	"io"
 )
@@ -27,24 +28,29 @@ var (
 	amf0TypeMarkerObjectEndBytes = []byte{0, 0, amf0TypeMarkerObjectEnd}
 )
 
+type ObjectPair struct {
+	key   string
+	value interface{}
+}
+
 type amf0 struct {
 }
 
-var Amf0 amf0
+var AMF0 amf0
 
 func (amf0) writeString(writer io.Writer, val string) error {
 	if len(val) < 65536 {
 		if _, err := writer.Write([]byte{amf0TypeMarkerString}); err != nil {
 			return err
 		}
-		if err := bele.WriteBe(writer, uint16(len(val))); err != nil {
+		if err := bele.WriteBE(writer, uint16(len(val))); err != nil {
 			return err
 		}
 	} else {
 		if _, err := writer.Write([]byte{amf0TypeMarkerLongString}); err != nil {
 			return err
 		}
-		if err := bele.WriteBe(writer, uint32(len(val))); err != nil {
+		if err := bele.WriteBE(writer, uint32(len(val))); err != nil {
 			return err
 		}
 	}
@@ -56,12 +62,12 @@ func (amf0) writeNumber(writer io.Writer, val float64) error {
 	if _, err := writer.Write([]byte{amf0TypeMarkerNumber}); err != nil {
 		return err
 	}
-	return bele.WriteBe(writer, val)
+	return bele.WriteBE(writer, val)
 }
 
-type ObjectPair struct {
-	key   string
-	value interface{}
+func (amf0) writeNull(writer io.Writer) error {
+	_, err := writer.Write([]byte{amf0TypeMarkerNull})
+	return err
 }
 
 func (amf0) writeObject(writer io.Writer, objs []ObjectPair) error {
@@ -69,7 +75,7 @@ func (amf0) writeObject(writer io.Writer, objs []ObjectPair) error {
 		return err
 	}
 	for i := 0; i < len(objs); i++ {
-		if err := bele.WriteBe(writer, uint16(len(objs[i].key))); err != nil {
+		if err := bele.WriteBE(writer, uint16(len(objs[i].key))); err != nil {
 			return err
 		}
 		if _, err := writer.Write([]byte(objs[i].key)); err != nil {
@@ -77,7 +83,7 @@ func (amf0) writeObject(writer io.Writer, objs []ObjectPair) error {
 		}
 		switch objs[i].value.(type) {
 		case string:
-			if err := Amf0.writeString(writer, objs[i].value.(string)); err != nil {
+			if err := AMF0.writeString(writer, objs[i].value.(string)); err != nil {
 				return err
 			}
 		default:
@@ -86,4 +92,81 @@ func (amf0) writeObject(writer io.Writer, objs []ObjectPair) error {
 	}
 	_, err := writer.Write(amf0TypeMarkerObjectEndBytes)
 	return err
+}
+
+// @return <string val> <consumed len> <error>
+func (amf0) readString(b []byte) (string, int, error) {
+	// TODO chef: long string.
+	if len(b) < 2 {
+		return "", 0, rtmpErr
+	}
+	l := int(bele.BEUint16(b))
+	if l > len(b)-2 {
+		return "", 0, rtmpErr
+	}
+	return string(b[2 : 2+l]), 2 + l, nil
+}
+
+// @return <string val> <consumed len> <error>
+func (amf0) readStringWithType(b []byte) (string, int, error) {
+	if len(b) < 1 || b[0] != amf0TypeMarkerString {
+		return "", 0, rtmpErr
+	}
+	val, l, err := AMF0.readString(b[1:])
+	return val, l + 1, err
+}
+
+// @return <number val> <consumed len> <error>
+func (amf0) readNumberWithType(b []byte) (float64, int, error) {
+	if len(b) < 9 || b[0] != amf0TypeMarkerNumber {
+		return 0, 0, rtmpErr
+	}
+	val := bele.BEFloat64(b[1:])
+	return val, 9, nil
+}
+
+// @return <object val> <consumed len> <error>
+func (amf0) readObject(b []byte) (map[string]interface{}, int, error) {
+	if len(b) < 1 || b[0] != amf0TypeMarkerObject {
+		return nil, 0, rtmpErr
+	}
+
+	index := 1
+	obj := make(map[string]interface{})
+	for {
+		if len(b)-index >= 3 && bytes.Equal(b[index:index+3], amf0TypeMarkerObjectEndBytes) {
+			return obj, index + 3, nil
+		}
+
+		k, l, err := AMF0.readString(b[index:])
+		if err != nil {
+			return nil, 0, err
+		}
+		index += l
+		if len(b)-index < 1 {
+			return nil, 0, rtmpErr
+		}
+		vt := b[index]
+		switch vt {
+		case amf0TypeMarkerString:
+			v, l, err := AMF0.readStringWithType(b[index:])
+			if err != nil {
+				return nil, 0, rtmpErr
+			}
+			obj[k] = v
+			index += l
+		case amf0TypeMarkerNumber:
+			v, l, err := AMF0.readNumberWithType(b[index:])
+			if err != nil {
+				return nil, 0, rtmpErr
+			}
+			obj[k] = v
+			index += l
+		default:
+			panic(vt)
+		}
+	}
+
+	// never reach here.
+	return nil, 0, rtmpErr
 }

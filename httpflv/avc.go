@@ -11,10 +11,10 @@ import (
 // 5.2.4 Decoder configuration information
 
 // <buf> body of tag
-func parseAvcSeqHeader(buf []byte) (sps, pps []byte, err error) {
+func parseAVCSeqHeader(buf []byte) (sps, pps []byte, err error) {
 	// TODO chef: check if read out of <buf> range
 
-	if buf[0] != AvcKey || buf[1] != AvcPacketTypeSeqHeader || buf[2] != 0 || buf[3] != 0 || buf[4] != 0 {
+	if buf[0] != AVCKey || buf[1] != isAVCKeySeqHeader || buf[2] != 0 || buf[3] != 0 || buf[4] != 0 {
 		log.Error("parse avc seq header failed.")
 		err = fxxkErr
 		return
@@ -28,24 +28,24 @@ func parseAvcSeqHeader(buf []byte) (sps, pps []byte, err error) {
 
 	index := 10
 
-	numOfSps := int(buf[index] & 0x1F)
+	numOfSPS := int(buf[index] & 0x1F)
 	index++
 	// TODO chef: if the situation of multi sps exist?
 	// only take the last one.
-	for i := 0; i < numOfSps; i++ {
-		lenOfSps := int(bele.BeUint16(buf[index:]))
+	for i := 0; i < numOfSPS; i++ {
+		lenOfSPS := int(bele.BEUint16(buf[index:]))
 		index += 2
-		sps = append(sps, buf[index:index+lenOfSps]...)
-		index += lenOfSps
+		sps = append(sps, buf[index:index+lenOfSPS]...)
+		index += lenOfSPS
 	}
 
-	numOfPps := int(buf[index] & 0x1F)
+	numOfPPS := int(buf[index] & 0x1F)
 	index++
-	for i := 0; i < numOfPps; i++ {
-		lenOfPps := int(bele.BeUint16(buf[index:]))
+	for i := 0; i < numOfPPS; i++ {
+		lenOfPPS := int(bele.BEUint16(buf[index:]))
 		index += 2
-		pps = append(pps, buf[index:index+lenOfPps]...)
-		index += lenOfPps
+		pps = append(pps, buf[index:index+lenOfPPS]...)
+		index += lenOfPPS
 	}
 
 	return

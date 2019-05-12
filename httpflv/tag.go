@@ -20,33 +20,33 @@ var (
 )
 
 var (
-	codecIdAvc uint8 = 7
+	codecIDAVC uint8 = 7
 )
 
 var (
-	AvcKey   = frameTypeKey<<4 | codecIdAvc
-	AvcInter = frameTypeInter<<4 | codecIdAvc
+	AVCKey   = frameTypeKey<<4 | codecIDAVC
+	AVCInter = frameTypeInter<<4 | codecIDAVC
 )
 
 var (
-	AvcPacketTypeSeqHeader uint8 = 0
-	AvcPacketTypeNalu      uint8 = 1
+	isAVCKeySeqHeader uint8 = 0
+	AVCPacketTypeNalu uint8 = 1
 )
 
 var (
-	SoundFormatAac uint8 = 10
+	SoundFormatAAC uint8 = 10
 )
 
 var (
-	AacPacketTypeSeqHeader uint8 = 0
-	AacPacketTypeRaw       uint8 = 1
+	AACPacketTypeSeqHeader uint8 = 0
+	AACPacketTypeRaw       uint8 = 1
 )
 
 type TagHeader struct {
 	T         uint8 // type
 	DataSize  uint32
 	Timestamp uint32
-	StreamId  uint32 // always 0
+	StreamID  uint32 // always 0
 }
 
 type Tag struct {
@@ -61,25 +61,25 @@ func readTagHeader(rd io.Reader) (h TagHeader, rawHeader []byte, err error) {
 	}
 
 	h.T = rawHeader[0]
-	h.DataSize = bele.BeUint24(rawHeader[1:])
-	h.Timestamp = (uint32(rawHeader[7]) << 24) + bele.BeUint24(rawHeader[4:])
+	h.DataSize = bele.BEUint24(rawHeader[1:])
+	h.Timestamp = (uint32(rawHeader[7]) << 24) + bele.BEUint24(rawHeader[4:])
 	return
 }
 
-func (tag *Tag) isMetaData() bool {
+func (tag *Tag) IsMetadata() bool {
 	return tag.Header.T == tagTypeMetadata
 }
 
-func (tag *Tag) isAvcKeySeqHeader() bool {
-	return tag.Header.T == tagTypeVideo && tag.Raw[tagHeaderSize] == AvcKey && tag.Raw[tagHeaderSize+1] == AvcPacketTypeSeqHeader
+func (tag *Tag) IsAVCKeySeqHeader() bool {
+	return tag.Header.T == tagTypeVideo && tag.Raw[tagHeaderSize] == AVCKey && tag.Raw[tagHeaderSize+1] == isAVCKeySeqHeader
 }
 
-func (tag *Tag) isAvcKeyNalu() bool {
-	return tag.Header.T == tagTypeVideo && tag.Raw[tagHeaderSize] == AvcKey && tag.Raw[tagHeaderSize+1] == AvcPacketTypeNalu
+func (tag *Tag) IsAVCKeyNalu() bool {
+	return tag.Header.T == tagTypeVideo && tag.Raw[tagHeaderSize] == AVCKey && tag.Raw[tagHeaderSize+1] == AVCPacketTypeNalu
 }
 
-func (tag *Tag) isAacSeqHeader() bool {
-	return tag.Header.T == tagTypeAudio && tag.Raw[tagHeaderSize]>>4 == SoundFormatAac && tag.Raw[tagHeaderSize+1] == AacPacketTypeSeqHeader
+func (tag *Tag) IsAACSeqHeader() bool {
+	return tag.Header.T == tagTypeAudio && tag.Raw[tagHeaderSize]>>4 == SoundFormatAAC && tag.Raw[tagHeaderSize+1] == AACPacketTypeSeqHeader
 }
 
 func (tag *Tag) cloneTag() *Tag {

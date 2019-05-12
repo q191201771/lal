@@ -16,15 +16,15 @@ var c2Len = 1536
 
 var s0s1s2Len = 3073
 
-type HandShakeClient struct {
+type HandshakeClient struct {
 	c0c1 []byte
 	c2   []byte
 }
 
-func (c *HandShakeClient) writeC0C1(writer io.Writer) error {
+func (c *HandshakeClient) writeC0C1(writer io.Writer) error {
 	c.c0c1 = make([]byte, c0c1Len)
 	c.c0c1[0] = version
-	bele.BePutUint32(c.c0c1[1:5], uint32(time.Now().Unix()))
+	bele.BEPutUint32(c.c0c1[1:5], uint32(time.Now().Unix()))
 
 	// TODO chef: random [9:]
 
@@ -33,7 +33,7 @@ func (c *HandShakeClient) writeC0C1(writer io.Writer) error {
 	return err
 }
 
-func (c *HandShakeClient) readS0S1S2(reader io.Reader) error {
+func (c *HandshakeClient) readS0S1S2(reader io.Reader) error {
 	s0s1s2 := make([]byte, s0s1s2Len)
 	if _, err := io.ReadAtLeast(reader, s0s1s2, s0s1s2Len); err != nil {
 		return err
@@ -50,8 +50,7 @@ func (c *HandShakeClient) readS0S1S2(reader io.Reader) error {
 	return nil
 }
 
-func (c *HandShakeClient) writeC2(write io.Writer) error {
-	log.Debug(len(c.c2))
+func (c *HandshakeClient) writeC2(write io.Writer) error {
 	_, err := write.Write(c.c2)
 	log.Infof("<----- Handshake C2")
 	return err

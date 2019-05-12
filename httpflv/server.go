@@ -5,17 +5,23 @@ import (
 	"net"
 )
 
+type ServerObserver interface {
+	NewHTTPFlvSubSessionCB(session *SubSession)
+}
+
 type Server struct {
-	addr        string
-	sessionChan chan *SubSession
+	obs             ServerObserver
+	addr            string
+	subWriteTimeout int64
 
 	ln net.Listener
 }
 
-func NewServer(addr string) *Server {
+func NewServer(obs ServerObserver, addr string, subWriteTimeout int64) *Server {
 	return &Server{
-		addr:        addr,
-		sessionChan: make(chan *SubSession, 8),
+		obs:             obs,
+		addr:            addr,
+		subWriteTimeout: subWriteTimeout,
 	}
 }
 
@@ -35,26 +41,20 @@ func (server *Server) RunLoop() error {
 	}
 }
 
-func (server *Server) Accept() (session *SubSession, ok bool) {
-	session, ok = <-server.sessionChan
-	return
-}
-
 func (server *Server) Dispose() {
 	if err := server.ln.Close(); err != nil {
 		log.Error(err)
 	}
-	close(server.sessionChan)
 }
 
 func (server *Server) handleSubSessionConnect(conn net.Conn) {
 	log.Infof("accept a http flv connection. remoteAddr=%v", conn.RemoteAddr())
-	subSession := NewSubSession(conn)
-	if err := subSession.ReadRequest(); err != nil {
-		log.Errorf("read SubSession request error. [%s]", subSession.UniqueKey)
+	session := NewSubSession(conn, server.subWriteTimeout)
+	if err := session.ReadRequest(); err != nil {
+		log.Errorf("read SubSession request error. [%s]", session.UniqueKey)
 		return
 	}
-	log.Infof("-----> http request. [%s] uri=%s", subSession.UniqueKey, subSession.Uri)
+	log.Infof("-----> http request. [%s] uri=%s", session.UniqueKey, session.URI)
 
-	server.sessionChan <- subSession
+	server.obs.NewHTTPFlvSubSessionCB(session)
 }

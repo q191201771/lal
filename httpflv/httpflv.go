@@ -16,7 +16,7 @@ var fxxkErr = errors.New("httpflv: fxxk")
 var readBufSize = 16384
 
 // return 1st line and other headers with kv format
-func parseHttpHeader(r *bufio.Reader) (firstLine string, headers map[string]string, err error) {
+func parseHTTPHeader(r *bufio.Reader) (n int, firstLine string, headers map[string]string, err error) {
 	headers = make(map[string]string)
 
 	var line []byte
@@ -30,6 +30,7 @@ func parseHttpHeader(r *bufio.Reader) (firstLine string, headers map[string]stri
 		return
 	}
 	firstLine = string(line)
+	n += len(line)
 
 	for {
 		line, isPrefix, err = r.ReadLine()
@@ -44,6 +45,7 @@ func parseHttpHeader(r *bufio.Reader) (firstLine string, headers map[string]stri
 			return
 		}
 		l := string(line)
+		n += len(l)
 		pos := strings.Index(l, ":")
 		if pos == -1 {
 			err = fxxkErr

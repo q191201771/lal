@@ -5,7 +5,7 @@ import (
 	"testing"
 )
 
-func TestBeUint16(t *testing.T) {
+func TestBEUint16(t *testing.T) {
 	vector := []struct {
 		input  []byte
 		output uint16
@@ -19,11 +19,11 @@ func TestBeUint16(t *testing.T) {
 	}
 
 	for i := 0; i < len(vector); i++ {
-		assert.Equal(t, vector[i].output, BeUint16(vector[i].input), "fxxk.")
+		assert.Equal(t, vector[i].output, BEUint16(vector[i].input), "fxxk.")
 	}
 }
 
-func TestBeUint24(t *testing.T) {
+func TestBEUint24(t *testing.T) {
 	vector := []struct {
 		input  []byte
 		output uint32
@@ -36,7 +36,7 @@ func TestBeUint24(t *testing.T) {
 	}
 
 	for i := 0; i < len(vector); i++ {
-		assert.Equal(t, vector[i].output, BeUint24(vector[i].input), "fxxk.")
+		assert.Equal(t, vector[i].output, BEUint24(vector[i].input), "fxxk.")
 	}
 }
 
@@ -47,9 +47,9 @@ func (w DummyWriter) Write(b []byte) (int, error) {
 	return 0, nil
 }
 
-func BenchmarkWriteBeUint24(b *testing.B) {
+func BenchmarkWriteBEUint24(b *testing.B) {
 	var w DummyWriter
 	for i := 0; i < b.N; i++ {
-		WriteBeUint24(w, uint32(i))
+		WriteBEUint24(w, uint32(i))
 	}
 }

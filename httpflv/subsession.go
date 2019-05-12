@@ -11,7 +11,7 @@ import (
 	"time"
 )
 
-var flvHttpResponseHeaderStr = "HTTP/1.1 200 OK\r\n" +
+var flvHTTPResponseHeaderStr = "HTTP/1.1 200 OK\r\n" +
 	"Cache-Control: no-cache\r\n" +
 	"Content-Type: video/x-flv\r\n" +
 	"Connection: close\r\n" +
@@ -19,24 +19,27 @@ var flvHttpResponseHeaderStr = "HTTP/1.1 200 OK\r\n" +
 	"Pragma: no-cache\r\n" +
 	"\r\n"
 
-var flvHttpResponseHeader = []byte(flvHttpResponseHeaderStr)
+var flvHTTPResponseHeader = []byte(flvHTTPResponseHeaderStr)
 
 var flvHeaderBuf13 = []byte{0x46, 0x4c, 0x56, 0x01, 0x05, 0x0, 0x0, 0x0, 0x09, 0x0, 0x0, 0x0, 0x0}
 
 var wChanSize = 1024 // TODO chef: 1024
 
-type SubSessionStat struct {
-	wannaWriteCount int64
-	wannaWriteByte  int64
-	writeCount      int64
-	writeByte       int64
-}
+//type SubSessionStat struct {
+//	WannaWriteCount int64
+//	WannaWriteByte  int64
+//	WriteCount      int64
+//	WriteByte       int64
+//}
 
 type SubSession struct {
+	ConnStat     util.ConnStat
+	writeTimeout int64
+
 	StartTick  int64
 	StreamName string
 	AppName    string
-	Uri        string
+	URI        string
 	Headers    map[string]string
 
 	HasKeyFrame bool
@@ -45,9 +48,9 @@ type SubSession struct {
 	rb    *bufio.Reader
 	wChan chan []byte
 
-	stat      SubSessionStat
-	prevStat  SubSessionStat
-	statMutex sync.Mutex
+	//stat      SubSessionStat
+	//prevStat  SubSessionStat
+	//statMutex sync.Mutex
 
 	closeOnce     sync.Once
 	exitChan      chan struct{}
@@ -56,18 +59,20 @@ type SubSession struct {
 	UniqueKey string
 }
 
-func NewSubSession(conn net.Conn) *SubSession {
+func NewSubSession(conn net.Conn, writeTimeout int64) *SubSession {
 	uk := util.GenUniqueKey("FLVSUB")
 	log.Infof("lifecycle new SubSession. [%s] remoteAddr=%s", uk, conn.RemoteAddr().String())
 	return &SubSession{
-		conn:      conn,
-		rb:        bufio.NewReaderSize(conn, readBufSize),
-		wChan:     make(chan []byte, wChanSize),
-		exitChan:  make(chan struct{}),
-		UniqueKey: uk,
+		writeTimeout: writeTimeout,
+		conn:         conn,
+		rb:           bufio.NewReaderSize(conn, readBufSize),
+		wChan:        make(chan []byte, wChanSize),
+		exitChan:     make(chan struct{}),
+		UniqueKey:    uk,
 	}
 }
 
+// TODO chef: read request timeout
 func (session *SubSession) ReadRequest() (err error) {
 	session.StartTick = time.Now().Unix()
 
@@ -79,7 +84,7 @@ func (session *SubSession) ReadRequest() (err error) {
 		}
 	}()
 
-	firstLine, session.Headers, err = parseHttpHeader(session.rb)
+	_, firstLine, session.Headers, err = parseHTTPHeader(session.rb)
 	if err != nil {
 		return err
 	}
@@ -89,12 +94,12 @@ func (session *SubSession) ReadRequest() (err error) {
 		err = fxxkErr
 		return
 	}
-	session.Uri = items[1]
-	if !strings.HasSuffix(session.Uri, ".flv") {
+	session.URI = items[1]
+	if !strings.HasSuffix(session.URI, ".flv") {
 		err = fxxkErr
 		return
 	}
-	items = strings.Split(session.Uri, "/")
+	items = strings.Split(session.URI, "/")
 	if len(items) != 3 {
 		err = fxxkErr
 		return
@@ -111,6 +116,7 @@ func (session *SubSession) ReadRequest() (err error) {
 }
 
 func (session *SubSession) RunLoop() error {
+	session.ConnStat.Start(0, session.writeTimeout)
 	go func() {
 		buf := make([]byte, 128)
 		if _, err := session.conn.Read(buf); err != nil {
@@ -122,9 +128,9 @@ func (session *SubSession) RunLoop() error {
 	return session.runWriteLoop()
 }
 
-func (session *SubSession) WriteHttpResponseHeader() {
+func (session *SubSession) WriteHTTPResponseHeader() {
 	log.Infof("<----- http response header. [%s]", session.UniqueKey)
-	session.WritePacket(flvHttpResponseHeader)
+	session.WritePacket(flvHTTPResponseHeader)
 }
 
 func (session *SubSession) WriteFlvHeader() {
@@ -140,7 +146,7 @@ func (session *SubSession) WritePacket(pkt []byte) {
 	if session.hasClosed() {
 		return
 	}
-	session.addWannaWriteStat(len(pkt))
+	//session.addWannaWriteStat(len(pkt))
 	for {
 		select {
 		case session.wChan <- pkt:
@@ -153,17 +159,17 @@ func (session *SubSession) WritePacket(pkt []byte) {
 	}
 }
 
-func (session *SubSession) GetStat() (now SubSessionStat, diff SubSessionStat) {
-	session.statMutex.Lock()
-	defer session.statMutex.Unlock()
-	now = session.stat
-	diff.wannaWriteCount = session.stat.wannaWriteCount - session.prevStat.wannaWriteCount
-	diff.wannaWriteByte = session.stat.wannaWriteByte - session.prevStat.wannaWriteByte
-	diff.writeCount = session.stat.writeCount - session.prevStat.writeCount
-	diff.writeByte = session.stat.writeByte - session.prevStat.writeByte
-	session.prevStat = session.stat
-	return
-}
+//func (session *SubSession) GetStat() (now SubSessionStat, diff SubSessionStat) {
+//	session.statMutex.Lock()
+//	defer session.statMutex.Unlock()
+//	now = session.stat
+//	diff.WannaWriteCount = session.stat.WannaWriteCount - session.prevStat.WannaWriteCount
+//	diff.WannaWriteByte = session.stat.WannaWriteByte - session.prevStat.WannaWriteByte
+//	diff.WriteCount = session.stat.WriteCount - session.prevStat.WriteCount
+//	diff.WriteByte = session.stat.WriteByte - session.prevStat.WriteByte
+//	session.prevStat = session.stat
+//	return
+//}
 
 func (session *SubSession) Dispose(err error) {
 	session.closeOnce.Do(func() {
@@ -191,9 +197,8 @@ func (session *SubSession) runWriteLoop() error {
 			if err != nil {
 				session.Dispose(err)
 				return err
-			} else {
-				session.addWriteStat(n)
 			}
+			session.ConnStat.Write(n)
 		}
 	}
 }
@@ -202,16 +207,16 @@ func (session *SubSession) hasClosed() bool {
 	return atomic.LoadUint32(&session.hasClosedFlag) == 1
 }
 
-func (session *SubSession) addWannaWriteStat(wannaWriteByte int) {
-	session.statMutex.Lock()
-	defer session.statMutex.Unlock()
-	session.stat.wannaWriteByte += int64(wannaWriteByte)
-	session.stat.wannaWriteCount++
-}
+//func (session *SubSession) addWannaWriteStat(WannaWriteByte int) {
+//	session.statMutex.Lock()
+//	defer session.statMutex.Unlock()
+//	session.stat.WannaWriteByte += int64(WannaWriteByte)
+//	session.stat.WannaWriteCount++
+//}
 
-func (session *SubSession) addWriteStat(writeByte int) {
-	session.statMutex.Lock()
-	defer session.statMutex.Unlock()
-	session.stat.writeByte += int64(writeByte)
-	session.stat.writeCount++
-}
+//func (session *SubSession) addWriteStat(writeByte int) {
+//	session.statMutex.Lock()
+//	defer session.statMutex.Unlock()
+//	session.stat.WriteByte += int64(writeByte)
+//	session.stat.WriteCount++
+//}
