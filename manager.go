@@ -3,6 +3,7 @@ package main
 import (
 	"github.com/q191201771/lal/httpflv"
 	"github.com/q191201771/lal/log"
+	"github.com/q191201771/lal/rtmp"
 	"sync"
 	"time"
 )
@@ -10,10 +11,11 @@ import (
 type Manager struct {
 	config *Config
 
-	server   *httpflv.Server
-	groups   map[string]*Group // TODO chef: with appName
-	mutex    sync.Mutex
-	exitChan chan bool
+	httpFlvServer *httpflv.Server
+	rtmpServer    *rtmp.Server
+	groups        map[string]*Group // TODO chef: with appName
+	mutex         sync.Mutex
+	exitChan      chan bool
 }
 
 func NewManager(config *Config) *Manager {
@@ -23,13 +25,21 @@ func NewManager(config *Config) *Manager {
 		exitChan: make(chan bool),
 	}
 	s := httpflv.NewServer(m, config.HTTPFlv.SubListenAddr, config.SubIdleTimeout)
-	m.server = s
+	m.httpFlvServer = s
+	rtmpServer := rtmp.NewServer(config.RTMP.Addr)
+	m.rtmpServer = rtmpServer
 	return m
 }
 
 func (manager *Manager) RunLoop() {
 	go func() {
-		if err := manager.server.RunLoop(); err != nil {
+		if err := manager.httpFlvServer.RunLoop(); err != nil {
+			log.Error(err)
+		}
+	}()
+
+	go func() {
+		if err := manager.rtmpServer.RunLoop(); err != nil {
 			log.Error(err)
 		}
 	}()
@@ -54,7 +64,8 @@ func (manager *Manager) RunLoop() {
 
 func (manager *Manager) Dispose() {
 	log.Debug("Dispose manager.")
-	manager.server.Dispose()
+	manager.httpFlvServer.Dispose()
+	manager.rtmpServer.Dispose()
 	manager.exitChan <- true
 	manager.mutex.Lock()
 	defer manager.mutex.Unlock()
@@ -67,12 +78,7 @@ func (manager *Manager) Dispose() {
 func (manager *Manager) NewHTTPFlvSubSessionCB(session *httpflv.SubSession) {
 	group := manager.getOrCreateGroup(session.AppName, session.StreamName)
 	group.AddSubSession(session)
-	switch manager.config.Pull.Type {
-	case "httpflv":
-		group.PullIfNeeded(manager.config.Pull.Addr)
-	default:
-		log.Errorf("unknown pull type. type=%s", manager.config.Pull.Type)
-	}
+	group.PullIfNeeded()
 }
 
 func (manager *Manager) check() {

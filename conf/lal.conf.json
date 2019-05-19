@@ -4,11 +4,14 @@
   "httpflv": {
     "sub_listen_addr": ":8080"
   },
+  "rtmp": {
+    "addr": ":8081"
+  },
   "pull": {
     "type": "httpflv",
-    "addr": "pull.xxx.com",
+    "addr": "xxx.pull.com",
     "connect_timeout": 2,
-    "read_timeout": 10,
+    "read_timeout": 1,
     "stop_pull_while_no_sub_timeout": 3000
   }
 }

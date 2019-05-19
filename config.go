@@ -10,11 +10,16 @@ type Config struct {
 	GOPCacheNum    int   `json:"gop_cache_number"`
 
 	HTTPFlv HTTPFlv `json:"httpflv"`
+	RTMP    RTMP    `json:"rtmp"`
 	Pull    Pull    `json:"pull"`
 }
 
 type HTTPFlv struct {
 	SubListenAddr string `json:"sub_listen_addr"`
+}
+
+type RTMP struct {
+	Addr string `json:"addr"`
 }
 
 type Pull struct {

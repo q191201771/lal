@@ -2,21 +2,24 @@ package rtmp
 
 import (
 	"bufio"
+	"encoding/hex"
 	"github.com/q191201771/lal/bele"
 	"github.com/q191201771/lal/log"
 	"io"
 	"net"
 	"net/url"
 	"strings"
+	"time"
 )
 
-var readBufSize = 4096
-var writeBufSize = 4096
-
+// rtmp客户端类型连接的底层实现
+// rtmp包的使用者应该优先使用基于ClientSession实现的PushSession和PullSession
 type ClientSession struct {
 	t              ClientSessionType
 	obs            PullSessionObserver
-	doResultChan   chan error
+	connectTimeout int64
+	doResultChan   chan struct{}
+	errChan        chan error
 	packer         *MessagePacker
 	csid2stream    map[int]*Stream
 	peerChunkSize  int
@@ -29,6 +32,8 @@ type ClientSession struct {
 	rb             *bufio.Reader
 	wb             *bufio.Writer
 	peerWinAckSize int
+
+	UniqueKey string
 }
 
 type ClientSessionType int
@@ -39,18 +44,31 @@ const (
 )
 
 // set <obs> if <t> equal CSTPullSession
-func NewClientSession(t ClientSessionType, obs PullSessionObserver) *ClientSession {
+func NewClientSession(t ClientSessionType, obs PullSessionObserver, connectTimeout int64) *ClientSession {
+	var uk string
+	switch t {
+	case CSTPullSession:
+		uk = "RTMPPULL"
+	case CSTPushSession:
+		uk = "RTMPPUSH"
+	default:
+		panic("unreached.")
+	}
+
 	return &ClientSession{
-		t:             t,
-		obs:           obs,
-		doResultChan:  make(chan error),
-		packer:        NewMessagePacker(),
-		csid2stream:   make(map[int]*Stream),
-		peerChunkSize: defaultChunkSize,
+		t:              t,
+		obs:            obs,
+		connectTimeout: connectTimeout,
+		doResultChan:   make(chan struct{}),
+		errChan:        make(chan error),
+		packer:         NewMessagePacker(),
+		csid2stream:    make(map[int]*Stream),
+		peerChunkSize:  defaultChunkSize,
+		UniqueKey:      uk,
 	}
 }
 
-// block until server reply play start or other error occur.
+// block until server reply publish / play start or timeout.
 func (s *ClientSession) Do(rawURL string) error {
 	if err := s.parseURL(rawURL); err != nil {
 		return err
@@ -70,13 +88,24 @@ func (s *ClientSession) Do(rawURL string) error {
 	}
 
 	go func() {
-		err := s.runReadLoop()
-		s.doResultChan <- err
+		s.errChan <- s.runReadLoop()
 	}()
 
-	doResult := <-s.doResultChan
+	t := time.NewTimer(time.Duration(s.connectTimeout) * time.Second)
 
-	return doResult
+	var ret error
+	select {
+	case <-s.doResultChan:
+		break
+	case <-t.C:
+		ret = rtmpErr
+	}
+	t.Stop()
+	return ret
+}
+
+func (s *ClientSession) WaitLoop() error {
+	return <-s.errChan
 }
 
 func (s *ClientSession) runReadLoop() error {
@@ -196,7 +225,7 @@ func (s *ClientSession) doMsg(stream *Stream) error {
 	case typeidUserControl:
 		log.Warn("user control message. ignore.")
 	case typeidDataMessageAMF0:
-		fallthrough
+		return s.doDataMessageAMF0(stream)
 	case typeidAudio:
 		fallthrough
 	case typeidVideo:
@@ -204,6 +233,23 @@ func (s *ClientSession) doMsg(stream *Stream) error {
 	default:
 		log.Errorf("unknown msg type id. typeid=%d", stream.header.msgTypeID)
 	}
+	return nil
+}
+
+func (s *ClientSession) doDataMessageAMF0(stream *Stream) error {
+	val, err := stream.msg.peekStringWithType()
+	if err != nil {
+		return err
+	}
+
+	switch val {
+	case "|RtmpSampleAccess": // TODO chef: handle this?
+		return nil
+	default:
+		log.Error(val)
+		log.Error(hex.Dump(stream.msg.buf[stream.msg.b:stream.msg.e]))
+	}
+	s.obs.ReadAvMessageCB(stream.header.msgTypeID, stream.timestampAbs, stream.msg.buf[stream.msg.b:stream.msg.e])
 	return nil
 }
 
@@ -249,7 +295,7 @@ func (s *ClientSession) doOnStatusMessage(stream *Stream, tid int) error {
 		switch code {
 		case "NetStream.Publish.Start":
 			log.Info("-----> onStatus('NetStream.Publish.Start')")
-			s.notifyPullResultSucc()
+			s.notifyDoResultSucc()
 		default:
 			log.Errorf("unknown code. code=%s", code)
 		}
@@ -257,7 +303,7 @@ func (s *ClientSession) doOnStatusMessage(stream *Stream, tid int) error {
 		switch code {
 		case "NetStream.Play.Start":
 			log.Info("-----> onStatus('NetStream.Play.Start')")
-			s.notifyPullResultSucc()
+			s.notifyDoResultSucc()
 		default:
 			log.Errorf("unknown code. code=%s", code)
 		}
@@ -363,13 +409,13 @@ func (s *ClientSession) parseURL(rawURL string) error {
 }
 
 func (s *ClientSession) handshake() error {
-	if err := s.hs.writeC0C1(s.Conn); err != nil {
+	if err := s.hs.WriteC0C1(s.Conn); err != nil {
 		return err
 	}
-	if err := s.hs.readS0S1S2(s.rb); err != nil {
+	if err := s.hs.ReadS0S1S2(s.rb); err != nil {
 		return err
 	}
-	if err := s.hs.writeC2(s.Conn); err != nil {
+	if err := s.hs.WriteC2(s.Conn); err != nil {
 		return err
 	}
 	return nil
@@ -401,6 +447,6 @@ func (s *ClientSession) getOrCreateStream(csid int) *Stream {
 	return stream
 }
 
-func (s *ClientSession) notifyPullResultSucc() {
-	s.doResultChan <- nil
+func (s *ClientSession) notifyDoResultSucc() {
+	s.doResultChan <- struct{}{}
 }

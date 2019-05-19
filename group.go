@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"github.com/q191201771/lal/httpflv"
 	"github.com/q191201771/lal/log"
+	"github.com/q191201771/lal/rtmp"
 	"github.com/q191201771/lal/util"
 	"sync"
 	"time"
@@ -20,12 +21,13 @@ type Group struct {
 	appName    string
 	streamName string
 
-	exitChan        chan bool
-	pullSession     *httpflv.PullSession
-	subSessionList  map[*httpflv.SubSession]bool
-	turnToEmptyTick int64 // trace while sub session list turn to empty
-	gopCache        *httpflv.GOPCache
-	mutex           sync.Mutex
+	exitChan           chan bool
+	rtmpPullSession    *rtmp.PullSession
+	httpFlvPullSession *httpflv.PullSession
+	subSessionList     map[*httpflv.SubSession]bool
+	turnToEmptyTick    int64 // trace while sub session list turn to empty
+	gopCache           *httpflv.GOPCache
+	mutex              sync.Mutex
 
 	UniqueKey string
 }
@@ -59,9 +61,9 @@ func (group *Group) RunLoop() {
 			// TODO chef: do timeout stuff. and do it fast.
 
 			group.mutex.Lock()
-			if group.pullSession != nil {
-				if isReadTimeout, _ := group.pullSession.ConnStat.Check(now); isReadTimeout {
-					log.Warnf("pull session read timeout. [%s]", group.pullSession.UniqueKey)
+			if group.httpFlvPullSession != nil {
+				if isReadTimeout, _ := group.httpFlvPullSession.ConnStat.Check(now); isReadTimeout {
+					log.Warnf("pull session read timeout. [%s]", group.httpFlvPullSession.UniqueKey)
 					group.disposePullSession(lalErr)
 				}
 			}
@@ -79,10 +81,10 @@ func (group *Group) RunLoop() {
 
 			if group.config.Pull.StopPullWhileNoSubTimeout != 0 {
 				group.mutex.Lock()
-				if group.pullSession != nil && group.turnToEmptyTick != 0 && len(group.subSessionList) == 0 &&
+				if group.httpFlvPullSession != nil && group.turnToEmptyTick != 0 && len(group.subSessionList) == 0 &&
 					now-group.turnToEmptyTick > group.config.Pull.StopPullWhileNoSubTimeout {
 
-					log.Infof("stop pull while no SubSession. [%s]", group.pullSession.UniqueKey)
+					log.Infof("stop pull while no SubSession. [%s]", group.httpFlvPullSession.UniqueKey)
 					group.disposePullSession(lalErr)
 				}
 				group.mutex.Unlock()
@@ -124,45 +126,28 @@ func (group *Group) AddSubSession(session *httpflv.SubSession) {
 	group.mutex.Unlock()
 }
 
-func (group *Group) PullIfNeeded(httpFlvPullAddr string) {
+func (group *Group) PullIfNeeded() {
 	group.mutex.Lock()
-	if group.pullSession != nil {
+	if group.isInExist() {
 		return
 	}
-	pullSession := httpflv.NewPullSession(group, group.config.Pull.ConnectTimeout, group.config.Pull.ReadTimeout)
-	group.pullSession = pullSession
+	switch group.config.Pull.Type {
+	case "httpflv":
+		group.httpFlvPullSession = httpflv.NewPullSession(group, group.config.Pull.ConnectTimeout, group.config.Pull.ReadTimeout)
+		go group.pullByHTTPFlv()
+	case "rtmp":
+		group.rtmpPullSession = rtmp.NewPullSession(group, group.config.Pull.ConnectTimeout)
+		go group.pullByRTMP()
+	default:
+		log.Errorf("unknown pull type. type=%s", group.config.Pull.Type)
+	}
 	group.mutex.Unlock()
-
-	go func() {
-		defer func() {
-			group.mutex.Lock()
-			defer group.mutex.Unlock()
-			group.pullSession = nil
-			log.Infof("del PullSession out of group. [%s]", pullSession.UniqueKey)
-		}()
-
-		log.Infof("<----- connect. [%s]", pullSession.UniqueKey)
-		url := fmt.Sprintf("http://%s/%s/%s.flv", httpFlvPullAddr, group.appName, group.streamName)
-		err := pullSession.Connect(url)
-		if err != nil {
-			log.Errorf("-----> connect error. [%s] err=%v", pullSession.UniqueKey, err)
-			return
-		}
-		log.Infof("-----> connect succ. [%s]", pullSession.UniqueKey)
-
-		err = pullSession.RunLoop()
-		if err != nil {
-			log.Debugf("PullSession loop done. [%s] err=%v", pullSession.UniqueKey, err)
-			return
-		}
-	}()
-
 }
 
 func (group *Group) IsTotalEmpty() bool {
 	group.mutex.Lock()
 	defer group.mutex.Unlock()
-	return group.pullSession == nil && len(group.subSessionList) == 0
+	return group.httpFlvPullSession == nil && len(group.subSessionList) == 0
 }
 
 func (group *Group) ReadHTTPRespHeaderCB() {
@@ -193,12 +178,71 @@ func (group *Group) ReadTagCB(tag *httpflv.Tag) {
 	group.gopCache.Push(tag)
 }
 
+func (group *Group) ReadAvMessageCB(t int, timestampAbs int, message []byte) {
+	//log.Info(t)
+	group.mutex.Lock()
+	defer group.mutex.Unlock()
+	flvTag := httpflv.PackHTTPFlvTag(uint8(t), timestampAbs, message)
+	for session := range group.subSessionList {
+		if session.HasKeyFrame {
+			session.WritePacket(flvTag)
+		} else {
+			if httpflv.IsMetadata(flvTag) || httpflv.IsAVCKeySeqHeader(flvTag) || httpflv.IsAACSeqHeader(flvTag) || httpflv.IsAVCKeyNalu(flvTag) {
+				if httpflv.IsAVCKeyNalu(flvTag) {
+					session.HasKeyFrame = true
+				}
+				session.WritePacket(flvTag)
+			}
+		}
+	}
+}
+
+func (group *Group) pullByHTTPFlv() {
+	defer func() {
+		group.mutex.Lock()
+		defer group.mutex.Unlock()
+		group.httpFlvPullSession = nil
+		log.Infof("del httpflv PullSession out of group. [%s]", group.httpFlvPullSession.UniqueKey)
+	}()
+
+	log.Infof("<----- connect. [%s]", group.httpFlvPullSession.UniqueKey)
+	url := fmt.Sprintf("http://%s/%s/%s.flv", group.config.Pull.Addr, group.appName, group.streamName)
+	if err := group.httpFlvPullSession.Connect(url); err != nil {
+		log.Errorf("-----> connect error. [%s] err=%v", group.httpFlvPullSession.UniqueKey, err)
+		return
+	}
+	log.Infof("-----> connect succ. [%s]", group.httpFlvPullSession.UniqueKey)
+
+	if err := group.httpFlvPullSession.RunLoop(); err != nil {
+		log.Debugf("PullSession loop done. [%s] err=%v", group.httpFlvPullSession.UniqueKey, err)
+		return
+	}
+}
+
+func (group *Group) pullByRTMP() {
+	defer func() {
+		group.mutex.Lock()
+		defer group.mutex.Unlock()
+		group.rtmpPullSession = nil
+		log.Infof("del rtmp PullSession out of group.")
+	}()
+
+	url := fmt.Sprintf("rtmp://%s/%s/%s", group.config.Pull.Addr, group.appName, group.streamName)
+	if err := group.rtmpPullSession.Pull(url); err != nil {
+		log.Error(err)
+	}
+	if err := group.rtmpPullSession.WaitLoop(); err != nil {
+		log.Debugf("rtmp PullSession loop done. [%s] err=%v", group.rtmpPullSession.UniqueKey, err)
+		return
+	}
+}
+
 func (group *Group) disposePullSession(err error) {
-	group.pullSession.Dispose(err)
-	group.pullSession = nil
+	group.httpFlvPullSession.Dispose(err)
+	group.httpFlvPullSession = nil
 	group.gopCache.ClearAll()
 }
 
 func (group *Group) isInExist() bool {
-	return group.pullSession != nil
+	return group.httpFlvPullSession != nil || group.rtmpPullSession != nil
 }

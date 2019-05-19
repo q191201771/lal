@@ -20,8 +20,11 @@ $./lal -c conf/lal.conf.json -l conf/log.dev.xml
   "httpflv": {
     "sub_listen_addr": ":8080" // http-flv拉流地址
   },
+  "rtmp": {
+    "addr": ":8081" // rtmp服务器监听端口，NOTICE rtmp服务器部分正在开发中
+  }
   "pull": { // 如果设置，则当客户端连接lal拉流而lal上该流不存在时，lal会去该配置中的地址回源拉流至本地再转发给客户端
-    "type": "httpflv",      // 回源类型，支持"httpflv"，正在实现"rtmp"
+    "type": "httpflv",      // 回源类型，支持"httpflv" 或 "rtmp"
     "addr": "pull.xxx.com", // 回源地址
     "connect_timeout": 2,   // 回源连接超时时间
     "read_timeout": 10,     // 回源读取数据超时时间
@@ -44,3 +47,7 @@ TODO 日志配置文件说明
 #### 依赖
 
 * cihub/seelog
+
+#### roadmap
+
+正在实现rtmp服务器部分

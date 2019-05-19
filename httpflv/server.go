@@ -31,13 +31,13 @@ func (server *Server) RunLoop() error {
 	if err != nil {
 		return err
 	}
-	log.Infof("listen. addr=%s", server.addr)
+	log.Infof("start httpflv listen. addr=%s", server.addr)
 	for {
 		conn, err := server.ln.Accept()
 		if err != nil {
 			return err
 		}
-		go server.handleSubSessionConnect(conn)
+		go server.handleConnect(conn)
 	}
 }
 
@@ -47,7 +47,7 @@ func (server *Server) Dispose() {
 	}
 }
 
-func (server *Server) handleSubSessionConnect(conn net.Conn) {
+func (server *Server) handleConnect(conn net.Conn) {
 	log.Infof("accept a http flv connection. remoteAddr=%v", conn.RemoteAddr())
 	session := NewSubSession(conn, server.subWriteTimeout)
 	if err := session.ReadRequest(); err != nil {

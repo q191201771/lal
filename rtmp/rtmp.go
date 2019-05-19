@@ -27,3 +27,6 @@ var tidClientPublish = 3
 var maxTimestampInMessageHeader = 0xFFFFFF
 
 var defaultChunkSize = 128
+
+var readBufSize = 4096
+var writeBufSize = 4096

@@ -1,12 +1,11 @@
 package util
 
 import (
-	"github.com/q191201771/lal/log"
 	"sync/atomic"
 	"time"
 )
 
-// 高性能场景下实现长连接读写超时功能
+// 高性能场景下实现长连接流数据读写超时功能
 // 不使用Go的库函数SetDeadline
 // 也不在每次读写数据时使用time now获取读写时间
 // 允许出现两秒左右的误差
@@ -45,27 +44,21 @@ func (cs *ConnStat) Write(n int) {
 
 // 检查时传入当前时间戳。检查频率应该小于超时阈值。频率越低，则越精确
 func (cs *ConnStat) Check(now int64) (isReadTimeout bool, isWriteTimeout bool) {
-	if cs.readTimeout == 0 {
+	if cs.readTimeout == 0 { // 没有设置，则不用检查
 		isReadTimeout = false
-		log.Info("tag1")
 	} else {
-		log.Info("tag2")
 		trb := atomic.LoadUint64(&cs.totalReadByte)
 		if trb == 0 { // 历史从来没有收到过数据
 			isReadTimeout = (now - cs.lastReadActiveTick) > cs.readTimeout
-			log.Info("tag3")
 		} else {
 			if trb-cs.prevTotalReadByte > 0 { // 距离上次检查有收到过数据
 				isReadTimeout = false
 				cs.lastReadActiveTick = now
-				log.Info("tag4")
 			} else {
 				isReadTimeout = (now - cs.lastReadActiveTick) > cs.readTimeout
-				log.Info("tag5")
 			}
 		}
 		cs.prevTotalReadByte = trb
-		log.Info("tag6")
 	}
 
 	if cs.writeTimeout == 0 {

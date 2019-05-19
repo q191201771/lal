@@ -66,6 +66,11 @@ func (msg *StreamMsg) clear() {
 	msg.e = 0
 }
 
+func (msg *StreamMsg) peekStringWithType() (string, error) {
+	str, _, err := AMF0.readStringWithType(msg.buf[msg.b:msg.e])
+	return str, err
+}
+
 func (msg *StreamMsg) readStringWithType() (string, error) {
 	str, l, err := AMF0.readStringWithType(msg.buf[msg.b:msg.e])
 	if err == nil {
