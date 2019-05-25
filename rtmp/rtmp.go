@@ -30,3 +30,9 @@ var defaultChunkSize = 128
 
 var readBufSize = 4096
 var writeBufSize = 4096
+
+var windowAcknowledgementSize = 5000000
+var peerBandwidth = 5000000
+var localChunkSize = 4096
+
+var msid = 1

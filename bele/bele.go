@@ -1,3 +1,10 @@
+// Package bele 提供了大小端序列化、反序列化的操作
+//
+// be是big endian的缩写，即大端
+// le是little endian的缩写，即小端
+//
+// assume local is `le`
+//
 package bele
 
 import (
@@ -5,8 +12,6 @@ import (
 	"io"
 	"math"
 )
-
-// assume local is `le`
 
 func BEUint16(p []byte) uint16 {
 	return binary.BigEndian.Uint16(p)

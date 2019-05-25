@@ -5,7 +5,7 @@ import (
 	"encoding/hex"
 	"github.com/q191201771/lal/bele"
 	"github.com/q191201771/lal/log"
-	"io"
+	"github.com/q191201771/lal/util"
 	"net"
 	"net/url"
 	"strings"
@@ -21,8 +21,7 @@ type ClientSession struct {
 	doResultChan   chan struct{}
 	errChan        chan error
 	packer         *MessagePacker
-	csid2stream    map[int]*Stream
-	peerChunkSize  int
+	composer       *Composer
 	url            *url.URL
 	tcURL          string
 	appName        string
@@ -62,9 +61,8 @@ func NewClientSession(t ClientSessionType, obs PullSessionObserver, connectTimeo
 		doResultChan:   make(chan struct{}),
 		errChan:        make(chan error),
 		packer:         NewMessagePacker(),
-		csid2stream:    make(map[int]*Stream),
-		peerChunkSize:  defaultChunkSize,
-		UniqueKey:      uk,
+		composer:       NewComposer(),
+		UniqueKey:      util.GenUniqueKey(uk),
 	}
 }
 
@@ -109,107 +107,7 @@ func (s *ClientSession) WaitLoop() error {
 }
 
 func (s *ClientSession) runReadLoop() error {
-	bootstrap := make([]byte, 11)
-
-	for {
-		if _, err := io.ReadAtLeast(s.rb, bootstrap[:1], 1); err != nil {
-			return err
-		}
-
-		// 5.3.1.1. Chunk Basic Header
-		fmt := (bootstrap[0] >> 6) & 0x03
-		csid := int(bootstrap[0] & 0x3f)
-
-		switch csid {
-		case 0:
-			if _, err := io.ReadAtLeast(s.rb, bootstrap[:1], 1); err != nil {
-				return err
-			}
-			csid = 64 + int(bootstrap[0])
-		case 1:
-			if _, err := io.ReadAtLeast(s.rb, bootstrap[:2], 2); err != nil {
-				return err
-			}
-			csid = 64 + int(bootstrap[0]) + int(bootstrap[1])*256
-		default:
-			// noop
-		}
-
-		stream := s.getOrCreateStream(csid)
-
-		// 5.3.1.2. Chunk Message Header
-		switch fmt {
-		case 0:
-			if _, err := io.ReadAtLeast(s.rb, bootstrap[:11], 11); err != nil {
-				return err
-			}
-			stream.header.timestamp = int(bele.BEUint24(bootstrap))
-			stream.timestampAbs = stream.header.timestamp
-			stream.msgLen = int(bele.BEUint24(bootstrap[3:]))
-			stream.header.msgTypeID = int(uint32(bootstrap[6]))
-			stream.header.msgStreamID = int(bele.LEUint32(bootstrap[7:]))
-
-			stream.msg.reserve(stream.msgLen)
-		case 1:
-			if _, err := io.ReadAtLeast(s.rb, bootstrap[:7], 7); err != nil {
-				return err
-			}
-			stream.header.timestamp = int(bele.BEUint24(bootstrap))
-			stream.timestampAbs += stream.header.timestamp
-			stream.msgLen = int(bele.BEUint24(bootstrap[3:]))
-			stream.header.msgTypeID = int((bootstrap[6]))
-		case 2:
-			if _, err := io.ReadAtLeast(s.rb, bootstrap[:4], 4); err != nil {
-				return err
-			}
-			stream.header.timestamp = int(bele.BEUint24(bootstrap))
-			stream.timestampAbs += stream.header.timestamp
-		case 3:
-			// noop
-		}
-
-		// 5.3.1.3 Extended Timestamp
-		if stream.header.timestamp == maxTimestampInMessageHeader {
-			if _, err := io.ReadAtLeast(s.rb, bootstrap[:4], 4); err != nil {
-				return err
-			}
-			stream.header.timestamp = int(bele.BEUint32(bootstrap))
-			switch fmt {
-			case 0:
-				stream.timestampAbs = stream.header.timestamp
-			case 1:
-				fallthrough
-			case 2:
-				stream.timestampAbs = stream.timestampAbs - maxTimestampInMessageHeader + stream.header.timestamp
-			case 3:
-				// noop
-			}
-		}
-
-		var neededSize int
-		if stream.msgLen <= s.peerChunkSize {
-			neededSize = stream.msgLen
-		} else {
-			neededSize = stream.msgLen - stream.msg.len()
-			if neededSize > s.peerChunkSize {
-				neededSize = s.peerChunkSize
-			}
-		}
-
-		//stream.msg.reserve(neededSize)
-		if _, err := io.ReadAtLeast(s.rb, stream.msg.buf[stream.msg.e:stream.msg.e+neededSize], neededSize); err != nil {
-			return err
-		}
-		stream.msg.produced(neededSize)
-
-		if stream.msg.len() == stream.msgLen {
-			//log.Debugf("%+v", stream)
-			if err := s.doMsg(stream); err != nil {
-				return err
-			}
-			stream.msg.clear()
-		}
-	}
+	return s.composer.RunLoop(s.rb, s.doMsg)
 }
 
 func (s *ClientSession) doMsg(stream *Stream) error {
@@ -375,8 +273,8 @@ func (s *ClientSession) doProtocolControlMessage(stream *Stream) error {
 	case typeidBandwidth:
 		log.Warn("-----> Set Peer Bandwidth. ignore")
 	case typeidSetChunkSize:
-		s.peerChunkSize = val
-		log.Infof("-----> Set Chunk Size %d", s.peerChunkSize)
+		// composer内部会自动更新peer chunk size.
+		log.Infof("-----> Set Chunk Size %d", val)
 	default:
 		log.Errorf("unknown msg type id. id=%d", stream.header.msgTypeID)
 	}
@@ -436,15 +334,6 @@ func (s *ClientSession) tcpConnect() error {
 	s.rb = bufio.NewReaderSize(s.Conn, readBufSize)
 	s.wb = bufio.NewWriterSize(s.Conn, writeBufSize)
 	return nil
-}
-
-func (s *ClientSession) getOrCreateStream(csid int) *Stream {
-	stream, exist := s.csid2stream[csid]
-	if !exist {
-		stream = NewStream()
-		s.csid2stream[csid] = stream
-	}
-	return stream
 }
 
 func (s *ClientSession) notifyDoResultSucc() {
