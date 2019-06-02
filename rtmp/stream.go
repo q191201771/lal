@@ -67,12 +67,12 @@ func (msg *StreamMsg) clear() {
 }
 
 func (msg *StreamMsg) peekStringWithType() (string, error) {
-	str, _, err := AMF0.readStringWithType(msg.buf[msg.b:msg.e])
+	str, _, err := AMF0.ReadString(msg.buf[msg.b:msg.e])
 	return str, err
 }
 
 func (msg *StreamMsg) readStringWithType() (string, error) {
-	str, l, err := AMF0.readStringWithType(msg.buf[msg.b:msg.e])
+	str, l, err := AMF0.ReadString(msg.buf[msg.b:msg.e])
 	if err == nil {
 		msg.consumed(l)
 	}
@@ -80,7 +80,7 @@ func (msg *StreamMsg) readStringWithType() (string, error) {
 }
 
 func (msg *StreamMsg) readNumberWithType() (int, error) {
-	val, l, err := AMF0.readNumberWithType(msg.buf[msg.b:msg.e])
+	val, l, err := AMF0.ReadNumber(msg.buf[msg.b:msg.e])
 	if err == nil {
 		msg.consumed(l)
 	}
@@ -88,7 +88,7 @@ func (msg *StreamMsg) readNumberWithType() (int, error) {
 }
 
 func (msg *StreamMsg) readObjectWithType() (map[string]interface{}, error) {
-	obj, l, err := AMF0.readObject(msg.buf[msg.b:msg.e])
+	obj, l, err := AMF0.ReadObject(msg.buf[msg.b:msg.e])
 	if err == nil {
 		msg.consumed(l)
 	}
@@ -96,9 +96,9 @@ func (msg *StreamMsg) readObjectWithType() (map[string]interface{}, error) {
 }
 
 func (msg *StreamMsg) readNull() error {
-	if msg.len() < 1 || msg.buf[msg.b] != amf0TypeMarkerNull {
-		return rtmpErr
+	l, err := AMF0.ReadNull(msg.buf[msg.b:msg.e])
+	if err == nil {
+		msg.consumed(l)
 	}
-	msg.consumed(1)
-	return nil
+	return err
 }

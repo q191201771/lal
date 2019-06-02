@@ -62,7 +62,7 @@ func TestBEUint32(t *testing.T) {
 // TODO chef: test BEFloat64
 
 func TestBEFloat64(t *testing.T) {
-	vector := []int {
+	vector := []int{
 		1,
 		0xFF,
 		0xFFFF,

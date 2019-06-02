@@ -38,8 +38,8 @@ type ClientSession struct {
 type ClientSessionType int
 
 const (
-	CSTPullSession ClientSessionType = 1
-	CSTPushSession ClientSessionType = 2
+	CSTPullSession ClientSessionType = iota
+	CSTPushSession
 )
 
 // set <obs> if <t> equal CSTPullSession
@@ -127,9 +127,10 @@ func (s *ClientSession) doMsg(stream *Stream) error {
 	case typeidAudio:
 		fallthrough
 	case typeidVideo:
-		s.obs.ReadAvMessageCB(stream.header.msgTypeID, stream.timestampAbs, stream.msg.buf[stream.msg.b:stream.msg.e])
+		s.obs.ReadAVMessageCB(stream.header.msgTypeID, stream.timestampAbs, stream.msg.buf[stream.msg.b:stream.msg.e])
 	default:
 		log.Errorf("unknown msg type id. typeid=%d", stream.header.msgTypeID)
+		panic(0)
 	}
 	return nil
 }
@@ -144,10 +145,11 @@ func (s *ClientSession) doDataMessageAMF0(stream *Stream) error {
 	case "|RtmpSampleAccess": // TODO chef: handle this?
 		return nil
 	default:
+		// TODO chef:
 		log.Error(val)
 		log.Error(hex.Dump(stream.msg.buf[stream.msg.b:stream.msg.e]))
 	}
-	s.obs.ReadAvMessageCB(stream.header.msgTypeID, stream.timestampAbs, stream.msg.buf[stream.msg.b:stream.msg.e])
+	s.obs.ReadAVMessageCB(stream.header.msgTypeID, stream.timestampAbs, stream.msg.buf[stream.msg.b:stream.msg.e])
 	return nil
 }
 

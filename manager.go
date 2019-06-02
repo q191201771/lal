@@ -26,7 +26,7 @@ func NewManager(config *Config) *Manager {
 	}
 	s := httpflv.NewServer(m, config.HTTPFlv.SubListenAddr, config.SubIdleTimeout)
 	m.httpFlvServer = s
-	rtmpServer := rtmp.NewServer(config.RTMP.Addr)
+	rtmpServer := rtmp.NewServer(m, config.RTMP.Addr)
 	m.rtmpServer = rtmpServer
 	return m
 }
@@ -77,8 +77,19 @@ func (manager *Manager) Dispose() {
 
 func (manager *Manager) NewHTTPFlvSubSessionCB(session *httpflv.SubSession) {
 	group := manager.getOrCreateGroup(session.AppName, session.StreamName)
-	group.AddSubSession(session)
+	group.AddHTTPFlvSubSession(session)
 	group.PullIfNeeded()
+}
+
+func (manager *Manager) NewRTMPSubSessionCB(session *rtmp.ServerSession) {
+	group := manager.getOrCreateGroup(session.AppName, session.StreamName)
+	group.AddRTMPSubSession(session)
+	group.PullIfNeeded()
+}
+
+func (manager *Manager) NewRTMPPubSessionCB(session *rtmp.ServerSession) {
+	group := manager.getOrCreateGroup(session.AppName, session.StreamName)
+	group.AddRTMPPubSession(session)
 }
 
 func (manager *Manager) check() {

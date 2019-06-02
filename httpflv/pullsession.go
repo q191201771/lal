@@ -193,11 +193,3 @@ func (session *PullSession) readTag() (*Tag, error) {
 
 	return tag, nil
 }
-
-//
-//func (session *PullSession) addStat(ReadByte int) {
-//	session.statMutex.Lock()
-//	defer session.statMutex.Unlock()
-//	session.stat.ReadByte += int64(ReadByte)
-//	session.stat.ReadCount++
-//}

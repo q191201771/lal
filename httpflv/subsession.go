@@ -5,6 +5,7 @@ import (
 	"github.com/q191201771/lal/log"
 	"github.com/q191201771/lal/util"
 	"net"
+	url2 "net/url"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -25,13 +26,6 @@ var flvHeaderBuf13 = []byte{0x46, 0x4c, 0x56, 0x01, 0x05, 0x0, 0x0, 0x0, 0x09, 0
 
 var wChanSize = 1024 // TODO chef: 1024
 
-//type SubSessionStat struct {
-//	WannaWriteCount int64
-//	WannaWriteByte  int64
-//	WriteCount      int64
-//	WriteByte       int64
-//}
-
 type SubSession struct {
 	ConnStat     util.ConnStat
 	writeTimeout int64
@@ -47,10 +41,6 @@ type SubSession struct {
 	conn  net.Conn
 	rb    *bufio.Reader
 	wChan chan []byte
-
-	//stat      SubSessionStat
-	//prevStat  SubSessionStat
-	//statMutex sync.Mutex
 
 	closeOnce     sync.Once
 	exitChan      chan struct{}
@@ -76,17 +66,16 @@ func NewSubSession(conn net.Conn, writeTimeout int64) *SubSession {
 func (session *SubSession) ReadRequest() (err error) {
 	session.StartTick = time.Now().Unix()
 
-	var firstLine string
-
 	defer func() {
 		if err != nil {
 			session.Dispose(err)
 		}
 	}()
 
+	var firstLine string
 	_, firstLine, session.Headers, err = parseHTTPHeader(session.rb)
 	if err != nil {
-		return err
+		return
 	}
 
 	items := strings.Split(string(firstLine), " ")
@@ -94,12 +83,19 @@ func (session *SubSession) ReadRequest() (err error) {
 		err = fxxkErr
 		return
 	}
+
 	session.URI = items[1]
-	if !strings.HasSuffix(session.URI, ".flv") {
+	var urlObj *url2.URL
+	urlObj, err = url2.Parse(session.URI)
+	if err != nil {
+		return
+	}
+	if !strings.HasSuffix(urlObj.Path, ".flv") {
 		err = fxxkErr
 		return
 	}
-	items = strings.Split(session.URI, "/")
+
+	items = strings.Split(urlObj.Path, "/")
 	if len(items) != 3 {
 		err = fxxkErr
 		return
@@ -159,18 +155,6 @@ func (session *SubSession) WritePacket(pkt []byte) {
 	}
 }
 
-//func (session *SubSession) GetStat() (now SubSessionStat, diff SubSessionStat) {
-//	session.statMutex.Lock()
-//	defer session.statMutex.Unlock()
-//	now = session.stat
-//	diff.WannaWriteCount = session.stat.WannaWriteCount - session.prevStat.WannaWriteCount
-//	diff.WannaWriteByte = session.stat.WannaWriteByte - session.prevStat.WannaWriteByte
-//	diff.WriteCount = session.stat.WriteCount - session.prevStat.WriteCount
-//	diff.WriteByte = session.stat.WriteByte - session.prevStat.WriteByte
-//	session.prevStat = session.stat
-//	return
-//}
-
 func (session *SubSession) Dispose(err error) {
 	session.closeOnce.Do(func() {
 		log.Infof("lifecycle dispose SubSession. [%s] reason=%v", session.UniqueKey, err)
@@ -206,17 +190,3 @@ func (session *SubSession) runWriteLoop() error {
 func (session *SubSession) hasClosed() bool {
 	return atomic.LoadUint32(&session.hasClosedFlag) == 1
 }
-
-//func (session *SubSession) addWannaWriteStat(WannaWriteByte int) {
-//	session.statMutex.Lock()
-//	defer session.statMutex.Unlock()
-//	session.stat.WannaWriteByte += int64(WannaWriteByte)
-//	session.stat.WannaWriteCount++
-//}
-
-//func (session *SubSession) addWriteStat(writeByte int) {
-//	session.statMutex.Lock()
-//	defer session.statMutex.Unlock()
-//	session.stat.WriteByte += int64(writeByte)
-//	session.stat.WriteCount++
-//}

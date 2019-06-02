@@ -10,24 +10,20 @@ import (
 	"time"
 )
 
-//
-//type InSession interface {
-//	SetStartTick(tick int64)
-//	StartTick() int64
-//}
-
 type Group struct {
 	config     *Config
 	appName    string
 	streamName string
 
-	exitChan           chan bool
-	rtmpPullSession    *rtmp.PullSession
-	httpFlvPullSession *httpflv.PullSession
-	subSessionList     map[*httpflv.SubSession]bool
-	turnToEmptyTick    int64 // trace while sub session list turn to empty
-	gopCache           *httpflv.GOPCache
-	mutex              sync.Mutex
+	exitChan              chan bool
+	rtmpPubSession        *rtmp.ServerSession
+	rtmpPullSession       *rtmp.PullSession
+	httpFlvPullSession    *httpflv.PullSession
+	httpFlvSubSessionList map[*httpflv.SubSession]struct{}
+	rtmpSubSessionList    map[*rtmp.ServerSession]struct{}
+	turnToEmptyTick       int64 // trace while sub session list turn to empty
+	gopCache              *httpflv.GOPCache
+	mutex                 sync.Mutex
 
 	UniqueKey string
 }
@@ -37,18 +33,19 @@ func NewGroup(appName string, streamName string, config *Config) *Group {
 	log.Infof("lifecycle new Group. [%s] appName=%s streamName=%s", uk, appName, streamName)
 
 	return &Group{
-		config:         config,
-		appName:        appName,
-		streamName:     streamName,
-		exitChan:       make(chan bool),
-		subSessionList: make(map[*httpflv.SubSession]bool),
-		gopCache:       httpflv.NewGOPCache(config.GOPCacheNum),
-		UniqueKey:      uk,
+		config:                config,
+		appName:               appName,
+		streamName:            streamName,
+		exitChan:              make(chan bool),
+		httpFlvSubSessionList: make(map[*httpflv.SubSession]struct{}),
+		rtmpSubSessionList:    make(map[*rtmp.ServerSession]struct{}),
+		gopCache:              httpflv.NewGOPCache(config.GOPCacheNum),
+		UniqueKey:             uk,
 	}
 }
 
 func (group *Group) RunLoop() {
-	t := time.NewTicker(300 * time.Millisecond)
+	t := time.NewTicker(200 * time.Millisecond)
 	defer t.Stop()
 
 	for {
@@ -70,10 +67,10 @@ func (group *Group) RunLoop() {
 			group.mutex.Unlock()
 
 			group.mutex.Lock()
-			for session := range group.subSessionList {
+			for session := range group.httpFlvSubSessionList {
 				if _, isWriteTimeout := session.ConnStat.Check(now); isWriteTimeout {
 					log.Warnf("sub session write timeout. [%s]", session)
-					delete(group.subSessionList, session)
+					delete(group.httpFlvSubSessionList, session)
 					session.Dispose(lalErr)
 				}
 			}
@@ -81,7 +78,7 @@ func (group *Group) RunLoop() {
 
 			if group.config.Pull.StopPullWhileNoSubTimeout != 0 {
 				group.mutex.Lock()
-				if group.httpFlvPullSession != nil && group.turnToEmptyTick != 0 && len(group.subSessionList) == 0 &&
+				if group.httpFlvPullSession != nil && group.turnToEmptyTick != 0 && len(group.httpFlvSubSessionList) == 0 &&
 					now-group.turnToEmptyTick > group.config.Pull.StopPullWhileNoSubTimeout {
 
 					log.Infof("stop pull while no SubSession. [%s]", group.httpFlvPullSession.UniqueKey)
@@ -98,10 +95,11 @@ func (group *Group) Dispose(err error) {
 	group.exitChan <- true
 }
 
-func (group *Group) AddSubSession(session *httpflv.SubSession) {
+func (group *Group) AddHTTPFlvSubSession(session *httpflv.SubSession) {
 	group.mutex.Lock()
+	defer group.mutex.Unlock()
 	log.Debugf("add SubSession into group. [%s]", session.UniqueKey)
-	group.subSessionList[session] = true
+	group.httpFlvSubSessionList[session] = struct{}{}
 	group.turnToEmptyTick = 0
 
 	go func() {
@@ -112,18 +110,35 @@ func (group *Group) AddSubSession(session *httpflv.SubSession) {
 		group.mutex.Lock()
 		defer group.mutex.Unlock()
 		log.Infof("del SubSession out of group. [%s]", session.UniqueKey)
-		delete(group.subSessionList, session)
-		if len(group.subSessionList) == 0 {
+		delete(group.httpFlvSubSessionList, session)
+		if len(group.httpFlvSubSessionList) == 0 {
 			group.turnToEmptyTick = time.Now().Unix()
 		}
 	}()
 
+	// TODO chef: 在这里发送http和flv的头，还是确保有数据了再发
 	session.WriteHTTPResponseHeader()
 	session.WriteFlvHeader()
 	if group.gopCache.WriteWholeThings(session) {
 		session.HasKeyFrame = true
 	}
-	group.mutex.Unlock()
+}
+
+func (group *Group) AddRTMPSubSession(session *rtmp.ServerSession) {
+	group.mutex.Lock()
+	defer group.mutex.Unlock()
+	log.Debugf("add SubSession into group. [%s]", session.UniqueKey)
+	group.rtmpSubSessionList[session] = struct{}{}
+	group.turnToEmptyTick = 0
+}
+
+func (group *Group) AddRTMPPubSession(session *rtmp.ServerSession) {
+	// TODO chef: 如果已经存在输入，应该拒绝掉这次推流
+	group.mutex.Lock()
+	defer group.mutex.Unlock()
+	log.Debugf("add PubSession into group. [%s]", session.UniqueKey)
+	group.rtmpPubSession = session
+	session.SetAVMessageObserver(group)
 }
 
 func (group *Group) PullIfNeeded() {
@@ -147,7 +162,11 @@ func (group *Group) PullIfNeeded() {
 func (group *Group) IsTotalEmpty() bool {
 	group.mutex.Lock()
 	defer group.mutex.Unlock()
-	return group.httpFlvPullSession == nil && len(group.subSessionList) == 0
+	return group.httpFlvPullSession == nil &&
+		group.rtmpPullSession == nil &&
+		group.rtmpPubSession == nil &&
+		len(group.httpFlvSubSessionList) == 0 &&
+		len(group.rtmpSubSessionList) == 0
 }
 
 func (group *Group) ReadHTTPRespHeaderCB() {
@@ -163,7 +182,8 @@ func (group *Group) ReadTagCB(tag *httpflv.Tag) {
 	group.mutex.Lock()
 	defer group.mutex.Unlock()
 	// TODO chef: assume that write fast and would not block
-	for session := range group.subSessionList {
+	for session := range group.httpFlvSubSessionList {
+		// TODO chef: 如果一个流上只有音频永远没有视频该如何处理
 		if session.HasKeyFrame {
 			session.WritePacket(tag.Raw)
 		} else {
@@ -178,12 +198,12 @@ func (group *Group) ReadTagCB(tag *httpflv.Tag) {
 	group.gopCache.Push(tag)
 }
 
-func (group *Group) ReadAvMessageCB(t int, timestampAbs int, message []byte) {
+func (group *Group) ReadAVMessageCB(t int, timestampAbs int, message []byte) {
 	//log.Info(t)
 	group.mutex.Lock()
 	defer group.mutex.Unlock()
 	flvTag := httpflv.PackHTTPFlvTag(uint8(t), timestampAbs, message)
-	for session := range group.subSessionList {
+	for session := range group.httpFlvSubSessionList {
 		if session.HasKeyFrame {
 			session.WritePacket(flvTag)
 		} else {
