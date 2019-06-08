@@ -47,6 +47,7 @@ TODO 日志配置文件说明
 #### 依赖
 
 * cihub/seelog
+* stretchr/testify/assert
 
 #### roadmap
 

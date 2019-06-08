@@ -16,11 +16,11 @@ type Group struct {
 	streamName string
 
 	exitChan              chan bool
-	rtmpPubSession        *rtmp.ServerSession
+	rtmpPubSession        *rtmp.PubSession
 	rtmpPullSession       *rtmp.PullSession
 	httpFlvPullSession    *httpflv.PullSession
 	httpFlvSubSessionList map[*httpflv.SubSession]struct{}
-	rtmpSubSessionList    map[*rtmp.ServerSession]struct{}
+	rtmpSubSessionList    map[*rtmp.SubSession]struct{}
 	turnToEmptyTick       int64 // trace while sub session list turn to empty
 	gopCache              *httpflv.GOPCache
 	mutex                 sync.Mutex
@@ -38,7 +38,7 @@ func NewGroup(appName string, streamName string, config *Config) *Group {
 		streamName:            streamName,
 		exitChan:              make(chan bool),
 		httpFlvSubSessionList: make(map[*httpflv.SubSession]struct{}),
-		rtmpSubSessionList:    make(map[*rtmp.ServerSession]struct{}),
+		rtmpSubSessionList:    make(map[*rtmp.SubSession]struct{}),
 		gopCache:              httpflv.NewGOPCache(config.GOPCacheNum),
 		UniqueKey:             uk,
 	}
@@ -124,7 +124,7 @@ func (group *Group) AddHTTPFlvSubSession(session *httpflv.SubSession) {
 	}
 }
 
-func (group *Group) AddRTMPSubSession(session *rtmp.ServerSession) {
+func (group *Group) AddRTMPSubSession(session *rtmp.SubSession) {
 	group.mutex.Lock()
 	defer group.mutex.Unlock()
 	log.Debugf("add SubSession into group. [%s]", session.UniqueKey)
@@ -132,7 +132,7 @@ func (group *Group) AddRTMPSubSession(session *rtmp.ServerSession) {
 	group.turnToEmptyTick = 0
 }
 
-func (group *Group) AddRTMPPubSession(session *rtmp.ServerSession) {
+func (group *Group) AddRTMPPubSession(session *rtmp.PubSession) {
 	// TODO chef: 如果已经存在输入，应该拒绝掉这次推流
 	group.mutex.Lock()
 	defer group.mutex.Unlock()
@@ -170,15 +170,12 @@ func (group *Group) IsTotalEmpty() bool {
 }
 
 func (group *Group) ReadHTTPRespHeaderCB() {
-	//log.Debugf("ReadHTTPRespHeaderCb. [%s]", group.UniqueKey)
 }
 
 func (group *Group) ReadFlvHeaderCB(flvHeader []byte) {
-	//log.Debugf("ReadFlvHeaderCb. [%s]", group.UniqueKey)
 }
 
 func (group *Group) ReadTagCB(tag *httpflv.Tag) {
-	//log.Debug(header.t, header.timestamp)
 	group.mutex.Lock()
 	defer group.mutex.Unlock()
 	// TODO chef: assume that write fast and would not block
@@ -198,11 +195,16 @@ func (group *Group) ReadTagCB(tag *httpflv.Tag) {
 	group.gopCache.Push(tag)
 }
 
-func (group *Group) ReadAVMessageCB(t int, timestampAbs int, message []byte) {
+func (group *Group) ReadAVMessageCB(header rtmp.Header, timestampAbs int, message []byte) {
 	//log.Info(t)
 	group.mutex.Lock()
 	defer group.mutex.Unlock()
-	flvTag := httpflv.PackHTTPFlvTag(uint8(t), timestampAbs, message)
+
+	//for session := range group.rtmpSubSessionList {
+	//
+	//}
+
+	flvTag := httpflv.PackHTTPFlvTag(uint8(header.MsgTypeID), timestampAbs, message)
 	for session := range group.httpFlvSubSessionList {
 		if session.HasKeyFrame {
 			session.WritePacket(flvTag)

@@ -27,6 +27,8 @@ var flvHeaderBuf13 = []byte{0x46, 0x4c, 0x56, 0x01, 0x05, 0x0, 0x0, 0x0, 0x09, 0
 var wChanSize = 1024 // TODO chef: 1024
 
 type SubSession struct {
+	UniqueKey string
+
 	ConnStat     util.ConnStat
 	writeTimeout int64
 
@@ -45,8 +47,6 @@ type SubSession struct {
 	closeOnce     sync.Once
 	exitChan      chan struct{}
 	hasClosedFlag uint32
-
-	UniqueKey string
 }
 
 func NewSubSession(conn net.Conn, writeTimeout int64) *SubSession {
@@ -142,7 +142,6 @@ func (session *SubSession) WritePacket(pkt []byte) {
 	if session.hasClosed() {
 		return
 	}
-	//session.addWannaWriteStat(len(pkt))
 	for {
 		select {
 		case session.wChan <- pkt:

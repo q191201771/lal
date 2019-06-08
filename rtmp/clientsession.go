@@ -12,16 +12,18 @@ import (
 	"time"
 )
 
+var chunkSize = 4096
+
 // rtmp客户端类型连接的底层实现
 // rtmp包的使用者应该优先使用基于ClientSession实现的PushSession和PullSession
 type ClientSession struct {
 	t              ClientSessionType
-	obs            PullSessionObserver
+	obs            AVMessageObserver // only for PullSession
 	connectTimeout int64
 	doResultChan   chan struct{}
 	errChan        chan error
 	packer         *MessagePacker
-	composer       *Composer
+	chunkComposer  *ChunkComposer
 	url            *url.URL
 	tcURL          string
 	appName        string
@@ -43,7 +45,7 @@ const (
 )
 
 // set <obs> if <t> equal CSTPullSession
-func NewClientSession(t ClientSessionType, obs PullSessionObserver, connectTimeout int64) *ClientSession {
+func NewClientSession(t ClientSessionType, obs AVMessageObserver, connectTimeout int64) *ClientSession {
 	var uk string
 	switch t {
 	case CSTPullSession:
@@ -61,7 +63,7 @@ func NewClientSession(t ClientSessionType, obs PullSessionObserver, connectTimeo
 		doResultChan:   make(chan struct{}),
 		errChan:        make(chan error),
 		packer:         NewMessagePacker(),
-		composer:       NewComposer(),
+		chunkComposer:  NewChunkComposer(),
 		UniqueKey:      util.GenUniqueKey(uk),
 	}
 }
@@ -107,11 +109,11 @@ func (s *ClientSession) WaitLoop() error {
 }
 
 func (s *ClientSession) runReadLoop() error {
-	return s.composer.RunLoop(s.rb, s.doMsg)
+	return s.chunkComposer.RunLoop(s.rb, s.doMsg)
 }
 
 func (s *ClientSession) doMsg(stream *Stream) error {
-	switch stream.header.msgTypeID {
+	switch stream.header.MsgTypeID {
 	case typeidWinAckSize:
 		fallthrough
 	case typeidBandwidth:
@@ -121,15 +123,15 @@ func (s *ClientSession) doMsg(stream *Stream) error {
 	case typeidCommandMessageAMF0:
 		return s.doCommandMessage(stream)
 	case typeidUserControl:
-		log.Warn("user control message. ignore.")
+		log.Warn("read user control message, ignore. [%s]", s.UniqueKey)
 	case typeidDataMessageAMF0:
 		return s.doDataMessageAMF0(stream)
 	case typeidAudio:
 		fallthrough
 	case typeidVideo:
-		s.obs.ReadAVMessageCB(stream.header.msgTypeID, stream.timestampAbs, stream.msg.buf[stream.msg.b:stream.msg.e])
+		s.obs.ReadAVMessageCB(stream.header, stream.timestampAbs, stream.msg.buf[stream.msg.b:stream.msg.e])
 	default:
-		log.Errorf("unknown msg type id. typeid=%d", stream.header.msgTypeID)
+		log.Errorf("read unknown msg type id. [%s] typeid=%d", s.UniqueKey, stream.header)
 		panic(0)
 	}
 	return nil
@@ -149,7 +151,7 @@ func (s *ClientSession) doDataMessageAMF0(stream *Stream) error {
 		log.Error(val)
 		log.Error(hex.Dump(stream.msg.buf[stream.msg.b:stream.msg.e]))
 	}
-	s.obs.ReadAVMessageCB(stream.header.msgTypeID, stream.timestampAbs, stream.msg.buf[stream.msg.b:stream.msg.e])
+	s.obs.ReadAVMessageCB(stream.header, stream.timestampAbs, stream.msg.buf[stream.msg.b:stream.msg.e])
 	return nil
 }
 
@@ -166,13 +168,13 @@ func (s *ClientSession) doCommandMessage(stream *Stream) error {
 
 	switch cmd {
 	case "onBWDone":
-		log.Warn("-----> onBWDone. ignore")
+		log.Warnf("-----> onBWDone. ignore. [%s]", s.UniqueKey)
 	case "_result":
 		return s.doResultMessage(stream, tid)
 	case "onStatus":
 		return s.doOnStatusMessage(stream, tid)
 	default:
-		log.Errorf("unknown cmd. cmd=%s", cmd)
+		log.Errorf("read unknown cmd. [%s] cmd=%s", s.UniqueKey, cmd)
 	}
 
 	return nil
@@ -194,18 +196,18 @@ func (s *ClientSession) doOnStatusMessage(stream *Stream, tid int) error {
 	case CSTPushSession:
 		switch code {
 		case "NetStream.Publish.Start":
-			log.Info("-----> onStatus('NetStream.Publish.Start')")
+			log.Infof("-----> onStatus('NetStream.Publish.Start'). [%s]", s.UniqueKey)
 			s.notifyDoResultSucc()
 		default:
-			log.Errorf("unknown code. code=%s", code)
+			log.Errorf("read on status message but code field unknown. [%s] code=%s", s.UniqueKey, code)
 		}
 	case CSTPullSession:
 		switch code {
 		case "NetStream.Play.Start":
-			log.Info("-----> onStatus('NetStream.Play.Start')")
+			log.Infof("-----> onStatus('NetStream.Play.Start'). [%s]", s.UniqueKey)
 			s.notifyDoResultSucc()
 		default:
-			log.Errorf("unknown code. code=%s", code)
+			log.Errorf("read on status message but code field unknown. [%s] code=%s", s.UniqueKey, code)
 		}
 	}
 
@@ -229,12 +231,12 @@ func (s *ClientSession) doResultMessage(stream *Stream, tid int) error {
 		}
 		switch code {
 		case "NetConnection.Connect.Success":
-			log.Info("-----> _result(\"NetConnection.Connect.Success\")")
+			log.Infof("-----> _result(\"NetConnection.Connect.Success\"). [%s]", s.UniqueKey)
 			if err := s.packer.writeCreateStream(s.Conn); err != nil {
 				return err
 			}
 		default:
-			log.Errorf("unknown code. code=%s", code)
+			log.Errorf("unknown code. [%s] code=%s", s.UniqueKey, code)
 		}
 	case tidClientCreateStream:
 		err := stream.msg.readNull()
@@ -245,7 +247,7 @@ func (s *ClientSession) doResultMessage(stream *Stream, tid int) error {
 		if err != nil {
 			return err
 		}
-		log.Info("-----> _result()")
+		log.Infof("-----> _result(). [%s]", s.UniqueKey)
 		switch s.t {
 		case CSTPullSession:
 			if err := s.packer.writePlay(s.Conn, s.streamName, sid); err != nil {
@@ -257,7 +259,7 @@ func (s *ClientSession) doResultMessage(stream *Stream, tid int) error {
 			}
 		}
 	default:
-		log.Errorf("unknown tid. tid=%d", tid)
+		log.Errorf("unknown tid. [%s] tid=%d", s.UniqueKey, tid)
 	}
 	return nil
 }
@@ -268,17 +270,17 @@ func (s *ClientSession) doProtocolControlMessage(stream *Stream) error {
 	}
 	val := int(bele.BEUint32(stream.msg.buf))
 
-	switch stream.header.msgTypeID {
+	switch stream.header.MsgTypeID {
 	case typeidWinAckSize:
 		s.peerWinAckSize = val
-		log.Infof("-----> Window Acknowledgement Size: %d", s.peerWinAckSize)
+		log.Infof("-----> Window Acknowledgement Size: %d. [%s]", s.peerWinAckSize, s.UniqueKey)
 	case typeidBandwidth:
-		log.Warn("-----> Set Peer Bandwidth. ignore")
+		log.Warnf("-----> Set Peer Bandwidth. ignore. [%s]", s.UniqueKey)
 	case typeidSetChunkSize:
 		// composer内部会自动更新peer chunk size.
-		log.Infof("-----> Set Chunk Size %d", val)
+		log.Infof("-----> Set Chunk Size %d. [%s]", val, s.UniqueKey)
 	default:
-		log.Errorf("unknown msg type id. id=%d", stream.header.msgTypeID)
+		log.Errorf("unknown msg type id. [%s] id=%d", s.UniqueKey, stream.header.MsgTypeID)
 	}
 	return nil
 }

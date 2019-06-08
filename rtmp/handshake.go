@@ -12,6 +12,8 @@ import (
 
 // TODO chef: doc
 
+// TODO chef: HandshakeClient with complex mode
+
 const version = uint8(3)
 
 const (

@@ -81,13 +81,13 @@ func (manager *Manager) NewHTTPFlvSubSessionCB(session *httpflv.SubSession) {
 	group.PullIfNeeded()
 }
 
-func (manager *Manager) NewRTMPSubSessionCB(session *rtmp.ServerSession) {
+func (manager *Manager) NewRTMPSubSessionCB(session *rtmp.SubSession) {
 	group := manager.getOrCreateGroup(session.AppName, session.StreamName)
 	group.AddRTMPSubSession(session)
 	group.PullIfNeeded()
 }
 
-func (manager *Manager) NewRTMPPubSessionCB(session *rtmp.ServerSession) {
+func (manager *Manager) NewRTMPPubSessionCB(session *rtmp.PubSession) {
 	group := manager.getOrCreateGroup(session.AppName, session.StreamName)
 	group.AddRTMPPubSession(session)
 }

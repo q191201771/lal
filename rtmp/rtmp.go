@@ -6,25 +6,31 @@ import (
 
 var rtmpErr = errors.New("rtmp error")
 
-var csidProtocolControl = 2
-var csidOverConnection = 3
-var csidOverStream = 5
+const (
+	csidProtocolControl = 2
+	csidOverConnection  = 3
+	csidOverStream      = 5
+)
 
-var typeidSetChunkSize = 1
-var typeidUserControl = 4
-var typeidWinAckSize = 5
-var typeidBandwidth = 6
-var typeidAudio = 8
-var typeidVideo = 9
-var typeidDataMessageAMF0 = 18 // meta
-var typeidCommandMessageAMF0 = 20
+const (
+	typeidSetChunkSize       = 1
+	typeidUserControl        = 4
+	typeidWinAckSize         = 5
+	typeidBandwidth          = 6
+	typeidAudio              = 8
+	typeidVideo              = 9
+	typeidDataMessageAMF0    = 18 // meta
+	typeidCommandMessageAMF0 = 20
+)
 
-var tidClientConnect = 1
-var tidClientCreateStream = 2
-var tidClientPlay = 3
-var tidClientPublish = 3
+const (
+	tidClientConnect      = 1
+	tidClientCreateStream = 2
+	tidClientPlay         = 3
+	tidClientPublish      = 3
+)
 
-var maxTimestampInMessageHeader = 0xFFFFFF
+const maxTimestampInMessageHeader = 0xFFFFFF
 
 var defaultChunkSize = 128
 
@@ -36,3 +42,11 @@ var peerBandwidth = 5000000
 var localChunkSize = 4096
 
 var msid = 1
+
+// 接收到音视频类型数据时的回调函数。目前被PullSession以及PubSession使用。
+type AVMessageObserver interface {
+	// @param header:
+	// @param timestampAbs: 绝对时间戳
+	// @param message: 不包含头内容。回调结束后，PullSession会继续使用这块内存。
+	ReadAVMessageCB(header Header, timestampAbs int, message []byte)
+}

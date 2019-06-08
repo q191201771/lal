@@ -5,29 +5,31 @@ import (
 	"io"
 )
 
-type Composer struct {
+// 读取chunk，并组织chunk，生成message返回给上层
+
+type ChunkComposer struct {
 	peerChunkSize int
 	csid2stream   map[int]*Stream
 }
 
-func NewComposer() *Composer {
-	return &Composer{
+func NewChunkComposer() *ChunkComposer {
+	return &ChunkComposer{
 		peerChunkSize: defaultChunkSize,
 		csid2stream:   make(map[int]*Stream),
 	}
 }
 
-func (c *Composer) SetPeerChunkSize(val int) {
+func (c *ChunkComposer) SetPeerChunkSize(val int) {
 	c.peerChunkSize = val
 }
 
-func (c *Composer) GetPeerChunkSize() int {
+func (c *ChunkComposer) GetPeerChunkSize() int {
 	return c.peerChunkSize
 }
 
 type CompleteMessageCB func(stream *Stream) error
 
-func (c *Composer) RunLoop(reader io.Reader, cb CompleteMessageCB) error {
+func (c *ChunkComposer) RunLoop(reader io.Reader, cb CompleteMessageCB) error {
 	bootstrap := make([]byte, 11)
 
 	for {
@@ -65,7 +67,7 @@ func (c *Composer) RunLoop(reader io.Reader, cb CompleteMessageCB) error {
 			stream.header.timestamp = int(bele.BEUint24(bootstrap))
 			stream.timestampAbs = stream.header.timestamp
 			stream.msgLen = int(bele.BEUint24(bootstrap[3:]))
-			stream.header.msgTypeID = int(bootstrap[6])
+			stream.header.MsgTypeID = int(bootstrap[6])
 			stream.header.msgStreamID = int(bele.LEUint32(bootstrap[7:]))
 
 			stream.msg.reserve(stream.msgLen)
@@ -76,7 +78,7 @@ func (c *Composer) RunLoop(reader io.Reader, cb CompleteMessageCB) error {
 			stream.header.timestamp = int(bele.BEUint24(bootstrap))
 			stream.timestampAbs += stream.header.timestamp
 			stream.msgLen = int(bele.BEUint24(bootstrap[3:]))
-			stream.header.msgTypeID = int(bootstrap[6])
+			stream.header.MsgTypeID = int(bootstrap[6])
 
 			stream.msg.reserve(stream.msgLen)
 		case 2:
@@ -125,10 +127,12 @@ func (c *Composer) RunLoop(reader io.Reader, cb CompleteMessageCB) error {
 		stream.msg.produced(neededSize)
 
 		if stream.msg.len() == stream.msgLen {
-			if stream.header.msgTypeID == typeidSetChunkSize {
+			if stream.header.MsgTypeID == typeidSetChunkSize {
 				val := int(bele.BEUint32(stream.msg.buf))
 				c.SetPeerChunkSize(val)
 			}
+			stream.header.csid = csid
+			stream.header.msgLen = stream.msgLen
 			if err := cb(stream); err != nil {
 				return err
 			}
@@ -140,7 +144,7 @@ func (c *Composer) RunLoop(reader io.Reader, cb CompleteMessageCB) error {
 	}
 }
 
-func (c *Composer) getOrCreateStream(csid int) *Stream {
+func (c *ChunkComposer) getOrCreateStream(csid int) *Stream {
 	stream, exist := c.csid2stream[csid]
 	if !exist {
 		stream = NewStream()

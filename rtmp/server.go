@@ -6,8 +6,8 @@ import (
 )
 
 type ServerObserver interface {
-	NewRTMPPubSessionCB(session *ServerSession)
-	NewRTMPSubSessionCB(session *ServerSession)
+	NewRTMPPubSessionCB(session *PubSession)
+	NewRTMPSubSessionCB(session *SubSession)
 }
 
 type Server struct {
@@ -52,14 +52,14 @@ func (server *Server) handleConnect(conn net.Conn) {
 	session.RunLoop()
 }
 
-func (server *Server) NewRTMPPubSessionCB(session *ServerSession) {
+func (server *Server) NewRTMPPubSessionCB(session *PubSession) {
 	server.obs.NewRTMPPubSessionCB(session)
 }
 
-func (server *Server) NewRTMPSubSessionCB(session *ServerSession) {
+func (server *Server) NewRTMPSubSessionCB(session *SubSession) {
 	server.obs.NewRTMPSubSessionCB(session)
 }
 
-func (server *Server) ReadAVMessageCB(t int, timestampAbs int, message []byte) {
+func (server *Server) ReadAVMessageCB(header Header, timestampAbs int, message []byte) {
 
 }

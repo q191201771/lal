@@ -6,17 +6,16 @@ import (
 	"github.com/q191201771/lal/log"
 	"github.com/q191201771/lal/util"
 	"net"
+	"strings"
 )
 
-type ServerSessionObserver interface {
-	NewRTMPPubSessionCB(session *ServerSession)
-	NewRTMPSubSessionCB(session *ServerSession)
-}
+// TODO chef: PubSession SubSession
 
-type AVMessageObserver interface {
-	// @param t: 8 audio, 9 video, 18 meta
-	// after cb, PullSession will use <message>
-	ReadAVMessageCB(t int, timestampAbs int, message []byte)
+// TODO chef: 没有进化成Pub Sub时的超时释放
+
+type ServerSessionObserver interface {
+	NewRTMPPubSessionCB(session *PubSession) // 上层代码应该在这个事件回调中注册音视频数据的监听
+	NewRTMPSubSessionCB(session *SubSession)
 }
 
 type ServerSessionType int
@@ -32,27 +31,29 @@ type ServerSession struct {
 	StreamName string
 	UniqueKey  string
 
-	obs      ServerSessionObserver
-	avObs    AVMessageObserver
-	conn     net.Conn
-	rb       *bufio.Reader
-	wb       *bufio.Writer
-	t        ServerSessionType
-	hs       HandshakeServer
-	composer *Composer
-	packer   *MessagePacker
+	obs           ServerSessionObserver
+	conn          net.Conn
+	rb            *bufio.Reader
+	wb            *bufio.Writer
+	t             ServerSessionType
+	hs            HandshakeServer
+	chunkComposer *ChunkComposer
+	packer        *MessagePacker
+
+	// for PubSession
+	avObs AVMessageObserver
 }
 
 func NewServerSession(obs ServerSessionObserver, conn net.Conn) *ServerSession {
 	return &ServerSession{
-		obs:       obs,
-		conn:      conn,
-		rb:        bufio.NewReaderSize(conn, readBufSize),
-		wb:        bufio.NewWriterSize(conn, writeBufSize),
-		t:         ServerSessionTypeInit,
-		composer:  NewComposer(),
-		packer:    NewMessagePacker(),
-		UniqueKey: util.GenUniqueKey("RTMPSERVER"),
+		obs:           obs,
+		conn:          conn,
+		rb:            bufio.NewReaderSize(conn, readBufSize),
+		wb:            bufio.NewWriterSize(conn, writeBufSize),
+		t:             ServerSessionTypeInit,
+		chunkComposer: NewChunkComposer(),
+		packer:        NewMessagePacker(),
+		UniqueKey:     util.GenUniqueKey("RTMPSERVER"),
 	}
 }
 
@@ -60,11 +61,11 @@ func (s *ServerSession) RunLoop() error {
 	if err := s.handshake(); err != nil {
 		return err
 	}
-	return s.composer.RunLoop(s.rb, s.doMsg)
+	return s.chunkComposer.RunLoop(s.rb, s.doMsg)
 }
 
-func (s *ServerSession) SetAVMessageObserver(obs AVMessageObserver) {
-	s.avObs = obs
+func (s *ServerSession) WriteMessage() {
+
 }
 
 func (s *ServerSession) handshake() error {
@@ -82,7 +83,7 @@ func (s *ServerSession) handshake() error {
 
 func (s *ServerSession) doMsg(stream *Stream) error {
 	//log.Debugf("%d %d %v", stream.header.msgTypeID, stream.msgLen, stream.header)
-	switch stream.header.msgTypeID {
+	switch stream.header.MsgTypeID {
 	case typeidSetChunkSize:
 		// TODO chef:
 	case typeidCommandMessageAMF0:
@@ -92,13 +93,22 @@ func (s *ServerSession) doMsg(stream *Stream) error {
 	case typeidAudio:
 		fallthrough
 	case typeidVideo:
-		s.avObs.ReadAVMessageCB(stream.header.msgTypeID, stream.timestampAbs, stream.msg.buf[stream.msg.b:stream.msg.e])
+		if s.t != ServerSessionTypePub {
+			log.Error("read audio/video message but server session not pub type.")
+			return rtmpErr
+		}
+		s.avObs.ReadAVMessageCB(stream.header, stream.timestampAbs, stream.msg.buf[stream.msg.b:stream.msg.e])
 
 	}
 	return nil
 }
 
 func (s *ServerSession) doDataMessageAMF0(stream *Stream) error {
+	if s.t != ServerSessionTypePub {
+		log.Error("read audio/video message but server session not pub type.")
+		return rtmpErr
+	}
+
 	val, err := stream.msg.peekStringWithType()
 	if err != nil {
 		return err
@@ -127,7 +137,7 @@ func (s *ServerSession) doDataMessageAMF0(stream *Stream) error {
 		return nil
 	}
 
-	s.avObs.ReadAVMessageCB(stream.header.msgTypeID, stream.timestampAbs, stream.msg.buf[stream.msg.b:stream.msg.e])
+	s.avObs.ReadAVMessageCB(stream.header, stream.timestampAbs, stream.msg.buf[stream.msg.b:stream.msg.e])
 	return nil
 }
 
@@ -219,7 +229,10 @@ func (s *ServerSession) doPublish(tid int, stream *Stream) error {
 		return err
 	}
 	s.t = ServerSessionTypePub
-	s.obs.NewRTMPPubSessionCB(s)
+	newUniqueKey := strings.Replace(s.UniqueKey, "RTMPSERVER", "RTMPPUB", 1)
+	log.Infof("session unique key upgrade. %s -> %s", s.UniqueKey, newUniqueKey)
+	s.UniqueKey = newUniqueKey
+	s.obs.NewRTMPPubSessionCB(NewPubSession(s))
 	return nil
 }
 
@@ -238,6 +251,9 @@ func (s *ServerSession) doPlay(tid int, stream *Stream) error {
 		return err
 	}
 	s.t = ServerSessionTypeSub
-	s.obs.NewRTMPSubSessionCB(s)
+	newUniqueKey := strings.Replace(s.UniqueKey, "RTMPSERVER", "RTMPSUB", 1)
+	log.Infof("session unique key upgrade. %s -> %s", s.UniqueKey, newUniqueKey)
+	s.UniqueKey = newUniqueKey
+	s.obs.NewRTMPSubSessionCB(NewSubSession(s))
 	return nil
 }

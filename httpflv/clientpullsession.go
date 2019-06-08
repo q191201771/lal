@@ -114,16 +114,6 @@ func (session *PullSession) Dispose(err error) {
 	})
 }
 
-//func (session *PullSession) GetStat() (now PullSessionStat, diff PullSessionStat) {
-//	session.statMutex.Lock()
-//	defer session.statMutex.Unlock()
-//	now = session.stat
-//	diff.ReadCount = session.stat.ReadCount - session.prevStat.ReadCount
-//	diff.ReadByte = session.stat.ReadByte - session.prevStat.ReadByte
-//	session.prevStat = session.stat
-//	return
-//}
-
 func (session *PullSession) runReadLoop() error {
 	if err := session.readHTTPRespHeader(); err != nil {
 		return err
