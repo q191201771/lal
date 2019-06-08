@@ -3,8 +3,8 @@
 <br><br>
 Go语言流媒体服务器
 <br><br>
-[![TravisCI](https://www.travis-ci.org/q191201771/lal.svg?branch=master)](https://www.travis-ci.org/q191201771/lal)
-[![codecov](https://codecov.io/gh/q191201771/lal/branch/master/graph/badge.svg)](https://codecov.io/gh/q191201771/lal)
+<a title="TravisCI" target="_blank" href="https://www.travis-ci.org/q191201771/lal"><img src="https://www.travis-ci.org/q191201771/lal.svg?branch=master"></a>
+<a title="codecov" target="_blank" href="https://codecov.io/gh/q191201771/lal"><img src="https://codecov.io/gh/q191201771/lal/branch/master/graph/badge.svg"></a>
 </p>
 
 #### 编译和运行
