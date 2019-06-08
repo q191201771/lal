@@ -1,7 +1,11 @@
-lal - Go语言流媒体服务器
-
+<p>
+<img alt="Wide" src="https://pengrl.com/images/other/lallogo.png">
+<br><br>
+Go语言流媒体服务器
+<br><br>
 [![TravisCI](https://www.travis-ci.org/q191201771/lal.svg?branch=master)](https://www.travis-ci.org/q191201771/lal)
 [![codecov](https://codecov.io/gh/q191201771/lal/branch/master/graph/badge.svg)](https://codecov.io/gh/q191201771/lal)
+</p>
 
 #### 编译和运行
 
