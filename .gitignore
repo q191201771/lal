@@ -9,6 +9,5 @@
 /lal
 /lal_linux
 /build_linux.sh
-/test.sh
 
 /util/crudetimer.go
