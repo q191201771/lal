@@ -3,7 +3,7 @@
 <br>
 Go语言流媒体服务器
 <br><br>
-<a title="TravisCI" target="_blank" href="https://www.travis-ci.org/q191201771/lal"><img src="https://www.travis-ci.org/q191201771/lal.svg?branch=master?style=flat-square"></a>
+<a title="TravisCI" target="_blank" href="https://www.travis-ci.org/q191201771/lal"><img src="https://www.travis-ci.org/q191201771/lal.svg?branch=master"></a>
 <a title="codecov" target="_blank" href="https://codecov.io/gh/q191201771/lal"><img src="https://codecov.io/gh/q191201771/lal/branch/master/graph/badge.svg?style=flat-square"></a>
 <a title="goreportcard" target="_blank" href="https://goreportcard.com/report/github.com/q191201771/lal"><img src="https://goreportcard.com/badge/github.com/q191201771/lal?style=flat-square"></a>
 <br>
@@ -78,3 +78,7 @@ TODO 日志配置文件说明
 #### roadmap
 
 正在实现rtmp服务器部分
+
+#### 文档
+
+* [rtmp handshake | rtmp握手简单模式和复杂模式](https://pengrl.com/p/20027/)
