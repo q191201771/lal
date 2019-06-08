@@ -1,5 +1,8 @@
 lal - Go语言流媒体服务器
 
+[![TravisCI](https://www.travis-ci.org/q191201771/lal.svg?branch=master)](https://www.travis-ci.org/q191201771/lal)
+[![codecov](https://codecov.io/gh/q191201771/lal/branch/master/graph/badge.svg)](https://codecov.io/gh/q191201771/lal)
+
 #### 编译和运行
 
 ```
