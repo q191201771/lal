@@ -2,7 +2,7 @@
 <img alt="Wide" src="https://pengrl.com/images/other/lallogo.png">
 <br>
 Go语言编写的流媒体 库 / 客户端 / 服务器
-<br>
+<br><br>
 <a title="TravisCI" target="_blank" href="https://www.travis-ci.org/q191201771/lal"><img src="https://www.travis-ci.org/q191201771/lal.svg?branch=master"></a>
 <a title="codecov" target="_blank" href="https://codecov.io/gh/q191201771/lal"><img src="https://codecov.io/gh/q191201771/lal/branch/master/graph/badge.svg?style=flat-square"></a>
 <a title="goreportcard" target="_blank" href="https://goreportcard.com/report/github.com/q191201771/lal"><img src="https://goreportcard.com/badge/github.com/q191201771/lal?style=flat-square"></a>
@@ -50,7 +50,7 @@ $go get -u github.com/q191201771/lal
 # cd into lal
 $./build.sh
 
-# ./lal -c <配置文件> -l <日志配置文件>，比如：
+# ./bin/lal -c <配置文件> -l <日志配置文件>，比如：
 $./bin/lal -c conf/lal.conf.json -l conf/log.dev.xml
 ```
 
