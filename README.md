@@ -1,8 +1,8 @@
 <p align="center">
 <img alt="Wide" src="https://pengrl.com/images/other/lallogo.png">
 <br>
-Go语言流媒体服务器
-<br><br>
+Go语言编写的流媒体 库 / 客户端 / 服务器
+<br>
 <a title="TravisCI" target="_blank" href="https://www.travis-ci.org/q191201771/lal"><img src="https://www.travis-ci.org/q191201771/lal.svg?branch=master"></a>
 <a title="codecov" target="_blank" href="https://codecov.io/gh/q191201771/lal"><img src="https://codecov.io/gh/q191201771/lal/branch/master/graph/badge.svg?style=flat-square"></a>
 <a title="goreportcard" target="_blank" href="https://goreportcard.com/report/github.com/q191201771/lal"><img src="https://goreportcard.com/badge/github.com/q191201771/lal?style=flat-square"></a>
@@ -22,19 +22,36 @@ Go语言流媒体服务器
 <a title="star" target="_blank" href="https://github.com/q191201771/lal/stargazers"><img src="https://img.shields.io/github/stars/q191201771/lal.svg?label=Stars&style=social"></a>&nbsp;&nbsp;
 <a title="fork" target="_blank" href="https://github.com/q191201771/lal/network/members"><img src="https://img.shields.io/github/forks/q191201771/lal.svg?label=Forks&style=social"></a>&nbsp;&nbsp;
 </p>
-<br>
 
 ---
+
+#### 工程目录说明
+
+简单来说，主要源码在`app/`和`pkg/`两个目录下，后续我再画些源码架构图。
+
+```
+app/                  ......各种main包的源码文件，一个子目录对应一个main包，即对应可生成一个可执行文件
+|-- lal/              ......lal main包的源码文件
+bin/                  ......可执行文件输出目录
+conf/                 ......配置文件目录
+demo/                 ......各种demo类型的main包，一个子目录对应一个demo，即对应可生成一个可执行文件
+pkg/                  ......源码包
+    |-- bele/         ......大小端操作相关
+    |-- httpflv/      ......http flv协议
+    |-- log/          ......日志相关
+    |-- rtmp/         ......rtmp协议
+    |-- util/         ......帮助类包
+```
 
 #### 编译和运行
 
 ```
 $go get -u github.com/q191201771/lal
 # cd into lal
-$go build
+$./build.sh
 
 # ./lal -c <配置文件> -l <日志配置文件>，比如：
-$./lal -c conf/lal.conf.json -l conf/log.dev.xml
+$./bin/lal -c conf/lal.conf.json -l conf/log.dev.xml
 ```
 
 #### 配置文件说明
