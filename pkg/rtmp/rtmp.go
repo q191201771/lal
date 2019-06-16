@@ -10,6 +10,9 @@ const (
 	csidProtocolControl = 2
 	csidOverConnection  = 3
 	csidOverStream      = 5
+
+	minCSID = 2
+	maxCSID = 65599
 )
 
 const (
@@ -29,6 +32,9 @@ const (
 	tidClientPlay         = 3
 	tidClientPublish      = 3
 )
+
+// basic header 3 | message header 11 | extended ts 4
+const maxHeaderSize = 18
 
 const maxTimestampInMessageHeader = 0xFFFFFF
 

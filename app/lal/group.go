@@ -143,10 +143,13 @@ func (group *Group) AddRTMPPubSession(session *rtmp.PubSession) {
 
 func (group *Group) PullIfNeeded() {
 	group.mutex.Lock()
+	defer group.mutex.Unlock()
 	if group.isInExist() {
 		return
 	}
 	switch group.config.Pull.Type {
+	case "":
+		return
 	case "httpflv":
 		group.httpFlvPullSession = httpflv.NewPullSession(group, group.config.Pull.ConnectTimeout, group.config.Pull.ReadTimeout)
 		go group.pullByHTTPFlv()
@@ -156,7 +159,6 @@ func (group *Group) PullIfNeeded() {
 	default:
 		log.Errorf("unknown pull type. type=%s", group.config.Pull.Type)
 	}
-	group.mutex.Unlock()
 }
 
 func (group *Group) IsTotalEmpty() bool {
@@ -200,6 +202,7 @@ func (group *Group) ReadAVMessageCB(header rtmp.Header, timestampAbs int, messag
 	group.mutex.Lock()
 	defer group.mutex.Unlock()
 
+	// TODO chef: 转发rtmp
 	//for session := range group.rtmpSubSessionList {
 	//
 	//}

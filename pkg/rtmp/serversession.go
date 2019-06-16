@@ -97,6 +97,7 @@ func (s *ServerSession) doMsg(stream *Stream) error {
 			log.Error("read audio/video message but server session not pub type.")
 			return rtmpErr
 		}
+		//log.Infof("t:%d ts:%d len:%d", stream.header.MsgTypeID, stream.timestampAbs, stream.msg.e - stream.msg.b)
 		s.avObs.ReadAVMessageCB(stream.header, stream.timestampAbs, stream.msg.buf[stream.msg.b:stream.msg.e])
 
 	}
@@ -209,11 +210,10 @@ func (s *ServerSession) doCreateStream(tid int, stream *Stream) error {
 	return nil
 }
 
-func (s *ServerSession) doPublish(tid int, stream *Stream) error {
-	if err := stream.msg.readNull(); err != nil {
+func (s *ServerSession) doPublish(tid int, stream *Stream) (err error) {
+	if err = stream.msg.readNull(); err != nil {
 		return err
 	}
-	var err error
 	s.StreamName, err = stream.msg.readStringWithType()
 	if err != nil {
 		return err
@@ -236,15 +236,15 @@ func (s *ServerSession) doPublish(tid int, stream *Stream) error {
 	return nil
 }
 
-func (s *ServerSession) doPlay(tid int, stream *Stream) error {
-	if err := stream.msg.readNull(); err != nil {
+func (s *ServerSession) doPlay(tid int, stream *Stream) (err error) {
+	if err = stream.msg.readNull(); err != nil {
 		return err
 	}
-	streamName, err := stream.msg.readStringWithType()
+	s.StreamName, err = stream.msg.readStringWithType()
 	if err != nil {
 		return err
 	}
-	log.Infof("-----> play('%s')", streamName)
+	log.Infof("-----> play('%s')", s.StreamName)
 	// TODO chef: start duration reset
 
 	if err := s.packer.writeOnStatusPublish(s.conn, 1); err != nil {
