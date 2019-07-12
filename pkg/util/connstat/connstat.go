@@ -1,4 +1,4 @@
-package util
+package connstat
 
 import (
 	"sync/atomic"
@@ -24,7 +24,7 @@ type ConnStat struct {
 	lastWriteActiveTick int64
 }
 
-// 单位秒，设置为0则检查时用于不超时
+// 单位秒，设置为0则用于不超时
 func (cs *ConnStat) Start(readTimeout int64, writeTimeout int64) {
 	cs.readTimeout = readTimeout
 	cs.writeTimeout = writeTimeout

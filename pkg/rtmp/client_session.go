@@ -3,22 +3,20 @@ package rtmp
 import (
 	"bufio"
 	"encoding/hex"
-	"github.com/q191201771/lal/pkg/bele"
-	"github.com/q191201771/lal/pkg/log"
-	"github.com/q191201771/lal/pkg/util"
+	"github.com/q191201771/lal/pkg/util/bele"
+	"github.com/q191201771/lal/pkg/util/log"
+	"github.com/q191201771/lal/pkg/util/unique"
 	"net"
 	"net/url"
 	"strings"
 	"time"
 )
 
-var chunkSize = 4096
-
 // rtmp客户端类型连接的底层实现
 // rtmp包的使用者应该优先使用基于ClientSession实现的PushSession和PullSession
 type ClientSession struct {
 	t              ClientSessionType
-	obs            AVMessageObserver // only for PullSession
+	obs            PullSessionObserver // only for PullSession
 	connectTimeout int64
 	doResultChan   chan struct{}
 	errChan        chan error
@@ -45,7 +43,7 @@ const (
 )
 
 // set <obs> if <t> equal CSTPullSession
-func NewClientSession(t ClientSessionType, obs AVMessageObserver, connectTimeout int64) *ClientSession {
+func NewClientSession(t ClientSessionType, obs PullSessionObserver, connectTimeout int64) *ClientSession {
 	var uk string
 	switch t {
 	case CSTPullSession:
@@ -64,11 +62,11 @@ func NewClientSession(t ClientSessionType, obs AVMessageObserver, connectTimeout
 		errChan:        make(chan error),
 		packer:         NewMessagePacker(),
 		chunkComposer:  NewChunkComposer(),
-		UniqueKey:      util.GenUniqueKey(uk),
+		UniqueKey:      unique.GenUniqueKey(uk),
 	}
 }
 
-// block until server reply publish / play start or timeout.
+// 阻塞直到收到服务端的 publish start / play start 信令 或者超时
 func (s *ClientSession) Do(rawURL string) error {
 	if err := s.parseURL(rawURL); err != nil {
 		return err
@@ -80,7 +78,7 @@ func (s *ClientSession) Do(rawURL string) error {
 	if err := s.handshake(); err != nil {
 		return err
 	}
-	if err := s.packer.writeChunkSize(s.Conn, chunkSize); err != nil {
+	if err := s.packer.writeChunkSize(s.Conn, LocalChunkSize); err != nil {
 		return err
 	}
 	if err := s.packer.writeConnect(s.Conn, s.appName, s.tcURL); err != nil {
@@ -124,12 +122,12 @@ func (s *ClientSession) doMsg(stream *Stream) error {
 		return s.doCommandMessage(stream)
 	case typeidUserControl:
 		log.Warn("read user control message, ignore. [%s]", s.UniqueKey)
-	case typeidDataMessageAMF0:
+	case TypeidDataMessageAMF0:
 		return s.doDataMessageAMF0(stream)
-	case typeidAudio:
+	case TypeidAudio:
 		fallthrough
-	case typeidVideo:
-		s.obs.ReadAVMessageCB(stream.header, stream.timestampAbs, stream.msg.buf[stream.msg.b:stream.msg.e])
+	case TypeidVideo:
+		s.obs.ReadRTMPAVMsgCB(stream.header, stream.timestampAbs, stream.msg.buf[stream.msg.b:stream.msg.e])
 	default:
 		log.Errorf("read unknown msg type id. [%s] typeid=%d", s.UniqueKey, stream.header)
 		panic(0)
@@ -151,7 +149,7 @@ func (s *ClientSession) doDataMessageAMF0(stream *Stream) error {
 		log.Error(val)
 		log.Error(hex.Dump(stream.msg.buf[stream.msg.b:stream.msg.e]))
 	}
-	s.obs.ReadAVMessageCB(stream.header, stream.timestampAbs, stream.msg.buf[stream.msg.b:stream.msg.e])
+	s.obs.ReadRTMPAVMsgCB(stream.header, stream.timestampAbs, stream.msg.buf[stream.msg.b:stream.msg.e])
 	return nil
 }
 

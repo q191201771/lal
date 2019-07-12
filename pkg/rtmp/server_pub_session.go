@@ -1,5 +1,9 @@
 package rtmp
 
+type PubSessionObserver interface {
+	AVMsgObserver
+}
+
 type PubSession struct {
 	*ServerSession
 }
@@ -10,6 +14,6 @@ func NewPubSession(ss *ServerSession) *PubSession {
 	}
 }
 
-func (s *ServerSession) SetAVMessageObserver(obs AVMessageObserver) {
+func (s *ServerSession) SetPubSessionObserver(obs PubSessionObserver) {
 	s.avObs = obs
 }

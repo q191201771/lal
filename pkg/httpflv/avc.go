@@ -1,8 +1,8 @@
 package httpflv
 
 import (
-	"github.com/q191201771/lal/pkg/bele"
-	"github.com/q191201771/lal/pkg/log"
+	"github.com/q191201771/lal/pkg/util/bele"
+	"github.com/q191201771/lal/pkg/util/log"
 )
 
 // TODO chef: move me to other packet
@@ -16,7 +16,7 @@ func parseAVCSeqHeader(buf []byte) (sps, pps []byte, err error) {
 
 	if buf[0] != AVCKey || buf[1] != isAVCKeySeqHeader || buf[2] != 0 || buf[3] != 0 || buf[4] != 0 {
 		log.Error("parse avc seq header failed.")
-		err = fxxkErr
+		err = httpFlvErr
 		return
 	}
 

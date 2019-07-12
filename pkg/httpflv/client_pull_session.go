@@ -3,8 +3,9 @@ package httpflv
 import (
 	"bufio"
 	"fmt"
-	"github.com/q191201771/lal/pkg/log"
-	"github.com/q191201771/lal/pkg/util"
+	"github.com/q191201771/lal/pkg/util/connstat"
+	"github.com/q191201771/lal/pkg/util/log"
+	"github.com/q191201771/lal/pkg/util/unique"
 	"io"
 	"net"
 	"net/url"
@@ -26,7 +27,7 @@ type PullSession struct {
 	//StartTick int64
 	connectTimeout int64
 	readTimeout    int64
-	ConnStat       util.ConnStat
+	ConnStat       connstat.ConnStat
 
 	obs  PullSessionObserver
 	Conn *net.TCPConn // after Connect success, can direct visit net.TCPConn, useful for set socket options.
@@ -40,11 +41,11 @@ type PullSession struct {
 type PullSessionObserver interface {
 	ReadHTTPRespHeaderCB()
 	ReadFlvHeaderCB(flvHeader []byte)
-	ReadTagCB(tag *Tag) // after cb, PullSession won't use this tag data
+	ReadFlvTagCB(tag *Tag) // after cb, PullSession won't use this tag data
 }
 
 func NewPullSession(obs PullSessionObserver, connectTimeout int64, readTimeout int64) *PullSession {
-	uk := util.GenUniqueKey("FLVPULL")
+	uk := unique.GenUniqueKey("FLVPULL")
 	log.Infof("lifecycle new PullSession. [%s]", uk)
 	return &PullSession{
 		connectTimeout: connectTimeout,
@@ -63,7 +64,7 @@ func (session *PullSession) Connect(rawURL string) error {
 		return err
 	}
 	if url.Scheme != "http" || !strings.HasSuffix(url.Path, ".flv") {
-		return fxxkErr
+		return httpFlvErr
 	}
 
 	host := url.Host
@@ -118,6 +119,7 @@ func (session *PullSession) runReadLoop() error {
 	if err := session.readHTTPRespHeader(); err != nil {
 		return err
 	}
+	// TODO chef: 把内容返回给上层
 	session.obs.ReadHTTPRespHeaderCB()
 
 	flvHeader, err := session.readFlvHeader()
@@ -131,7 +133,7 @@ func (session *PullSession) runReadLoop() error {
 		if err != nil {
 			return err
 		}
-		session.obs.ReadTagCB(tag)
+		session.obs.ReadFlvTagCB(tag)
 	}
 }
 
@@ -143,7 +145,7 @@ func (session *PullSession) readHTTPRespHeader() error {
 	session.ConnStat.Read(n)
 
 	if !strings.Contains(firstLine, "200") || len(headers) == 0 {
-		return fxxkErr
+		return httpFlvErr
 	}
 	log.Infof("-----> http response header. [%s]", session.UniqueKey)
 

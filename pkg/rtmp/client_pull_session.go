@@ -1,10 +1,14 @@
 package rtmp
 
+type PullSessionObserver interface {
+	AVMsgObserver
+}
+
 type PullSession struct {
 	*ClientSession
 }
 
-func NewPullSession(obs AVMessageObserver, connectTimeout int64) *PullSession {
+func NewPullSession(obs PullSessionObserver, connectTimeout int64) *PullSession {
 	return &PullSession{
 		ClientSession: NewClientSession(CSTPullSession, obs, connectTimeout),
 	}

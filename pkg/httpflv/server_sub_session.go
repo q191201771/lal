@@ -2,8 +2,9 @@ package httpflv
 
 import (
 	"bufio"
-	"github.com/q191201771/lal/pkg/log"
-	"github.com/q191201771/lal/pkg/util"
+	"github.com/q191201771/lal/pkg/util/connstat"
+	"github.com/q191201771/lal/pkg/util/log"
+	"github.com/q191201771/lal/pkg/util/unique"
 	"net"
 	url2 "net/url"
 	"strings"
@@ -29,7 +30,7 @@ var wChanSize = 1024 // TODO chef: 1024
 type SubSession struct {
 	UniqueKey string
 
-	ConnStat     util.ConnStat
+	ConnStat     connstat.ConnStat
 	writeTimeout int64
 
 	StartTick  int64
@@ -50,7 +51,7 @@ type SubSession struct {
 }
 
 func NewSubSession(conn net.Conn, writeTimeout int64) *SubSession {
-	uk := util.GenUniqueKey("FLVSUB")
+	uk := unique.GenUniqueKey("FLVSUB")
 	log.Infof("lifecycle new SubSession. [%s] remoteAddr=%s", uk, conn.RemoteAddr().String())
 	return &SubSession{
 		writeTimeout: writeTimeout,
@@ -80,7 +81,7 @@ func (session *SubSession) ReadRequest() (err error) {
 
 	items := strings.Split(string(firstLine), " ")
 	if len(items) != 3 || items[0] != "GET" {
-		err = fxxkErr
+		err = httpFlvErr
 		return
 	}
 
@@ -91,19 +92,19 @@ func (session *SubSession) ReadRequest() (err error) {
 		return
 	}
 	if !strings.HasSuffix(urlObj.Path, ".flv") {
-		err = fxxkErr
+		err = httpFlvErr
 		return
 	}
 
 	items = strings.Split(urlObj.Path, "/")
 	if len(items) != 3 {
-		err = fxxkErr
+		err = httpFlvErr
 		return
 	}
 	session.AppName = items[1]
 	items = strings.Split(items[2], ".")
 	if len(items) < 2 {
-		err = fxxkErr
+		err = httpFlvErr
 		return
 	}
 	session.StreamName = items[0]
@@ -126,19 +127,19 @@ func (session *SubSession) RunLoop() error {
 
 func (session *SubSession) WriteHTTPResponseHeader() {
 	log.Infof("<----- http response header. [%s]", session.UniqueKey)
-	session.WritePacket(flvHTTPResponseHeader)
+	session.WriteRawPacket(flvHTTPResponseHeader)
 }
 
 func (session *SubSession) WriteFlvHeader() {
 	log.Infof("<----- http flv header. [%s]", session.UniqueKey)
-	session.WritePacket(flvHeaderBuf13)
+	session.WriteRawPacket(flvHeaderBuf13)
 }
 
-func (session *SubSession) Write(tag *Tag) {
-	session.WritePacket(tag.Raw)
+func (session *SubSession) WriteTag(tag *Tag) {
+	session.WriteRawPacket(tag.Raw)
 }
 
-func (session *SubSession) WritePacket(pkt []byte) {
+func (session *SubSession) WriteRawPacket(pkt []byte) {
 	if session.hasClosed() {
 		return
 	}
@@ -169,10 +170,10 @@ func (session *SubSession) runWriteLoop() error {
 	for {
 		select {
 		case <-session.exitChan:
-			return fxxkErr
+			return httpFlvErr
 		case pkt := <-session.wChan:
 			if session.hasClosed() {
-				return fxxkErr
+				return httpFlvErr
 			}
 
 			// TODO chef: use bufio.Writer

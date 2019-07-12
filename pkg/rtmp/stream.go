@@ -1,17 +1,19 @@
 package rtmp
 
-import "github.com/q191201771/lal/pkg/log"
+import "github.com/q191201771/lal/pkg/util/log"
 
 var initMsgLen = 4096
 
 type Header struct {
-	csid   int
-	msgLen int
+	CSID   int
+	MsgLen int
 
-	timestamp int // NOTICE 是header中的时间戳，可能是绝对的，也可能是相对的。
+	// NOTICE 是header中的时间戳，可能是绝对的，也可能是相对的。
 	// 如果需要绝对时间戳，应该使用Stream中的timestampAbs
+	Timestamp int
+
 	MsgTypeID   int // 8 audio 9 video 18 metadata
-	msgStreamID int
+	MsgStreamID int
 }
 
 type StreamMsg struct {

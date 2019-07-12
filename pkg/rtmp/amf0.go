@@ -7,10 +7,10 @@ package rtmp
 
 import (
 	"bytes"
+	"github.com/q191201771/lal/pkg/util/bele"
 	"io"
 
 	"github.com/pkg/errors"
-	"github.com/q191201771/lal/pkg/bele"
 )
 
 const (
@@ -37,8 +37,8 @@ const (
 var AMF0TypeMarkerObjectEndBytes = []byte{0, 0, AMF0TypeMarkerObjectEnd}
 
 var (
-	ErrAMFInvalidType = errors.New("amf0: invalid type.")
-	ErrAMFTooShort    = errors.New("amf0: too short.")
+	ErrAMFInvalidType = errors.New("lal.AMF0: invalid type.")
+	ErrAMFTooShort    = errors.New("lal.AMF0: too short.")
 )
 
 type ObjectPair struct {

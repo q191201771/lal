@@ -13,7 +13,7 @@ func Initial(configFileName string) error {
 	if err != nil {
 		return err
 	}
-	err = log.SetAdditionalStackDepth(1)
+	err = log.SetAdditionalStackDepth(2)
 	return err
 }
 

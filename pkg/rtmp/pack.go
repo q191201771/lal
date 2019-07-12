@@ -2,8 +2,8 @@ package rtmp
 
 import (
 	"bytes"
-	"github.com/q191201771/lal/pkg/bele"
-	"github.com/q191201771/lal/pkg/log"
+	"github.com/q191201771/lal/pkg/util/bele"
+	"github.com/q191201771/lal/pkg/util/log"
 	"io"
 )
 
@@ -168,7 +168,7 @@ func (packer *MessagePacker) writeCreateStreamResult(writer io.Writer, tid int) 
 	if err := AMF0.WriteNull(packer.b); err != nil {
 		return err
 	}
-	if err := AMF0.WriteNumber(packer.b, float64(msid)); err != nil {
+	if err := AMF0.WriteNumber(packer.b, float64(MSID1)); err != nil {
 		return err
 	}
 	log.Info("<----_result()")

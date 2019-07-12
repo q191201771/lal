@@ -1,12 +1,15 @@
 package httpflv
 
 import (
-	"github.com/q191201771/lal/pkg/log"
+	"github.com/q191201771/lal/pkg/util/log"
 	"net"
+	"sync"
 )
 
 type ServerObserver interface {
-	NewHTTPFlvSubSessionCB(session *SubSession)
+	// 通知上层有新的拉流者
+	// 返回值： true则允许拉流，false则关闭连接
+	NewHTTPFlvSubSessionCB(session *SubSession, group *Group) bool
 }
 
 type Server struct {
@@ -15,6 +18,9 @@ type Server struct {
 	subWriteTimeout int64
 
 	ln net.Listener
+
+	groupMap map[string]*Group
+	mutex    sync.Mutex
 }
 
 func NewServer(obs ServerObserver, addr string, subWriteTimeout int64) *Server {
@@ -22,6 +28,7 @@ func NewServer(obs ServerObserver, addr string, subWriteTimeout int64) *Server {
 		obs:             obs,
 		addr:            addr,
 		subWriteTimeout: subWriteTimeout,
+		groupMap:        make(map[string]*Group),
 	}
 }
 
@@ -47,6 +54,19 @@ func (server *Server) Dispose() {
 	}
 }
 
+func (server *Server) GetOrCreateGroup(appName string, streamName string) *Group {
+	server.mutex.Lock()
+	defer server.mutex.Unlock()
+
+	group, exist := server.groupMap[streamName]
+	if !exist {
+		group = NewGroup(appName, streamName)
+		server.groupMap[streamName] = group
+	}
+	go group.RunLoop()
+	return group
+}
+
 func (server *Server) handleConnect(conn net.Conn) {
 	log.Infof("accept a http flv connection. remoteAddr=%v", conn.RemoteAddr())
 	session := NewSubSession(conn, server.subWriteTimeout)
@@ -56,5 +76,10 @@ func (server *Server) handleConnect(conn net.Conn) {
 	}
 	log.Infof("-----> http request. [%s] uri=%s", session.UniqueKey, session.URI)
 
-	server.obs.NewHTTPFlvSubSessionCB(session)
+	group := server.GetOrCreateGroup(session.AppName, session.StreamName)
+	group.AddHTTPFlvSubSession(session)
+
+	if !server.obs.NewHTTPFlvSubSessionCB(session, group) {
+		session.Dispose(httpFlvErr)
+	}
 }

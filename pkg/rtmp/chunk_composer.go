@@ -1,7 +1,7 @@
 package rtmp
 
 import (
-	"github.com/q191201771/lal/pkg/bele"
+	"github.com/q191201771/lal/pkg/util/bele"
 	"io"
 )
 
@@ -64,19 +64,19 @@ func (c *ChunkComposer) RunLoop(reader io.Reader, cb CompleteMessageCB) error {
 			if _, err := io.ReadAtLeast(reader, bootstrap[:11], 11); err != nil {
 				return err
 			}
-			stream.header.timestamp = int(bele.BEUint24(bootstrap))
-			stream.timestampAbs = stream.header.timestamp
+			stream.header.Timestamp = int(bele.BEUint24(bootstrap))
+			stream.timestampAbs = stream.header.Timestamp
 			stream.msgLen = int(bele.BEUint24(bootstrap[3:]))
 			stream.header.MsgTypeID = int(bootstrap[6])
-			stream.header.msgStreamID = int(bele.LEUint32(bootstrap[7:]))
+			stream.header.MsgStreamID = int(bele.LEUint32(bootstrap[7:]))
 
 			stream.msg.reserve(stream.msgLen)
 		case 1:
 			if _, err := io.ReadAtLeast(reader, bootstrap[:7], 7); err != nil {
 				return err
 			}
-			stream.header.timestamp = int(bele.BEUint24(bootstrap))
-			stream.timestampAbs += stream.header.timestamp
+			stream.header.Timestamp = int(bele.BEUint24(bootstrap))
+			stream.timestampAbs += stream.header.Timestamp
 			stream.msgLen = int(bele.BEUint24(bootstrap[3:]))
 			stream.header.MsgTypeID = int(bootstrap[6])
 
@@ -85,26 +85,26 @@ func (c *ChunkComposer) RunLoop(reader io.Reader, cb CompleteMessageCB) error {
 			if _, err := io.ReadAtLeast(reader, bootstrap[:3], 3); err != nil {
 				return err
 			}
-			stream.header.timestamp = int(bele.BEUint24(bootstrap))
-			stream.timestampAbs += stream.header.timestamp
+			stream.header.Timestamp = int(bele.BEUint24(bootstrap))
+			stream.timestampAbs += stream.header.Timestamp
 
 		case 3:
 			// noop
 		}
 
 		// 5.3.1.3 Extended Timestamp
-		if stream.header.timestamp == maxTimestampInMessageHeader {
+		if stream.header.Timestamp == maxTimestampInMessageHeader {
 			if _, err := io.ReadAtLeast(reader, bootstrap[:4], 4); err != nil {
 				return err
 			}
-			stream.header.timestamp = int(bele.BEUint32(bootstrap))
+			stream.header.Timestamp = int(bele.BEUint32(bootstrap))
 			switch fmt {
 			case 0:
-				stream.timestampAbs = stream.header.timestamp
+				stream.timestampAbs = stream.header.Timestamp
 			case 1:
 				fallthrough
 			case 2:
-				stream.timestampAbs = stream.timestampAbs - maxTimestampInMessageHeader + stream.header.timestamp
+				stream.timestampAbs = stream.timestampAbs - maxTimestampInMessageHeader + stream.header.Timestamp
 			case 3:
 				// noop
 			}
@@ -127,12 +127,14 @@ func (c *ChunkComposer) RunLoop(reader io.Reader, cb CompleteMessageCB) error {
 		stream.msg.produced(neededSize)
 
 		if stream.msg.len() == stream.msgLen {
+			// 对端设置了chunk size
 			if stream.header.MsgTypeID == typeidSetChunkSize {
 				val := int(bele.BEUint32(stream.msg.buf))
 				c.SetPeerChunkSize(val)
 			}
-			stream.header.csid = csid
-			stream.header.msgLen = stream.msgLen
+
+			stream.header.CSID = csid
+			stream.header.MsgLen = stream.msgLen
 			if err := cb(stream); err != nil {
 				return err
 			}

@@ -1,11 +1,11 @@
-package util
+package unique
 
 import (
 	"fmt"
 	"sync/atomic"
 )
 
-var globalID uint64
+var globalID = uint64(0)
 
 func GenUniqueKey(prefix string) string {
 	return fmt.Sprintf("%s%d", prefix, genUniqueID())

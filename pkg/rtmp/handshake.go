@@ -4,8 +4,8 @@ import (
 	"bytes"
 	"crypto/hmac"
 	"crypto/sha256"
-	"github.com/q191201771/lal/pkg/bele"
-	"github.com/q191201771/lal/pkg/log"
+	"github.com/q191201771/lal/pkg/util/bele"
+	"github.com/q191201771/lal/pkg/util/log"
 	"io"
 	"time"
 )

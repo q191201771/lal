@@ -1,7 +1,7 @@
 package httpflv
 
 import (
-	"github.com/q191201771/lal/pkg/bele"
+	"github.com/q191201771/lal/pkg/util/bele"
 	"io"
 )
 

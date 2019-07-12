@@ -1,10 +1,10 @@
-/demo/
 /conf/self.conf.json
 /pre-commit.sh
 
+/demo/
+/bin/
 /.idea/
 /.trash/
-/bin/
 /logs/
 /TODO.md
 /lal

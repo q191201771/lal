@@ -3,8 +3,8 @@ package rtmp
 import (
 	"bufio"
 	"encoding/hex"
-	"github.com/q191201771/lal/pkg/log"
-	"github.com/q191201771/lal/pkg/util"
+	"github.com/q191201771/lal/pkg/util/log"
+	"github.com/q191201771/lal/pkg/util/unique"
 	"net"
 	"strings"
 )
@@ -41,7 +41,7 @@ type ServerSession struct {
 	packer        *MessagePacker
 
 	// for PubSession
-	avObs AVMessageObserver
+	avObs PubSessionObserver
 }
 
 func NewServerSession(obs ServerSessionObserver, conn net.Conn) *ServerSession {
@@ -53,7 +53,7 @@ func NewServerSession(obs ServerSessionObserver, conn net.Conn) *ServerSession {
 		t:             ServerSessionTypeInit,
 		chunkComposer: NewChunkComposer(),
 		packer:        NewMessagePacker(),
-		UniqueKey:     util.GenUniqueKey("RTMPSERVER"),
+		UniqueKey:     unique.GenUniqueKey("RTMPSERVER"),
 	}
 }
 
@@ -64,8 +64,10 @@ func (s *ServerSession) RunLoop() error {
 	return s.chunkComposer.RunLoop(s.rb, s.doMsg)
 }
 
-func (s *ServerSession) WriteMessage() {
-
+// TODO chef: 临时发送函数
+func (s *ServerSession) WriteRawMessage(msg []byte) error {
+	_, err := s.conn.Write(msg)
+	return err
 }
 
 func (s *ServerSession) handshake() error {
@@ -88,17 +90,17 @@ func (s *ServerSession) doMsg(stream *Stream) error {
 		// TODO chef:
 	case typeidCommandMessageAMF0:
 		return s.doCommandMessage(stream)
-	case typeidDataMessageAMF0:
+	case TypeidDataMessageAMF0:
 		return s.doDataMessageAMF0(stream)
-	case typeidAudio:
+	case TypeidAudio:
 		fallthrough
-	case typeidVideo:
+	case TypeidVideo:
 		if s.t != ServerSessionTypePub {
 			log.Error("read audio/video message but server session not pub type.")
 			return rtmpErr
 		}
 		//log.Infof("t:%d ts:%d len:%d", stream.header.MsgTypeID, stream.timestampAbs, stream.msg.e - stream.msg.b)
-		s.avObs.ReadAVMessageCB(stream.header, stream.timestampAbs, stream.msg.buf[stream.msg.b:stream.msg.e])
+		s.avObs.ReadRTMPAVMsgCB(stream.header, stream.timestampAbs, stream.msg.buf[stream.msg.b:stream.msg.e])
 
 	}
 	return nil
@@ -138,7 +140,7 @@ func (s *ServerSession) doDataMessageAMF0(stream *Stream) error {
 		return nil
 	}
 
-	s.avObs.ReadAVMessageCB(stream.header, stream.timestampAbs, stream.msg.buf[stream.msg.b:stream.msg.e])
+	s.avObs.ReadRTMPAVMsgCB(stream.header, stream.timestampAbs, stream.msg.buf[stream.msg.b:stream.msg.e])
 	return nil
 }
 
@@ -193,7 +195,7 @@ func (s *ServerSession) doConnect(tid int, stream *Stream) error {
 	if err := s.packer.writePeerBandwidth(s.conn, peerBandwidth, peerBandwidthLimitTypeDynamic); err != nil {
 		return err
 	}
-	if err := s.packer.writeChunkSize(s.conn, localChunkSize); err != nil {
+	if err := s.packer.writeChunkSize(s.conn, LocalChunkSize); err != nil {
 		return err
 	}
 	if err := s.packer.writeConnectResult(s.conn, tid); err != nil {
@@ -247,7 +249,7 @@ func (s *ServerSession) doPlay(tid int, stream *Stream) (err error) {
 	log.Infof("-----> play('%s')", s.StreamName)
 	// TODO chef: start duration reset
 
-	if err := s.packer.writeOnStatusPublish(s.conn, 1); err != nil {
+	if err := s.packer.writeOnStatusPlay(s.conn, 1); err != nil {
 		return err
 	}
 	s.t = ServerSessionTypeSub

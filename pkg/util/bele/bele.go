@@ -48,6 +48,10 @@ func BEPutUint32(out []byte, in uint32) {
 	binary.BigEndian.PutUint32(out, in)
 }
 
+func LEPutUint32(out []byte, in uint32) {
+	binary.LittleEndian.PutUint32(out, in)
+}
+
 func WriteBEUint24(writer io.Writer, in uint32) error {
 	_, err := writer.Write([]byte{uint8(in >> 16), uint8(in >> 8), uint8(in & 0xFF)})
 	return err

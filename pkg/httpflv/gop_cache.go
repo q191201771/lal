@@ -2,7 +2,7 @@ package httpflv
 
 import (
 	"bytes"
-	"github.com/q191201771/lal/pkg/log"
+	"github.com/q191201771/lal/pkg/util/log"
 	"sync"
 )
 
@@ -104,7 +104,7 @@ func (c *GOPCache) Push(tag *Tag) {
 
 func (c *GOPCache) WriteWholeThings(writer Writer) (hasKeyFrame bool) {
 	if tag := c.getMetadata(); tag != nil {
-		writer.Write(tag)
+		writer.WriteTag(tag)
 	}
 
 	avc := c.getAVCSeqHeader()
@@ -112,16 +112,16 @@ func (c *GOPCache) WriteWholeThings(writer Writer) (hasKeyFrame bool) {
 	// TODO chef: if nessary to sort them by timestamp
 	if avc != nil && aac != nil {
 		if avc.Header.Timestamp <= aac.Header.Timestamp {
-			writer.Write(avc)
-			writer.Write(aac)
+			writer.WriteTag(avc)
+			writer.WriteTag(aac)
 		} else {
-			writer.Write(aac)
-			writer.Write(avc)
+			writer.WriteTag(aac)
+			writer.WriteTag(avc)
 		}
 	} else if avc != nil && aac == nil {
-		writer.Write(avc)
+		writer.WriteTag(avc)
 	} else if avc == nil && aac != nil {
-		writer.Write(aac)
+		writer.WriteTag(aac)
 	}
 	c.writeGOPs(writer, false)
 	return
@@ -150,7 +150,7 @@ func (c *GOPCache) writeGOPs(write Writer, mustCompleted bool) bool {
 
 	for i := 0; i != neededLen; i++ {
 		for j := 0; j != len(c.gops[i].tags); j++ {
-			write.Write(c.gops[i].tags[j])
+			write.WriteTag(c.gops[i].tags[j])
 		}
 	}
 	return true

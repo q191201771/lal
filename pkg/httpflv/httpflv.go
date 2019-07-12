@@ -8,10 +8,10 @@ import (
 
 type Writer interface {
 	// TODO chef: return error
-	Write(tag *Tag)
+	WriteTag(tag *Tag)
 }
 
-var fxxkErr = errors.New("httpflv: fxxk")
+var httpFlvErr = errors.New("httpflv: fxxk")
 
 var readBufSize = 16384
 
@@ -26,7 +26,7 @@ func parseHTTPHeader(r *bufio.Reader) (n int, firstLine string, headers map[stri
 		return
 	}
 	if len(line) == 0 || isPrefix {
-		err = fxxkErr
+		err = httpFlvErr
 		return
 	}
 	firstLine = string(line)
@@ -38,7 +38,7 @@ func parseHTTPHeader(r *bufio.Reader) (n int, firstLine string, headers map[stri
 			break
 		}
 		if isPrefix {
-			err = fxxkErr
+			err = httpFlvErr
 			return
 		}
 		if err != nil {
@@ -48,7 +48,7 @@ func parseHTTPHeader(r *bufio.Reader) (n int, firstLine string, headers map[stri
 		n += len(l)
 		pos := strings.Index(l, ":")
 		if pos == -1 {
-			err = fxxkErr
+			err = httpFlvErr
 			return
 		}
 		headers[strings.Trim(l[0:pos], " ")] = strings.Trim(l[pos+1:], " ")
