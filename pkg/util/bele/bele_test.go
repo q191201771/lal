@@ -3,7 +3,6 @@ package bele
 import (
 	"bytes"
 	"encoding/binary"
-	"github.com/q191201771/lal/pkg/util"
 	"github.com/stretchr/testify/assert"
 	"testing"
 )
@@ -22,7 +21,7 @@ func TestBEUint16(t *testing.T) {
 	}
 
 	for i := 0; i < len(vector); i++ {
-		assert.Equal(t, vector[i].output, util.BEUint16(vector[i].input), "fxxk.")
+		assert.Equal(t, vector[i].output, BEUint16(vector[i].input), "fxxk.")
 	}
 }
 
@@ -39,7 +38,7 @@ func TestBEUint24(t *testing.T) {
 	}
 
 	for i := 0; i < len(vector); i++ {
-		assert.Equal(t, vector[i].output, util.BEUint24(vector[i].input), "fxxk.")
+		assert.Equal(t, vector[i].output, BEUint24(vector[i].input), "fxxk.")
 	}
 }
 
@@ -56,7 +55,7 @@ func TestBEUint32(t *testing.T) {
 	}
 
 	for i := 0; i < len(vector); i++ {
-		assert.Equal(t, vector[i].output, util.BEUint32(vector[i].input), "fxxk.")
+		assert.Equal(t, vector[i].output, BEUint32(vector[i].input), "fxxk.")
 	}
 }
 
@@ -73,7 +72,7 @@ func TestBEFloat64(t *testing.T) {
 		b := &bytes.Buffer{}
 		err := binary.Write(b, binary.BigEndian, float64(vector[i]))
 		assert.Equal(t, nil, err, "fxxk.")
-		assert.Equal(t, vector[i], int(util.BEFloat64(b.Bytes())), "fxxk.")
+		assert.Equal(t, vector[i], int(BEFloat64(b.Bytes())), "fxxk.")
 	}
 }
 
@@ -90,7 +89,7 @@ func TestLEUint32(t *testing.T) {
 	}
 
 	for i := 0; i < len(vector); i++ {
-		assert.Equal(t, vector[i].output, util.LEUint32(vector[i].input), "fxxk.")
+		assert.Equal(t, vector[i].output, LEUint32(vector[i].input), "fxxk.")
 	}
 }
 
@@ -108,7 +107,7 @@ func TestBEPutUint24(t *testing.T) {
 
 	out := make([]byte, 3)
 	for i := 0; i < len(vector); i++ {
-		util.BEPutUint24(out, vector[i].input)
+		BEPutUint24(out, vector[i].input)
 		assert.Equal(t, vector[i].output, out, "fxxk.")
 	}
 }
@@ -127,7 +126,7 @@ func TestBEPutUint32(t *testing.T) {
 
 	out := make([]byte, 4)
 	for i := 0; i < len(vector); i++ {
-		util.BEPutUint32(out, vector[i].input)
+		BEPutUint32(out, vector[i].input)
 		assert.Equal(t, vector[i].output, out, "fxxk.")
 	}
 }
@@ -146,7 +145,7 @@ func TestWriteBEUint24(t *testing.T) {
 
 	for i := 0; i < len(vector); i++ {
 		out := &bytes.Buffer{}
-		err := util.WriteBEUint24(out, vector[i].input)
+		err := WriteBEUint24(out, vector[i].input)
 		assert.Equal(t, nil, err, "fxxk.")
 		assert.Equal(t, vector[i].output, out.Bytes(), "fxxk.")
 	}
@@ -162,7 +161,7 @@ func TestWriteBE(t *testing.T) {
 	}
 	for i := 0; i < len(vector); i++ {
 		out := &bytes.Buffer{}
-		err := util.WriteBE(out, vector[i].input)
+		err := WriteBE(out, vector[i].input)
 		assert.Equal(t, nil, err, "fxxk.")
 		assert.Equal(t, vector[i].output, out.Bytes(), "fxxk.")
 	}
@@ -178,7 +177,7 @@ func TestWriteLE(t *testing.T) {
 	}
 	for i := 0; i < len(vector); i++ {
 		out := &bytes.Buffer{}
-		err := util.WriteLE(out, vector[i].input)
+		err := WriteLE(out, vector[i].input)
 		assert.Equal(t, nil, err, "fxxk.")
 		assert.Equal(t, vector[i].output, out.Bytes(), "fxxk.")
 	}
