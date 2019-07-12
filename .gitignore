@@ -1,14 +1,12 @@
-/conf/self.conf.json
 /pre-commit.sh
+/coverage.txt
+/TODO.md
+/conf/self.conf.json
 
 /demo/
 /bin/
 /.idea/
 /.trash/
 /logs/
-/TODO.md
 /lal
 /lal_linux
-/build_linux.sh
-
-/util/crudetimer.go
