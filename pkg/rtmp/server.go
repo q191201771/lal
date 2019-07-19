@@ -53,8 +53,7 @@ func (server *Server) Dispose() {
 func (server *Server) handleConnect(conn net.Conn) {
 	log.Infof("accept a rtmp connection. remoteAddr=%v", conn.RemoteAddr())
 	session := NewServerSession(server, conn)
-	// TODO chef: 处理连接关闭
-	session.RunLoop()
+	_ = session.RunLoop()
 }
 
 func (server *Server) getOrCreateGroup(appName string, streamName string) *Group {
@@ -75,7 +74,8 @@ func (server *Server) NewRTMPPubSessionCB(session *PubSession) {
 	group := server.getOrCreateGroup(session.AppName, session.StreamName)
 
 	if !server.obs.NewRTMPPubSessionCB(session, group) {
-		// TODO chef: 关闭这个连接
+		log.Warnf("dispose PubSession since pub exist.")
+		session.Dispose()
 		return
 	}
 	group.AddPubSession(session)
@@ -91,3 +91,22 @@ func (server *Server) NewRTMPSubSessionCB(session *SubSession) {
 	}
 	group.AddSubSession(session)
 }
+
+// ServerSessionObserver
+func (server *Server) DelRTMPPubSessionCB(session *PubSession) {
+	group := server.getOrCreateGroup(session.AppName, session.StreamName)
+
+	// TODO chef: obs
+
+	group.DelPubSession(session)
+}
+
+// ServerSessionObserver
+func (server *Server) DelRTMPSubSessionCB(session *SubSession) {
+	group := server.getOrCreateGroup(session.AppName, session.StreamName)
+
+	// TODO chef: obs
+
+	group.DelSubSession(session)
+}
+

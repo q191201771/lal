@@ -9,36 +9,36 @@ import (
 const tagHeaderSize int = 11
 const prevTagSizeFieldSize int = 4
 
-var (
+const (
 	TagTypeMetadata uint8 = 18
 	TagTypeVideo    uint8 = 9
 	TagTypeAudio    uint8 = 8
 )
 
-var (
+const (
 	frameTypeKey   uint8 = 1
 	frameTypeInter uint8 = 2
 )
 
-var (
+const (
 	codecIDAVC uint8 = 7
 )
 
-var (
+const (
 	AVCKey   = frameTypeKey<<4 | codecIDAVC
 	AVCInter = frameTypeInter<<4 | codecIDAVC
 )
 
-var (
+const (
 	isAVCKeySeqHeader uint8 = 0
 	AVCPacketTypeNalu uint8 = 1
 )
 
-var (
+const (
 	SoundFormatAAC uint8 = 10
 )
 
-var (
+const (
 	AACPacketTypeSeqHeader uint8 = 0
 	AACPacketTypeRaw       uint8 = 1
 )

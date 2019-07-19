@@ -69,7 +69,9 @@ func loadConf(confFile string) *Config {
 func startWebPProf() {
 	if err := http.ListenAndServe("0.0.0.0:10001", nil); err != nil {
 		log.Error(err)
+		return
 	}
+	log.Info("start pprof listen. addr=:10001")
 }
 
 func shutdownAfter(d time.Duration) {

@@ -89,7 +89,7 @@ func init() {
 	if err != nil {
 		os.Exit(1)
 	}
-	err = log.SetAdditionalStackDepth(1)
+	err = log.SetAdditionalStackDepth(2)
 	if err != nil {
 		os.Exit(1)
 	}

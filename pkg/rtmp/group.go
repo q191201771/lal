@@ -20,7 +20,13 @@ type Group struct {
 	subSessionSet   map[*SubSession]struct{}
 	prevAudioHeader *Header
 	prevVideoHeader *Header
-	mutex           sync.Mutex
+
+	// TODO chef:
+	metadata        []byte
+	avcKeySeqHeader []byte
+	aacSeqHeader    []byte
+
+	mutex sync.Mutex
 
 	obs GroupObserver
 }
@@ -67,12 +73,19 @@ func (group *Group) AddSubSession(session *SubSession) {
 	//group.turnToEmptyTick = 0
 }
 
-func (group *Group) DelRTMPPubSession(session *PubSession) {
-	// TODO chef: impl me
+func (group *Group) DelPubSession(session *PubSession) {
+	log.Debugf("del PubSession from group. [%s]", session.UniqueKey)
+	group.mutex.Lock()
+	group.pubSession = nil
+	group.mutex.Unlock()
+
 }
 
-func (group *Group) DelRTMPSubSession(session *SubSession) {
-
+func (group *Group) DelSubSession(session *SubSession) {
+	log.Debugf("del SubSession from group. [%s]", session.UniqueKey)
+	group.mutex.Lock()
+	delete(group.subSessionSet, session)
+	group.mutex.Unlock()
 }
 
 func (group *Group) Pull(addr string, connectTimeout int64) {
@@ -124,47 +137,97 @@ func (group *Group) ReadRTMPAVMsgCB(header Header, timestampAbs int, message []b
 }
 
 func (group *Group) broadcastRTMP2RTMP(header Header, timestampAbs int, message []byte) {
-	//var (
-	//	deltaChunks []byte
-	//	absChunks []byte
-	//)
-
 	//log.Infof("%+v", header)
 	var currHeader Header
 	currHeader.MsgLen = len(message)
 	currHeader.Timestamp = timestampAbs
 	currHeader.MsgTypeID = header.MsgTypeID
 	currHeader.MsgStreamID = MSID1
-	var prevHeader *Header
+	//var prevHeader *Header
 
 	switch header.MsgTypeID {
 	case TypeidDataMessageAMF0:
 		currHeader.CSID = CSIDAMF
-		prevHeader = nil
+		//prevHeader = nil
 	case TypeidAudio:
 		currHeader.CSID = CSIDAudio
-		prevHeader = group.prevAudioHeader
+		//prevHeader = group.prevAudioHeader
 	case TypeidVideo:
 		currHeader.CSID = CSIDVideo
-		prevHeader = group.prevVideoHeader
+		//prevHeader = group.prevVideoHeader
 	}
 
-	// to be continued
-	// TODO chef: 如果是新加入的Sub
+	// TODO chef: 所有都使用abs格式了
+	var absChunks []byte
 
-	chunks, err := Message2Chunks(message, &currHeader, prevHeader, LocalChunkSize)
-	if err != nil {
-		log.Error(err)
-		return
-	}
 	for session := range group.subSessionSet {
-		session.WriteRawMessage(chunks)
+		if absChunks == nil {
+			absChunks = Message2Chunks(message, &currHeader, nil, LocalChunkSize)
+		}
+
+		// 是新连接
+		if session.isFresh {
+			// 发送缓存的头部信息
+			if group.metadata != nil {
+				session.AsyncWrite(group.metadata)
+			}
+			if group.avcKeySeqHeader != nil {
+				session.AsyncWrite(group.avcKeySeqHeader)
+			}
+			if group.aacSeqHeader != nil {
+				session.AsyncWrite(group.aacSeqHeader)
+			}
+
+			session.isFresh = false
+
+		} else {
+			// 首次发送，从I帧开始
+			if session.waitKeyNalu {
+				if header.MsgTypeID == TypeidDataMessageAMF0 {
+					session.AsyncWrite(absChunks)
+				} else if header.MsgTypeID == TypeidAudio {
+					if (message[0]>>4) == 0x0a && message[1] == 0x0 {
+						session.AsyncWrite(absChunks)
+					}
+				} else if header.MsgTypeID == TypeidVideo {
+					if message[0] == 0x17 && message[1] == 0x0 {
+						session.AsyncWrite(absChunks)
+					}
+					if message[0] == 0x17 && message[1] == 0x1 {
+						session.AsyncWrite(absChunks)
+						session.waitKeyNalu = false
+					}
+				}
+			} else {
+				session.AsyncWrite(absChunks)
+			}
+		}
+
 	}
 
 	switch header.MsgTypeID {
-	case TypeidAudio:
-		prevHeader = &currHeader
+	case TypeidDataMessageAMF0:
+		if absChunks == nil {
+			absChunks = Message2Chunks(message, &currHeader, nil, LocalChunkSize)
+		}
+		log.Debug("cache metadata.")
+		group.metadata = absChunks
 	case TypeidVideo:
-		prevHeader = &currHeader
+		// TODO chef: magic number
+		if message[0] == 0x17 && message[1] == 0x0 {
+			if absChunks == nil {
+				absChunks = Message2Chunks(message, &currHeader, nil, LocalChunkSize)
+			}
+			log.Debug("cache avc key seq header.")
+			group.avcKeySeqHeader = absChunks
+		}
+	case TypeidAudio:
+		if (message[0]>>4) == 0x0a && message[1] == 0x0 {
+			if absChunks == nil {
+				absChunks = Message2Chunks(message, &currHeader, nil, LocalChunkSize)
+			}
+			log.Debug("cache aac seq header.")
+			group.aacSeqHeader = absChunks
+		}
 	}
 }

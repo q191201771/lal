@@ -19,11 +19,7 @@ type GroupManager struct {
 	exitChan     chan bool
 	rtmpGroup    *rtmp.Group
 	httpFlvGroup *httpflv.Group
-	//rtmpPullSession    *rtmp.PullSession
-	//httpFlvPullSession *httpflv.PullSession
-	//turnToEmptyTick    int64 // trace while sub session list turn to empty
-	//gopCache           *httpflv.GOPCache
-	mutex sync.Mutex
+	mutex        sync.Mutex
 
 	UniqueKey string
 }
@@ -37,9 +33,7 @@ func NewGroupManager(appName string, streamName string, config *Config) *GroupMa
 		appName:    appName,
 		streamName: streamName,
 		exitChan:   make(chan bool),
-		//httpFlvSubSessionList: make(map[*httpflv.SubSession]struct{}),
-		//gopCache:  httpflv.NewGOPCache(config.GOPCacheNum),
-		UniqueKey: uk,
+		UniqueKey:  uk,
 	}
 }
 
@@ -52,39 +46,7 @@ func (gm *GroupManager) RunLoop() {
 		case <-gm.exitChan:
 			return
 		case <-t.C:
-			//now := time.Now().Unix()
-
-			// TODO chef: do timeout stuff. and do it fast.
-
-			//group.mutex.Lock()
-			//if group.httpFlvPullSession != nil {
-			//	if isReadTimeout, _ := group.httpFlvPullSession.ConnStat.Check(now); isReadTimeout {
-			//		log.Warnf("pull session read timeout. [%s]", group.httpFlvPullSession.UniqueKey)
-			//		group.disposePullSession(lalErr)
-			//	}
-			//}
-			//group.mutex.Unlock()
-
-			//group.mutex.Lock()
-			//for session := range group.httpFlvSubSessionList {
-			//	if _, isWriteTimeout := session.ConnStat.Check(now); isWriteTimeout {
-			//		log.Warnf("sub session write timeout. [%s]", session)
-			//		delete(group.httpFlvSubSessionList, session)
-			//		session.Dispose(lalErr)
-			//	}
-			//}
-			//group.mutex.Unlock()
-
-			//if group.config.Pull.StopPullWhileNoSubTimeout != 0 {
-			//	group.mutex.Lock()
-			//	if group.httpFlvPullSession != nil && group.turnToEmptyTick != 0 && len(group.httpFlvSubSessionList) == 0 &&
-			//		now-group.turnToEmptyTick > group.config.Pull.StopPullWhileNoSubTimeout {
-			//
-			//		log.Infof("stop pull while no SubSession. [%s]", group.httpFlvPullSession.UniqueKey)
-			//		group.disposePullSession(lalErr)
-			//	}
-			//	group.mutex.Unlock()
-			//}
+			// noop
 		}
 	}
 }
@@ -139,7 +101,6 @@ func (gm *GroupManager) ReadFlvTagCB(tag *httpflv.Tag) {
 
 // GroupObserver of rtmp.Group
 func (gm *GroupManager) ReadRTMPAVMsgCB(header rtmp.Header, timestampAbs int, message []byte) {
-	log.Info("ReadRTMPAVMsgCB")
 
 	// TODO chef: broadcast to httpflv.Group
 }

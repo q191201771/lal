@@ -7,15 +7,21 @@ import (
 	"github.com/q191201771/lal/pkg/util/unique"
 	"net"
 	"strings"
+	"sync"
+	"sync/atomic"
 )
 
 // TODO chef: PubSession SubSession
 
 // TODO chef: 没有进化成Pub Sub时的超时释放
 
+var wChanSize = 1024 // TODO chef
+
 type ServerSessionObserver interface {
 	NewRTMPPubSessionCB(session *PubSession) // 上层代码应该在这个事件回调中注册音视频数据的监听
 	NewRTMPSubSessionCB(session *SubSession)
+	DelRTMPPubSessionCB(session *PubSession)
+	DelRTMPSubSessionCB(session *SubSession)
 }
 
 type ServerSessionType int
@@ -32,9 +38,6 @@ type ServerSession struct {
 	UniqueKey  string
 
 	obs           ServerSessionObserver
-	conn          net.Conn
-	rb            *bufio.Reader
-	wb            *bufio.Writer
 	t             ServerSessionType
 	hs            HandshakeServer
 	chunkComposer *ChunkComposer
@@ -42,32 +45,88 @@ type ServerSession struct {
 
 	// for PubSession
 	avObs PubSessionObserver
+
+	// to be continued
+	// TODO chef: 添加Dispose，以及chan发送
+	conn          net.Conn
+	rb            *bufio.Reader
+	wb            *bufio.Writer
+	wChan         chan []byte
+	closeOnce     sync.Once
+	exitChan      chan struct{}
+	hasClosedFlag uint32
 }
 
 func NewServerSession(obs ServerSessionObserver, conn net.Conn) *ServerSession {
 	return &ServerSession{
+		UniqueKey:     unique.GenUniqueKey("RTMPSERVER"),
 		obs:           obs,
-		conn:          conn,
-		rb:            bufio.NewReaderSize(conn, readBufSize),
-		wb:            bufio.NewWriterSize(conn, writeBufSize),
 		t:             ServerSessionTypeInit,
 		chunkComposer: NewChunkComposer(),
 		packer:        NewMessagePacker(),
-		UniqueKey:     unique.GenUniqueKey("RTMPSERVER"),
+		conn:          conn,
+		rb:            bufio.NewReaderSize(conn, readBufSize),
+		wb:            bufio.NewWriterSize(conn, writeBufSize),
+		wChan:         make(chan []byte, wChanSize),
+		exitChan:      make(chan struct{}),
 	}
 }
 
-func (s *ServerSession) RunLoop() error {
-	if err := s.handshake(); err != nil {
+func (s *ServerSession) RunLoop() (err error) {
+	if err = s.handshake(); err != nil {
 		return err
 	}
+
+	go s.runWriteLoop()
+
+	if err = s.chunkComposer.RunLoop(s.rb, s.doMsg); err != nil {
+		s.dispose(err)
+	}
+	return err
+}
+
+func (s *ServerSession) Dispose() {
+	if atomic.LoadUint32(&s.hasClosedFlag) == 1 {
+		return
+	}
+	s.dispose(nil)
+}
+
+func (s *ServerSession) AsyncWrite(msg []byte) error {
+	if atomic.LoadUint32(&s.hasClosedFlag) == 1 {
+		return rtmpErr
+	}
+
+	s.wChan <- msg
+	return nil
+}
+
+func (s *ServerSession) runReadLoop() error {
 	return s.chunkComposer.RunLoop(s.rb, s.doMsg)
 }
 
-// TODO chef: 临时发送函数
-func (s *ServerSession) WriteRawMessage(msg []byte) error {
-	_, err := s.conn.Write(msg)
-	return err
+func (s *ServerSession) runWriteLoop() {
+	for {
+		select {
+		case <-s.exitChan:
+			return
+		case msg := <-s.wChan:
+			if _, err := s.conn.Write(msg); err != nil {
+				s.dispose(err)
+			}
+			return
+		}
+	}
+}
+
+func (s *ServerSession) dispose(err error) {
+	s.closeOnce.Do(func() {
+		atomic.StoreUint32(&s.hasClosedFlag, 1)
+		close(s.exitChan)
+		if err := s.conn.Close(); err != nil {
+			log.Errorf("conn close error. err=%v", err)
+		}
+	})
 }
 
 func (s *ServerSession) handshake() error {
@@ -101,6 +160,8 @@ func (s *ServerSession) doMsg(stream *Stream) error {
 		}
 		//log.Infof("t:%d ts:%d len:%d", stream.header.MsgTypeID, stream.timestampAbs, stream.msg.e - stream.msg.b)
 		s.avObs.ReadRTMPAVMsgCB(stream.header, stream.timestampAbs, stream.msg.buf[stream.msg.b:stream.msg.e])
+	default:
+		log.Warnf("unknown message. typeid=%d", stream.header.MsgTypeID)
 
 	}
 	return nil

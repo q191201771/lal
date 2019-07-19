@@ -8,7 +8,7 @@ fi
 
 cd app/lal && \
   go build -ldflags " \
-    -X 'github.com/q191201771/lal/pkg/bininfo.BuildTime=`date +'%Y.%m.%d.%H%M%S'`' \
-    -X 'github.com/q191201771/lal/pkg/bininfo.GitCommitID=`git log --pretty=format:'%h' -n 1`' \
-    -X 'github.com/q191201771/lal/pkg/bininfo.GoVersion=`go version`' \
+    -X 'github.com/q191201771/lal/pkg/util/bininfo.GitCommitID=`git log --pretty=format:'%h' -n 1`' \
+    -X 'github.com/q191201771/lal/pkg/util/bininfo.BuildTime=`date +'%Y.%m.%d.%H%M%S'`' \
+    -X 'github.com/q191201771/lal/pkg/util/bininfo.BuildGoVersion=`go version`' \
   " -o ../../bin/lal
