@@ -12,3 +12,7 @@ cd app/lal && \
     -X 'github.com/q191201771/lal/pkg/util/bininfo.BuildTime=`date +'%Y.%m.%d.%H%M%S'`' \
     -X 'github.com/q191201771/lal/pkg/util/bininfo.BuildGoVersion=`go version`' \
   " -o ../../bin/lal
+
+cd -
+
+cd app/flvfile2rtmppush && go build -o ../../bin/flvfile2rtmppush

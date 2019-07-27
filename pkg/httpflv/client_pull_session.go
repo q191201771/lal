@@ -16,7 +16,7 @@ import (
 
 var flvHeaderSize = 13
 
-var flvPrevTagFieldSize = 4
+var prevTagFieldSize = 4
 
 type PullSessionStat struct {
 	ReadCount int64
@@ -170,15 +170,16 @@ func (session *PullSession) readTag() (*Tag, error) {
 	if err != nil {
 		return nil, err
 	}
-	session.ConnStat.Read(tagHeaderSize)
+	session.ConnStat.Read(TagHeaderSize)
 
-	needed := int(header.DataSize) + flvPrevTagFieldSize
+	needed := int(header.DataSize) + prevTagFieldSize
 	tag := &Tag{}
 	tag.Header = header
-	tag.Raw = make([]byte, tagHeaderSize+needed)
+	tag.Raw = make([]byte, TagHeaderSize+needed)
 	copy(tag.Raw, rawHeader)
 
-	if _, err := io.ReadAtLeast(session.rb, tag.Raw[tagHeaderSize:], needed); err != nil {
+	// TODO chef: why ReadAtLeast???
+	if _, err := io.ReadAtLeast(session.rb, tag.Raw[TagHeaderSize:], needed); err != nil {
 		return nil, err
 	}
 	session.ConnStat.Read(needed)

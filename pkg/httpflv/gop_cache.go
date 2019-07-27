@@ -37,8 +37,8 @@ func (c *GOPCache) Push(tag *Tag) {
 		// TODO chef: will this happen?
 		if c.metadata != nil {
 			log.Debugf("updating metadata.")
-			log.Debug(tag.Header, tag.Raw[tagHeaderSize:])
-			log.Debug(c.metadata.Header, c.metadata.Raw[tagHeaderSize:])
+			log.Debug(tag.Header, tag.Raw[TagHeaderSize:])
+			log.Debug(c.metadata.Header, c.metadata.Raw[TagHeaderSize:])
 			c.clearGOP()
 		}
 		c.metadata = tag
@@ -48,12 +48,12 @@ func (c *GOPCache) Push(tag *Tag) {
 			c.avcSeqHeader = tag
 		} else {
 			// TODO chef: compare nessary? if other way to update seq header and handle cache stuff?
-			if bytes.Compare(tag.Raw[tagHeaderSize:], c.avcSeqHeader.Raw[tagHeaderSize:]) == 0 {
+			if bytes.Compare(tag.Raw[TagHeaderSize:], c.avcSeqHeader.Raw[TagHeaderSize:]) == 0 {
 				// noop
 			} else {
 				log.Debugf("updating avc seq header.")
-				log.Debug(tag.Header, tag.Raw[tagHeaderSize:])
-				log.Debug(c.avcSeqHeader.Header, c.avcSeqHeader.Raw[tagHeaderSize:])
+				log.Debug(tag.Header, tag.Raw[TagHeaderSize:])
+				log.Debug(c.avcSeqHeader.Header, c.avcSeqHeader.Raw[TagHeaderSize:])
 				c.clearGOP()
 				c.avcSeqHeader = tag
 			}
@@ -63,7 +63,7 @@ func (c *GOPCache) Push(tag *Tag) {
 		if c.aacSeqHeader == nil {
 			c.aacSeqHeader = tag
 		} else {
-			if bytes.Compare(tag.Raw[tagHeaderSize:], c.aacSeqHeader.Raw[tagHeaderSize:]) == 0 {
+			if bytes.Compare(tag.Raw[TagHeaderSize:], c.aacSeqHeader.Raw[TagHeaderSize:]) == 0 {
 				// noop
 			} else {
 				log.Debugf("updating aac seq header.")

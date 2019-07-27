@@ -106,6 +106,12 @@ func (s *ClientSession) WaitLoop() error {
 	return <-s.errChan
 }
 
+// TODO chef: mod to async
+func (s *ClientSession) TmpWrite(b []byte) error {
+	_, err := s.Conn.Write(b)
+	return err
+}
+
 func (s *ClientSession) runReadLoop() error {
 	return s.chunkComposer.RunLoop(s.rb, s.doMsg)
 }

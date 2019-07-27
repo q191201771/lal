@@ -13,9 +13,9 @@ import (
 // "
 
 var (
-	GitCommitID string
-	BuildTime   string
-	BuildGoVersion   string
+	GitCommitID    string
+	BuildTime      string
+	BuildGoVersion string
 )
 
 func StringifySingleLine() string {

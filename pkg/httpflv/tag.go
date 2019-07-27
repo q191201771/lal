@@ -6,7 +6,7 @@ import (
 )
 
 // TODO chef: make these const
-const tagHeaderSize int = 11
+const TagHeaderSize int = 11
 const prevTagSizeFieldSize int = 4
 
 const (
@@ -60,15 +60,15 @@ func (tag *Tag) IsMetadata() bool {
 }
 
 func (tag *Tag) IsAVCKeySeqHeader() bool {
-	return tag.Header.T == TagTypeVideo && tag.Raw[tagHeaderSize] == AVCKey && tag.Raw[tagHeaderSize+1] == isAVCKeySeqHeader
+	return tag.Header.T == TagTypeVideo && tag.Raw[TagHeaderSize] == AVCKey && tag.Raw[TagHeaderSize+1] == isAVCKeySeqHeader
 }
 
 func (tag *Tag) IsAVCKeyNalu() bool {
-	return tag.Header.T == TagTypeVideo && tag.Raw[tagHeaderSize] == AVCKey && tag.Raw[tagHeaderSize+1] == AVCPacketTypeNalu
+	return tag.Header.T == TagTypeVideo && tag.Raw[TagHeaderSize] == AVCKey && tag.Raw[TagHeaderSize+1] == AVCPacketTypeNalu
 }
 
 func (tag *Tag) IsAACSeqHeader() bool {
-	return tag.Header.T == TagTypeAudio && tag.Raw[tagHeaderSize]>>4 == SoundFormatAAC && tag.Raw[tagHeaderSize+1] == AACPacketTypeSeqHeader
+	return tag.Header.T == TagTypeAudio && tag.Raw[TagHeaderSize]>>4 == SoundFormatAAC && tag.Raw[TagHeaderSize+1] == AACPacketTypeSeqHeader
 }
 
 func IsMetadata(tag []byte) bool {
@@ -76,19 +76,19 @@ func IsMetadata(tag []byte) bool {
 }
 
 func IsAVCKeySeqHeader(tag []byte) bool {
-	return tag[0] == TagTypeVideo && tag[tagHeaderSize] == AVCKey && tag[tagHeaderSize+1] == isAVCKeySeqHeader
+	return tag[0] == TagTypeVideo && tag[TagHeaderSize] == AVCKey && tag[TagHeaderSize+1] == isAVCKeySeqHeader
 }
 
 func IsAVCKeyNalu(tag []byte) bool {
-	return tag[0] == TagTypeVideo && tag[tagHeaderSize] == AVCKey && tag[tagHeaderSize+1] == AVCPacketTypeNalu
+	return tag[0] == TagTypeVideo && tag[TagHeaderSize] == AVCKey && tag[TagHeaderSize+1] == AVCPacketTypeNalu
 }
 
 func IsAACSeqHeader(tag []byte) bool {
-	return tag[0] == TagTypeAudio && tag[tagHeaderSize]>>4 == SoundFormatAAC && tag[tagHeaderSize+1] == AACPacketTypeSeqHeader
+	return tag[0] == TagTypeAudio && tag[TagHeaderSize]>>4 == SoundFormatAAC && tag[TagHeaderSize+1] == AACPacketTypeSeqHeader
 }
 
 func PackHTTPFlvTag(t uint8, timestamp int, in []byte) []byte {
-	out := make([]byte, tagHeaderSize+len(in)+prevTagSizeFieldSize)
+	out := make([]byte, TagHeaderSize+len(in)+prevTagSizeFieldSize)
 	out[0] = t
 	bele.BEPutUint24(out[1:], uint32(len(in)))
 	bele.BEPutUint24(out[4:], uint32(timestamp&0xFFFFFF))
@@ -97,13 +97,13 @@ func PackHTTPFlvTag(t uint8, timestamp int, in []byte) []byte {
 	out[9] = 0
 	out[10] = 0
 	copy(out[11:], in)
-	bele.BEPutUint32(out[tagHeaderSize+len(in):], uint32(tagHeaderSize+len(in)))
+	bele.BEPutUint32(out[TagHeaderSize+len(in):], uint32(TagHeaderSize+len(in)))
 	return out
 }
 
 func readTagHeader(rd io.Reader) (h TagHeader, rawHeader []byte, err error) {
-	rawHeader = make([]byte, tagHeaderSize)
-	if _, err = io.ReadAtLeast(rd, rawHeader, tagHeaderSize); err != nil {
+	rawHeader = make([]byte, TagHeaderSize)
+	if _, err = io.ReadAtLeast(rd, rawHeader, TagHeaderSize); err != nil {
 		return
 	}
 

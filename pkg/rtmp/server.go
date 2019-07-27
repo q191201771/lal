@@ -109,4 +109,3 @@ func (server *Server) DelRTMPSubSessionCB(session *SubSession) {
 
 	group.DelSubSession(session)
 }
-
