@@ -15,9 +15,9 @@ type Group struct {
 	appName    string
 	streamName string
 
-	pubSession      *PubSession
+	pubSession      *ServerSession
 	pullSession     *PullSession
-	subSessionSet   map[*SubSession]struct{}
+	subSessionSet   map[*ServerSession]struct{}
 	prevAudioHeader *Header
 	prevVideoHeader *Header
 
@@ -35,7 +35,7 @@ func NewGroup(appName string, streamName string) *Group {
 	return &Group{
 		appName:       appName,
 		streamName:    streamName,
-		subSessionSet: make(map[*SubSession]struct{}),
+		subSessionSet: make(map[*ServerSession]struct{}),
 	}
 }
 
@@ -55,7 +55,7 @@ func (group *Group) Dispose() {
 
 }
 
-func (group *Group) AddPubSession(session *PubSession) {
+func (group *Group) AddPubSession(session *ServerSession) {
 	log.Debugf("add PubSession into group. [%s]", session.UniqueKey)
 	group.mutex.Lock()
 	group.pubSession = session
@@ -63,7 +63,7 @@ func (group *Group) AddPubSession(session *PubSession) {
 	session.SetPubSessionObserver(group)
 }
 
-func (group *Group) AddSubSession(session *SubSession) {
+func (group *Group) AddSubSession(session *ServerSession) {
 	log.Debugf("add SubSession into group. [%s]", session.UniqueKey)
 	group.mutex.Lock()
 	group.subSessionSet[session] = struct{}{}
@@ -73,7 +73,7 @@ func (group *Group) AddSubSession(session *SubSession) {
 	//group.turnToEmptyTick = 0
 }
 
-func (group *Group) DelPubSession(session *PubSession) {
+func (group *Group) DelPubSession(session *ServerSession) {
 	log.Debugf("del PubSession from group. [%s]", session.UniqueKey)
 	group.mutex.Lock()
 	group.pubSession = nil
@@ -81,7 +81,7 @@ func (group *Group) DelPubSession(session *PubSession) {
 
 }
 
-func (group *Group) DelSubSession(session *SubSession) {
+func (group *Group) DelSubSession(session *ServerSession) {
 	log.Debugf("del SubSession from group. [%s]", session.UniqueKey)
 	group.mutex.Lock()
 	delete(group.subSessionSet, session)
@@ -157,12 +157,11 @@ func (group *Group) broadcastRTMP2RTMP(header Header, timestampAbs int, message 
 		//prevHeader = group.prevVideoHeader
 	}
 
-	// TODO chef: 所有都使用abs格式了
 	var absChunks []byte
 
 	for session := range group.subSessionSet {
 		if absChunks == nil {
-			absChunks = Message2Chunks(message, &currHeader, nil, LocalChunkSize)
+			absChunks = Message2Chunks(message, &currHeader, LocalChunkSize)
 		}
 
 		// 是新连接
@@ -208,7 +207,7 @@ func (group *Group) broadcastRTMP2RTMP(header Header, timestampAbs int, message 
 	switch header.MsgTypeID {
 	case TypeidDataMessageAMF0:
 		if absChunks == nil {
-			absChunks = Message2Chunks(message, &currHeader, nil, LocalChunkSize)
+			absChunks = Message2Chunks(message, &currHeader, LocalChunkSize)
 		}
 		log.Debug("cache metadata.")
 		group.metadata = absChunks
@@ -216,7 +215,7 @@ func (group *Group) broadcastRTMP2RTMP(header Header, timestampAbs int, message 
 		// TODO chef: magic number
 		if message[0] == 0x17 && message[1] == 0x0 {
 			if absChunks == nil {
-				absChunks = Message2Chunks(message, &currHeader, nil, LocalChunkSize)
+				absChunks = Message2Chunks(message, &currHeader, LocalChunkSize)
 			}
 			log.Debug("cache avc key seq header.")
 			group.avcKeySeqHeader = absChunks
@@ -224,7 +223,7 @@ func (group *Group) broadcastRTMP2RTMP(header Header, timestampAbs int, message 
 	case TypeidAudio:
 		if (message[0]>>4) == 0x0a && message[1] == 0x0 {
 			if absChunks == nil {
-				absChunks = Message2Chunks(message, &currHeader, nil, LocalChunkSize)
+				absChunks = Message2Chunks(message, &currHeader, LocalChunkSize)
 			}
 			log.Debug("cache aac seq header.")
 			group.aacSeqHeader = absChunks

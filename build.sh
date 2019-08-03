@@ -14,5 +14,7 @@ cd app/lal && \
   " -o ../../bin/lal
 
 cd -
-
 cd app/flvfile2rtmppush && go build -o ../../bin/flvfile2rtmppush
+
+cd -
+cd app/modflvfile && go build -o ../../bin/modflvfile

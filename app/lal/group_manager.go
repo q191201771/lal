@@ -25,8 +25,8 @@ type GroupManager struct {
 }
 
 func NewGroupManager(appName string, streamName string, config *Config) *GroupManager {
-	uk := unique.GenUniqueKey("FLVGROUP")
-	log.Infof("lifecycle new Group. [%s] appName=%s streamName=%s", uk, appName, streamName)
+	uk := unique.GenUniqueKey("GROUPMANAGER")
+	log.Infof("lifecycle new GroupManager. [%s] appName=%s streamName=%s", uk, appName, streamName)
 
 	return &GroupManager{
 		config:     config,
@@ -57,13 +57,13 @@ func (gm *GroupManager) Dispose(err error) {
 }
 
 // 返回true则允许推流，返回false则关闭连接
-func (gm *GroupManager) AddRTMPPubSession(session *rtmp.PubSession, rtmpGroup *rtmp.Group) bool {
+func (gm *GroupManager) AddRTMPPubSession(session *rtmp.ServerSession, rtmpGroup *rtmp.Group) bool {
 	gm.attachRTMPGroup(rtmpGroup)
 
 	return !gm.isInExist()
 }
 
-func (gm *GroupManager) AddRTMPSubSession(session *rtmp.SubSession, rtmpGroup *rtmp.Group) {
+func (gm *GroupManager) AddRTMPSubSession(session *rtmp.ServerSession, rtmpGroup *rtmp.Group) {
 	gm.attachRTMPGroup(rtmpGroup)
 
 	gm.pullIfNeeded()

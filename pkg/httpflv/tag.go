@@ -113,6 +113,13 @@ func readTagHeader(rd io.Reader) (h TagHeader, rawHeader []byte, err error) {
 	return
 }
 
+func ModTagTimestamp(tag *Tag, timestamp uint32) {
+	tag.Header.Timestamp = timestamp
+
+	bele.BEPutUint24(tag.Raw[4:], timestamp&0xffffff)
+	tag.Raw[7] = byte(timestamp >> 24)
+}
+
 func (tag *Tag) cloneTag() *Tag {
 	res := &Tag{}
 	res.Header = tag.Header

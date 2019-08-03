@@ -7,8 +7,8 @@ import (
 )
 
 type ServerObserver interface {
-	NewRTMPPubSessionCB(session *PubSession, group *Group) bool // 返回true则允许推流，返回false则强制关闭这个连接
-	NewRTMPSubSessionCB(session *SubSession, group *Group) bool // 返回true则允许拉流，返回false则强制关闭这个连接
+	NewRTMPPubSessionCB(session *ServerSession, group *Group) bool // 返回true则允许推流，返回false则强制关闭这个连接
+	NewRTMPSubSessionCB(session *ServerSession, group *Group) bool // 返回true则允许拉流，返回false则强制关闭这个连接
 }
 
 type Server struct {
@@ -53,7 +53,16 @@ func (server *Server) Dispose() {
 func (server *Server) handleConnect(conn net.Conn) {
 	log.Infof("accept a rtmp connection. remoteAddr=%v", conn.RemoteAddr())
 	session := NewServerSession(server, conn)
-	_ = session.RunLoop()
+	err := session.RunLoop()
+	log.Infof("close a rtmp session.type=%d, err=%v", session.t, err)
+	switch session.t {
+	case ServerSessionTypeUnknown:
+	// noop
+	case ServerSessionTypePub:
+		server.DelRTMPPubSession(session)
+	case ServerSessionTypeSub:
+		server.DelRTMPSubSession(session)
+	}
 }
 
 func (server *Server) getOrCreateGroup(appName string, streamName string) *Group {
@@ -70,7 +79,7 @@ func (server *Server) getOrCreateGroup(appName string, streamName string) *Group
 }
 
 // ServerSessionObserver
-func (server *Server) NewRTMPPubSessionCB(session *PubSession) {
+func (server *Server) NewRTMPPubSessionCB(session *ServerSession) {
 	group := server.getOrCreateGroup(session.AppName, session.StreamName)
 
 	if !server.obs.NewRTMPPubSessionCB(session, group) {
@@ -82,7 +91,7 @@ func (server *Server) NewRTMPPubSessionCB(session *PubSession) {
 }
 
 // ServerSessionObserver
-func (server *Server) NewRTMPSubSessionCB(session *SubSession) {
+func (server *Server) NewRTMPSubSessionCB(session *ServerSession) {
 	group := server.getOrCreateGroup(session.AppName, session.StreamName)
 
 	if !server.obs.NewRTMPSubSessionCB(session, group) {
@@ -92,8 +101,7 @@ func (server *Server) NewRTMPSubSessionCB(session *SubSession) {
 	group.AddSubSession(session)
 }
 
-// ServerSessionObserver
-func (server *Server) DelRTMPPubSessionCB(session *PubSession) {
+func (server *Server) DelRTMPPubSession(session *ServerSession) {
 	group := server.getOrCreateGroup(session.AppName, session.StreamName)
 
 	// TODO chef: obs
@@ -101,8 +109,7 @@ func (server *Server) DelRTMPPubSessionCB(session *PubSession) {
 	group.DelPubSession(session)
 }
 
-// ServerSessionObserver
-func (server *Server) DelRTMPSubSessionCB(session *SubSession) {
+func (server *Server) DelRTMPSubSession(session *ServerSession) {
 	group := server.getOrCreateGroup(session.AppName, session.StreamName)
 
 	// TODO chef: obs

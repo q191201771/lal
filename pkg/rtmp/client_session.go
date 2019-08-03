@@ -50,8 +50,6 @@ func NewClientSession(t ClientSessionType, obs PullSessionObserver, connectTimeo
 		uk = "RTMPPULL"
 	case CSTPushSession:
 		uk = "RTMPPUSH"
-	default:
-		panic("unreached.")
 	}
 
 	return &ClientSession{

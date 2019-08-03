@@ -24,23 +24,31 @@ func NewServerManager(config *Config) *ServerManager {
 		groupManagerMap: make(map[string]*GroupManager),
 		exitChan:        make(chan bool),
 	}
-	m.httpFlvServer = httpflv.NewServer(m, config.HTTPFlv.SubListenAddr, config.SubIdleTimeout)
-	m.rtmpServer = rtmp.NewServer(m, config.RTMP.Addr)
+	if len(config.HTTPFlv.SubListenAddr) != 0 {
+		m.httpFlvServer = httpflv.NewServer(m, config.HTTPFlv.SubListenAddr, config.SubIdleTimeout)
+	}
+	if len(config.RTMP.Addr) != 0 {
+		m.rtmpServer = rtmp.NewServer(m, config.RTMP.Addr)
+	}
 	return m
 }
 
 func (sm *ServerManager) RunLoop() {
-	go func() {
-		if err := sm.httpFlvServer.RunLoop(); err != nil {
-			log.Error(err)
-		}
-	}()
+	if sm.httpFlvServer != nil {
+		go func() {
+			if err := sm.httpFlvServer.RunLoop(); err != nil {
+				log.Error(err)
+			}
+		}()
+	}
 
-	go func() {
-		if err := sm.rtmpServer.RunLoop(); err != nil {
-			log.Error(err)
-		}
-	}()
+	if sm.rtmpServer != nil {
+		go func() {
+			if err := sm.rtmpServer.RunLoop(); err != nil {
+				log.Error(err)
+			}
+		}()
+	}
 
 	t := time.NewTicker(1 * time.Second)
 	defer t.Stop()
@@ -81,13 +89,13 @@ func (sm *ServerManager) NewHTTPFlvSubSessionCB(session *httpflv.SubSession, htt
 }
 
 // ServerObserver of rtmp.Server
-func (sm *ServerManager) NewRTMPPubSessionCB(session *rtmp.PubSession, rtmpGroup *rtmp.Group) bool {
+func (sm *ServerManager) NewRTMPPubSessionCB(session *rtmp.ServerSession, rtmpGroup *rtmp.Group) bool {
 	gm := sm.getOrCreateGroupManager(session.AppName, session.StreamName)
 	return gm.AddRTMPPubSession(session, rtmpGroup)
 }
 
 // ServerObserver of rtmp.Server
-func (sm *ServerManager) NewRTMPSubSessionCB(session *rtmp.SubSession, rtmpGroup *rtmp.Group) bool {
+func (sm *ServerManager) NewRTMPSubSessionCB(session *rtmp.ServerSession, rtmpGroup *rtmp.Group) bool {
 	gm := sm.getOrCreateGroupManager(session.AppName, session.StreamName)
 	gm.AddRTMPSubSession(session, rtmpGroup)
 	return true

@@ -242,6 +242,6 @@ func (amf0) ReadObject(b []byte) (map[string]interface{}, int, error) {
 		}
 	}
 
-	//panic("unreachable code.")
-	return nil, 0, nil
+	//panic("should not reach here.")
+	//return nil, 0, nil
 }

@@ -64,6 +64,7 @@ func (c *ChunkComposer) RunLoop(reader io.Reader, cb CompleteMessageCB) error {
 			if _, err := io.ReadAtLeast(reader, bootstrap[:11], 11); err != nil {
 				return err
 			}
+			// 包头中为绝对时间戳
 			stream.header.Timestamp = int(bele.BEUint24(bootstrap))
 			stream.timestampAbs = stream.header.Timestamp
 			stream.msgLen = int(bele.BEUint24(bootstrap[3:]))
@@ -75,6 +76,7 @@ func (c *ChunkComposer) RunLoop(reader io.Reader, cb CompleteMessageCB) error {
 			if _, err := io.ReadAtLeast(reader, bootstrap[:7], 7); err != nil {
 				return err
 			}
+			// 包头中为相对时间戳
 			stream.header.Timestamp = int(bele.BEUint24(bootstrap))
 			stream.timestampAbs += stream.header.Timestamp
 			stream.msgLen = int(bele.BEUint24(bootstrap[3:]))
@@ -85,6 +87,7 @@ func (c *ChunkComposer) RunLoop(reader io.Reader, cb CompleteMessageCB) error {
 			if _, err := io.ReadAtLeast(reader, bootstrap[:3], 3); err != nil {
 				return err
 			}
+			// 包头中为相对时间戳
 			stream.header.Timestamp = int(bele.BEUint24(bootstrap))
 			stream.timestampAbs += stream.header.Timestamp
 
@@ -93,7 +96,11 @@ func (c *ChunkComposer) RunLoop(reader io.Reader, cb CompleteMessageCB) error {
 		}
 
 		// 5.3.1.3 Extended Timestamp
-		if stream.header.Timestamp == maxTimestampInMessageHeader {
+		// 使用ffmpeg推流时，发现时间戳超过3字节最大值后，即使是fmt3(即包头大小为0)，依然存在ext ts字段
+		// 所以这里我将 `==` 的判断改成了 `>=`
+		// TODO 测试其他客户端和ext ts相关的表现
+		//if stream.header.Timestamp == maxTimestampInMessageHeader {
+		if stream.header.Timestamp >= maxTimestampInMessageHeader {
 			if _, err := io.ReadAtLeast(reader, bootstrap[:4], 4); err != nil {
 				return err
 			}
@@ -109,6 +116,9 @@ func (c *ChunkComposer) RunLoop(reader io.Reader, cb CompleteMessageCB) error {
 				// noop
 			}
 		}
+		//stream.header.CSID = csid
+		//stream.header.MsgLen = stream.msgLen
+		//log.Debugf("CHEFGREPME tag1 fmt:%d header:%+v csid:%d len:%d ts:%d", fmt, stream.header, csid, stream.msgLen, stream.timestampAbs)
 
 		var neededSize int
 		if stream.msgLen <= c.peerChunkSize {
@@ -135,6 +145,7 @@ func (c *ChunkComposer) RunLoop(reader io.Reader, cb CompleteMessageCB) error {
 
 			stream.header.CSID = csid
 			stream.header.MsgLen = stream.msgLen
+			//log.Debugf("CHEFGREPME %+v %d %d", stream.header, stream.timestampAbs, stream.msgLen)
 			if err := cb(stream); err != nil {
 				return err
 			}

@@ -20,8 +20,9 @@ func main() {
 	var ffr httpflv.FlvFileReader
 	err := ffr.Open(flvFileName)
 	panicIfErr(err)
-
+	defer ffr.Dispose()
 	log.Infof("open succ.")
+
 	flvHeader, err := ffr.ReadFlvHeader()
 	panicIfErr(err)
 	log.Infof("read flv header succ. %v", flvHeader)
@@ -37,11 +38,12 @@ func main() {
 	//var aPrevH *rtmp.Header
 	//var vPrevH *rtmp.Header
 
-	for i := 0; i < 1000*1000; i++ {
+	//for i := 0; i < 1000*1000; i++ {
+	for {
 		tag, err := ffr.ReadTag()
 		panicIfErr(err)
 		//log.Infof("tag: %+v %v", tag.Header, tag.Raw[11:])
-		log.Infof("tag: %+v %d", tag.Header, len(tag.Raw))
+		//log.Infof("tag: %+v %d", tag.Header, len(tag.Raw))
 
 		// TODO chef: 转换代码放入lal某个包中
 		var h rtmp.Header
@@ -80,7 +82,7 @@ func main() {
 		//if tag.Header.T == httpflv.TagTypeVideo {
 		//	chunks = rtmp.Message2Chunks(tag.Raw[11:11+h.MsgLen], &h, nil, rtmp.LocalChunkSize)
 		//}
-		chunks := rtmp.Message2Chunks(tag.Raw[11:11+h.MsgLen], &h, nil, rtmp.LocalChunkSize)
+		chunks := rtmp.Message2Chunks(tag.Raw[11:11+h.MsgLen], &h, rtmp.LocalChunkSize)
 
 		// 第一个包直接发送
 		if prevTS == 0 {
@@ -117,9 +119,8 @@ func main() {
 			continue
 		}
 
-		panic("should never reach here.")
+		panic("should not reach here.")
 	}
-	ffr.Dispose()
 }
 
 func panicIfErr(err error) {

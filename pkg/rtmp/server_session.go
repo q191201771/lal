@@ -18,16 +18,24 @@ import (
 var wChanSize = 1024 // TODO chef
 
 type ServerSessionObserver interface {
-	NewRTMPPubSessionCB(session *PubSession) // 上层代码应该在这个事件回调中注册音视频数据的监听
-	NewRTMPSubSessionCB(session *SubSession)
-	DelRTMPPubSessionCB(session *PubSession)
-	DelRTMPSubSessionCB(session *SubSession)
+	NewRTMPPubSessionCB(session *ServerSession) // 上层代码应该在这个事件回调中注册音视频数据的监听
+	NewRTMPSubSessionCB(session *ServerSession)
+	//DelRTMPPubSessionCB(session *PubSession)
+	//DelRTMPSubSessionCB(session *SubSession)
+}
+
+type PubSessionObserver interface {
+	AVMsgObserver
+}
+
+func (s *ServerSession) SetPubSessionObserver(obs PubSessionObserver) {
+	s.avObs = obs
 }
 
 type ServerSessionType int
 
 const (
-	ServerSessionTypeInit ServerSessionType = iota // 收到客户端的publish或者play信令之前的类型状态
+	ServerSessionTypeUnknown ServerSessionType = iota // 收到客户端的publish或者play信令之前的类型状态
 	ServerSessionTypePub
 	ServerSessionTypeSub
 )
@@ -43,9 +51,6 @@ type ServerSession struct {
 	chunkComposer *ChunkComposer
 	packer        *MessagePacker
 
-	// for PubSession
-	avObs PubSessionObserver
-
 	// to be continued
 	// TODO chef: 添加Dispose，以及chan发送
 	conn          net.Conn
@@ -55,13 +60,20 @@ type ServerSession struct {
 	closeOnce     sync.Once
 	exitChan      chan struct{}
 	hasClosedFlag uint32
+
+	// only for PubSession
+	avObs PubSessionObserver
+
+	// only for SubSession
+	isFresh     bool
+	waitKeyNalu bool
 }
 
 func NewServerSession(obs ServerSessionObserver, conn net.Conn) *ServerSession {
 	return &ServerSession{
 		UniqueKey:     unique.GenUniqueKey("RTMPSERVER"),
 		obs:           obs,
-		t:             ServerSessionTypeInit,
+		t:             ServerSessionTypeUnknown,
 		chunkComposer: NewChunkComposer(),
 		packer:        NewMessagePacker(),
 		conn:          conn,
@@ -69,6 +81,8 @@ func NewServerSession(obs ServerSessionObserver, conn net.Conn) *ServerSession {
 		wb:            bufio.NewWriterSize(conn, writeBufSize),
 		wChan:         make(chan []byte, wChanSize),
 		exitChan:      make(chan struct{}),
+		isFresh:       true,
+		waitKeyNalu:   true,
 	}
 }
 
@@ -113,8 +127,8 @@ func (s *ServerSession) runWriteLoop() {
 		case msg := <-s.wChan:
 			if _, err := s.conn.Write(msg); err != nil {
 				s.dispose(err)
+				return
 			}
-			return
 		}
 	}
 }
@@ -295,7 +309,7 @@ func (s *ServerSession) doPublish(tid int, stream *Stream) (err error) {
 	newUniqueKey := strings.Replace(s.UniqueKey, "RTMPSERVER", "RTMPPUB", 1)
 	log.Infof("session unique key upgrade. %s -> %s", s.UniqueKey, newUniqueKey)
 	s.UniqueKey = newUniqueKey
-	s.obs.NewRTMPPubSessionCB(NewPubSession(s))
+	s.obs.NewRTMPPubSessionCB(s)
 	return nil
 }
 
@@ -317,6 +331,6 @@ func (s *ServerSession) doPlay(tid int, stream *Stream) (err error) {
 	newUniqueKey := strings.Replace(s.UniqueKey, "RTMPSERVER", "RTMPSUB", 1)
 	log.Infof("session unique key upgrade. %s -> %s", s.UniqueKey, newUniqueKey)
 	s.UniqueKey = newUniqueKey
-	s.obs.NewRTMPSubSessionCB(NewSubSession(s))
+	s.obs.NewRTMPSubSessionCB(s)
 	return nil
 }
