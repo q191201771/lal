@@ -45,14 +45,14 @@ const (
 
 type TagHeader struct {
 	T         uint8 // type
-	DataSize  uint32
+	DataSize  uint32 // body大小，不包含header和prev tag size字段
 	Timestamp uint32
 	StreamID  uint32 // always 0
 }
 
 type Tag struct {
 	Header TagHeader
-	Raw    []byte
+	Raw    []byte // 结构为 (11字节的 tag header) + (body) + (4字节的 prev tag size)
 }
 
 func (tag *Tag) IsMetadata() bool {
@@ -69,6 +69,10 @@ func (tag *Tag) IsAVCKeyNalu() bool {
 
 func (tag *Tag) IsAACSeqHeader() bool {
 	return tag.Header.T == TagTypeAudio && tag.Raw[TagHeaderSize]>>4 == SoundFormatAAC && tag.Raw[TagHeaderSize+1] == AACPacketTypeSeqHeader
+}
+
+func (tag *Tag) Payload() []byte {
+	return tag.Raw[11:len(tag.Raw)-4]
 }
 
 func IsMetadata(tag []byte) bool {
@@ -101,6 +105,13 @@ func PackHTTPFlvTag(t uint8, timestamp int, in []byte) []byte {
 	return out
 }
 
+func ModTagTimestamp(tag *Tag, timestamp uint32) {
+	tag.Header.Timestamp = timestamp
+
+	bele.BEPutUint24(tag.Raw[4:], timestamp&0xffffff)
+	tag.Raw[7] = byte(timestamp >> 24)
+}
+
 func readTagHeader(rd io.Reader) (h TagHeader, rawHeader []byte, err error) {
 	rawHeader = make([]byte, TagHeaderSize)
 	if _, err = io.ReadAtLeast(rd, rawHeader, TagHeaderSize); err != nil {
@@ -111,13 +122,6 @@ func readTagHeader(rd io.Reader) (h TagHeader, rawHeader []byte, err error) {
 	h.DataSize = bele.BEUint24(rawHeader[1:])
 	h.Timestamp = (uint32(rawHeader[7]) << 24) + bele.BEUint24(rawHeader[4:])
 	return
-}
-
-func ModTagTimestamp(tag *Tag, timestamp uint32) {
-	tag.Header.Timestamp = timestamp
-
-	bele.BEPutUint24(tag.Raw[4:], timestamp&0xffffff)
-	tag.Raw[7] = byte(timestamp >> 24)
 }
 
 func (tag *Tag) cloneTag() *Tag {

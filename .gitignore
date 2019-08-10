@@ -2,11 +2,12 @@
 /coverage.txt
 /TODO.md
 /conf/self.conf.json
+/lal
+/lal_linux
 
+/pkg/hls/
 /demo/
 /bin/
 /.idea/
 /.trash/
 /logs/
-/lal
-/lal_linux

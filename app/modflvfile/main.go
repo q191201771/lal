@@ -3,6 +3,7 @@ package main
 import (
 	"flag"
 	"github.com/q191201771/lal/pkg/httpflv"
+	"github.com/q191201771/lal/pkg/util/errors"
 	"github.com/q191201771/lal/pkg/util/log"
 	"io"
 	"os"
@@ -37,21 +38,21 @@ func main() {
 
 	var ffr httpflv.FlvFileReader
 	err = ffr.Open(inFileName)
-	panicIfErr(err)
+	errors.PanicIfErrorOccur(err)
 	defer ffr.Dispose()
 	log.Infof("open input flv file succ.")
 
 	var ffw httpflv.FlvFileWriter
 	err = ffw.Open(outFileName)
-	panicIfErr(err)
+	errors.PanicIfErrorOccur(err)
 	defer ffw.Dispose()
 	log.Infof("open output flv file succ.")
 
 	flvHeader, err := ffr.ReadFlvHeader()
-	panicIfErr(err)
+	errors.PanicIfErrorOccur(err)
 
 	err = ffw.WriteRaw(flvHeader)
-	panicIfErr(err)
+	errors.PanicIfErrorOccur(err)
 
 	//for i:=0; i < 10; i++{
 	for {
@@ -60,19 +61,13 @@ func main() {
 			log.Infof("EOF.")
 			break
 		}
-		panicIfErr(err)
+		errors.PanicIfErrorOccur(err)
 
 		//log.Infof("> hook. %+v", tag)
 		hookTag(tag)
 		//log.Infof("< hook. %+v", tag)
 		err = ffw.WriteRaw(tag.Raw)
-		panicIfErr(err)
-	}
-}
-
-func panicIfErr(err error) {
-	if err != nil {
-		panic(err)
+		errors.PanicIfErrorOccur(err)
 	}
 }
 
