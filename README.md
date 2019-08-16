@@ -94,8 +94,7 @@ TODO 日志配置文件说明
 
 #### 依赖
 
-* cihub/seelog
-* stretchr/testify/assert
+目前不依赖任何第三方库
 
 #### roadmap
 
@@ -104,3 +103,4 @@ TODO 日志配置文件说明
 #### 文档
 
 * [rtmp handshake | rtmp握手简单模式和复杂模式](https://pengrl.com/p/20027/)
+* [rtmp协议中的chunk stream id, message stream id, transaction id, message type id](https://pengrl.com/p/25610/)

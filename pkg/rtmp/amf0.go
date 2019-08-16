@@ -10,7 +10,7 @@ import (
 	"github.com/q191201771/lal/pkg/util/bele"
 	"io"
 
-	"github.com/pkg/errors"
+	"errors"
 )
 
 const (

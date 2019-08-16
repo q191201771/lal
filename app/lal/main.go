@@ -14,9 +14,9 @@ import (
 var sm *ServerManager
 
 func main() {
-	confFile, logConfFile := parseFlag()
+	confFile := parseFlag()
 
-	initLog(logConfFile)
+	initLog()
 
 	log.Infof("bininfo: %s", bininfo.StringifySingleLine())
 
@@ -32,24 +32,32 @@ func main() {
 	startWebPProf()
 }
 
-func parseFlag() (string, string) {
+func parseFlag() string {
 	binInfoFlag := flag.Bool("v", false, "show bin info")
 	cf := flag.String("c", "", "specify conf file")
-	lcf := flag.String("l", "", "specify log conf file")
 	flag.Parse()
 	if *binInfoFlag {
 		fmt.Fprintln(os.Stderr, bininfo.StringifyMultiLine())
 		os.Exit(1)
 	}
-	if *cf == "" || *lcf == "" {
+	if *cf == "" {
 		flag.Usage()
 		os.Exit(1)
 	}
-	return *cf, *lcf
+	return *cf
 }
 
-func initLog(logConfFile string) {
-	if err := log.Initial(logConfFile); err != nil {
+func initLog() {
+	// TODO chef: 在配置文件中配置这些
+	c := log.Config{
+		Level: log.LevelDebug,
+		Filename:"./logs/lal.log",
+		IsToStdout:true,
+		IsRotateDaily:true,
+		RotateMByte:1024,
+
+	}
+	if err := log.Init(c); err != nil {
 		_, _ = fmt.Fprintf(os.Stderr, "initial log failed. err=%v", err)
 		os.Exit(1)
 	}

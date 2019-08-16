@@ -44,7 +44,7 @@ const (
 )
 
 type TagHeader struct {
-	T         uint8 // type
+	T         uint8  // type
 	DataSize  uint32 // body大小，不包含header和prev tag size字段
 	Timestamp uint32
 	StreamID  uint32 // always 0
@@ -72,7 +72,7 @@ func (tag *Tag) IsAACSeqHeader() bool {
 }
 
 func (tag *Tag) Payload() []byte {
-	return tag.Raw[11:len(tag.Raw)-4]
+	return tag.Raw[11 : len(tag.Raw)-4]
 }
 
 func IsMetadata(tag []byte) bool {

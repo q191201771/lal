@@ -4,6 +4,7 @@
 /conf/self.conf.json
 /lal
 /lal_linux
+/lal.log
 
 /pkg/hls/
 /demo/
