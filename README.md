@@ -57,8 +57,7 @@ $go get -u github.com/q191201771/lal
 # cd into lal
 $./build.sh
 
-# ./bin/lal -c <配置文件> -l <日志配置文件>，比如：
-$./bin/lal -c conf/lal.conf.json -l conf/log.dev.xml
+$./bin/lal -c conf/lal.conf.json
 ```
 
 #### 配置文件说明
