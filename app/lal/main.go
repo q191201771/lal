@@ -50,12 +50,10 @@ func parseFlag() string {
 func initLog() {
 	// TODO chef: 在配置文件中配置这些
 	c := log.Config{
-		Level: log.LevelDebug,
-		Filename:"./logs/lal.log",
-		IsToStdout:true,
-		IsRotateDaily:true,
-		RotateMByte:1024,
-
+		Level:       log.LevelDebug,
+		Filename:    "./logs/lal.log",
+		IsToStdout:  true,
+		RotateMByte: 1024,
 	}
 	if err := log.Init(c); err != nil {
 		_, _ = fmt.Fprintf(os.Stderr, "initial log failed. err=%v", err)

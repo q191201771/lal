@@ -7,11 +7,10 @@ import (
 
 func TestLogger(t *testing.T) {
 	c := log.Config{
-		Level:         log.LevelInfo,
-		Filename:      "/tmp/aaa/bbb.log",
-		IsToStdout:    true,
-		IsRotateDaily: false,
-		RotateMByte:   0,
+		Level:       log.LevelInfo,
+		Filename:    "/tmp/lallogtest/aaa.log",
+		IsToStdout:  true,
+		RotateMByte: 10,
 	}
 	l, err := log.New(c)
 	if err != nil {
@@ -38,11 +37,10 @@ func TestGlobal(t *testing.T) {
 	log.Error("test msg by Error")
 
 	c := log.Config{
-		Level:         log.LevelInfo,
-		Filename:      "/tmp/aaa/ccc.log",
-		IsToStdout:    true,
-		IsRotateDaily: false,
-		RotateMByte:   0,
+		Level:       log.LevelInfo,
+		Filename:    "/tmp/lallogtest/bbb.log",
+		IsToStdout:  true,
+		RotateMByte: 10,
 	}
 	err := log.Init(c)
 	if err != nil {
@@ -56,4 +54,20 @@ func TestGlobal(t *testing.T) {
 	log.Info("test msg by Info")
 	log.Warn("test msg by Warn")
 	log.Error("test msg by Error")
+}
+
+func BenchmarkStdout(b *testing.B) {
+	c := log.Config{
+		Level:       log.LevelInfo,
+		Filename:    "/tmp/lallogtest/ccc.log",
+		IsToStdout:  true,
+		RotateMByte: 10,
+	}
+	err := log.Init(c)
+	if err != nil {
+		panic(err)
+	}
+	for i := 0; i < b.N; i++ {
+		log.Infof("hello %s %d", "world", i)
+	}
 }

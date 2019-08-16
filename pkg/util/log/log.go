@@ -7,11 +7,11 @@ import (
 	"os"
 	"path/filepath"
 	"sync"
+	"time"
 )
 
 // TODO chef:
-// - 性能优化
-// - rotate实现
+// - 性能优化，目前是基于系统库log实现的
 // - 和系统库中的log跑个benchmark对比
 
 var logErr = errors.New("log:fxxk")
@@ -43,13 +43,11 @@ const (
 type Config struct {
 	Level Level `json:"level"` // 日志级别，大于等于该级别的日志才会被输出
 
-	// 文件输出和控制台输出可同时打开，控制台输出主要用做开发时调试，支持level彩色输出，以及源码文件、行号
 	Filename   string `json:"filename"`     // 输出日志文件名，如果为空，则不写日志文件。可包含路径，路径不存在时，将自动创建
 	IsToStdout bool   `json:"is_to_stdout"` // 是否以stdout输出到控制台
+	// 文件输出和控制台输出可同时打开，控制台输出主要用做开发时调试，支持level彩色输出，以及源码文件、行号
 
-	// 以下两个翻滚条件是或的关系，如果都设置了，则达到任意条件就翻滚
-	IsRotateDaily bool `json:"is_rotate_daily"` // 是否按天在凌晨翻滚
-	RotateMByte   int  `json:"rotate_mbyte"`    // 日志大小达到多少兆后翻滚，如果为0，则不按大小翻滚
+	RotateMByte int `json:"rotate_mbyte"` // 日志大小达到多少兆后翻滚，如果为0，则不翻滚
 }
 
 func New(c Config) (Logger, error) {
@@ -57,6 +55,8 @@ func New(c Config) (Logger, error) {
 		fl  *log.Logger
 		sl  *log.Logger
 		dir string
+		fp  *os.File
+		err error
 	)
 	if c.Level < LevelDebug || c.Level > LevelError {
 		return nil, logErr
@@ -66,11 +66,11 @@ func New(c Config) (Logger, error) {
 		if err := os.MkdirAll(dir, 0777); err != nil {
 			return nil, err
 		}
-		fp, err := os.Create(c.Filename)
+		fp, err = os.Create(c.Filename)
 		if err != nil {
 			return nil, err
 		}
-		fl = log.New(fp, "", log.Ldate|log.Lmicroseconds|log.Lshortfile)
+		fl = log.New(fp, "", log.Ldate|log.Lmicroseconds)
 	}
 	if c.IsToStdout {
 		sl = log.New(os.Stdout, "", log.Ldate|log.Lmicroseconds|log.Lshortfile)
@@ -81,6 +81,7 @@ func New(c Config) (Logger, error) {
 		stdoutLogger: sl,
 		c:            c,
 		dir:          dir,
+		fp:           fp,
 	}
 	return l, nil
 }
@@ -91,9 +92,9 @@ const (
 	levelWarnString  = "WARN  "
 	levelErrorString = "ERROR "
 
-	levelDebugColorString = "\033[01;37mDEBUG\033[0m "
+	levelDebugColorString = "\033[22;37mDEBUG\033[0m "
 	levelInfoColorString  = "\033[22;36mINFO\033[0m  "
-	levelWarnColorString  = "\033[01;33mWARN\033[0m  "
+	levelWarnColorString  = "\033[22;33mWARN\033[0m  "
 	levelErrorColorString = "\033[22;31mERROR\033[0m "
 )
 
@@ -115,10 +116,12 @@ var (
 type logger struct {
 	fileLogger   *log.Logger
 	stdoutLogger *log.Logger
-	m            sync.Mutex
 	c            Config
 
 	dir string
+
+	m  sync.Mutex
+	fp *os.File
 }
 
 func (l *logger) Debugf(format string, v ...interface{}) {
@@ -153,15 +156,33 @@ func (l *logger) Error(v ...interface{}) {
 	l.Output(LevelError, 3, v...)
 }
 
+// TODO chef: Outputf 和 Output 代码重复
 func (l *logger) Outputf(level Level, calldepth int, format string, v ...interface{}) {
 	if l.c.Level > level {
 		return
 	}
+
 	msg := fmt.Sprintf(format, v...)
 	if l.stdoutLogger != nil {
 		l.stdoutLogger.Output(calldepth, levelToColorString[level]+msg)
 	}
 	if l.fileLogger != nil {
+		if l.c.RotateMByte > 0 {
+			l.m.Lock()
+			// 把写日志的操作也锁住，避免日志移走后，其他协程继续写老日志文件
+			// TODO chef: 性能比较差，系统库内部也有锁
+			defer l.m.Unlock()
+			if fi, err := os.Stat(l.c.Filename); err == nil {
+				if fi.Size() > int64(l.c.RotateMByte)*1024*1024 {
+					newFileName := l.c.Filename + "." + time.Now().Format("20060102150405")
+					if err := os.Rename(l.c.Filename, newFileName); err == nil {
+						l.fp.Close()
+						l.fp, _ = os.Create(l.c.Filename)
+						l.fileLogger.SetOutput(l.fp)
+					}
+				}
+			}
+		}
 		l.fileLogger.Output(calldepth, levelToString[level]+msg)
 	}
 }
@@ -170,11 +191,28 @@ func (l *logger) Output(level Level, calldepth int, v ...interface{}) {
 	if l.c.Level > level {
 		return
 	}
+
 	msg := fmt.Sprint(v...)
 	if l.stdoutLogger != nil {
 		l.stdoutLogger.Output(calldepth, levelToColorString[level]+msg)
 	}
 	if l.fileLogger != nil {
+		if l.c.RotateMByte > 0 {
+			l.m.Lock()
+			// 把写日志的操作也锁住，避免日志移走后，其他协程继续写老日志文件
+			// TODO chef: 性能比较差，系统库内部也有锁
+			defer l.m.Unlock()
+			if fi, err := os.Stat(l.c.Filename); err == nil {
+				if fi.Size() > int64(l.c.RotateMByte)*1024*1024 {
+					newFileName := l.c.Filename + "." + time.Now().Format("20060102150405")
+					if err := os.Rename(l.c.Filename, newFileName); err == nil {
+						l.fp.Close()
+						l.fp, _ = os.Create(l.c.Filename)
+						l.fileLogger.SetOutput(l.fp)
+					}
+				}
+			}
+		}
 		l.fileLogger.Output(calldepth, levelToString[level]+msg)
 	}
 }
@@ -211,6 +249,14 @@ func Warn(v ...interface{}) {
 
 func Error(v ...interface{}) {
 	global.Output(LevelError, 3, v...)
+}
+
+func Outputf(level Level, calldepth int, format string, v ...interface{}) {
+	global.Outputf(level, calldepth, format, v...)
+}
+
+func Output(level Level, calldepth int, v ...interface{}) {
+	global.Output(level, calldepth, v...)
 }
 
 // 这里不加锁保护，如果要调用Init函数初始化全局的Logger，那么由调用方保证调用Init函数时不会并发调用全局Logger的其他方法
