@@ -32,7 +32,7 @@ Go语言编写的流媒体 库 / 客户端 / 服务端
 ```
 app/                  ......各种main包的源码文件，一个子目录对应一个main包，即对应可生成一个可执行文件
 |-- lal/              ......[最重要的] 流媒体服务器
-|-- flvfile2rtmppush  ......将本地flv文件使用rtmp推送出去
+|-- flvfile2rtmppush  ......rtmp推流客户端，输入是本地flv文件
 |-- rtmppull          ......rtmp拉流客户端
 |-- httpflvpull       ......http-flv拉流客户端
 |-- modflvfile        ......修改本地flv文件
