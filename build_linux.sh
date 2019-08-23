@@ -20,6 +20,8 @@ cd ${ROOT_DIR}/app/flvfile2es && GOOS=linux GOARCH=amd64 go build -o ${ROOT_DIR}
 
 cd ${ROOT_DIR}/app/flvfile2rtmppush && GOOS=linux GOARCH=amd64 go build -o ${ROOT_DIR}/bin/flvfile2rtmppush
 
+cd ${ROOT_DIR}/app/httpflvpull && GOOS=linux GOARCH=amd64 go build -o ${ROOT_DIR}/bin/httpflvpull
+
 cd ${ROOT_DIR}/app/modflvfile && GOOS=linux GOARCH=amd64 go build -o ${ROOT_DIR}/bin/modflvfile
 
 cd ${ROOT_DIR}/app/rtmppull && GOOS=linux GOARCH=amd64 go build -o ${ROOT_DIR}/bin/rtmppull

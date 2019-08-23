@@ -1,7 +1,7 @@
 <p align="center">
 <img alt="Wide" src="https://pengrl.com/images/other/lallogo.png">
 <br>
-Go语言编写的流媒体 库 / 客户端 / 服务器
+Go语言编写的流媒体 库 / 客户端 / 服务端
 <br><br>
 <a title="TravisCI" target="_blank" href="https://www.travis-ci.org/q191201771/lal"><img src="https://www.travis-ci.org/q191201771/lal.svg?branch=master"></a>
 <a title="codecov" target="_blank" href="https://codecov.io/gh/q191201771/lal"><img src="https://codecov.io/gh/q191201771/lal/branch/master/graph/badge.svg?style=flat-square"></a>
@@ -32,22 +32,23 @@ Go语言编写的流媒体 库 / 客户端 / 服务器
 ```
 app/                  ......各种main包的源码文件，一个子目录对应一个main包，即对应可生成一个可执行文件
 |-- lal/              ......[最重要的] 流媒体服务器
-|-- flvfile2es        ......将本地flv文件分离成h264/avc es流文件以及aac es流文件
 |-- flvfile2rtmppush  ......将本地flv文件使用rtmp推送出去
-|-- modflvfile        ......修改本地flv文件
 |-- rtmppull          ......rtmp拉流客户端
-bin/                  ......可执行文件输出目录
-conf/                 ......配置文件目录
-demo/                 ......各种demo类型的main包，一个子目录对应一个demo，即对应可生成一个可执行文件
+|-- httpflvpull       ......http-flv拉流客户端
+|-- modflvfile        ......修改本地flv文件
+|-- flvfile2es        ......将本地flv文件分离成h264/avc es流文件以及aac es流文件
 pkg/                  ......源码包
-|-- httpflv/          ......http flv协议
+|-- httpflv/          ......http-flv协议
 |-- rtmp/             ......rtmp协议
 |-- util/             ......帮助类包
     |-- bele/         ......大小端操作
     |-- bininfo/      ......可执行文件版本等信息
     |-- connstat/     ......连接超时信息
+    |-- errors/       ......错误处理
     |-- log/          ......日志
     |-- unique/       ......对象唯一ID
+bin/                  ......可执行文件输出目录
+conf/                 ......配置文件目录
 ```
 
 #### 编译和运行
@@ -64,42 +65,25 @@ $./bin/lal -c conf/lal.conf.json
 
 ```
 {
-  "sub_idle_timeout": 10, // 往客户端发送数据时的超时时间
-  "gop_cache_num": 2,     // gop缓存个数，如果设置为0，则只缓存seq header，不缓存gop数据
-  "httpflv": {
-    "sub_listen_addr": ":8080" // http-flv拉流地址
-  },
   "rtmp": {
-    "addr": ":8081" // rtmp服务器监听端口，NOTICE rtmp服务器部分正在开发中
-  }
-  "pull": { // 如果设置，则当客户端连接lal拉流而lal上该流不存在时，lal会去该配置中的地址回源拉流至本地再转发给客户端
-    "type": "httpflv",      // 回源类型，支持"httpflv" 或 "rtmp"
-    "addr": "pull.xxx.com", // 回源地址
-    "connect_timeout": 2,   // 回源连接超时时间
-    "read_timeout": 10,     // 回源读取数据超时时间
-    "stop_pull_while_no_sub_timeout": 3000 // 回源的流超过多长时间没有客户端播放，则关闭回源的流
+    "addr": ":19350" // rtmp服务监听的端口
   }
 }
 ```
 
-TODO 日志配置文件说明
+#### roadmap
 
-#### 简单压力测试
+第一阶段：实现rtmp转发服务器
 
-在一台双核腾讯云主机，以后会做更详细的测试以及性能优化。
+最终目标：
 
-| ~ | httpflv pull | httpflv sub | 平均%CPU | 入带宽 | 出带宽 | 内存RES |
-| - | - | - | - | - | - | - |
-| ~ | 1 | 300 | 8.8% | 1.5Mb | 450Mb | 36m |
-| ~ | 300 | 300->0 | 18% | 450Mb | ->0Mb | 1.3g |
+* 实现一个支持多种流媒体协议（比如rtmp, http-flv, hls, rtp/rtcp 等），多种底层传输协议（比如tcp, udp, srt, quic 等）的服务器
+* 所有协议都以模块化的库形式提供给需要的用户使用
+* 提供多种协议的推流客户端、拉流客户端，或者说演示demo
 
 #### 依赖
 
 目前不依赖任何第三方库
-
-#### roadmap
-
-正在实现rtmp服务器部分
 
 #### 文档
 

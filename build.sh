@@ -20,6 +20,8 @@ cd ${ROOT_DIR}/app/flvfile2es && go build -o ${ROOT_DIR}/bin/flvfile2es
 
 cd ${ROOT_DIR}/app/flvfile2rtmppush && go build -o ${ROOT_DIR}/bin/flvfile2rtmppush
 
+cd ${ROOT_DIR}/app/httpflvpull && go build -o ${ROOT_DIR}/bin/httpflvpull
+
 cd ${ROOT_DIR}/app/modflvfile && go build -o ${ROOT_DIR}/bin/modflvfile
 
 cd ${ROOT_DIR}/app/rtmppull && go build -o ${ROOT_DIR}/bin/rtmppull

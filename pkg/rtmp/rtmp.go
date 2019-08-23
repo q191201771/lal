@@ -48,9 +48,11 @@ const (
 	MSID1 = 1 // publish、play、onStatus 以及 音视频数据
 )
 
+// TODO chef
 var (
 	readBufSize  = 4096
 	writeBufSize = 4096
+	wChanSize = 1024
 )
 
 var windowAcknowledgementSize = 5000000

@@ -18,17 +18,25 @@ var countA int
 var countV int
 
 func hookTag(tag *httpflv.Tag) {
+	log.Infof("%+v", tag.Header)
 	if tag.Header.T == httpflv.TagTypeAudio {
-		if countA < 3 {
-			httpflv.ModTagTimestamp(tag, 16777205)
-		}
-		countA++
+
+		//if countA < 3 {
+		//	httpflv.ModTagTimestamp(tag, 16777205)
+		//}
+		//countA++
 	}
 	if tag.Header.T == httpflv.TagTypeVideo {
-		if countV < 3 {
-			httpflv.ModTagTimestamp(tag, 16777205)
+		//if countV < 3 {
+		//	httpflv.ModTagTimestamp(tag, 16777205)
+		//}
+		//countV++
+		if tag.IsAVCKeySeqHeader() {
+			log.Info("key seq header.")
 		}
-		countV++
+		if tag.IsAVCKeyNalu() {
+			log.Info("key nalu.")
+		}
 	}
 }
 

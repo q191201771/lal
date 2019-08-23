@@ -34,7 +34,7 @@ func parseHTTPHeader(r *bufio.Reader) (n int, firstLine string, headers map[stri
 
 	for {
 		line, isPrefix, err = r.ReadLine()
-		if len(line) == 0 {
+		if len(line) == 0 { // 读到一个空的 \r\n 表示http头全部读取完毕了
 			break
 		}
 		if isPrefix {

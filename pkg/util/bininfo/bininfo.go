@@ -19,11 +19,23 @@ var (
 )
 
 func StringifySingleLine() string {
-	return fmt.Sprintf("GitCommitID: %s. BuildTime: %s. GoVersion: %s. runtime: %s/%s",
+	return fmt.Sprintf("GitCommitID=%s. BuildTime=%s. GoVersion=%s. runtime=%s/%s.",
 		GitCommitID, BuildTime, BuildGoVersion, runtime.GOOS, runtime.GOARCH)
 }
 
 func StringifyMultiLine() string {
-	return fmt.Sprintf("GitCommitID: %s\nBuildTime: %s\nGoVersion: %s\nruntime: %s/%s",
+	return fmt.Sprintf("GitCommitID=%s\nBuildTime=%s\nGoVersion=%s\nruntime=%s/%s.",
 		GitCommitID, BuildTime, BuildGoVersion, runtime.GOOS, runtime.GOARCH)
+}
+
+func init() {
+	if GitCommitID == "" {
+		GitCommitID = "unknown"
+	}
+	if BuildTime == "" {
+		BuildTime = "unknown"
+	}
+	if BuildGoVersion == "" {
+		BuildGoVersion = "unknown"
+	}
 }

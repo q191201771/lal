@@ -15,7 +15,6 @@ import (
 
 // TODO chef: 没有进化成Pub Sub时的超时释放
 
-var wChanSize = 1024 // TODO chef
 
 type ServerSessionObserver interface {
 	NewRTMPPubSessionCB(session *ServerSession) // 上层代码应该在这个事件回调中注册音视频数据的监听
@@ -51,8 +50,6 @@ type ServerSession struct {
 	chunkComposer *ChunkComposer
 	packer        *MessagePacker
 
-	// to be continued
-	// TODO chef: 添加Dispose，以及chan发送
 	conn          net.Conn
 	rb            *bufio.Reader
 	wb            *bufio.Writer
@@ -88,6 +85,7 @@ func NewServerSession(obs ServerSessionObserver, conn net.Conn) *ServerSession {
 
 func (s *ServerSession) RunLoop() (err error) {
 	if err = s.handshake(); err != nil {
+		s.dispose(err)
 		return err
 	}
 

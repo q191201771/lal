@@ -12,9 +12,12 @@ import (
 	"time"
 )
 
+
 // rtmp客户端类型连接的底层实现
 // rtmp包的使用者应该优先使用基于ClientSession实现的PushSession和PullSession
 type ClientSession struct {
+	UniqueKey string
+
 	t              ClientSessionType
 	obs            PullSessionObserver // only for PullSession
 	connectTimeout int64
@@ -27,12 +30,12 @@ type ClientSession struct {
 	appName        string
 	streamName     string
 	hs             HandshakeClient
+	peerWinAckSize int
+
 	Conn           net.Conn
 	rb             *bufio.Reader
 	wb             *bufio.Writer
-	peerWinAckSize int
-
-	UniqueKey string
+	wChan chan []byte
 }
 
 type ClientSessionType int
@@ -61,6 +64,7 @@ func NewClientSession(t ClientSessionType, obs PullSessionObserver, connectTimeo
 		packer:         NewMessagePacker(),
 		chunkComposer:  NewChunkComposer(),
 		UniqueKey:      unique.GenUniqueKey(uk),
+		wChan: make(chan []byte, wChanSize),
 	}
 }
 
