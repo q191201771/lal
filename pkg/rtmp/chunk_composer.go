@@ -1,11 +1,14 @@
 package rtmp
 
+// chunk_composer.go
+// @pure
+// 读取chunk，并组织chunk，生成message返回给上层
+
 import (
 	"github.com/q191201771/lal/pkg/util/bele"
 	"io"
 )
 
-// 读取chunk，并组织chunk，生成message返回给上层
 
 type ChunkComposer struct {
 	peerChunkSize int

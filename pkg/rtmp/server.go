@@ -65,19 +65,6 @@ func (server *Server) handleConnect(conn net.Conn) {
 	}
 }
 
-func (server *Server) getOrCreateGroup(appName string, streamName string) *Group {
-	server.mutex.Lock()
-	defer server.mutex.Unlock()
-
-	group, exist := server.groupMap[streamName]
-	if !exist {
-		group = NewGroup(appName, streamName)
-		server.groupMap[streamName] = group
-	}
-	go group.RunLoop()
-	return group
-}
-
 // ServerSessionObserver
 func (server *Server) NewRTMPPubSessionCB(session *ServerSession) {
 	group := server.getOrCreateGroup(session.AppName, session.StreamName)
@@ -115,4 +102,17 @@ func (server *Server) DelRTMPSubSession(session *ServerSession) {
 	// TODO chef: obs
 
 	group.DelSubSession(session)
+}
+
+func (server *Server) getOrCreateGroup(appName string, streamName string) *Group {
+	server.mutex.Lock()
+	defer server.mutex.Unlock()
+
+	group, exist := server.groupMap[streamName]
+	if !exist {
+		group = NewGroup(appName, streamName)
+		server.groupMap[streamName] = group
+	}
+	go group.RunLoop()
+	return group
 }

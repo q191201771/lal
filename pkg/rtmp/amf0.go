@@ -1,6 +1,7 @@
 package rtmp
 
 // amf0.go
+// @pure
 // 提供amf0格式的编码与解码的操作
 
 // TODO chef: writeBoolean

@@ -1,5 +1,9 @@
 package rtmp
 
+// chunk_divider.go
+// @pure
+// 将message切割成chunk
+
 import (
 	"github.com/q191201771/lal/pkg/util/bele"
 )

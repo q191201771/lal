@@ -68,7 +68,7 @@ type ServerSession struct {
 
 func NewServerSession(obs ServerSessionObserver, conn net.Conn) *ServerSession {
 	return &ServerSession{
-		UniqueKey:     unique.GenUniqueKey("RTMPSERVER"),
+		UniqueKey:     unique.GenUniqueKey("RTMPPUBSUB"),
 		obs:           obs,
 		t:             ServerSessionTypeUnknown,
 		chunkComposer: NewChunkComposer(),
@@ -136,7 +136,7 @@ func (s *ServerSession) dispose(err error) {
 		atomic.StoreUint32(&s.hasClosedFlag, 1)
 		close(s.exitChan)
 		if err := s.conn.Close(); err != nil {
-			log.Errorf("conn close error. err=%v", err)
+			log.Errorf("conn close error. [%s] err=%v", s.UniqueKey, err)
 		}
 	})
 }
@@ -167,13 +167,13 @@ func (s *ServerSession) doMsg(stream *Stream) error {
 		fallthrough
 	case TypeidVideo:
 		if s.t != ServerSessionTypePub {
-			log.Error("read audio/video message but server session not pub type.")
+			log.Errorf("read audio/video message but server session not pub type. [%s]", s.UniqueKey)
 			return rtmpErr
 		}
 		//log.Infof("t:%d ts:%d len:%d", stream.header.MsgTypeID, stream.timestampAbs, stream.msg.e - stream.msg.b)
 		s.avObs.ReadRTMPAVMsgCB(stream.header, stream.timestampAbs, stream.msg.buf[stream.msg.b:stream.msg.e])
 	default:
-		log.Warnf("unknown message. typeid=%d", stream.header.MsgTypeID)
+		log.Warnf("unknown message. [%s] typeid=%d", s.UniqueKey, stream.header.MsgTypeID)
 
 	}
 	return nil
@@ -181,7 +181,7 @@ func (s *ServerSession) doMsg(stream *Stream) error {
 
 func (s *ServerSession) doDataMessageAMF0(stream *Stream) error {
 	if s.t != ServerSessionTypePub {
-		log.Error("read audio/video message but server session not pub type.")
+		log.Errorf("read audio/video message but server session not pub type. [%s]", s.UniqueKey)
 		return rtmpErr
 	}
 
@@ -243,9 +243,9 @@ func (s *ServerSession) doCommandMessage(stream *Stream) error {
 	case "FCUnpublish":
 		fallthrough
 	case "getStreamLength":
-		log.Warnf("read command message %s,ignore it.", cmd)
+		log.Warnf("read command message,ignore it. [%s] %s", s.UniqueKey, cmd)
 	default:
-		log.Errorf("unknown cmd. cmd=%s", cmd)
+		log.Errorf("unknown cmd. [%s] cmd=%s", s.UniqueKey, cmd)
 	}
 	return nil
 }
@@ -260,7 +260,7 @@ func (s *ServerSession) doConnect(tid int, stream *Stream) error {
 	if !ok {
 		return rtmpErr
 	}
-	log.Infof("-----> connect('%s')", s.AppName)
+	log.Infof("-----> connect('%s'). [%s]", s.AppName, s.UniqueKey)
 
 	if err := s.packer.writeWinAckSize(s.conn, windowAcknowledgementSize); err != nil {
 		return err
@@ -278,7 +278,7 @@ func (s *ServerSession) doConnect(tid int, stream *Stream) error {
 }
 
 func (s *ServerSession) doCreateStream(tid int, stream *Stream) error {
-	log.Info("-----> createStream()")
+	log.Infof("-----> createStream() [%s]", s.UniqueKey)
 	if err := s.packer.writeCreateStreamResult(s.conn, tid); err != nil {
 		return err
 	}
@@ -298,13 +298,13 @@ func (s *ServerSession) doPublish(tid int, stream *Stream) (err error) {
 		return err
 	}
 	log.Debug(pubType)
-	log.Infof("-----> publish('%s')", s.StreamName)
+	log.Infof("-----> publish('%s') [%s]", s.StreamName, s.UniqueKey)
 	// TODO chef: hardcode streamID
 	if err := s.packer.writeOnStatusPublish(s.conn, 1); err != nil {
 		return err
 	}
 	s.t = ServerSessionTypePub
-	newUniqueKey := strings.Replace(s.UniqueKey, "RTMPSERVER", "RTMPPUB", 1)
+	newUniqueKey := strings.Replace(s.UniqueKey, "RTMPPUBSUB", "RTMPPUB", 1)
 	log.Infof("session unique key upgrade. %s -> %s", s.UniqueKey, newUniqueKey)
 	s.UniqueKey = newUniqueKey
 	s.obs.NewRTMPPubSessionCB(s)
@@ -319,14 +319,14 @@ func (s *ServerSession) doPlay(tid int, stream *Stream) (err error) {
 	if err != nil {
 		return err
 	}
-	log.Infof("-----> play('%s')", s.StreamName)
+	log.Infof("-----> play('%s') [%s]", s.StreamName, s.UniqueKey)
 	// TODO chef: start duration reset
 
 	if err := s.packer.writeOnStatusPlay(s.conn, 1); err != nil {
 		return err
 	}
 	s.t = ServerSessionTypeSub
-	newUniqueKey := strings.Replace(s.UniqueKey, "RTMPSERVER", "RTMPSUB", 1)
+	newUniqueKey := strings.Replace(s.UniqueKey, "RTMPPUBSUB", "RTMPSUB", 1)
 	log.Infof("session unique key upgrade. %s -> %s", s.UniqueKey, newUniqueKey)
 	s.UniqueKey = newUniqueKey
 	s.obs.NewRTMPSubSessionCB(s)
