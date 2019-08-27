@@ -42,7 +42,7 @@ pkg/                  ......源码包
 |-- avc/              ......视频avc h264编解码格式相关
 |-- httpflv/          ......http-flv协议
 |-- rtmp/             ......rtmp协议
-bin/                  ......可执行文件输出目录
+bin/                  ......可执行文件编译输出目录
 conf/                 ......配置文件目录
 ```
 
@@ -78,7 +78,7 @@ $./bin/lal -c conf/lal.conf.json
 
 #### 依赖
 
-- github.com/q191201771/nezha 我自己写的Go基础库
+- [github.com/q191201771/nezha](https://github.com/q191201771/nezha) 我自己写的Go基础库
 
 #### 文档
 
