@@ -13,7 +13,7 @@ func TestLogger(t *testing.T) {
 		RotateMByte: 10,
 	}
 	l, err := New(c)
-	assert.Equal(t, nil, err, "fxxk.")
+	assert.Equal(t, nil, err)
 	l.Debugf("test msg by Debug%s", "f")
 	l.Infof("test msg by Info%s", "f")
 	l.Warnf("test msg by Warn%s", "f")
@@ -41,7 +41,7 @@ func TestGlobal(t *testing.T) {
 		RotateMByte: 10,
 	}
 	err := Init(c)
-	assert.Equal(t, nil, err, "fxxk.")
+	assert.Equal(t, nil, err)
 	Debugf("test msg by Debug%s", "f")
 	Infof("test msg by Info%s", "f")
 	Warnf("test msg by Warn%s", "f")
@@ -56,8 +56,8 @@ func TestGlobal(t *testing.T) {
 
 func TestNew(t *testing.T) {
 	l, err := New(Config{Level:LevelError+1})
-	assert.Equal(t, nil, l, "fxxk.")
-	assert.Equal(t, logErr, err, "fxxk.")
+	assert.Equal(t, nil, l)
+	assert.Equal(t, logErr, err)
 }
 
 func TestRotate(t *testing.T) {
@@ -68,7 +68,7 @@ func TestRotate(t *testing.T) {
 		RotateMByte: 1,
 	}
 	err := Init(c)
-	assert.Equal(t, nil, err, "fxxk.")
+	assert.Equal(t, nil, err)
 	b := make([]byte, 1024)
 	for i := 0; i < 2 * 1024; i++ {
 		Info(b)
@@ -86,7 +86,7 @@ func BenchmarkStdout(b *testing.B) {
 		RotateMByte: 10,
 	}
 	err := Init(c)
-	assert.Equal(b, nil, err, "fxxk.")
+	assert.Equal(b, nil, err)
 	for i := 0; i < b.N; i++ {
 		Infof("hello %s %d", "world", i)
 	}

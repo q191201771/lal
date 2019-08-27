@@ -13,7 +13,7 @@ type TestingT interface {
 	Errorf(format string, args ...interface{})
 }
 
-func Equal(t TestingT, expected interface{}, actual interface{}, msg string) {
+func Equal(t TestingT, expected interface{}, actual interface{}, msg ...string) {
 	if !equal(expected, actual) {
 		t.Errorf("%s expected=%+v, actual=%+v", msg, expected, actual)
 	}

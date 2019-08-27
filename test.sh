@@ -10,3 +10,5 @@ for d in $(go list ./... | grep -v vendor); do
         rm profile.out
     fi
 done
+
+# go test -race -coverprofile=profile.out -covermode=atomic && go tool cover -html=profile.out -o coverage.html && open coverage.html

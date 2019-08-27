@@ -12,15 +12,15 @@ func TestAll(t *testing.T) {
 	var hs HandshakeServer
 	b := &bytes.Buffer{}
 	err = hc.WriteC0C1(b)
-	assert.Equal(t, nil, err, "fxxk.")
+	assert.Equal(t, nil, err)
 	err = hs.ReadC0C1(b)
-	assert.Equal(t, nil, err, "fxxk.")
+	assert.Equal(t, nil, err)
 	err = hs.WriteS0S1S2(b)
-	assert.Equal(t, nil, err, "fxxk.")
+	assert.Equal(t, nil, err)
 	err = hc.ReadS0S1S2(b)
-	assert.Equal(t, nil, err, "fxxk.")
+	assert.Equal(t, nil, err)
 	err = hc.WriteC2(b)
-	assert.Equal(t, nil, err, "fxxk.")
+	assert.Equal(t, nil, err)
 	err = hs.ReadC2(b)
-	assert.Equal(t, nil, err, "fxxk.")
+	assert.Equal(t, nil, err)
 }

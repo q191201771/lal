@@ -21,5 +21,5 @@ func TestGenUniqueKey(t *testing.T) {
 		}()
 	}
 	wg.Wait()
-	assert.Equal(t, 1000, len(m), "fxxk.")
+	assert.Equal(t, 1000, len(m))
 }
