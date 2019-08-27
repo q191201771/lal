@@ -9,7 +9,6 @@ import (
 	"io"
 )
 
-
 type ChunkComposer struct {
 	peerChunkSize int
 	csid2stream   map[int]*Stream

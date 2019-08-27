@@ -3,7 +3,7 @@ package bele
 import (
 	"bytes"
 	"encoding/binary"
-	"github.com/stretchr/testify/assert"
+	"github.com/q191201771/lal/pkg/util/assert"
 	"testing"
 )
 
@@ -58,8 +58,6 @@ func TestBEUint32(t *testing.T) {
 		assert.Equal(t, vector[i].output, BEUint32(vector[i].input), "fxxk.")
 	}
 }
-
-// TODO chef: test BEFloat64
 
 func TestBEFloat64(t *testing.T) {
 	vector := []int{
@@ -127,6 +125,25 @@ func TestBEPutUint32(t *testing.T) {
 	out := make([]byte, 4)
 	for i := 0; i < len(vector); i++ {
 		BEPutUint32(out, vector[i].input)
+		assert.Equal(t, vector[i].output, out, "fxxk.")
+	}
+}
+
+func TestLEPutUint32(t *testing.T) {
+	vector := []struct {
+		input  uint32
+		output []byte
+	}{
+		{input: 0, output: []byte{0, 0, 0, 0}},
+		{input: 1 * 256 * 256, output: []byte{0, 0, 1, 0}},
+		{input: 1 * 256, output: []byte{0, 1, 0, 0}},
+		{input: 1, output: []byte{1, 0, 0, 0}},
+		{input: 78*256*256*256 + 56*256*256 + 34*256 + 12, output: []byte{12, 34, 56, 78}},
+	}
+
+	out := make([]byte, 4)
+	for i := 0; i < len(vector); i++ {
+		LEPutUint32(out, vector[i].input)
 		assert.Equal(t, vector[i].output, out, "fxxk.")
 	}
 }

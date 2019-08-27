@@ -44,6 +44,8 @@ type PullSessionObserver interface {
 	ReadFlvTagCB(tag *Tag) // after cb, PullSession won't use this tag data
 }
 
+// @param connectTimeout TCP连接时超时，单位秒，如果为0，则不设置超时
+// @param readTimeout 接收数据超时
 func NewPullSession(obs PullSessionObserver, connectTimeout int64, readTimeout int64) *PullSession {
 	uk := unique.GenUniqueKey("FLVPULL")
 	log.Infof("lifecycle new PullSession. [%s]", uk)
@@ -55,7 +57,9 @@ func NewPullSession(obs PullSessionObserver, connectTimeout int64, readTimeout i
 	}
 }
 
-// @param timeout: timeout for connect operate. if 0, then no timeout
+// 支持如下两种格式。当然，前提是对端支持
+// http://{domain}/{app_name}/{stream_name}.flv
+// http://{ip}/{domain}/{app_name}/{stream_name}.flv
 func (session *PullSession) Connect(rawURL string) error {
 	session.ConnStat.Start(session.readTimeout, 0)
 

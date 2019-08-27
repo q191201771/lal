@@ -52,7 +52,7 @@ const (
 var (
 	readBufSize  = 4096
 	writeBufSize = 4096
-	wChanSize = 1024
+	wChanSize    = 1024
 )
 
 var windowAcknowledgementSize = 5000000

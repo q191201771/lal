@@ -15,7 +15,6 @@ import (
 
 // TODO chef: 没有进化成Pub Sub时的超时释放
 
-
 type ServerSessionObserver interface {
 	NewRTMPPubSessionCB(session *ServerSession) // 上层代码应该在这个事件回调中注册音视频数据的监听
 	NewRTMPSubSessionCB(session *ServerSession)

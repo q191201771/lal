@@ -19,7 +19,7 @@ func (obs *Obs) ReadFlvHeaderCB(flvHeader []byte) {
 }
 
 func (obs *Obs) ReadFlvTagCB(tag *httpflv.Tag) {
-	log.Infof("ReadFlvTagCB %+v %d %d", tag.Header, tag.IsAVCKeySeqHeader(), tag.IsAVCKeyNalu())
+	log.Infof("ReadFlvTagCB %+v %t %t", tag.Header, tag.IsAVCKeySeqHeader(), tag.IsAVCKeyNalu())
 }
 
 func main() {
@@ -34,7 +34,6 @@ func main() {
 	err = session.RunLoop()
 	log.Error(err)
 }
-
 
 func parseFlag() string {
 	url := flag.String("i", "", "specify rtmp url")

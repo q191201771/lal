@@ -2,7 +2,7 @@ package rtmp
 
 import (
 	"bytes"
-	"github.com/stretchr/testify/assert"
+	"github.com/q191201771/lal/pkg/util/assert"
 	"strings"
 	"testing"
 )
@@ -21,7 +21,7 @@ func TestAmf0_WriteNumber_ReadNumber(t *testing.T) {
 		assert.Equal(t, nil, err, "fxxk.")
 		v, l, err := AMF0.ReadNumber(out.Bytes())
 		assert.Equal(t, item, v, "fxxk.")
-		assert.Equal(t, l, 9)
+		assert.Equal(t, l, 9, "fxxk.")
 		assert.Equal(t, nil, err, "fxxk.")
 	}
 }
@@ -39,7 +39,7 @@ func TestAmf0_WriteString_ReadString(t *testing.T) {
 		assert.Equal(t, nil, err, "fxxk.")
 		v, l, err := AMF0.ReadString(out.Bytes())
 		assert.Equal(t, item, v, "fxxk.")
-		assert.Equal(t, l, len(item)+3)
+		assert.Equal(t, l, len(item)+3, "fxxk.")
 		assert.Equal(t, nil, err, "fxxk.")
 	}
 
@@ -49,7 +49,7 @@ func TestAmf0_WriteString_ReadString(t *testing.T) {
 	assert.Equal(t, nil, err, "fxxk.")
 	v, l, err := AMF0.ReadString(out.Bytes())
 	assert.Equal(t, longStr, v, "fxxk.")
-	assert.Equal(t, l, len(longStr)+5)
+	assert.Equal(t, l, len(longStr)+5, "fxxk.")
 	assert.Equal(t, nil, err, "fxxk.")
 }
 

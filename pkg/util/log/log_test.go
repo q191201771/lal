@@ -1,21 +1,19 @@
-package log_test
+package log
 
 import (
-	"github.com/q191201771/lal/pkg/util/log"
 	"testing"
+	"github.com/q191201771/lal/pkg/util/assert"
 )
 
 func TestLogger(t *testing.T) {
-	c := log.Config{
-		Level:       log.LevelInfo,
+	c := Config{
+		Level:       LevelInfo,
 		Filename:    "/tmp/lallogtest/aaa.log",
 		IsToStdout:  true,
 		RotateMByte: 10,
 	}
-	l, err := log.New(c)
-	if err != nil {
-		panic(err)
-	}
+	l, err := New(c)
+	assert.Equal(t, nil, err, "fxxk.")
 	l.Debugf("test msg by Debug%s", "f")
 	l.Infof("test msg by Info%s", "f")
 	l.Warnf("test msg by Warn%s", "f")
@@ -27,47 +25,69 @@ func TestLogger(t *testing.T) {
 }
 
 func TestGlobal(t *testing.T) {
-	log.Debugf("test msg by Debug%s", "f")
-	log.Infof("test msg by Info%s", "f")
-	log.Warnf("test msg by Warn%s", "f")
-	log.Errorf("test msg by Error%s", "f")
-	log.Debug("test msg by Debug")
-	log.Info("test msg by Info")
-	log.Warn("test msg by Warn")
-	log.Error("test msg by Error")
+	Debugf("test msg by Debug%s", "f")
+	Infof("test msg by Info%s", "f")
+	Warnf("test msg by Warn%s", "f")
+	Errorf("test msg by Error%s", "f")
+	Debug("test msg by Debug")
+	Info("test msg by Info")
+	Warn("test msg by Warn")
+	Error("test msg by Error")
 
-	c := log.Config{
-		Level:       log.LevelInfo,
+	c := Config{
+		Level:       LevelInfo,
 		Filename:    "/tmp/lallogtest/bbb.log",
 		IsToStdout:  true,
 		RotateMByte: 10,
 	}
-	err := log.Init(c)
-	if err != nil {
-		panic(err)
+	err := Init(c)
+	assert.Equal(t, nil, err, "fxxk.")
+	Debugf("test msg by Debug%s", "f")
+	Infof("test msg by Info%s", "f")
+	Warnf("test msg by Warn%s", "f")
+	Errorf("test msg by Error%s", "f")
+	Debug("test msg by Debug")
+	Info("test msg by Info")
+	Warn("test msg by Warn")
+	Error("test msg by Error")
+	Output(LevelInfo, 3, "test msg by Output")
+	Outputf(LevelInfo, 3, "test msg by Output%s", "f")
+}
+
+func TestNew(t *testing.T) {
+	l, err := New(Config{Level:LevelError+1})
+	assert.Equal(t, nil, l, "fxxk.")
+	assert.Equal(t, logErr, err, "fxxk.")
+}
+
+func TestRotate(t *testing.T) {
+	c := Config{
+		Level:       LevelInfo,
+		Filename:    "/tmp/lallogtest/ccc.log",
+		IsToStdout:  false,
+		RotateMByte: 1,
 	}
-	log.Debugf("test msg by Debug%s", "f")
-	log.Infof("test msg by Info%s", "f")
-	log.Warnf("test msg by Warn%s", "f")
-	log.Errorf("test msg by Error%s", "f")
-	log.Debug("test msg by Debug")
-	log.Info("test msg by Info")
-	log.Warn("test msg by Warn")
-	log.Error("test msg by Error")
+	err := Init(c)
+	assert.Equal(t, nil, err, "fxxk.")
+	b := make([]byte, 1024)
+	for i := 0; i < 2 * 1024; i++ {
+		Info(b)
+	}
+	for i := 0; i < 2 * 1024; i++ {
+		Infof("%+v", b)
+	}
 }
 
 func BenchmarkStdout(b *testing.B) {
-	c := log.Config{
-		Level:       log.LevelInfo,
+	c := Config{
+		Level:       LevelInfo,
 		Filename:    "/tmp/lallogtest/ccc.log",
 		IsToStdout:  true,
 		RotateMByte: 10,
 	}
-	err := log.Init(c)
-	if err != nil {
-		panic(err)
-	}
+	err := Init(c)
+	assert.Equal(b, nil, err, "fxxk.")
 	for i := 0; i < b.N; i++ {
-		log.Infof("hello %s %d", "world", i)
+		Infof("hello %s %d", "world", i)
 	}
 }

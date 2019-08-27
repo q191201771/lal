@@ -138,13 +138,12 @@ func (group *Group) ReadRTMPAVMsgCB(header Header, timestampAbs int, message []b
 
 func (group *Group) broadcastRTMP2RTMP(header Header, timestampAbs int, message []byte) {
 	//log.Infof("%+v", header)
+	// # 1. 设置好头部信息
 	var currHeader Header
 	currHeader.MsgLen = len(message)
 	currHeader.Timestamp = timestampAbs
 	currHeader.MsgTypeID = header.MsgTypeID
 	currHeader.MsgStreamID = MSID1
-	//var prevHeader *Header
-
 	switch header.MsgTypeID {
 	case TypeidDataMessageAMF0:
 		currHeader.CSID = CSIDAMF
@@ -159,12 +158,14 @@ func (group *Group) broadcastRTMP2RTMP(header Header, timestampAbs int, message 
 
 	var absChunks []byte
 
+	// # 2. 广播。遍历所有sub session，决定是否转发
 	for session := range group.subSessionSet {
+		// ## 2.1. 一个message广播给多个sub session时，只做一次chunk切割
 		if absChunks == nil {
 			absChunks = Message2Chunks(message, &currHeader, LocalChunkSize)
 		}
 
-		// 是新连接
+		// ## 2.2. 如果是新的sub session，发送已缓存的信息
 		if session.isFresh {
 			// 发送缓存的头部信息
 			if group.metadata != nil {
@@ -176,34 +177,34 @@ func (group *Group) broadcastRTMP2RTMP(header Header, timestampAbs int, message 
 			if group.aacSeqHeader != nil {
 				session.AsyncWrite(group.aacSeqHeader)
 			}
-
 			session.isFresh = false
+		}
 
-		} else {
-			// 首次发送，从I帧开始
+		// ## 2.3. 判断当前包的类型，以及sub session的状态，决定是否发送并更新sub session的状态
+		switch header.MsgTypeID {
+		case TypeidDataMessageAMF0:
+			session.AsyncWrite(absChunks)
+		case TypeidAudio:
+			session.AsyncWrite(absChunks)
+		case TypeidVideo:
 			if session.waitKeyNalu {
-				if header.MsgTypeID == TypeidDataMessageAMF0 {
+				if message[0] == 0x17 && message[1] == 0x0 {
 					session.AsyncWrite(absChunks)
-				} else if header.MsgTypeID == TypeidAudio {
-					if (message[0]>>4) == 0x0a && message[1] == 0x0 {
-						session.AsyncWrite(absChunks)
-					}
-				} else if header.MsgTypeID == TypeidVideo {
-					if message[0] == 0x17 && message[1] == 0x0 {
-						session.AsyncWrite(absChunks)
-					}
-					if message[0] == 0x17 && message[1] == 0x1 {
-						session.AsyncWrite(absChunks)
-						session.waitKeyNalu = false
-					}
+				}
+				if message[0] == 0x17 && message[1] == 0x1 {
+					session.AsyncWrite(absChunks)
+					session.waitKeyNalu = false
 				}
 			} else {
 				session.AsyncWrite(absChunks)
 			}
+
 		}
 
 	}
 
+	// # 3. 缓存 metadata 和 avc key seq header 和 aac seq header
+	// 由于可能没有订阅者，所以message可能还没做chunk切割，所以这里要做判断是否做chunk切割
 	switch header.MsgTypeID {
 	case TypeidDataMessageAMF0:
 		if absChunks == nil {

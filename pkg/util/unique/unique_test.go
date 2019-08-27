@@ -1,7 +1,7 @@
 package unique
 
 import (
-	"github.com/stretchr/testify/assert"
+	"github.com/q191201771/lal/pkg/util/assert"
 	"sync"
 	"testing"
 )
