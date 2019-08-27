@@ -8,7 +8,7 @@ package rtmp
 
 import (
 	"bytes"
-	"github.com/q191201771/lal/pkg/util/bele"
+	"github.com/q191201771/nezha/pkg/bele"
 	"io"
 
 	"errors"

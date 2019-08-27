@@ -12,3 +12,4 @@ for d in $(go list ./... | grep -v vendor); do
 done
 
 # go test -race -coverprofile=profile.out -covermode=atomic && go tool cover -html=profile.out -o coverage.html && open coverage.html
+# go test -test.bench=".*"

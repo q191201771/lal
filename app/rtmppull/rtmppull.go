@@ -3,8 +3,8 @@ package main
 import (
 	"flag"
 	"github.com/q191201771/lal/pkg/rtmp"
-	"github.com/q191201771/lal/pkg/util/errors"
-	"github.com/q191201771/lal/pkg/util/log"
+	"github.com/q191201771/nezha/pkg/errors"
+	"github.com/q191201771/nezha/pkg/log"
 	"os"
 	"time"
 )

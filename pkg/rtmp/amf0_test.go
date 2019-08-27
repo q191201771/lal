@@ -2,7 +2,7 @@ package rtmp
 
 import (
 	"bytes"
-	"github.com/q191201771/lal/pkg/util/assert"
+	"github.com/q191201771/nezha/pkg/assert"
 	"strings"
 	"testing"
 )

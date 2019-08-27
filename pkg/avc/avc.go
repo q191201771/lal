@@ -2,8 +2,8 @@ package avc
 
 import (
 	"errors"
-	"github.com/q191201771/lal/pkg/util/bele"
-	utilErrors "github.com/q191201771/lal/pkg/util/errors"
+	"github.com/q191201771/nezha/pkg/bele"
+	utilErrors "github.com/q191201771/nezha/pkg/errors"
 	"io"
 )
 

@@ -2,9 +2,9 @@ package httpflv
 
 import (
 	"bufio"
-	"github.com/q191201771/lal/pkg/util/connstat"
-	"github.com/q191201771/lal/pkg/util/log"
-	"github.com/q191201771/lal/pkg/util/unique"
+	"github.com/q191201771/nezha/pkg/connstat"
+	"github.com/q191201771/nezha/pkg/log"
+	"github.com/q191201771/nezha/pkg/unique"
 	"net"
 	url2 "net/url"
 	"strings"

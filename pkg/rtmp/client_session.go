@@ -3,9 +3,9 @@ package rtmp
 import (
 	"bufio"
 	"encoding/hex"
-	"github.com/q191201771/lal/pkg/util/bele"
-	"github.com/q191201771/lal/pkg/util/log"
-	"github.com/q191201771/lal/pkg/util/unique"
+	"github.com/q191201771/nezha/pkg/bele"
+	"github.com/q191201771/nezha/pkg/log"
+	"github.com/q191201771/nezha/pkg/unique"
 	"net"
 	"net/url"
 	"strings"

@@ -5,7 +5,7 @@ package rtmp
 // 将message切割成chunk
 
 import (
-	"github.com/q191201771/lal/pkg/util/bele"
+	"github.com/q191201771/nezha/pkg/bele"
 )
 
 // TODO chef: 新的message的第一个chunk始终使用fmt0格式，不参考前一个message

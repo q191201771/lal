@@ -38,15 +38,10 @@ app/                  ......各种main包的源码文件，一个子目录对应
 |-- modflvfile        ......修改本地flv文件
 |-- flvfile2es        ......将本地flv文件分离成h264/avc es流文件以及aac es流文件
 pkg/                  ......源码包
+|-- aac/              ......音频aac编解码格式相关
+|-- avc/              ......视频avc h264编解码格式相关
 |-- httpflv/          ......http-flv协议
 |-- rtmp/             ......rtmp协议
-|-- util/             ......帮助类包
-    |-- bele/         ......大小端操作
-    |-- bininfo/      ......可执行文件版本等信息
-    |-- connstat/     ......连接超时信息
-    |-- errors/       ......错误处理
-    |-- log/          ......日志
-    |-- unique/       ......对象唯一ID
 bin/                  ......可执行文件输出目录
 conf/                 ......配置文件目录
 ```
@@ -83,7 +78,7 @@ $./bin/lal -c conf/lal.conf.json
 
 #### 依赖
 
-目前不依赖任何第三方库
+- github.com/q191201771/nezha 我自己写的Go基础库
 
 #### 文档
 

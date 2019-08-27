@@ -5,8 +5,8 @@ import (
 	"github.com/q191201771/lal/pkg/aac"
 	"github.com/q191201771/lal/pkg/avc"
 	"github.com/q191201771/lal/pkg/httpflv"
-	"github.com/q191201771/lal/pkg/util/errors"
-	"github.com/q191201771/lal/pkg/util/log"
+	"github.com/q191201771/nezha/pkg/errors"
+	"github.com/q191201771/nezha/pkg/log"
 	"io"
 	"os"
 )

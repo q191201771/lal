@@ -3,9 +3,9 @@ package httpflv
 import (
 	"bufio"
 	"fmt"
-	"github.com/q191201771/lal/pkg/util/connstat"
-	"github.com/q191201771/lal/pkg/util/log"
-	"github.com/q191201771/lal/pkg/util/unique"
+	"github.com/q191201771/nezha/pkg/connstat"
+	"github.com/q191201771/nezha/pkg/log"
+	"github.com/q191201771/nezha/pkg/unique"
 	"io"
 	"net"
 	"net/url"
@@ -13,10 +13,6 @@ import (
 	"sync"
 	"time"
 )
-
-var flvHeaderSize = 13
-
-var prevTagFieldSize = 4
 
 type PullSessionStat struct {
 	ReadCount int64
@@ -30,7 +26,7 @@ type PullSession struct {
 	ConnStat       connstat.ConnStat
 
 	obs  PullSessionObserver
-	Conn *net.TCPConn // after Connect success, can direct visit net.TCPConn, useful for set socket options.
+	Conn net.Conn
 	rb   *bufio.Reader
 
 	closeOnce sync.Once
@@ -82,16 +78,14 @@ func (session *PullSession) Connect(rawURL string) error {
 		addr = host + ":80"
 	}
 
-	var conn net.Conn
 	if session.connectTimeout == 0 {
-		conn, err = net.Dial("tcp", addr)
+		session.Conn, err = net.Dial("tcp", addr)
 	} else {
-		conn, err = net.DialTimeout("tcp", addr, time.Duration(session.connectTimeout)*time.Second)
+		session.Conn, err = net.DialTimeout("tcp", addr, time.Duration(session.connectTimeout)*time.Second)
 	}
 	if err != nil {
 		return err
 	}
-	session.Conn = conn.(*net.TCPConn)
 	session.rb = bufio.NewReaderSize(session.Conn, readBufSize)
 
 	_, err = fmt.Fprintf(session.Conn,

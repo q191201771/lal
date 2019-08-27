@@ -13,6 +13,11 @@ type Writer interface {
 
 var httpFlvErr = errors.New("httpflv: fxxk")
 
+const (
+	flvHeaderSize = 13
+	prevTagFieldSize = 4
+)
+
 var readBufSize = 16384
 
 // return 1st line and other headers with kv format

@@ -1,6 +1,6 @@
 package rtmp
 
-import "github.com/q191201771/lal/pkg/util/log"
+import "github.com/q191201771/nezha/pkg/log"
 
 var initMsgLen = 4096
 
