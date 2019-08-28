@@ -26,7 +26,7 @@ func main() {
 	url := parseFlag()
 	var obs Obs
 	session := httpflv.NewPullSession(&obs, 0, 0)
-	err := session.Connect(url)
+	err := session.Pull(url)
 	if err != nil {
 		log.Error(err)
 		return

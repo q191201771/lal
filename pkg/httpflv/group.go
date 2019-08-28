@@ -66,7 +66,7 @@ func (group *Group) AddHTTPFlvSubSession(session *SubSession) {
 }
 
 func (group *Group) Pull(addr string, connectTimeout int64, readTimeout int64) {
-	group.pullSession = NewPullSession(group, connectTimeout, readTimeout)
+	group.pullSession = NewPullSession(group, int(connectTimeout), int(readTimeout))
 
 	defer func() {
 		group.mutex.Lock()
@@ -77,7 +77,7 @@ func (group *Group) Pull(addr string, connectTimeout int64, readTimeout int64) {
 
 	log.Infof("<----- connect. [%s]", group.pullSession.UniqueKey)
 	url := fmt.Sprintf("http://%s/%s/%s.flv", addr, group.appName, group.streamName)
-	if err := group.pullSession.Connect(url); err != nil {
+	if err := group.pullSession.Pull(url); err != nil {
 		log.Errorf("-----> connect error. [%s] err=%v", group.pullSession.UniqueKey, err)
 		return
 	}

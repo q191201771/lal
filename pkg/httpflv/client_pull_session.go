@@ -1,12 +1,9 @@
 package httpflv
 
 import (
-	"bufio"
-	"fmt"
-	"github.com/q191201771/nezha/pkg/connstat"
+	"github.com/q191201771/nezha/pkg/connection"
 	"github.com/q191201771/nezha/pkg/log"
 	"github.com/q191201771/nezha/pkg/unique"
-	"io"
 	"net"
 	"net/url"
 	"strings"
@@ -14,20 +11,12 @@ import (
 	"time"
 )
 
-type PullSessionStat struct {
-	ReadCount int64
-	ReadByte  int64
-}
-
 type PullSession struct {
-	//StartTick int64
-	connectTimeout int64
-	readTimeout    int64
-	ConnStat       connstat.ConnStat
+	connectTimeoutMS int
+	readTimeoutMS    int
 
 	obs  PullSessionObserver
-	Conn net.Conn
-	rb   *bufio.Reader
+	Conn connection.Connection
 
 	closeOnce sync.Once
 
@@ -40,25 +29,23 @@ type PullSessionObserver interface {
 	ReadFlvTagCB(tag *Tag) // after cb, PullSession won't use this tag data
 }
 
-// @param connectTimeout TCP连接时超时，单位秒，如果为0，则不设置超时
-// @param readTimeout 接收数据超时
-func NewPullSession(obs PullSessionObserver, connectTimeout int64, readTimeout int64) *PullSession {
+// @param connectTimeoutMS TCP连接时超时，单位毫秒，如果为0，则不设置超时
+// @param readTimeoutMS 接收数据超时，单位毫秒，如果为0，则不设置超时
+func NewPullSession(obs PullSessionObserver, connectTimeoutMS int, readTimeoutMS int) *PullSession {
 	uk := unique.GenUniqueKey("FLVPULL")
 	log.Infof("lifecycle new PullSession. [%s]", uk)
 	return &PullSession{
-		connectTimeout: connectTimeout,
-		readTimeout:    readTimeout,
-		obs:            obs,
-		UniqueKey:      uk,
+		connectTimeoutMS: connectTimeoutMS,
+		readTimeoutMS:    readTimeoutMS,
+		obs:              obs,
+		UniqueKey:        uk,
 	}
 }
 
 // 支持如下两种格式。当然，前提是对端支持
 // http://{domain}/{app_name}/{stream_name}.flv
 // http://{ip}/{domain}/{app_name}/{stream_name}.flv
-func (session *PullSession) Connect(rawURL string) error {
-	session.ConnStat.Start(session.readTimeout, 0)
-
+func (session *PullSession) Pull(rawURL string) error {
 	url, err := url.Parse(rawURL)
 	if err != nil {
 		return err
@@ -78,24 +65,23 @@ func (session *PullSession) Connect(rawURL string) error {
 		addr = host + ":80"
 	}
 
-	if session.connectTimeout == 0 {
-		session.Conn, err = net.Dial("tcp", addr)
+	var conn net.Conn
+	if session.connectTimeoutMS == 0 {
+		conn, err = net.Dial("tcp", addr)
 	} else {
-		session.Conn, err = net.DialTimeout("tcp", addr, time.Duration(session.connectTimeout)*time.Second)
+		conn, err = net.DialTimeout("tcp", addr, time.Duration(session.connectTimeoutMS)*time.Millisecond)
 	}
 	if err != nil {
 		return err
 	}
-	session.rb = bufio.NewReaderSize(session.Conn, readBufSize)
+	session.Conn = connection.New(conn, &connection.Config{ReadBufSize: readBufSize})
 
-	_, err = fmt.Fprintf(session.Conn,
+	_, err = session.Conn.PrintfWithTimeout(
+		session.readTimeoutMS,
 		"GET %s HTTP/1.0\r\nAccept: */*\r\nRange: byte=0-\r\nConnection: close\r\nHost: %s\r\nIcy-MetaData: 1\r\n\r\n",
 		uri, host)
-	if err != nil {
-		return err
-	}
 
-	return nil
+	return err
 }
 
 func (session *PullSession) RunLoop() error {
@@ -136,11 +122,11 @@ func (session *PullSession) runReadLoop() error {
 }
 
 func (session *PullSession) readHTTPRespHeader() error {
-	n, firstLine, headers, err := parseHTTPHeader(session.rb)
+	// TODO chef: timeout
+	_, firstLine, headers, err := parseHTTPHeader(session.Conn)
 	if err != nil {
 		return err
 	}
-	session.ConnStat.Read(n)
 
 	if !strings.Contains(firstLine, "200") || len(headers) == 0 {
 		return httpFlvErr
@@ -152,11 +138,10 @@ func (session *PullSession) readHTTPRespHeader() error {
 
 func (session *PullSession) readFlvHeader() ([]byte, error) {
 	flvHeader := make([]byte, flvHeaderSize)
-	_, err := io.ReadAtLeast(session.rb, flvHeader, flvHeaderSize)
+	_, err := session.Conn.ReadAtLeastWithTimeout(flvHeader, flvHeaderSize, session.readTimeoutMS)
 	if err != nil {
 		return flvHeader, err
 	}
-	session.ConnStat.Read(flvHeaderSize)
 	log.Infof("-----> http flv header. [%s]", session.UniqueKey)
 
 	// TODO chef: check flv header's value
@@ -164,11 +149,11 @@ func (session *PullSession) readFlvHeader() ([]byte, error) {
 }
 
 func (session *PullSession) readTag() (*Tag, error) {
-	header, rawHeader, err := readTagHeader(session.rb)
-	if err != nil {
+	rawHeader := make([]byte, TagHeaderSize)
+	if _, err := session.Conn.ReadAtLeastWithTimeout(rawHeader, TagHeaderSize, session.readTimeoutMS); err != nil {
 		return nil, err
 	}
-	session.ConnStat.Read(TagHeaderSize)
+	header := parseTagHeader(rawHeader)
 
 	needed := int(header.DataSize) + prevTagFieldSize
 	tag := &Tag{}
@@ -176,11 +161,9 @@ func (session *PullSession) readTag() (*Tag, error) {
 	tag.Raw = make([]byte, TagHeaderSize+needed)
 	copy(tag.Raw, rawHeader)
 
-	// TODO chef: why ReadAtLeast???
-	if _, err := io.ReadAtLeast(session.rb, tag.Raw[TagHeaderSize:], needed); err != nil {
+	if _, err := session.Conn.ReadAtLeastWithTimeout(tag.Raw[TagHeaderSize:], needed, session.readTimeoutMS); err != nil {
 		return nil, err
 	}
-	session.ConnStat.Read(needed)
 
 	return tag, nil
 }

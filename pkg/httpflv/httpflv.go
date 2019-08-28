@@ -1,7 +1,6 @@
 package httpflv
 
 import (
-	"bufio"
 	"errors"
 	"strings"
 )
@@ -14,14 +13,18 @@ type Writer interface {
 var httpFlvErr = errors.New("httpflv: fxxk")
 
 const (
-	flvHeaderSize = 13
+	flvHeaderSize    = 13
 	prevTagFieldSize = 4
 )
 
 var readBufSize = 16384
 
+type LineReader interface {
+	ReadLine() (line []byte, isPrefix bool, err error)
+}
+
 // return 1st line and other headers with kv format
-func parseHTTPHeader(r *bufio.Reader) (n int, firstLine string, headers map[string]string, err error) {
+func parseHTTPHeader(r LineReader) (n int, firstLine string, headers map[string]string, err error) {
 	headers = make(map[string]string)
 
 	var line []byte

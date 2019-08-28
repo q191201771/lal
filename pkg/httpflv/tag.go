@@ -112,6 +112,15 @@ func ModTagTimestamp(tag *Tag, timestamp uint32) {
 	tag.Raw[7] = byte(timestamp >> 24)
 }
 
+// 调用方需确保len(rawHeader) >= TagHeaderSize
+func parseTagHeader(rawHeader []byte) TagHeader {
+	var h TagHeader
+	h.T = rawHeader[0]
+	h.DataSize = bele.BEUint24(rawHeader[1:])
+	h.Timestamp = (uint32(rawHeader[7]) << 24) + bele.BEUint24(rawHeader[4:])
+	return h
+}
+
 func readTagHeader(rd io.Reader) (h TagHeader, rawHeader []byte, err error) {
 	rawHeader = make([]byte, TagHeaderSize)
 	if _, err = io.ReadAtLeast(rd, rawHeader, TagHeaderSize); err != nil {
