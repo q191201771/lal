@@ -1,9 +1,4 @@
 {
-  "sub_idle_timeout": 10,
-  "gop_cache_num": 2,
-  "httpflv": {
-    "sub_listen_addr": ":8080"
-  },
   "rtmp": {
     "addr": ":19350"
   }
