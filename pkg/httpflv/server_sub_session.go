@@ -2,7 +2,6 @@ package httpflv
 
 import (
 	"bufio"
-	"github.com/q191201771/nezha/pkg/connstat"
 	"github.com/q191201771/nezha/pkg/log"
 	"github.com/q191201771/nezha/pkg/unique"
 	"net"
@@ -30,7 +29,6 @@ var wChanSize = 1024 // TODO chef: 1024
 type SubSession struct {
 	UniqueKey string
 
-	ConnStat     connstat.ConnStat
 	writeTimeout int64
 
 	StartTick  int64
@@ -113,7 +111,6 @@ func (session *SubSession) ReadRequest() (err error) {
 }
 
 func (session *SubSession) RunLoop() error {
-	session.ConnStat.Start(0, session.writeTimeout)
 	go func() {
 		buf := make([]byte, 128)
 		if _, err := session.conn.Read(buf); err != nil {
@@ -177,12 +174,11 @@ func (session *SubSession) runWriteLoop() error {
 			}
 
 			// TODO chef: use bufio.Writer
-			n, err := session.conn.Write(pkt)
+			_, err := session.conn.Write(pkt)
 			if err != nil {
 				session.Dispose(err)
 				return err
 			}
-			session.ConnStat.Write(n)
 		}
 	}
 }

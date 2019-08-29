@@ -11,8 +11,11 @@ var gopCacheNum = 2
 
 // TODO chef: 所有新增对象的UniqueKey
 
+// TODO chef: 将Observer方式改成 func CB方式
 type GroupObserver interface {
-	PullSessionObserver
+	ReadHTTPRespHeaderCB()
+	ReadFlvHeaderCB(flvHeader []byte)
+	ReadFlvTagCB(tag *Tag)
 }
 
 type Group struct {
@@ -66,7 +69,7 @@ func (group *Group) AddHTTPFlvSubSession(session *SubSession) {
 }
 
 func (group *Group) Pull(addr string, connectTimeout int64, readTimeout int64) {
-	group.pullSession = NewPullSession(group, int(connectTimeout), int(readTimeout))
+	group.pullSession = NewPullSession(int(connectTimeout), int(readTimeout))
 
 	defer func() {
 		group.mutex.Lock()
@@ -77,16 +80,17 @@ func (group *Group) Pull(addr string, connectTimeout int64, readTimeout int64) {
 
 	log.Infof("<----- connect. [%s]", group.pullSession.UniqueKey)
 	url := fmt.Sprintf("http://%s/%s/%s.flv", addr, group.appName, group.streamName)
-	if err := group.pullSession.Pull(url); err != nil {
-		log.Errorf("-----> connect error. [%s] err=%v", group.pullSession.UniqueKey, err)
+	// TODO chef: impl cb
+	if err := group.pullSession.Pull(url, nil); err != nil {
+		//log.Errorf("-----> connect error. [%s] err=%v", group.pullSession.UniqueKey, err)
 		return
 	}
-	log.Infof("-----> connect succ. [%s]", group.pullSession.UniqueKey)
+	//log.Infof("-----> connect succ. [%s]", group.pullSession.UniqueKey)
 
-	if err := group.pullSession.RunLoop(); err != nil {
-		log.Debugf("PullSession loop done. [%s] err=%v", group.pullSession.UniqueKey, err)
-		return
-	}
+	//if err := group.pullSession.RunLoop(); err != nil {
+	//	log.Debugf("PullSession loop done. [%s] err=%v", group.pullSession.UniqueKey, err)
+	//	return
+	//}
 }
 
 func (group *Group) IsTotalEmpty() bool {

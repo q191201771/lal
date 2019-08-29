@@ -12,82 +12,51 @@ import (
 )
 
 type PullSession struct {
+	UniqueKey string
+
 	connectTimeoutMS int
 	readTimeoutMS    int
 
-	obs  PullSessionObserver
-	Conn connection.Connection
-
+	Conn      connection.Connection
 	closeOnce sync.Once
 
-	UniqueKey string
-}
+	host string
+	uri  string
+	addr string
 
-type PullSessionObserver interface {
-	ReadHTTPRespHeaderCB()
-	ReadFlvHeaderCB(flvHeader []byte)
-	ReadFlvTagCB(tag *Tag) // after cb, PullSession won't use this tag data
+	readFlvTagCB ReadFlvTagCB
 }
 
 // @param connectTimeoutMS TCP连接时超时，单位毫秒，如果为0，则不设置超时
 // @param readTimeoutMS 接收数据超时，单位毫秒，如果为0，则不设置超时
-func NewPullSession(obs PullSessionObserver, connectTimeoutMS int, readTimeoutMS int) *PullSession {
+func NewPullSession(connectTimeoutMS int, readTimeoutMS int) *PullSession {
 	uk := unique.GenUniqueKey("FLVPULL")
 	log.Infof("lifecycle new PullSession. [%s]", uk)
 	return &PullSession{
 		connectTimeoutMS: connectTimeoutMS,
 		readTimeoutMS:    readTimeoutMS,
-		obs:              obs,
-		UniqueKey:        uk,
+		UniqueKey: uk,
 	}
 }
 
-// 支持如下两种格式。当然，前提是对端支持
+type ReadFlvTagCB func(tag *Tag)
+
+// 阻塞直到拉流失败
+//
+// @param rawURL 支持如下两种格式。（当然，前提是对端支持）
 // http://{domain}/{app_name}/{stream_name}.flv
 // http://{ip}/{domain}/{app_name}/{stream_name}.flv
-func (session *PullSession) Pull(rawURL string) error {
-	url, err := url.Parse(rawURL)
-	if err != nil {
+//
+// @param readFlvTagCB 读取到 flv tag 数据时回调。回调结束后，PullSession不会再使用 <tag> 数据。
+func (session *PullSession) Pull(rawURL string, readFlvTagCB ReadFlvTagCB) error {
+	if err := session.Connect(rawURL); err != nil {
 		return err
 	}
-	if url.Scheme != "http" || !strings.HasSuffix(url.Path, ".flv") {
-		return httpFlvErr
-	}
-
-	host := url.Host
-	// TODO chef: uri with url.RawQuery?
-	uri := url.Path
-
-	var addr string
-	if strings.Contains(host, ":") {
-		addr = host
-	} else {
-		addr = host + ":80"
-	}
-
-	var conn net.Conn
-	if session.connectTimeoutMS == 0 {
-		conn, err = net.Dial("tcp", addr)
-	} else {
-		conn, err = net.DialTimeout("tcp", addr, time.Duration(session.connectTimeoutMS)*time.Millisecond)
-	}
-	if err != nil {
+	if err := session.WriteHTTPGet(); err != nil {
 		return err
 	}
-	session.Conn = connection.New(conn, &connection.Config{ReadBufSize: readBufSize})
 
-	_, err = session.Conn.PrintfWithTimeout(
-		session.readTimeoutMS,
-		"GET %s HTTP/1.0\r\nAccept: */*\r\nRange: byte=0-\r\nConnection: close\r\nHost: %s\r\nIcy-MetaData: 1\r\n\r\n",
-		uri, host)
-
-	return err
-}
-
-func (session *PullSession) RunLoop() error {
-	err := session.runReadLoop()
-	session.Dispose(err)
-	return err
+	return session.runReadLoop(readFlvTagCB)
 }
 
 func (session *PullSession) Dispose(err error) {
@@ -99,44 +68,66 @@ func (session *PullSession) Dispose(err error) {
 	})
 }
 
-func (session *PullSession) runReadLoop() error {
-	if err := session.readHTTPRespHeader(); err != nil {
-		return err
-	}
-	// TODO chef: 把内容返回给上层
-	session.obs.ReadHTTPRespHeaderCB()
-
-	flvHeader, err := session.readFlvHeader()
+func (session *PullSession) Connect(rawURL string) error {
+	// # 从 url 中解析 host uri addr
+	url, err := url.Parse(rawURL)
 	if err != nil {
 		return err
 	}
-	session.obs.ReadFlvHeaderCB(flvHeader)
-
-	for {
-		tag, err := session.readTag()
-		if err != nil {
-			return err
-		}
-		session.obs.ReadFlvTagCB(tag)
-	}
-}
-
-func (session *PullSession) readHTTPRespHeader() error {
-	// TODO chef: timeout
-	_, firstLine, headers, err := parseHTTPHeader(session.Conn)
-	if err != nil {
-		return err
-	}
-
-	if !strings.Contains(firstLine, "200") || len(headers) == 0 {
+	if url.Scheme != "http" || !strings.HasSuffix(url.Path, ".flv") {
 		return httpFlvErr
 	}
-	log.Infof("-----> http response header. [%s]", session.UniqueKey)
 
+	session.host = url.Host
+	// TODO chef: uri with url.RawQuery?
+	session.uri = url.Path
+
+	if strings.Contains(session.host, ":") {
+		session.addr = session.host
+	} else {
+		session.addr = session.host + ":80"
+	}
+
+	// # 建立连接
+	var conn net.Conn
+	if session.connectTimeoutMS == 0 {
+		conn, err = net.Dial("tcp", session.addr)
+	} else {
+		conn, err = net.DialTimeout("tcp", session.addr, time.Duration(session.connectTimeoutMS)*time.Millisecond)
+	}
+	if err != nil {
+		return err
+	}
+	session.Conn = connection.New(conn, &connection.Config{ReadBufSize: readBufSize})
 	return nil
 }
 
-func (session *PullSession) readFlvHeader() ([]byte, error) {
+func (session *PullSession) WriteHTTPGet() error {
+	// # 发送 http GET 请求
+	_, err := session.Conn.PrintfWithTimeout(
+		session.readTimeoutMS,
+		"GET %s HTTP/1.0\r\nAccept: */*\r\nRange: byte=0-\r\nConnection: close\r\nHost: %s\r\nIcy-MetaData: 1\r\n\r\n",
+		session.uri, session.host)
+	return err
+}
+
+func (session *PullSession) ReadHTTPRespHeader() (firstLine string, headers map[string]string, err error) {
+	// TODO chef: timeout
+	_, firstLine, headers, err = parseHTTPHeader(session.Conn)
+	if err != nil {
+		return
+	}
+
+	if !strings.Contains(firstLine, "200") || len(headers) == 0 {
+		err = httpFlvErr
+		return
+	}
+	log.Infof("-----> http response header. [%s]", session.UniqueKey)
+
+	return
+}
+
+func (session *PullSession) ReadFlvHeader() ([]byte, error) {
 	flvHeader := make([]byte, flvHeaderSize)
 	_, err := session.Conn.ReadAtLeastWithTimeout(flvHeader, flvHeaderSize, session.readTimeoutMS)
 	if err != nil {
@@ -148,7 +139,7 @@ func (session *PullSession) readFlvHeader() ([]byte, error) {
 	return flvHeader, nil
 }
 
-func (session *PullSession) readTag() (*Tag, error) {
+func (session *PullSession) ReadTag() (*Tag, error) {
 	rawHeader := make([]byte, TagHeaderSize)
 	if _, err := session.Conn.ReadAtLeastWithTimeout(rawHeader, TagHeaderSize, session.readTimeoutMS); err != nil {
 		return nil, err
@@ -166,4 +157,22 @@ func (session *PullSession) readTag() (*Tag, error) {
 	}
 
 	return tag, nil
+}
+
+func (session *PullSession) runReadLoop(readFlvTagCB ReadFlvTagCB) error {
+	if _, _, err := session.ReadHTTPRespHeader(); err != nil {
+		return err
+	}
+
+	if _, err := session.ReadFlvHeader(); err != nil {
+		return err
+	}
+
+	for {
+		tag, err := session.ReadTag()
+		if err != nil {
+			return err
+		}
+		readFlvTagCB(tag)
+	}
 }

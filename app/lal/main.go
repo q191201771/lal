@@ -15,19 +15,14 @@ var sm *ServerManager
 
 func main() {
 	confFile := parseFlag()
-
 	initLog()
-
 	log.Infof("bininfo: %s", bininfo.StringifySingleLine())
-
 	config := loadConf(confFile)
 
 	sm = NewServerManager(config)
 	go sm.RunLoop()
 
 	//shutdownAfter(60 * time.Second)
-
-	// TODO chef: 添加优雅退出信号处理
 
 	startWebPProf()
 }
@@ -80,6 +75,7 @@ func startWebPProf() {
 	log.Info("start pprof listen. addr=:10001")
 }
 
+// TODO chef: 添加优雅退出信号处理
 func shutdownAfter(d time.Duration) {
 	go func() {
 		time.Sleep(d)

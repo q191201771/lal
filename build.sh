@@ -32,3 +32,6 @@ cd ${ROOT_DIR}/app/httpflvpull && go build -o ${ROOT_DIR}/bin/httpflvpull
 cd ${ROOT_DIR}/app/modflvfile && go build -o ${ROOT_DIR}/bin/modflvfile
 
 cd ${ROOT_DIR}/app/rtmppull && go build -o ${ROOT_DIR}/bin/rtmppull
+
+${ROOT_DIR}/bin/lal -v
+ls -lrt ${ROOT_DIR}/bin
