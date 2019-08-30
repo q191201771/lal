@@ -9,11 +9,13 @@ import (
 
 func main() {
 	url := parseFlag()
-	session := httpflv.NewPullSession(0, 0)
-	err := session.Pull(url,
-		func(tag *httpflv.Tag) {
-			log.Infof("ReadFlvTagCB. %+v %t %t", tag.Header, tag.IsAVCKeySeqHeader(), tag.IsAVCKeyNalu())
-		})
+	session := httpflv.NewPullSession(httpflv.PullSessionConfig{
+		ConnectTimeoutMS: 0,
+		ReadTimeoutMS:    0,
+	})
+	err := session.Pull(url, func(tag *httpflv.Tag) {
+		log.Infof("ReadFlvTagCB. %+v %t %t", tag.Header, tag.IsAVCKeySeqHeader(), tag.IsAVCKeyNalu())
+	})
 	if err != nil {
 		log.Error(err)
 		return

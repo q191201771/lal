@@ -11,11 +11,15 @@ import (
 	"time"
 )
 
+type PullSessionConfig struct {
+	ConnectTimeoutMS int // TCP连接时超时，单位毫秒，如果为0，则不设置超时
+	ReadTimeoutMS    int // 接收数据超时，单位毫秒，如果为0，则不设置超时
+}
+
 type PullSession struct {
 	UniqueKey string
 
-	connectTimeoutMS int
-	readTimeoutMS    int
+	config PullSessionConfig
 
 	Conn      connection.Connection
 	closeOnce sync.Once
@@ -27,14 +31,11 @@ type PullSession struct {
 	readFlvTagCB ReadFlvTagCB
 }
 
-// @param connectTimeoutMS TCP连接时超时，单位毫秒，如果为0，则不设置超时
-// @param readTimeoutMS 接收数据超时，单位毫秒，如果为0，则不设置超时
-func NewPullSession(connectTimeoutMS int, readTimeoutMS int) *PullSession {
+func NewPullSession(config PullSessionConfig) *PullSession {
 	uk := unique.GenUniqueKey("FLVPULL")
 	log.Infof("lifecycle new PullSession. [%s]", uk)
 	return &PullSession{
-		connectTimeoutMS: connectTimeoutMS,
-		readTimeoutMS:    readTimeoutMS,
+		config:    config,
 		UniqueKey: uk,
 	}
 }
@@ -52,7 +53,7 @@ func (session *PullSession) Pull(rawURL string, readFlvTagCB ReadFlvTagCB) error
 	if err := session.Connect(rawURL); err != nil {
 		return err
 	}
-	if err := session.WriteHTTPGet(); err != nil {
+	if err := session.WriteHTTPRequest(); err != nil {
 		return err
 	}
 
@@ -90,10 +91,10 @@ func (session *PullSession) Connect(rawURL string) error {
 
 	// # 建立连接
 	var conn net.Conn
-	if session.connectTimeoutMS == 0 {
+	if session.config.ConnectTimeoutMS == 0 {
 		conn, err = net.Dial("tcp", session.addr)
 	} else {
-		conn, err = net.DialTimeout("tcp", session.addr, time.Duration(session.connectTimeoutMS)*time.Millisecond)
+		conn, err = net.DialTimeout("tcp", session.addr, time.Duration(session.config.ConnectTimeoutMS)*time.Millisecond)
 	}
 	if err != nil {
 		return err
@@ -102,10 +103,10 @@ func (session *PullSession) Connect(rawURL string) error {
 	return nil
 }
 
-func (session *PullSession) WriteHTTPGet() error {
+func (session *PullSession) WriteHTTPRequest() error {
 	// # 发送 http GET 请求
 	_, err := session.Conn.PrintfWithTimeout(
-		session.readTimeoutMS,
+		session.config.ReadTimeoutMS,
 		"GET %s HTTP/1.0\r\nAccept: */*\r\nRange: byte=0-\r\nConnection: close\r\nHost: %s\r\nIcy-MetaData: 1\r\n\r\n",
 		session.uri, session.host)
 	return err
@@ -129,7 +130,7 @@ func (session *PullSession) ReadHTTPRespHeader() (firstLine string, headers map[
 
 func (session *PullSession) ReadFlvHeader() ([]byte, error) {
 	flvHeader := make([]byte, flvHeaderSize)
-	_, err := session.Conn.ReadAtLeastWithTimeout(flvHeader, flvHeaderSize, session.readTimeoutMS)
+	_, err := session.Conn.ReadAtLeastWithTimeout(flvHeader, flvHeaderSize, session.config.ReadTimeoutMS)
 	if err != nil {
 		return flvHeader, err
 	}
@@ -141,7 +142,7 @@ func (session *PullSession) ReadFlvHeader() ([]byte, error) {
 
 func (session *PullSession) ReadTag() (*Tag, error) {
 	rawHeader := make([]byte, TagHeaderSize)
-	if _, err := session.Conn.ReadAtLeastWithTimeout(rawHeader, TagHeaderSize, session.readTimeoutMS); err != nil {
+	if _, err := session.Conn.ReadAtLeastWithTimeout(rawHeader, TagHeaderSize, session.config.ReadTimeoutMS); err != nil {
 		return nil, err
 	}
 	header := parseTagHeader(rawHeader)
@@ -152,7 +153,7 @@ func (session *PullSession) ReadTag() (*Tag, error) {
 	tag.Raw = make([]byte, TagHeaderSize+needed)
 	copy(tag.Raw, rawHeader)
 
-	if _, err := session.Conn.ReadAtLeastWithTimeout(tag.Raw[TagHeaderSize:], needed, session.readTimeoutMS); err != nil {
+	if _, err := session.Conn.ReadAtLeastWithTimeout(tag.Raw[TagHeaderSize:], needed, session.config.ReadTimeoutMS); err != nil {
 		return nil, err
 	}
 
