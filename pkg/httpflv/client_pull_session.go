@@ -99,14 +99,17 @@ func (session *PullSession) Connect(rawURL string) error {
 	if err != nil {
 		return err
 	}
-	session.Conn = connection.New(conn, &connection.Config{ReadBufSize: readBufSize})
+	session.Conn = connection.New(conn, connection.Config{
+		ReadBufSize: readBufSize,
+		WriteTimeoutMS: session.config.ReadTimeoutMS,
+		ReadTimeoutMS: session.config.ReadTimeoutMS,
+	})
 	return nil
 }
 
 func (session *PullSession) WriteHTTPRequest() error {
 	// # 发送 http GET 请求
-	_, err := session.Conn.PrintfWithTimeout(
-		session.config.ReadTimeoutMS,
+	_, err := session.Conn.Printf(
 		"GET %s HTTP/1.0\r\nAccept: */*\r\nRange: byte=0-\r\nConnection: close\r\nHost: %s\r\nIcy-MetaData: 1\r\n\r\n",
 		session.uri, session.host)
 	return err
@@ -130,7 +133,7 @@ func (session *PullSession) ReadHTTPRespHeader() (firstLine string, headers map[
 
 func (session *PullSession) ReadFlvHeader() ([]byte, error) {
 	flvHeader := make([]byte, flvHeaderSize)
-	_, err := session.Conn.ReadAtLeastWithTimeout(flvHeader, flvHeaderSize, session.config.ReadTimeoutMS)
+	_, err := session.Conn.ReadAtLeast(flvHeader, flvHeaderSize)
 	if err != nil {
 		return flvHeader, err
 	}
@@ -142,7 +145,7 @@ func (session *PullSession) ReadFlvHeader() ([]byte, error) {
 
 func (session *PullSession) ReadTag() (*Tag, error) {
 	rawHeader := make([]byte, TagHeaderSize)
-	if _, err := session.Conn.ReadAtLeastWithTimeout(rawHeader, TagHeaderSize, session.config.ReadTimeoutMS); err != nil {
+	if _, err := session.Conn.ReadAtLeast(rawHeader, TagHeaderSize); err != nil {
 		return nil, err
 	}
 	header := parseTagHeader(rawHeader)
@@ -153,7 +156,7 @@ func (session *PullSession) ReadTag() (*Tag, error) {
 	tag.Raw = make([]byte, TagHeaderSize+needed)
 	copy(tag.Raw, rawHeader)
 
-	if _, err := session.Conn.ReadAtLeastWithTimeout(tag.Raw[TagHeaderSize:], needed, session.config.ReadTimeoutMS); err != nil {
+	if _, err := session.Conn.ReadAtLeast(tag.Raw[TagHeaderSize:], needed); err != nil {
 		return nil, err
 	}
 

@@ -4,6 +4,7 @@ coverage.html
 /pre-commit.sh
 /coverage.txt
 /TODO.md
+/SECRET.md
 /conf/self.conf.json
 /lal
 /lal_linux
