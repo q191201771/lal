@@ -100,9 +100,9 @@ func (session *PullSession) Connect(rawURL string) error {
 		return err
 	}
 	session.Conn = connection.New(conn, connection.Config{
-		ReadBufSize: readBufSize,
+		ReadBufSize:    readBufSize,
 		WriteTimeoutMS: session.config.ReadTimeoutMS,
-		ReadTimeoutMS: session.config.ReadTimeoutMS,
+		ReadTimeoutMS:  session.config.ReadTimeoutMS,
 	})
 	return nil
 }

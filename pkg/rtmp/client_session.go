@@ -1,9 +1,9 @@
 package rtmp
 
 import (
-	"bufio"
 	"encoding/hex"
 	"github.com/q191201771/nezha/pkg/bele"
+	"github.com/q191201771/nezha/pkg/connection"
 	"github.com/q191201771/nezha/pkg/log"
 	"github.com/q191201771/nezha/pkg/unique"
 	"net"
@@ -31,9 +31,10 @@ type ClientSession struct {
 	hs             HandshakeClient
 	peerWinAckSize int
 
-	Conn  net.Conn
-	rb    *bufio.Reader
-	wb    *bufio.Writer
+	Conn connection.Connection
+	//Conn  net.Conn
+	//rb    *bufio.Reader
+	//wb    *bufio.Writer
 	wChan chan []byte
 }
 
@@ -114,7 +115,7 @@ func (s *ClientSession) TmpWrite(b []byte) error {
 }
 
 func (s *ClientSession) runReadLoop() error {
-	return s.chunkComposer.RunLoop(s.rb, s.doMsg)
+	return s.chunkComposer.RunLoop(s.Conn, s.doMsg)
 }
 
 func (s *ClientSession) doMsg(stream *Stream) error {
@@ -128,7 +129,7 @@ func (s *ClientSession) doMsg(stream *Stream) error {
 	case typeidCommandMessageAMF0:
 		return s.doCommandMessage(stream)
 	case typeidUserControl:
-		log.Warn("read user control message, ignore. [%s]", s.UniqueKey)
+		log.Warnf("read user control message, ignore. [%s]", s.UniqueKey)
 	case TypeidDataMessageAMF0:
 		return s.doDataMessageAMF0(stream)
 	case TypeidAudio:
@@ -319,7 +320,7 @@ func (s *ClientSession) handshake() error {
 	if err := s.hs.WriteC0C1(s.Conn); err != nil {
 		return err
 	}
-	if err := s.hs.ReadS0S1S2(s.rb); err != nil {
+	if err := s.hs.ReadS0S1S2(s.Conn); err != nil {
 		return err
 	}
 	if err := s.hs.WriteC2(s.Conn); err != nil {
@@ -337,14 +338,21 @@ func (s *ClientSession) tcpConnect() error {
 		addr = s.url.Host + ":1935"
 	}
 
-	if s.Conn, err = net.Dial("tcp", addr); err != nil {
+	var conn net.Conn
+	if conn, err = net.Dial("tcp", addr); err != nil {
 		return err
 	}
-	s.rb = bufio.NewReaderSize(s.Conn, readBufSize)
-	s.wb = bufio.NewWriterSize(s.Conn, writeBufSize)
+
+	// TODO chef: 超时由接口设置
+	s.Conn = connection.New(conn, connection.Config{
+		ReadBufSize:    readBufSize,
+		ReadTimeoutMS:  5000,
+		WriteTimeoutMS: 5000,
+	})
 	return nil
 }
 
 func (s *ClientSession) notifyDoResultSucc() {
+	s.Conn.ModWriteBufSize(writeBufSize)
 	s.doResultChan <- struct{}{}
 }
