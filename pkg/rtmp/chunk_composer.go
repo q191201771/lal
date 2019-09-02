@@ -69,11 +69,11 @@ func (c *ChunkComposer) RunLoop(reader io.Reader, cb CompleteMessageCB) error {
 			// 包头中为绝对时间戳
 			stream.header.Timestamp = int(bele.BEUint24(bootstrap))
 			stream.timestampAbs = stream.header.Timestamp
-			stream.msgLen = int(bele.BEUint24(bootstrap[3:]))
+			stream.header.MsgLen = int(bele.BEUint24(bootstrap[3:]))
 			stream.header.MsgTypeID = int(bootstrap[6])
 			stream.header.MsgStreamID = int(bele.LEUint32(bootstrap[7:]))
 
-			stream.msg.reserve(stream.msgLen)
+			stream.msg.reserve(stream.header.MsgLen)
 		case 1:
 			if _, err := io.ReadAtLeast(reader, bootstrap[:7], 7); err != nil {
 				return err
@@ -81,10 +81,10 @@ func (c *ChunkComposer) RunLoop(reader io.Reader, cb CompleteMessageCB) error {
 			// 包头中为相对时间戳
 			stream.header.Timestamp = int(bele.BEUint24(bootstrap))
 			stream.timestampAbs += stream.header.Timestamp
-			stream.msgLen = int(bele.BEUint24(bootstrap[3:]))
+			stream.header.MsgLen = int(bele.BEUint24(bootstrap[3:]))
 			stream.header.MsgTypeID = int(bootstrap[6])
 
-			stream.msg.reserve(stream.msgLen)
+			stream.msg.reserve(stream.header.MsgLen)
 		case 2:
 			if _, err := io.ReadAtLeast(reader, bootstrap[:3], 3); err != nil {
 				return err
@@ -119,14 +119,13 @@ func (c *ChunkComposer) RunLoop(reader io.Reader, cb CompleteMessageCB) error {
 			}
 		}
 		//stream.header.CSID = csid
-		//stream.header.MsgLen = stream.msgLen
 		//log.Debugf("CHEFGREPME tag1 fmt:%d header:%+v csid:%d len:%d ts:%d", fmt, stream.header, csid, stream.msgLen, stream.timestampAbs)
 
 		var neededSize int
-		if stream.msgLen <= c.peerChunkSize {
-			neededSize = stream.msgLen
+		if stream.header.MsgLen <= c.peerChunkSize {
+			neededSize = stream.header.MsgLen
 		} else {
-			neededSize = stream.msgLen - stream.msg.len()
+			neededSize = stream.header.MsgLen - stream.msg.len()
 			if neededSize > c.peerChunkSize {
 				neededSize = c.peerChunkSize
 			}
@@ -138,7 +137,7 @@ func (c *ChunkComposer) RunLoop(reader io.Reader, cb CompleteMessageCB) error {
 		}
 		stream.msg.produced(neededSize)
 
-		if stream.msg.len() == stream.msgLen {
+		if stream.msg.len() == stream.header.MsgLen {
 			// 对端设置了chunk size
 			if stream.header.MsgTypeID == typeidSetChunkSize {
 				val := int(bele.BEUint32(stream.msg.buf))
@@ -146,14 +145,13 @@ func (c *ChunkComposer) RunLoop(reader io.Reader, cb CompleteMessageCB) error {
 			}
 
 			stream.header.CSID = csid
-			stream.header.MsgLen = stream.msgLen
-			//log.Debugf("CHEFGREPME %+v %d %d", stream.header, stream.timestampAbs, stream.msgLen)
+			//log.Debugf("CHEFGREPME %+v %d %d", stream.header, stream.timestampAbs, stream.header.MsgLen)
 			if err := cb(stream); err != nil {
 				return err
 			}
 			stream.msg.clear()
 		}
-		if stream.msg.len() > stream.msgLen {
+		if stream.msg.len() > stream.header.MsgLen {
 			panic(0)
 		}
 	}

@@ -4,7 +4,7 @@ type PushSession struct {
 	*ClientSession
 }
 
-func NewPushSession(connectTimeout int64) *PushSession {
+func NewPushSession(connectTimeout int) *PushSession {
 	return &PushSession{
 		ClientSession: NewClientSession(CSTPushSession, nil, connectTimeout),
 	}

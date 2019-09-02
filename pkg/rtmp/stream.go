@@ -24,7 +24,6 @@ type StreamMsg struct {
 
 type Stream struct {
 	header       Header
-	msgLen       int // TODO chef: needed? dup with Header's
 	timestampAbs int
 
 	msg StreamMsg

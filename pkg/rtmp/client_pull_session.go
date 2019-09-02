@@ -8,7 +8,7 @@ type PullSession struct {
 	*ClientSession
 }
 
-func NewPullSession(obs PullSessionObserver, connectTimeout int64) *PullSession {
+func NewPullSession(obs PullSessionObserver, connectTimeout int) *PullSession {
 	return &PullSession{
 		ClientSession: NewClientSession(CSTPullSession, obs, connectTimeout),
 	}

@@ -89,7 +89,7 @@ func (group *Group) DelSubSession(session *ServerSession) {
 }
 
 func (group *Group) Pull(addr string, connectTimeout int64) {
-	group.pullSession = NewPullSession(group, connectTimeout)
+	group.pullSession = NewPullSession(group, int(connectTimeout))
 
 	defer func() {
 		group.mutex.Lock()

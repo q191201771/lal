@@ -90,12 +90,7 @@ func (session *PullSession) Connect(rawURL string) error {
 	}
 
 	// # 建立连接
-	var conn net.Conn
-	if session.config.ConnectTimeoutMS == 0 {
-		conn, err = net.Dial("tcp", session.addr)
-	} else {
-		conn, err = net.DialTimeout("tcp", session.addr, time.Duration(session.config.ConnectTimeoutMS)*time.Millisecond)
-	}
+	conn, err := net.DialTimeout("tcp", session.addr, time.Duration(session.config.ConnectTimeoutMS)*time.Millisecond)
 	if err != nil {
 		return err
 	}

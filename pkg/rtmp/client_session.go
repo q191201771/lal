@@ -17,19 +17,20 @@ import (
 type ClientSession struct {
 	UniqueKey string
 
-	t              ClientSessionType
-	obs            PullSessionObserver // only for PullSession
-	connectTimeout int64
-	doResultChan   chan struct{}
-	errChan        chan error
-	packer         *MessagePacker
-	chunkComposer  *ChunkComposer
-	url            *url.URL
-	tcURL          string
-	appName        string
-	streamName     string
-	hs             HandshakeClient
-	peerWinAckSize int
+	t                ClientSessionType
+	obs              PullSessionObserver // only for PullSession
+	stageCB          StageCB
+	connectTimeoutMS int
+	doResultChan     chan struct{}
+	errChan          chan error
+	packer           *MessagePacker
+	chunkComposer    *ChunkComposer
+	url              *url.URL
+	tcURL            string
+	appName          string
+	streamName       string
+	hs               HandshakeClient
+	peerWinAckSize   int
 
 	Conn connection.Connection
 	//Conn  net.Conn
@@ -45,8 +46,19 @@ const (
 	CSTPushSession
 )
 
-// set <obs> if <t> equal CSTPullSession
-func NewClientSession(t ClientSessionType, obs PullSessionObserver, connectTimeout int64) *ClientSession {
+type ClientSessionStage int
+
+const (
+	CSSConnConnectStart ClientSessionStage = iota
+	CSSConnConnectSucc
+)
+
+type StageCB func(stage ClientSessionStage)
+
+// @param t: session的类型，只能是推或者拉
+// @param obs: 回调结束后，buffer会被重复使用
+// @param connectTimeoutMS: 建立连接超时，单位毫秒
+func NewClientSession(t ClientSessionType, obs PullSessionObserver, connectTimeoutMS int) *ClientSession {
 	var uk string
 	switch t {
 	case CSTPullSession:
@@ -56,19 +68,19 @@ func NewClientSession(t ClientSessionType, obs PullSessionObserver, connectTimeo
 	}
 
 	return &ClientSession{
-		t:              t,
-		obs:            obs,
-		connectTimeout: connectTimeout,
-		doResultChan:   make(chan struct{}),
-		errChan:        make(chan error),
-		packer:         NewMessagePacker(),
-		chunkComposer:  NewChunkComposer(),
-		UniqueKey:      unique.GenUniqueKey(uk),
-		wChan:          make(chan []byte, wChanSize),
+		t:                t,
+		obs:              obs,
+		connectTimeoutMS: connectTimeoutMS,
+		doResultChan:     make(chan struct{}),
+		errChan:          make(chan error),
+		packer:           NewMessagePacker(),
+		chunkComposer:    NewChunkComposer(),
+		UniqueKey:        unique.GenUniqueKey(uk),
+		wChan:            make(chan []byte, wChanSize),
 	}
 }
 
-// 阻塞直到收到服务端的 publish start / play start 信令 或者超时
+// 阻塞直到收到服务端返回的 publish start / play start 信令 或者超时
 func (s *ClientSession) Do(rawURL string) error {
 	if err := s.parseURL(rawURL); err != nil {
 		return err
@@ -91,16 +103,13 @@ func (s *ClientSession) Do(rawURL string) error {
 		s.errChan <- s.runReadLoop()
 	}()
 
-	t := time.NewTimer(time.Duration(s.connectTimeout) * time.Second)
-
 	var ret error
 	select {
 	case <-s.doResultChan:
 		break
-	case <-t.C:
-		ret = rtmpErr
+	case ret = <-s.errChan:
+		break
 	}
-	t.Stop()
 	return ret
 }
 
@@ -310,7 +319,8 @@ func (s *ClientSession) parseURL(rawURL string) error {
 		return rtmpErr
 	}
 	s.appName = strs[0]
-	s.streamName = strs[1]
+	// 有的rtmp服务器会使用url后面的参数（比如说用于鉴权），这里把它带上
+	s.streamName = strs[1] + "?" + s.url.RawQuery
 	log.Debugf("%s %s %s %+v", s.tcURL, s.appName, s.streamName, *s.url)
 
 	return nil
@@ -339,7 +349,7 @@ func (s *ClientSession) tcpConnect() error {
 	}
 
 	var conn net.Conn
-	if conn, err = net.Dial("tcp", addr); err != nil {
+	if conn, err = net.DialTimeout("tcp", addr, time.Duration(s.connectTimeoutMS)*time.Millisecond); err != nil {
 		return err
 	}
 

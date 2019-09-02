@@ -6,131 +6,98 @@ import (
 	"github.com/q191201771/lal/pkg/rtmp"
 	"github.com/q191201771/nezha/pkg/errors"
 	"github.com/q191201771/nezha/pkg/log"
+	"io"
 	"os"
 	"time"
 )
 
 // 将flv文件通过rtmp协议推送至rtmp服务器
 //
+// -r 表示当文件推送完毕后，是否循环推送
+//
 // Usage:
-// ./bin/flvfile2rtmppush -i /tmp/test.flv -o rtmp://push.xxx.com/live/testttt
+// ./bin/flvfile2rtmppush -r 1 -i /tmp/test.flv -o rtmp://push.xxx.com/live/testttt
 
 func main() {
-	flvFileName, rtmpPushURL := parseFlag()
+	var err error
 
-	var ffr httpflv.FlvFileReader
-	err := ffr.Open(flvFileName)
-	errors.PanicIfErrorOccur(err)
-	defer ffr.Dispose()
-	log.Infof("open succ.")
-
-	flvHeader, err := ffr.ReadFlvHeader()
-	errors.PanicIfErrorOccur(err)
-	log.Infof("read flv header succ. %v", flvHeader)
+	flvFileName, rtmpPushURL, isRecursive := parseFlag()
 
 	ps := rtmp.NewPushSession(5000)
 	err = ps.Push(rtmpPushURL)
 	errors.PanicIfErrorOccur(err)
 	log.Infof("push succ.")
 
-	var prevTS uint32
-	firstA := true
-	firstV := true
-	//var aPrevH *rtmp.Header
-	//var vPrevH *rtmp.Header
+	var baseTS int
+	var prevTS int
 
-	//for i := 0; i < 1000*1000; i++ {
 	for {
-		tag, err := ffr.ReadTag()
+		var ffr httpflv.FlvFileReader
+		err = ffr.Open(flvFileName)
 		errors.PanicIfErrorOccur(err)
-		//log.Infof("tag: %+v %v", tag.Header, tag.Raw[11:])
-		//log.Infof("tag: %+v %d", tag.Header, len(tag.Raw))
+		log.Infof("open succ.")
 
-		// TODO chef: 转换代码放入lal某个包中
-		var h rtmp.Header
-		h.MsgLen = int(tag.Header.DataSize) //len(tag.Raw)-httpflv.TagHeaderSize
-		h.Timestamp = int(tag.Header.Timestamp)
-		h.MsgTypeID = int(tag.Header.T)
-		h.MsgStreamID = rtmp.MSID1
-		switch tag.Header.T {
-		case httpflv.TagTypeMetadata:
-			h.CSID = rtmp.CSIDAMF
-		case httpflv.TagTypeAudio:
-			h.CSID = rtmp.CSIDAudio
-		case httpflv.TagTypeVideo:
-			h.CSID = rtmp.CSIDVideo
-		}
+		flvHeader, err := ffr.ReadFlvHeader()
+		errors.PanicIfErrorOccur(err)
+		log.Infof("read flv header succ. %v", flvHeader)
 
-		// 把第一个音频和视频的时间戳改成0
-		if tag.Header.T == httpflv.TagTypeAudio && firstA {
-			h.Timestamp = 0
-			firstA = false
-		}
-		if tag.Header.T == httpflv.TagTypeVideo && firstV {
-			h.Timestamp = 0
-			firstV = false
-		}
-
-		//var chunks []byte
-		//if tag.Header.T == httpflv.TagTypeVideo {
-		//	chunks = rtmp.Message2Chunks(tag.Raw[11:11+h.MsgLen], &h, aPrevH, rtmp.LocalChunkSize)
-		//	aPrevH = &h
-		//}
-		//if tag.Header.T == httpflv.TagTypeVideo {
-		//	chunks = rtmp.Message2Chunks(tag.Raw[11:11+h.MsgLen], &h, vPrevH, rtmp.LocalChunkSize)
-		//	vPrevH = &h
-		//}
-		//if tag.Header.T == httpflv.TagTypeVideo {
-		//	chunks = rtmp.Message2Chunks(tag.Raw[11:11+h.MsgLen], &h, nil, rtmp.LocalChunkSize)
-		//}
-		chunks := rtmp.Message2Chunks(tag.Raw[11:11+h.MsgLen], &h, rtmp.LocalChunkSize)
-
-		// 第一个包直接发送
-		if prevTS == 0 {
-			err = ps.TmpWrite(chunks)
+		for {
+			tag, err := ffr.ReadTag()
+			if err == io.EOF {
+				log.Info("EOF")
+				break
+			}
 			errors.PanicIfErrorOccur(err)
-			prevTS = tag.Header.Timestamp
-			continue
-		}
 
-		// 相等或回退了直接发送
-		if tag.Header.Timestamp <= prevTS {
-			err = ps.TmpWrite(chunks)
-			errors.PanicIfErrorOccur(err)
-			prevTS = tag.Header.Timestamp
-			continue
-		}
-
-		if tag.Header.Timestamp > prevTS {
-			diff := tag.Header.Timestamp - prevTS
-
-			// 跳跃超过了30秒，直接发送
-			if diff > 30000 {
-				err = ps.TmpWrite(chunks)
-				errors.PanicIfErrorOccur(err)
-				prevTS = tag.Header.Timestamp
-				continue
+			// TODO chef: 转换代码放入lal某个包中
+			var h rtmp.Header
+			h.MsgLen = int(tag.Header.DataSize) //len(tag.Raw)-httpflv.TagHeaderSize
+			h.Timestamp = int(tag.Header.Timestamp) + int(baseTS)
+			h.MsgTypeID = int(tag.Header.T)
+			h.MsgStreamID = rtmp.MSID1
+			switch tag.Header.T {
+			case httpflv.TagTypeMetadata:
+				h.CSID = rtmp.CSIDAMF
+			case httpflv.TagTypeAudio:
+				h.CSID = rtmp.CSIDAudio
+			case httpflv.TagTypeVideo:
+				h.CSID = rtmp.CSIDVideo
 			}
 
-			// 睡眠后发送，睡眠时长为时间戳间隔
+			var diff int
+			if h.Timestamp >= prevTS {
+				diff = int(h.Timestamp) - prevTS
+			} else {
+				h.Timestamp = prevTS
+			}
+
+			chunks := rtmp.Message2Chunks(tag.Raw[11:11+h.MsgLen], &h, rtmp.LocalChunkSize)
+
+			log.Debugf("before send. diff=%d, ts=%d, prevTS=%d", diff, h.Timestamp, prevTS)
 			time.Sleep(time.Duration(diff) * time.Millisecond)
+			log.Debug("send")
 			err = ps.TmpWrite(chunks)
 			errors.PanicIfErrorOccur(err)
-			prevTS = tag.Header.Timestamp
-			continue
+			prevTS = h.Timestamp
 		}
 
-		panic("should not reach here.")
+		baseTS = prevTS + 1
+		ffr.Dispose()
+
+		if !isRecursive {
+			break
+		}
 	}
 }
 
-func parseFlag() (string, string) {
+func parseFlag() (string, string, bool) {
 	i := flag.String("i", "", "specify flv file")
 	o := flag.String("o", "", "specify rtmp push url")
+	r := flag.Bool("r", false, "recursive push if reach end of file")
 	flag.Parse()
 	if *i == "" || *o == "" {
 		flag.Usage()
 		os.Exit(1)
 	}
-	return *i, *o
+	return *i, *o, *r
 }

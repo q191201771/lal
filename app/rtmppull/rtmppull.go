@@ -6,7 +6,6 @@ import (
 	"github.com/q191201771/nezha/pkg/errors"
 	"github.com/q191201771/nezha/pkg/log"
 	"os"
-	"time"
 )
 
 type Obs struct {
@@ -22,7 +21,8 @@ func main() {
 	session := rtmp.NewPullSession(obs, 2000)
 	err := session.Pull(url)
 	errors.PanicIfErrorOccur(err)
-	time.Sleep(1 * time.Hour)
+	err := session.WaitLoop()
+	errors.PanicIfErrorOccur(err)
 }
 
 func parseFlag() string {
