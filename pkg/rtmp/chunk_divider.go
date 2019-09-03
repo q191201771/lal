@@ -5,6 +5,7 @@ package rtmp
 // 将message切割成chunk
 
 import (
+	"github.com/apex/log"
 	"github.com/q191201771/nezha/pkg/bele"
 )
 
@@ -16,7 +17,7 @@ func Message2Chunks(message []byte, header *Header, chunkSize int) []byte {
 // TODO chef: 返回值直接传入
 func calcHeader(header *Header, prevHeader *Header) []byte {
 	var index int
-	out := make([]byte, 12)
+	out := make([]byte, 16)
 
 	// 计算fmt和timestamp
 	fmt := uint8(0)
@@ -83,6 +84,7 @@ func calcHeader(header *Header, prevHeader *Header) []byte {
 
 	// 设置扩展时间戳
 	if timestamp > maxTimestampInMessageHeader {
+		log.Debugf("CHEFERASEME %+v %+v %d %d", header, prevHeader, timestamp, index)
 		bele.BEPutUint32(out[index:], timestamp)
 		index += 4
 	}

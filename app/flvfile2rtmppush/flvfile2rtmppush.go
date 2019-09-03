@@ -13,7 +13,7 @@ import (
 
 // 将flv文件通过rtmp协议推送至rtmp服务器
 //
-// -r 表示当文件推送完毕后，是否循环推送
+// -r 表示当文件推送完毕后，是否循环推送（rtmp push流并不断开）
 //
 // Usage:
 // ./bin/flvfile2rtmppush -r 1 -i /tmp/test.flv -o rtmp://push.xxx.com/live/testttt
@@ -23,7 +23,11 @@ func main() {
 
 	flvFileName, rtmpPushURL, isRecursive := parseFlag()
 
-	ps := rtmp.NewPushSession(5000)
+	ps := rtmp.NewPushSession(rtmp.PushSessionTimeout{
+		ConnectTimeoutMS:3000,
+		PushTimeoutMS:5000,
+		WriteAVTimeoutMS:10000,
+	})
 	err = ps.Push(rtmpPushURL)
 	errors.PanicIfErrorOccur(err)
 	log.Infof("push succ.")
@@ -52,7 +56,6 @@ func main() {
 				break
 			}
 			errors.PanicIfErrorOccur(err)
-
 
 			// TODO chef: 转换代码放入lal某个包中
 			var h rtmp.Header

@@ -18,7 +18,11 @@ func (obs Obs) ReadRTMPAVMsgCB(header rtmp.Header, timestampAbs uint32, message 
 func main() {
 	url := parseFlag()
 	var obs Obs
-	session := rtmp.NewPullSession(obs, 2000)
+	session := rtmp.NewPullSession(obs, rtmp.PullSessionTimeout{
+		ConnectTimeoutMS:3000,
+		PullTimeoutMS:5000,
+		ReadAVTimeoutMS:10000,
+	})
 	err := session.Pull(url)
 	errors.PanicIfErrorOccur(err)
 	err = session.WaitLoop()

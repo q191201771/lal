@@ -4,9 +4,19 @@ type PushSession struct {
 	*ClientSession
 }
 
-func NewPushSession(connectTimeout int) *PushSession {
+type PushSessionTimeout struct {
+	ConnectTimeoutMS int
+	PushTimeoutMS    int
+	WriteAVTimeoutMS int
+}
+
+func NewPushSession(timeout PushSessionTimeout) *PushSession {
 	return &PushSession{
-		ClientSession: NewClientSession(CSTPushSession, nil, connectTimeout),
+		ClientSession: NewClientSession(CSTPushSession, nil, ClientSessionTimeout{
+			ConnectTimeoutMS: timeout.ConnectTimeoutMS,
+			DoTimeoutMS:      timeout.PushTimeoutMS,
+			WriteAVTimeoutMS: timeout.WriteAVTimeoutMS,
+		}),
 	}
 }
 

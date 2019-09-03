@@ -17,25 +17,21 @@ import (
 type ClientSession struct {
 	UniqueKey string
 
-	t                ClientSessionType
-	obs              PullSessionObserver // only for PullSession
-	stageCB          StageCB
-	connectTimeoutMS int
-	doResultChan     chan struct{}
-	errChan          chan error
-	packer           *MessagePacker
-	chunkComposer    *ChunkComposer
-	url              *url.URL
-	tcURL            string
-	appName          string
-	streamName       string
-	hs               HandshakeClient
-	peerWinAckSize   int
+	t              ClientSessionType
+	obs            PullSessionObserver // only for PullSession
+	timeout        ClientSessionTimeout
+	doResultChan   chan struct{}
+	errChan        chan error
+	packer         *MessagePacker
+	chunkComposer  *ChunkComposer
+	url            *url.URL
+	tcURL          string
+	appName        string
+	streamName     string
+	hs             HandshakeClient
+	peerWinAckSize int
 
-	Conn connection.Connection
-	//Conn  net.Conn
-	//rb    *bufio.Reader
-	//wb    *bufio.Writer
+	Conn  connection.Connection
 	wChan chan []byte
 }
 
@@ -46,19 +42,18 @@ const (
 	CSTPushSession
 )
 
-type ClientSessionStage int
-
-const (
-	CSSConnConnectStart ClientSessionStage = iota
-	CSSConnConnectSucc
-)
-
-type StageCB func(stage ClientSessionStage)
+// 单位毫秒，如果为0，则没有超时
+type ClientSessionTimeout struct {
+	ConnectTimeoutMS int // 建立连接超时
+	DoTimeoutMS      int // 从发起连接到收到publish或play信令结果的超时
+	ReadAVTimeoutMS  int // 读取音视频数据的超时
+	WriteAVTimeoutMS int // 发送音视频数据的超时
+}
 
 // @param t: session的类型，只能是推或者拉
 // @param obs: 回调结束后，buffer会被重复使用
-// @param connectTimeoutMS: 建立连接超时，单位毫秒
-func NewClientSession(t ClientSessionType, obs PullSessionObserver, connectTimeoutMS int) *ClientSession {
+// @param timeout: 设置各种超时
+func NewClientSession(t ClientSessionType, obs PullSessionObserver, timeout ClientSessionTimeout) *ClientSession {
 	var uk string
 	switch t {
 	case CSTPullSession:
@@ -68,49 +63,67 @@ func NewClientSession(t ClientSessionType, obs PullSessionObserver, connectTimeo
 	}
 
 	return &ClientSession{
-		t:                t,
-		obs:              obs,
-		connectTimeoutMS: connectTimeoutMS,
-		doResultChan:     make(chan struct{}),
-		errChan:          make(chan error),
-		packer:           NewMessagePacker(),
-		chunkComposer:    NewChunkComposer(),
-		UniqueKey:        unique.GenUniqueKey(uk),
-		wChan:            make(chan []byte, wChanSize),
+		t:             t,
+		obs:           obs,
+		timeout:       timeout,
+		doResultChan:  make(chan struct{}),
+		errChan:       make(chan error),
+		packer:        NewMessagePacker(),
+		chunkComposer: NewChunkComposer(),
+		UniqueKey:     unique.GenUniqueKey(uk),
+		wChan:         make(chan []byte, wChanSize),
 	}
 }
 
 // 阻塞直到收到服务端返回的 publish start / play start 信令 或者超时
 func (s *ClientSession) Do(rawURL string) error {
-	if err := s.parseURL(rawURL); err != nil {
+	t := time.NewTimer(time.Duration(s.timeout.DoTimeoutMS) * time.Millisecond)
+	select {
+	case err := <-s.do(rawURL):
 		return err
+	case <-t.C:
+		return rtmpErr
+
+	}
+}
+
+func (s *ClientSession) do(rawURL string) <-chan error {
+	ch := make(chan error, 1)
+	if err := s.parseURL(rawURL); err != nil {
+		ch <- err
+		return ch
 	}
 	if err := s.tcpConnect(); err != nil {
-		return err
+		ch <- err
+		return ch
 	}
 
 	if err := s.handshake(); err != nil {
-		return err
+		ch <- err
+		return ch
 	}
 	if err := s.packer.writeChunkSize(s.Conn, LocalChunkSize); err != nil {
-		return err
+		ch <- err
+		return ch
 	}
 	if err := s.packer.writeConnect(s.Conn, s.appName, s.tcURL); err != nil {
-		return err
+		ch <- err
+		return ch
 	}
 
 	go func() {
 		s.errChan <- s.runReadLoop()
 	}()
 
-	var ret error
 	select {
 	case <-s.doResultChan:
+		ch <- nil
 		break
-	case ret = <-s.errChan:
+	case err := <-s.errChan:
+		ch <- err
 		break
 	}
-	return ret
+	return ch
 }
 
 func (s *ClientSession) WaitLoop() error {
@@ -349,20 +362,20 @@ func (s *ClientSession) tcpConnect() error {
 	}
 
 	var conn net.Conn
-	if conn, err = net.DialTimeout("tcp", addr, time.Duration(s.connectTimeoutMS)*time.Millisecond); err != nil {
+	if conn, err = net.DialTimeout("tcp", addr, time.Duration(s.timeout.ConnectTimeoutMS)*time.Millisecond); err != nil {
 		return err
 	}
 
 	// TODO chef: 超时由接口设置
 	s.Conn = connection.New(conn, connection.Config{
-		ReadBufSize:    readBufSize,
-		ReadTimeoutMS:  5000,
-		WriteTimeoutMS: 5000,
+		ReadBufSize: readBufSize,
 	})
 	return nil
 }
 
 func (s *ClientSession) notifyDoResultSucc() {
 	s.Conn.ModWriteBufSize(writeBufSize)
+	s.Conn.ModReadTimeoutMS(s.timeout.ReadAVTimeoutMS)
+	s.Conn.ModWriteTimeoutMS(s.timeout.WriteAVTimeoutMS)
 	s.doResultChan <- struct{}{}
 }
