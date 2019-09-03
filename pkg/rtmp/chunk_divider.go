@@ -5,7 +5,7 @@ package rtmp
 // 将message切割成chunk
 
 import (
-	"github.com/apex/log"
+	"github.com/q191201771/nezha/pkg/log"
 	"github.com/q191201771/nezha/pkg/bele"
 )
 
