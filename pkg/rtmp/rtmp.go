@@ -39,7 +39,7 @@ const (
 // basic header 3 | message header 11 | extended ts 4
 const maxHeaderSize = 18
 
-const maxTimestampInMessageHeader = 0xFFFFFF
+const maxTimestampInMessageHeader uint32 = 0xFFFFFF
 
 const defaultChunkSize = 128 // 未收到对端设置chunk size时的默认值
 
@@ -64,5 +64,5 @@ type AVMsgObserver interface {
 	// @param header:
 	// @param timestampAbs: 绝对时间戳
 	// @param message: 不包含头内容。回调结束后，PullSession会继续使用这块内存。
-	ReadRTMPAVMsgCB(header Header, timestampAbs int, message []byte)
+	ReadRTMPAVMsgCB(header Header, timestampAbs uint32, message []byte)
 }

@@ -20,7 +20,7 @@ func calcHeader(header *Header, prevHeader *Header) []byte {
 
 	// 计算fmt和timestamp
 	fmt := uint8(0)
-	var timestamp int
+	var timestamp uint32
 	if prevHeader == nil {
 		timestamp = header.Timestamp
 	} else {
@@ -62,9 +62,9 @@ func calcHeader(header *Header, prevHeader *Header) []byte {
 	// 设置timestamp msgLen msgTypeID msgStreamID
 	if fmt <= 2 {
 		if timestamp > maxTimestampInMessageHeader {
-			bele.BEPutUint24(out[index:], uint32(maxTimestampInMessageHeader))
+			bele.BEPutUint24(out[index:], maxTimestampInMessageHeader)
 		} else {
-			bele.BEPutUint24(out[index:], uint32(timestamp))
+			bele.BEPutUint24(out[index:], timestamp)
 		}
 		index += 3
 
@@ -83,7 +83,7 @@ func calcHeader(header *Header, prevHeader *Header) []byte {
 
 	// 设置扩展时间戳
 	if timestamp > maxTimestampInMessageHeader {
-		bele.BEPutUint32(out[index:], uint32(timestamp))
+		bele.BEPutUint32(out[index:], timestamp)
 		index += 4
 	}
 

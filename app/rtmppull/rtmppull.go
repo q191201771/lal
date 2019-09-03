@@ -11,7 +11,7 @@ import (
 type Obs struct {
 }
 
-func (obs Obs) ReadRTMPAVMsgCB(header rtmp.Header, timestampAbs int, message []byte) {
+func (obs Obs) ReadRTMPAVMsgCB(header rtmp.Header, timestampAbs uint32, message []byte) {
 	log.Infof("%+v, abs ts=%d", header, timestampAbs)
 }
 
@@ -21,7 +21,7 @@ func main() {
 	session := rtmp.NewPullSession(obs, 2000)
 	err := session.Pull(url)
 	errors.PanicIfErrorOccur(err)
-	err := session.WaitLoop()
+	err = session.WaitLoop()
 	errors.PanicIfErrorOccur(err)
 }
 

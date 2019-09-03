@@ -28,8 +28,10 @@ func main() {
 	errors.PanicIfErrorOccur(err)
 	log.Infof("push succ.")
 
-	var baseTS int
-	var prevTS int
+	var totalBaseTS uint32
+	var prevTS uint32
+	var hasReadThisBaseTS bool
+	var thisBaseTS uint32
 
 	for {
 		var ffr httpflv.FlvFileReader
@@ -41,6 +43,8 @@ func main() {
 		errors.PanicIfErrorOccur(err)
 		log.Infof("read flv header succ. %v", flvHeader)
 
+		hasReadThisBaseTS = false
+
 		for {
 			tag, err := ffr.ReadTag()
 			if err == io.EOF {
@@ -49,10 +53,11 @@ func main() {
 			}
 			errors.PanicIfErrorOccur(err)
 
+
 			// TODO chef: 转换代码放入lal某个包中
 			var h rtmp.Header
 			h.MsgLen = int(tag.Header.DataSize) //len(tag.Raw)-httpflv.TagHeaderSize
-			h.Timestamp = int(tag.Header.Timestamp) + int(baseTS)
+
 			h.MsgTypeID = int(tag.Header.T)
 			h.MsgStreamID = rtmp.MSID1
 			switch tag.Header.T {
@@ -64,10 +69,36 @@ func main() {
 				h.CSID = rtmp.CSIDVideo
 			}
 
-			var diff int
-			if h.Timestamp >= prevTS {
-				diff = int(h.Timestamp) - prevTS
+			if tag.Header.T == httpflv.TagTypeMetadata {
+				if totalBaseTS == 0 {
+					// 第一个metadata直接发送
+					log.Debugf("CHEFERASEME write metadata.")
+					chunks := rtmp.Message2Chunks(tag.Raw[11:11+h.MsgLen], &h, rtmp.LocalChunkSize)
+					err = ps.TmpWrite(chunks)
+					errors.PanicIfErrorOccur(err)
+				} else {
+					// noop
+				}
+				continue
+			}
+
+			if hasReadThisBaseTS {
+				// 之前已经读到了这轮读文件的base值，ts要减去base
+				log.Debugf("CHEFERASEME %+v %d %d %d.", tag.Header, tag.Header.Timestamp, thisBaseTS, totalBaseTS)
+				h.Timestamp = tag.Header.Timestamp - thisBaseTS + totalBaseTS
 			} else {
+				// 设置base，ts设置为上一轮读文件的值
+				log.Debugf("CHEFERASEME %+v %d %d %d.", tag.Header, tag.Header.Timestamp, thisBaseTS, totalBaseTS)
+				thisBaseTS = tag.Header.Timestamp
+				h.Timestamp = totalBaseTS
+				hasReadThisBaseTS = true
+			}
+
+			var diff uint32
+			if h.Timestamp >= prevTS {
+				diff = h.Timestamp - prevTS
+			} else {
+				// ts比上一个包的还小，直接设置为上一包的值，并且不sleep直接发送
 				h.Timestamp = prevTS
 			}
 
@@ -81,7 +112,7 @@ func main() {
 			prevTS = h.Timestamp
 		}
 
-		baseTS = prevTS + 1
+		totalBaseTS = prevTS + 1
 		ffr.Dispose()
 
 		if !isRecursive {

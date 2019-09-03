@@ -67,7 +67,7 @@ func (c *ChunkComposer) RunLoop(reader io.Reader, cb CompleteMessageCB) error {
 				return err
 			}
 			// 包头中为绝对时间戳
-			stream.header.Timestamp = int(bele.BEUint24(bootstrap))
+			stream.header.Timestamp = bele.BEUint24(bootstrap)
 			stream.timestampAbs = stream.header.Timestamp
 			stream.header.MsgLen = int(bele.BEUint24(bootstrap[3:]))
 			stream.header.MsgTypeID = int(bootstrap[6])
@@ -79,7 +79,7 @@ func (c *ChunkComposer) RunLoop(reader io.Reader, cb CompleteMessageCB) error {
 				return err
 			}
 			// 包头中为相对时间戳
-			stream.header.Timestamp = int(bele.BEUint24(bootstrap))
+			stream.header.Timestamp = bele.BEUint24(bootstrap)
 			stream.timestampAbs += stream.header.Timestamp
 			stream.header.MsgLen = int(bele.BEUint24(bootstrap[3:]))
 			stream.header.MsgTypeID = int(bootstrap[6])
@@ -90,7 +90,7 @@ func (c *ChunkComposer) RunLoop(reader io.Reader, cb CompleteMessageCB) error {
 				return err
 			}
 			// 包头中为相对时间戳
-			stream.header.Timestamp = int(bele.BEUint24(bootstrap))
+			stream.header.Timestamp = bele.BEUint24(bootstrap)
 			stream.timestampAbs += stream.header.Timestamp
 
 		case 3:
@@ -106,7 +106,7 @@ func (c *ChunkComposer) RunLoop(reader io.Reader, cb CompleteMessageCB) error {
 			if _, err := io.ReadAtLeast(reader, bootstrap[:4], 4); err != nil {
 				return err
 			}
-			stream.header.Timestamp = int(bele.BEUint32(bootstrap))
+			stream.header.Timestamp = bele.BEUint32(bootstrap)
 			switch fmt {
 			case 0:
 				stream.timestampAbs = stream.header.Timestamp

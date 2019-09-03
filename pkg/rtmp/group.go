@@ -125,7 +125,7 @@ func (group *Group) SetObserver(obs GroupObserver) {
 }
 
 // PubSession or PullSession
-func (group *Group) ReadRTMPAVMsgCB(header Header, timestampAbs int, message []byte) {
+func (group *Group) ReadRTMPAVMsgCB(header Header, timestampAbs uint32, message []byte) {
 	group.mutex.Lock()
 	defer group.mutex.Unlock()
 
@@ -136,7 +136,7 @@ func (group *Group) ReadRTMPAVMsgCB(header Header, timestampAbs int, message []b
 	}
 }
 
-func (group *Group) broadcastRTMP2RTMP(header Header, timestampAbs int, message []byte) {
+func (group *Group) broadcastRTMP2RTMP(header Header, timestampAbs uint32, message []byte) {
 	//log.Infof("%+v", header)
 	// # 1. 设置好头部信息
 	var currHeader Header

@@ -100,7 +100,7 @@ func (gm *GroupManager) ReadFlvTagCB(tag *httpflv.Tag) {
 }
 
 // GroupObserver of rtmp.Group
-func (gm *GroupManager) ReadRTMPAVMsgCB(header rtmp.Header, timestampAbs int, message []byte) {
+func (gm *GroupManager) ReadRTMPAVMsgCB(header rtmp.Header, timestampAbs uint32, message []byte) {
 
 	// TODO chef: broadcast to httpflv.Group
 }

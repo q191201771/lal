@@ -10,7 +10,7 @@ type Header struct {
 
 	// NOTICE 是header中的时间戳，可能是绝对的，也可能是相对的。
 	// 如果需要绝对时间戳，应该使用Stream中的timestampAbs
-	Timestamp int
+	Timestamp uint32
 
 	MsgTypeID   int // 8 audio 9 video 18 metadata
 	MsgStreamID int
@@ -24,7 +24,7 @@ type StreamMsg struct {
 
 type Stream struct {
 	header       Header
-	timestampAbs int
+	timestampAbs uint32
 
 	msg StreamMsg
 }
