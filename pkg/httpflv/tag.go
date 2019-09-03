@@ -133,6 +133,26 @@ func readTagHeader(rd io.Reader) (h TagHeader, rawHeader []byte, err error) {
 	return
 }
 
+func readTag(rd io.Reader) (*Tag, error) {
+	rawHeader := make([]byte, TagHeaderSize)
+	if _, err := io.ReadAtLeast(rd, rawHeader, TagHeaderSize); err != nil {
+		return nil, err
+	}
+	header := parseTagHeader(rawHeader)
+
+	needed := int(header.DataSize) + prevTagFieldSize
+	tag := &Tag{}
+	tag.Header = header
+	tag.Raw = make([]byte, TagHeaderSize+needed)
+	copy(tag.Raw, rawHeader)
+
+	if _, err := io.ReadAtLeast(rd, tag.Raw[TagHeaderSize:], needed); err != nil {
+		return nil, err
+	}
+
+	return tag, nil
+}
+
 func (tag *Tag) cloneTag() *Tag {
 	res := &Tag{}
 	res.Header = tag.Header

@@ -45,7 +45,7 @@ const (
 // 单位毫秒，如果为0，则没有超时
 type ClientSessionTimeout struct {
 	ConnectTimeoutMS int // 建立连接超时
-	DoTimeoutMS      int // 从发起连接到收到publish或play信令结果的超时
+	DoTimeoutMS      int // 从发起连接（包含了建立连接的时间）到收到publish或play信令结果的超时
 	ReadAVTimeoutMS  int // 读取音视频数据的超时
 	WriteAVTimeoutMS int // 发送音视频数据的超时
 }
@@ -150,18 +150,26 @@ func (s *ClientSession) doMsg(stream *Stream) error {
 		return s.doProtocolControlMessage(stream)
 	case typeidCommandMessageAMF0:
 		return s.doCommandMessage(stream)
-	case typeidUserControl:
-		log.Warnf("read user control message, ignore. [%s]", s.UniqueKey)
 	case TypeidDataMessageAMF0:
 		return s.doDataMessageAMF0(stream)
+	case typeidAck:
+		return s.doAck(stream)
+	case typeidUserControl:
+		log.Warnf("read user control message, ignore. [%s]", s.UniqueKey)
 	case TypeidAudio:
 		fallthrough
 	case TypeidVideo:
 		s.obs.ReadRTMPAVMsgCB(stream.header, stream.timestampAbs, stream.msg.buf[stream.msg.b:stream.msg.e])
 	default:
-		log.Errorf("read unknown msg type id. [%s] typeid=%d", s.UniqueKey, stream.header)
+		log.Errorf("read unknown msg type id. [%s] typeid=%+v", s.UniqueKey, stream.header)
 		panic(0)
 	}
+	return nil
+}
+
+func (s *ClientSession) doAck(stream *Stream) error {
+	seqNum := bele.BEUint32(stream.msg.buf[stream.msg.b: stream.msg.e])
+	log.Infof("-----> Acknowledgement. [%s] ignore. sequence number=%d.", s.UniqueKey, seqNum)
 	return nil
 }
 

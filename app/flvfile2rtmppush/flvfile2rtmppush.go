@@ -30,18 +30,21 @@ func main() {
 	})
 	err = ps.Push(rtmpPushURL)
 	errors.PanicIfErrorOccur(err)
-	log.Infof("push succ.")
+	log.Infof("push succ. url=%s", rtmpPushURL)
 
 	var totalBaseTS uint32
 	var prevTS uint32
 	var hasReadThisBaseTS bool
 	var thisBaseTS uint32
 
-	for {
+	for i := 0; ; i++ {
+		log.Infof(" > round. i=%d, totalBaseTS=%d, prevTS=%d, thisBaseTS=%d",
+			i, totalBaseTS, prevTS, thisBaseTS)
+
 		var ffr httpflv.FlvFileReader
 		err = ffr.Open(flvFileName)
 		errors.PanicIfErrorOccur(err)
-		log.Infof("open succ.")
+		log.Infof("open succ. filename=%s", flvFileName)
 
 		flvHeader, err := ffr.ReadFlvHeader()
 		errors.PanicIfErrorOccur(err)
@@ -75,7 +78,7 @@ func main() {
 			if tag.Header.T == httpflv.TagTypeMetadata {
 				if totalBaseTS == 0 {
 					// 第一个metadata直接发送
-					log.Debugf("CHEFERASEME write metadata.")
+					//log.Debugf("CHEFERASEME write metadata.")
 					chunks := rtmp.Message2Chunks(tag.Raw[11:11+h.MsgLen], &h, rtmp.LocalChunkSize)
 					err = ps.TmpWrite(chunks)
 					errors.PanicIfErrorOccur(err)
@@ -87,11 +90,11 @@ func main() {
 
 			if hasReadThisBaseTS {
 				// 之前已经读到了这轮读文件的base值，ts要减去base
-				log.Debugf("CHEFERASEME %+v %d %d %d.", tag.Header, tag.Header.Timestamp, thisBaseTS, totalBaseTS)
+				//log.Debugf("CHEFERASEME %+v %d %d %d.", tag.Header, tag.Header.Timestamp, thisBaseTS, totalBaseTS)
 				h.Timestamp = tag.Header.Timestamp - thisBaseTS + totalBaseTS
 			} else {
 				// 设置base，ts设置为上一轮读文件的值
-				log.Debugf("CHEFERASEME %+v %d %d %d.", tag.Header, tag.Header.Timestamp, thisBaseTS, totalBaseTS)
+				//log.Debugf("CHEFERASEME %+v %d %d %d.", tag.Header, tag.Header.Timestamp, thisBaseTS, totalBaseTS)
 				thisBaseTS = tag.Header.Timestamp
 				h.Timestamp = totalBaseTS
 				hasReadThisBaseTS = true
@@ -107,9 +110,9 @@ func main() {
 
 			chunks := rtmp.Message2Chunks(tag.Raw[11:11+h.MsgLen], &h, rtmp.LocalChunkSize)
 
-			log.Debugf("before send. diff=%d, ts=%d, prevTS=%d", diff, h.Timestamp, prevTS)
+			//log.Debugf("before send. diff=%d, ts=%d, prevTS=%d", diff, h.Timestamp, prevTS)
 			time.Sleep(time.Duration(diff) * time.Millisecond)
-			log.Debug("send")
+			//log.Debug("send")
 			err = ps.TmpWrite(chunks)
 			errors.PanicIfErrorOccur(err)
 			prevTS = h.Timestamp

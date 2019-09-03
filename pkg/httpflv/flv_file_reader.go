@@ -1,6 +1,8 @@
 package httpflv
 
-import "os"
+import (
+	"os"
+)
 
 type FlvFileReader struct {
 	fp *os.File
@@ -18,22 +20,7 @@ func (ffr *FlvFileReader) ReadFlvHeader() ([]byte, error) {
 }
 
 func (ffr *FlvFileReader) ReadTag() (*Tag, error) {
-	var err error
-	h, rawHeader, err := readTagHeader(ffr.fp)
-	if err != nil {
-		return nil, err
-	}
-	needed := int(h.DataSize) + prevTagFieldSize
-	tag := &Tag{}
-	tag.Header = h
-	tag.Raw = make([]byte, TagHeaderSize+needed)
-	copy(tag.Raw, rawHeader)
-
-	_, err = ffr.fp.Read(tag.Raw[TagHeaderSize:])
-	if err != nil {
-		return nil, err
-	}
-	return tag, nil
+	return readTag(ffr.fp)
 }
 
 func (ffr *FlvFileReader) Dispose() {

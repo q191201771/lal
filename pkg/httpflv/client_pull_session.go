@@ -139,23 +139,7 @@ func (session *PullSession) ReadFlvHeader() ([]byte, error) {
 }
 
 func (session *PullSession) ReadTag() (*Tag, error) {
-	rawHeader := make([]byte, TagHeaderSize)
-	if _, err := session.Conn.ReadAtLeast(rawHeader, TagHeaderSize); err != nil {
-		return nil, err
-	}
-	header := parseTagHeader(rawHeader)
-
-	needed := int(header.DataSize) + prevTagFieldSize
-	tag := &Tag{}
-	tag.Header = header
-	tag.Raw = make([]byte, TagHeaderSize+needed)
-	copy(tag.Raw, rawHeader)
-
-	if _, err := session.Conn.ReadAtLeast(tag.Raw[TagHeaderSize:], needed); err != nil {
-		return nil, err
-	}
-
-	return tag, nil
+	return readTag(session.Conn)
 }
 
 func (session *PullSession) runReadLoop(readFlvTagCB ReadFlvTagCB) error {
