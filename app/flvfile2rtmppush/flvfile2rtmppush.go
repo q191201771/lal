@@ -39,6 +39,10 @@ func main() {
 	var prevTS uint32
 	var hasReadThisBaseTS bool
 	var thisBaseTS uint32
+	var hasTraceFirstTagTS bool
+	var firstTagTS uint32
+	var firstTagTick int64
+
 
 	for i := 0; ; i++ {
 		log.Infof(" > round. i=%d, totalBaseTS=%d, prevTS=%d, thisBaseTS=%d",
@@ -103,21 +107,30 @@ func main() {
 				hasReadThisBaseTS = true
 			}
 
-			var diff uint32
-			if h.Timestamp >= prevTS {
-				diff = h.Timestamp - prevTS
-			} else {
+			if h.Timestamp < prevTS {
 				// ts比上一个包的还小，直接设置为上一包的值，并且不sleep直接发送
 				h.Timestamp = prevTS
 			}
 
 			chunks := rtmp.Message2Chunks(tag.Raw[11:11+h.MsgLen], &h, rtmp.LocalChunkSize)
 
-			//log.Debugf("before send. diff=%d, ts=%d, prevTS=%d", diff, h.Timestamp, prevTS)
-			time.Sleep(time.Duration(diff) * time.Millisecond)
-			//log.Debug("send")
+			if hasTraceFirstTagTS {
+				n := time.Now().UnixNano() / 1000000
+				diffTick := n - firstTagTick
+				diffTS := h.Timestamp - firstTagTS
+				//log.Infof("%d %d %d %d", n, diffTick, diffTS, int64(diffTS) - diffTick)
+				if diffTick < int64(diffTS) {
+					time.Sleep(time.Duration(int64(diffTS) - diffTick) * time.Millisecond)
+				}
+			} else {
+				firstTagTick = time.Now().UnixNano() / 1000000
+				firstTagTS = h.Timestamp
+				hasTraceFirstTagTS = true
+			}
+
 			err = ps.TmpWrite(chunks)
 			log.FatalIfErrorNotNil(err)
+
 			prevTS = h.Timestamp
 		}
 

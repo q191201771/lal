@@ -3,6 +3,7 @@ package rtmp
 import (
 	"bufio"
 	"encoding/hex"
+	"github.com/q191201771/nezha/pkg/bele"
 	"github.com/q191201771/nezha/pkg/log"
 	"github.com/q191201771/nezha/pkg/unique"
 	"net"
@@ -162,6 +163,8 @@ func (s *ServerSession) doMsg(stream *Stream) error {
 		return s.doCommandMessage(stream)
 	case TypeidDataMessageAMF0:
 		return s.doDataMessageAMF0(stream)
+	case typeidAck:
+		return s.doACK(stream)
 	case TypeidAudio:
 		fallthrough
 	case TypeidVideo:
@@ -175,6 +178,12 @@ func (s *ServerSession) doMsg(stream *Stream) error {
 		log.Warnf("unknown message. [%s] typeid=%d", s.UniqueKey, stream.header.MsgTypeID)
 
 	}
+	return nil
+}
+
+func (s *ServerSession) doACK(stream *Stream) error {
+	seqNum := bele.BEUint32(stream.msg.buf[stream.msg.b:stream.msg.e])
+	log.Infof("-----> Acknowledgement. [%s] ignore. sequence number=%d.", s.UniqueKey, seqNum)
 	return nil
 }
 

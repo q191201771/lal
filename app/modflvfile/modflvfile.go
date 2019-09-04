@@ -3,7 +3,6 @@ package main
 import (
 	"flag"
 	"github.com/q191201771/lal/pkg/httpflv"
-	"github.com/q191201771/nezha/pkg/errors"
 	"github.com/q191201771/nezha/pkg/log"
 	"io"
 	"os"
@@ -16,6 +15,7 @@ import (
 
 var countA int
 var countV int
+var exitFlag bool
 
 func hookTag(tag *httpflv.Tag) {
 	log.Infof("%+v", tag.Header)
@@ -25,6 +25,9 @@ func hookTag(tag *httpflv.Tag) {
 		//	httpflv.ModTagTimestamp(tag, 16777205)
 		//}
 		//countA++
+		if tag.IsAACSeqHeader() {
+			log.Info("aac header.")
+		}
 	}
 	if tag.Header.T == httpflv.TagTypeVideo {
 		//if countV < 3 {
@@ -46,21 +49,21 @@ func main() {
 
 	var ffr httpflv.FlvFileReader
 	err = ffr.Open(inFileName)
-	errors.PanicIfErrorOccur(err)
+	log.FatalIfErrorNotNil(err)
 	defer ffr.Dispose()
 	log.Infof("open input flv file succ.")
 
 	var ffw httpflv.FlvFileWriter
 	err = ffw.Open(outFileName)
-	errors.PanicIfErrorOccur(err)
+	log.FatalIfErrorNotNil(err)
 	defer ffw.Dispose()
 	log.Infof("open output flv file succ.")
 
 	flvHeader, err := ffr.ReadFlvHeader()
-	errors.PanicIfErrorOccur(err)
+	log.FatalIfErrorNotNil(err)
 
 	err = ffw.WriteRaw(flvHeader)
-	errors.PanicIfErrorOccur(err)
+	log.FatalIfErrorNotNil(err)
 
 	//for i:=0; i < 10; i++{
 	for {
@@ -69,13 +72,16 @@ func main() {
 			log.Infof("EOF.")
 			break
 		}
-		errors.PanicIfErrorOccur(err)
+		log.FatalIfErrorNotNil(err)
+		if tag.Header.T == 9 && tag.Header.DataSize == 68 && tag.Header.Timestamp == 677764 {
+			break
+		}
 
 		//log.Infof("> hook. %+v", tag)
 		hookTag(tag)
 		//log.Infof("< hook. %+v", tag)
 		err = ffw.WriteRaw(tag.Raw)
-		errors.PanicIfErrorOccur(err)
+		log.FatalIfErrorNotNil(err)
 	}
 }
 

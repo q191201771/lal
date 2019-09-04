@@ -28,6 +28,7 @@ type ClientSession struct {
 	tcURL          string
 	appName        string
 	streamName     string
+	streamNameWithRawQuery string
 	hs             HandshakeClient
 	peerWinAckSize int
 
@@ -286,11 +287,11 @@ func (s *ClientSession) doResultMessage(stream *Stream, tid int) error {
 		log.Infof("-----> _result(). [%s]", s.UniqueKey)
 		switch s.t {
 		case CSTPullSession:
-			if err := s.packer.writePlay(s.Conn, s.streamName, sid); err != nil {
+			if err := s.packer.writePlay(s.Conn, s.streamNameWithRawQuery, sid); err != nil {
 				return err
 			}
 		case CSTPushSession:
-			if err := s.packer.writePublish(s.Conn, s.appName, s.streamName, sid); err != nil {
+			if err := s.packer.writePublish(s.Conn, s.appName, s.streamNameWithRawQuery, sid); err != nil {
 				return err
 			}
 		}
@@ -341,8 +342,13 @@ func (s *ClientSession) parseURL(rawURL string) error {
 	}
 	s.appName = strs[0]
 	// 有的rtmp服务器会使用url后面的参数（比如说用于鉴权），这里把它带上
-	s.streamName = strs[1] + "?" + s.url.RawQuery
-	log.Debugf("%s %s %s %+v", s.tcURL, s.appName, s.streamName, *s.url)
+	s.streamName = strs[1]
+	if s.url.RawQuery == "" {
+		s.streamNameWithRawQuery = s.streamName
+	} else {
+		s.streamNameWithRawQuery = s.streamName + "?" + s.url.RawQuery
+	}
+	log.Debugf("%s %s %s %+v", s.tcURL, s.appName, s.streamNameWithRawQuery, *s.url)
 
 	return nil
 }
