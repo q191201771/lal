@@ -19,9 +19,9 @@ func main() {
 	url := parseFlag()
 	var obs Obs
 	session := rtmp.NewPullSession(obs, rtmp.PullSessionTimeout{
-		ConnectTimeoutMS:3000,
-		PullTimeoutMS:5000,
-		ReadAVTimeoutMS:10000,
+		ConnectTimeoutMS: 3000,
+		PullTimeoutMS:    5000,
+		ReadAVTimeoutMS:  10000,
 	})
 	err := session.Pull(url)
 	errors.PanicIfErrorOccur(err)

@@ -23,7 +23,7 @@ const (
 	TypeidVideo              = 9
 	TypeidDataMessageAMF0    = 18 // meta
 	typeidSetChunkSize       = 1
-	typeidAck         = 3
+	typeidAck                = 3
 	typeidUserControl        = 4
 	typeidWinAckSize         = 5
 	typeidBandwidth          = 6

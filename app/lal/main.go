@@ -32,7 +32,7 @@ func parseFlag() string {
 	cf := flag.String("c", "", "specify conf file")
 	flag.Parse()
 	if *binInfoFlag {
-		fmt.Fprint(os.Stderr, bininfo.StringifyMultiLine())
+		_, _ = fmt.Fprint(os.Stderr, bininfo.StringifyMultiLine())
 		os.Exit(1)
 	}
 	if *cf == "" {

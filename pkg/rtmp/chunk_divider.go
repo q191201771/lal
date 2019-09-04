@@ -5,7 +5,6 @@ package rtmp
 // 将message切割成chunk
 
 import (
-	"github.com/q191201771/nezha/pkg/log"
 	"github.com/q191201771/nezha/pkg/bele"
 )
 
@@ -84,7 +83,7 @@ func calcHeader(header *Header, prevHeader *Header) []byte {
 
 	// 设置扩展时间戳
 	if timestamp > maxTimestampInMessageHeader {
-		log.Debugf("CHEFERASEME %+v %+v %d %d", header, prevHeader, timestamp, index)
+		//log.Debugf("CHEFERASEME %+v %+v %d %d", header, prevHeader, timestamp, index)
 		bele.BEPutUint32(out[index:], timestamp)
 		index += 4
 	}

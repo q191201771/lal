@@ -32,7 +32,7 @@ Go语言编写的流媒体 库 / 客户端 / 服务端
 ```
 app/                  ......各种main包的源码文件，一个子目录对应一个main包，即对应可生成一个可执行文件
 |-- lal/              ......[最重要的] 流媒体服务器
-|-- flvfile2rtmppush  ......rtmp推流客户端，输入是本地flv文件
+|-- flvfile2rtmppush  ......rtmp推流客户端，输入是本地flv文件，文件推送完毕后，可循环推送（rtmp push流并不断开）
 |-- rtmppull          ......rtmp拉流客户端
 |-- httpflvpull       ......http-flv拉流客户端
 |-- modflvfile        ......修改本地flv文件
@@ -50,10 +50,13 @@ conf/                 ......配置文件目录
 
 ```
 $go get -u github.com/q191201771/lal
-# cd into lal
+# cd into $GOPATH/src/github.com/q191201771/lal
 $./build.sh
 
 $./bin/lal -c conf/lal.conf.json
+
+#如果使用 go module
+$git clone https://github.com/q191201771/lal.git && cd lal && ./build.sh
 ```
 
 #### 配置文件说明

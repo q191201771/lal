@@ -168,7 +168,7 @@ func (s *ClientSession) doMsg(stream *Stream) error {
 }
 
 func (s *ClientSession) doAck(stream *Stream) error {
-	seqNum := bele.BEUint32(stream.msg.buf[stream.msg.b: stream.msg.e])
+	seqNum := bele.BEUint32(stream.msg.buf[stream.msg.b:stream.msg.e])
 	log.Infof("-----> Acknowledgement. [%s] ignore. sequence number=%d.", s.UniqueKey, seqNum)
 	return nil
 }
