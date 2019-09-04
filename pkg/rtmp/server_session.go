@@ -42,6 +42,7 @@ const (
 type ServerSession struct {
 	AppName    string
 	StreamName string
+	StreamNameWithRawQuery string
 	UniqueKey  string
 
 	obs           ServerSessionObserver
@@ -297,10 +298,13 @@ func (s *ServerSession) doPublish(tid int, stream *Stream) (err error) {
 	if err = stream.msg.readNull(); err != nil {
 		return err
 	}
-	s.StreamName, err = stream.msg.readStringWithType()
+	s.StreamNameWithRawQuery, err = stream.msg.readStringWithType()
 	if err != nil {
 		return err
 	}
+	ss := strings.Split(s.StreamNameWithRawQuery, "?")
+	s.StreamName = ss[0]
+
 	pubType, err := stream.msg.readStringWithType()
 	if err != nil {
 		return err
@@ -323,10 +327,13 @@ func (s *ServerSession) doPlay(tid int, stream *Stream) (err error) {
 	if err = stream.msg.readNull(); err != nil {
 		return err
 	}
-	s.StreamName, err = stream.msg.readStringWithType()
+	s.StreamNameWithRawQuery, err = stream.msg.readStringWithType()
 	if err != nil {
 		return err
 	}
+	ss := strings.Split(s.StreamNameWithRawQuery, "?")
+	s.StreamName = ss[0]
+
 	log.Infof("-----> play('%s') [%s]", s.StreamName, s.UniqueKey)
 	// TODO chef: start duration reset
 

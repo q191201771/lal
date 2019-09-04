@@ -3,6 +3,7 @@ package rtmp
 import (
 	"fmt"
 	"github.com/q191201771/nezha/pkg/log"
+	"github.com/q191201771/nezha/pkg/unique"
 	"sync"
 	"time"
 )
@@ -12,6 +13,8 @@ type GroupObserver interface {
 }
 
 type Group struct {
+	UniqueKey string
+
 	appName    string
 	streamName string
 
@@ -32,7 +35,10 @@ type Group struct {
 }
 
 func NewGroup(appName string, streamName string) *Group {
+	uk := unique.GenUniqueKey("RTMPGROUP")
+	log.Debugf("NewGroup. [%s] appName=%s, streamName=%s", uk, appName, streamName)
 	return &Group{
+		UniqueKey: uk,
 		appName:       appName,
 		streamName:    streamName,
 		subSessionSet: make(map[*ServerSession]struct{}),
@@ -56,7 +62,7 @@ func (group *Group) Dispose() {
 }
 
 func (group *Group) AddPubSession(session *ServerSession) {
-	log.Debugf("add PubSession into group. [%s]", session.UniqueKey)
+	log.Debugf("add PubSession into group. [%s] [%s]", group.UniqueKey, session.UniqueKey)
 	group.mutex.Lock()
 	group.pubSession = session
 	group.mutex.Unlock()
@@ -64,7 +70,7 @@ func (group *Group) AddPubSession(session *ServerSession) {
 }
 
 func (group *Group) AddSubSession(session *ServerSession) {
-	log.Debugf("add SubSession into group. [%s]", session.UniqueKey)
+	log.Debugf("add SubSession into group. [%s] [%s]", group.UniqueKey, session.UniqueKey)
 	group.mutex.Lock()
 	group.subSessionSet[session] = struct{}{}
 	group.mutex.Unlock()
@@ -74,7 +80,7 @@ func (group *Group) AddSubSession(session *ServerSession) {
 }
 
 func (group *Group) DelPubSession(session *ServerSession) {
-	log.Debugf("del PubSession from group. [%s]", session.UniqueKey)
+	log.Debugf("del PubSession from group. [%s] [%s]", group.UniqueKey, session.UniqueKey)
 	group.mutex.Lock()
 	group.pubSession = nil
 	group.mutex.Unlock()
@@ -82,7 +88,7 @@ func (group *Group) DelPubSession(session *ServerSession) {
 }
 
 func (group *Group) DelSubSession(session *ServerSession) {
-	log.Debugf("del SubSession from group. [%s]", session.UniqueKey)
+	log.Debugf("del SubSession from group. [%s] [%s]", group.UniqueKey, session.UniqueKey)
 	group.mutex.Lock()
 	delete(group.subSessionSet, session)
 	group.mutex.Unlock()
@@ -97,8 +103,8 @@ func (group *Group) Pull(addr string, connectTimeout int64) {
 	defer func() {
 		group.mutex.Lock()
 		defer group.mutex.Unlock()
+		log.Infof("del rtmp PullSession out of group. [%s] [%s]", group.UniqueKey, group.pullSession)
 		group.pullSession = nil
-		log.Infof("del rtmp PullSession out of group.")
 	}()
 
 	url := fmt.Sprintf("rtmp://%s/%s/%s", addr, group.appName, group.streamName)
@@ -106,7 +112,7 @@ func (group *Group) Pull(addr string, connectTimeout int64) {
 		log.Error(err)
 	}
 	if err := group.pullSession.WaitLoop(); err != nil {
-		log.Debugf("rtmp PullSession loop done. [%s] err=%v", group.pullSession.UniqueKey, err)
+		log.Debugf("rtmp PullSession loop done. [%s] [%s] err=%v", group.UniqueKey, group.pullSession.UniqueKey, err)
 		return
 	}
 }
@@ -213,7 +219,7 @@ func (group *Group) broadcastRTMP2RTMP(header Header, timestampAbs uint32, messa
 		if absChunks == nil {
 			absChunks = Message2Chunks(message, &currHeader, LocalChunkSize)
 		}
-		log.Debug("cache metadata.")
+		log.Debugf("cache metadata. [%s]", group.UniqueKey)
 		group.metadata = absChunks
 	case TypeidVideo:
 		// TODO chef: magic number
@@ -221,7 +227,7 @@ func (group *Group) broadcastRTMP2RTMP(header Header, timestampAbs uint32, messa
 			if absChunks == nil {
 				absChunks = Message2Chunks(message, &currHeader, LocalChunkSize)
 			}
-			log.Debug("cache avc key seq header.")
+			log.Debugf("cache avc key seq header. [%s]", group.UniqueKey)
 			group.avcKeySeqHeader = absChunks
 		}
 	case TypeidAudio:
@@ -229,7 +235,7 @@ func (group *Group) broadcastRTMP2RTMP(header Header, timestampAbs uint32, messa
 			if absChunks == nil {
 				absChunks = Message2Chunks(message, &currHeader, LocalChunkSize)
 			}
-			log.Debug("cache aac seq header.")
+			log.Debugf("cache aac seq header. [%s]", group.UniqueKey)
 			group.aacSeqHeader = absChunks
 		}
 	}
