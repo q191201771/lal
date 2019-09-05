@@ -28,7 +28,14 @@ func NewMessagePacker() *MessagePacker {
 }
 
 func writeMessageHeader(writer io.Writer, csid int, bodyLen int, typeID int, streamID int) error {
-	if _, err := writer.Write([]byte{uint8(0<<6 | csid), 0, 0, 0}); err != nil {
+	// 目前这个函数只供发送信令时调用，信令的 csid 都是小于等于 63 的，如果传入的 csid 大于 63，直接 panic
+	if csid > 63 {
+		panic(csid)
+	}
+
+	fmt := 0
+	// 0 0 0 是时间戳
+	if _, err := writer.Write([]byte{uint8(fmt<<6 | csid), 0, 0, 0}); err != nil {
 		return err
 	}
 	if err := bele.WriteBEUint24(writer, uint32(bodyLen)); err != nil {
