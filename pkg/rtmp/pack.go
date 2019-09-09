@@ -1,15 +1,13 @@
 package rtmp
 
+// 打包并发送 rtmp 信令
+
 import (
 	"bytes"
 	"github.com/q191201771/nezha/pkg/bele"
 	"github.com/q191201771/nezha/pkg/log"
 	"io"
 )
-
-// TODO chef: direct use bufio.Writer
-
-// TODO chef: add func to writeProtocolControlMessage.
 
 const (
 	peerBandwidthLimitTypeHard    = uint8(0)
@@ -18,6 +16,8 @@ const (
 )
 
 type MessagePacker struct {
+	// 1. 增加一层缓冲，避免 write 一个信令时发生多次系统调用
+	// 2. 因为 bytes.Buffer.Write 返回的 error 永远为 nil，所以本文件中所有对 b 的写操作都不判断返回值
 	b *bytes.Buffer
 }
 
@@ -27,7 +27,7 @@ func NewMessagePacker() *MessagePacker {
 	}
 }
 
-func writeMessageHeader(writer io.Writer, csid int, bodyLen int, typeID int, streamID int) error {
+func (packer *MessagePacker) writeMessageHeader(csid int, bodyLen int, typeID int, streamID int) {
 	// 目前这个函数只供发送信令时调用，信令的 csid 都是小于等于 63 的，如果传入的 csid 大于 63，直接 panic
 	if csid > 63 {
 		panic(csid)
@@ -35,33 +35,21 @@ func writeMessageHeader(writer io.Writer, csid int, bodyLen int, typeID int, str
 
 	fmt := 0
 	// 0 0 0 是时间戳
-	if _, err := writer.Write([]byte{uint8(fmt<<6 | csid), 0, 0, 0}); err != nil {
-		return err
-	}
-	if err := bele.WriteBEUint24(writer, uint32(bodyLen)); err != nil {
-		return err
-	}
-	if _, err := writer.Write([]byte{uint8(typeID)}); err != nil {
-		return err
-	}
-	if err := bele.WriteLE(writer, uint32(streamID)); err != nil {
-		return err
-	}
-	return nil
+	_, _ = packer.b.Write([]byte{uint8(fmt<<6 | csid), 0, 0, 0})
+	_ = bele.WriteBEUint24(packer.b, uint32(bodyLen))
+	_, _ = packer.b.Write([]byte{uint8(typeID)})
+	_ = bele.WriteLE(packer.b, uint32(streamID))
 }
 
 func (packer *MessagePacker) writeProtocolControlMessage(writer io.Writer, typeID int, val int) error {
-	if err := writeMessageHeader(packer.b, csidProtocolControl, 4, typeID, 0); err != nil {
-		return err
-	}
-	if err := bele.WriteBE(packer.b, uint32(val)); err != nil {
-		return err
-	}
+	packer.writeMessageHeader(csidProtocolControl, 4, typeID, 0)
+	_ = bele.WriteBE(packer.b, uint32(val))
 	_, err := packer.b.WriteTo(writer)
 	return err
 }
 
 func (packer *MessagePacker) writeChunkSize(writer io.Writer, val int) error {
+	// TODO chef: 日志放这还是放在调用方更合适些
 	log.Infof("<----- SetChunkSize %d", val)
 	return packer.writeProtocolControlMessage(writer, typeidSetChunkSize, val)
 }
@@ -74,27 +62,20 @@ func (packer *MessagePacker) writeWinAckSize(writer io.Writer, val int) error {
 func (packer *MessagePacker) writePeerBandwidth(writer io.Writer, val int, limitType uint8) error {
 	log.Infof("<----- Set Peer Bandwidth")
 
-	if err := writeMessageHeader(packer.b, csidProtocolControl, 5, typeidBandwidth, 0); err != nil {
-		return err
-	}
-	if err := bele.WriteBE(packer.b, uint32(val)); err != nil {
-		return err
-	}
-	packer.b.WriteByte(limitType)
+	packer.writeMessageHeader(csidProtocolControl, 5, typeidBandwidth, 0)
+	_ = bele.WriteBE(packer.b, uint32(val))
+	_ = packer.b.WriteByte(limitType)
 	_, err := packer.b.WriteTo(writer)
 	return err
 }
 
 func (packer *MessagePacker) writeConnect(writer io.Writer, appName, tcURL string) error {
-	if err := writeMessageHeader(packer.b, csidOverConnection, 0, typeidCommandMessageAMF0, 0); err != nil {
-		return err
-	}
-	if err := AMF0.WriteString(packer.b, "connect"); err != nil {
-		return err
-	}
-	if err := AMF0.WriteNumber(packer.b, float64(tidClientConnect)); err != nil {
-		return err
-	}
+	log.Infof("<----- connect('%s')", appName)
+
+	packer.writeMessageHeader(csidOverConnection, 0, typeidCommandMessageAMF0, 0)
+	_ = AMF0.WriteString(packer.b, "connect")
+	_ = AMF0.WriteNumber(packer.b, float64(tidClientConnect))
+
 	// TODO chef: hack lal in
 	objs := []ObjectPair{
 		{key: "app", value: appName},
@@ -102,186 +83,120 @@ func (packer *MessagePacker) writeConnect(writer io.Writer, appName, tcURL strin
 		{key: "flashVer", value: "FMLE/3.0 (compatible; Lal0.0.1)"},
 		{key: "tcUrl", value: tcURL},
 	}
-	if err := AMF0.WriteObject(packer.b, objs); err != nil {
-		return err
-	}
+	_ = AMF0.WriteObject(packer.b, objs)
 	raw := packer.b.Bytes()
 	bele.BEPutUint24(raw[4:], uint32(len(raw)-12))
-	log.Infof("<----- connect('%s')", appName)
 	_, err := packer.b.WriteTo(writer)
 	return err
 }
 
 func (packer *MessagePacker) writeConnectResult(writer io.Writer, tid int) error {
-	if err := writeMessageHeader(packer.b, csidOverConnection, 190, typeidCommandMessageAMF0, 0); err != nil {
-		return err
-	}
-	if err := AMF0.WriteString(packer.b, "_result"); err != nil {
-		return err
-	}
-	if err := AMF0.WriteNumber(packer.b, float64(tid)); err != nil {
-		return err
-	}
+	log.Infof("<----_result('NetConnection.Connect.Success')")
+
+	packer.writeMessageHeader(csidOverConnection, 190, typeidCommandMessageAMF0, 0)
+	_ = AMF0.WriteString(packer.b, "_result")
+	_ = AMF0.WriteNumber(packer.b, float64(tid))
 	objs := []ObjectPair{
 		{key: "fmsVer", value: "FMS/3,0,1,123"},
 		{key: "capabilities", value: 31},
 	}
-	if err := AMF0.WriteObject(packer.b, objs); err != nil {
-		return err
-	}
+	_ = AMF0.WriteObject(packer.b, objs)
 	objs = []ObjectPair{
 		{key: "level", value: "status"},
 		{key: "code", value: "NetConnection.Connect.Success"},
 		{key: "description", value: "Connection succeeded."},
 		{key: "objectEncoding", value: 0},
 	}
-	if err := AMF0.WriteObject(packer.b, objs); err != nil {
-		return err
-	}
-	log.Infof("<----_result('NetConnection.Connect.Success')")
+	_ = AMF0.WriteObject(packer.b, objs)
 	_, err := packer.b.WriteTo(writer)
 	return err
 }
 
 func (packer *MessagePacker) writeCreateStream(writer io.Writer) error {
-	// 25 = 15 + 9 + 1
-	if err := writeMessageHeader(packer.b, csidOverConnection, 25, typeidCommandMessageAMF0, 0); err != nil {
-		return err
-	}
-	if err := AMF0.WriteString(packer.b, "createStream"); err != nil {
-		return err
-	}
-	if err := AMF0.WriteNumber(packer.b, float64(tidClientCreateStream)); err != nil {
-		return err
-	}
-	if err := AMF0.WriteNull(packer.b); err != nil {
-		return err
-	}
 	log.Info("<----- createStream()")
+
+	// 25 = 15 + 9 + 1
+	packer.writeMessageHeader(csidOverConnection, 25, typeidCommandMessageAMF0, 0)
+	_ = AMF0.WriteString(packer.b, "createStream")
+	_ = AMF0.WriteNumber(packer.b, float64(tidClientCreateStream))
+	_ = AMF0.WriteNull(packer.b)
 	_, err := packer.b.WriteTo(writer)
 	return err
 }
 
 func (packer *MessagePacker) writeCreateStreamResult(writer io.Writer, tid int) error {
-	if err := writeMessageHeader(packer.b, csidOverConnection, 29, typeidCommandMessageAMF0, 0); err != nil {
-		return err
-	}
-	if err := AMF0.WriteString(packer.b, "_result"); err != nil {
-		return err
-	}
-	if err := AMF0.WriteNumber(packer.b, float64(tid)); err != nil {
-		return err
-	}
-	if err := AMF0.WriteNull(packer.b); err != nil {
-		return err
-	}
-	if err := AMF0.WriteNumber(packer.b, float64(MSID1)); err != nil {
-		return err
-	}
 	log.Info("<----_result()")
+
+	packer.writeMessageHeader(csidOverConnection, 29, typeidCommandMessageAMF0, 0)
+	_ = AMF0.WriteString(packer.b, "_result")
+	_ = AMF0.WriteNumber(packer.b, float64(tid))
+	_ = AMF0.WriteNull(packer.b)
+	_ = AMF0.WriteNumber(packer.b, float64(MSID1))
 	_, err := packer.b.WriteTo(writer)
 	return err
 }
 
 func (packer *MessagePacker) writePlay(writer io.Writer, streamName string, streamID int) error {
-	if err := writeMessageHeader(packer.b, csidOverStream, 0, typeidCommandMessageAMF0, streamID); err != nil {
-		return err
-	}
-	if err := AMF0.WriteString(packer.b, "play"); err != nil {
-		return err
-	}
-	if err := AMF0.WriteNumber(packer.b, float64(tidClientPlay)); err != nil {
-		return err
-	}
-	if err := AMF0.WriteNull(packer.b); err != nil {
-		return err
-	}
-	if err := AMF0.WriteString(packer.b, streamName); err != nil {
-		return err
-	}
+	log.Infof("<----- play('%s')", streamName)
+
+	packer.writeMessageHeader(csidOverStream, 0, typeidCommandMessageAMF0, streamID)
+	_ = AMF0.WriteString(packer.b, "play")
+	_ = AMF0.WriteNumber(packer.b, float64(tidClientPlay))
+	_ = AMF0.WriteNull(packer.b)
+	_ = AMF0.WriteString(packer.b, streamName)
 
 	raw := packer.b.Bytes()
 	bele.BEPutUint24(raw[4:], uint32(len(raw)-12))
-	log.Infof("<----- play('%s')", streamName)
 	_, err := packer.b.WriteTo(writer)
 	return err
 }
 
 func (packer *MessagePacker) writePublish(writer io.Writer, appName string, streamName string, streamID int) error {
-	if err := writeMessageHeader(packer.b, csidOverStream, 0, typeidCommandMessageAMF0, streamID); err != nil {
-		return err
-	}
-	if err := AMF0.WriteString(packer.b, "publish"); err != nil {
-		return err
-	}
-	if err := AMF0.WriteNumber(packer.b, float64(tidClientPublish)); err != nil {
-		return err
-	}
-	if err := AMF0.WriteNull(packer.b); err != nil {
-		return err
-	}
-	if err := AMF0.WriteString(packer.b, streamName); err != nil {
-		return err
-	}
-	if err := AMF0.WriteString(packer.b, appName); err != nil {
-		return err
-	}
+	log.Infof("<----- publish('%s')", streamName)
+
+	packer.writeMessageHeader(csidOverStream, 0, typeidCommandMessageAMF0, streamID)
+	_ = AMF0.WriteString(packer.b, "publish")
+	_ = AMF0.WriteNumber(packer.b, float64(tidClientPublish))
+	_ = AMF0.WriteNull(packer.b)
+	_ = AMF0.WriteString(packer.b, streamName)
+	_ = AMF0.WriteString(packer.b, appName)
 
 	raw := packer.b.Bytes()
 	bele.BEPutUint24(raw[4:], uint32(len(raw)-12))
-	log.Infof("<----- publish('%s')", streamName)
 	_, err := packer.b.WriteTo(writer)
 	return err
 }
 
 func (packer *MessagePacker) writeOnStatusPublish(writer io.Writer, streamID int) error {
-	if err := writeMessageHeader(packer.b, csidOverStream, 105, typeidCommandMessageAMF0, streamID); err != nil {
-		return err
-	}
-	if err := AMF0.WriteString(packer.b, "onStatus"); err != nil {
-		return err
-	}
-	if err := AMF0.WriteNumber(packer.b, 0); err != nil {
-		return err
-	}
-	if err := AMF0.WriteNull(packer.b); err != nil {
-		return err
-	}
+	log.Infof("<----onStatus('NetStream.Publish.Start')")
+
+	packer.writeMessageHeader(csidOverStream, 105, typeidCommandMessageAMF0, streamID)
+	_ = AMF0.WriteString(packer.b, "onStatus")
+	_ = AMF0.WriteNumber(packer.b, 0)
+	_ = AMF0.WriteNull(packer.b)
 	objs := []ObjectPair{
 		{key: "level", value: "status"},
 		{key: "code", value: "NetStream.Publish.Start"},
 		{key: "description", value: "Start publishing"},
 	}
-	if err := AMF0.WriteObject(packer.b, objs); err != nil {
-		return err
-	}
-	log.Infof("<----onStatus('NetStream.Publish.Start')")
+	_ = AMF0.WriteObject(packer.b, objs)
 	_, err := packer.b.WriteTo(writer)
 	return err
 }
 
 func (packer *MessagePacker) writeOnStatusPlay(writer io.Writer, streamID int) error {
-	if err := writeMessageHeader(packer.b, csidOverStream, 96, typeidCommandMessageAMF0, streamID); err != nil {
-		return err
-	}
-	if err := AMF0.WriteString(packer.b, "onStatus"); err != nil {
-		return err
-	}
-	if err := AMF0.WriteNumber(packer.b, 0); err != nil {
-		return err
-	}
-	if err := AMF0.WriteNull(packer.b); err != nil {
-		return err
-	}
+	log.Infof("<----onStatus('NetStream.Play.Start')")
+
+	packer.writeMessageHeader(csidOverStream, 96, typeidCommandMessageAMF0, streamID)
+	_ = AMF0.WriteString(packer.b, "onStatus")
+	_ = AMF0.WriteNumber(packer.b, 0)
+	_ = AMF0.WriteNull(packer.b)
 	objs := []ObjectPair{
 		{key: "level", value: "status"},
 		{key: "code", value: "NetStream.Play.Start"},
 		{key: "description", value: "Start live"},
 	}
-	if err := AMF0.WriteObject(packer.b, objs); err != nil {
-		return err
-	}
-	log.Infof("<----onStatus('NetStream.Play.Start')")
+	_ = AMF0.WriteObject(packer.b, objs)
 	_, err := packer.b.WriteTo(writer)
 	return err
 }

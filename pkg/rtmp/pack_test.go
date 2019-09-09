@@ -15,10 +15,10 @@ func (w *MockWriter) Write(p []byte) (n int, err error) {
 }
 
 func TestWriteMessageHandler(t *testing.T) {
-	buf := &bytes.Buffer{}
-	err := writeMessageHeader(buf, 1, 2, 3, 4)
-	assert.Equal(t, nil, err)
-	assert.Equal(t, []byte{1, 0, 0, 0, 0, 0, 2, 3, 4, 0, 0, 0}, buf.Bytes())
+	//buf := &bytes.Buffer{}
+	packer := NewMessagePacker()
+	packer.writeMessageHeader(1, 2, 3, 4)
+	assert.Equal(t, []byte{1, 0, 0, 0, 0, 0, 2, 3, 4, 0, 0, 0}, packer.b.Bytes())
 }
 
 func TestWrite(t *testing.T) {
@@ -120,17 +120,38 @@ func TestCorner(t *testing.T) {
 		defer func() {
 			recover()
 		}()
-		buf := &bytes.Buffer{}
+		packer := NewMessagePacker()
 		// 测试csid超过63的情况
-		writeMessageHeader(buf, 128, 0, 0, 0)
+		packer.writeMessageHeader( 128, 0, 0, 0)
 	}()
 
 	var err error
-
 	mw := &MockWriter{}
-	err = writeMessageHeader(mw, 1, 2, 3, 4)
-	assert.IsNotNil(t, err)
+	packer := NewMessagePacker()
 
-	// to be continued.
+	err = packer.writeProtocolControlMessage(mw, 1, 2)
+	assert.IsNotNil(t, err)
+	err = packer.writeChunkSize(mw, 1)
+	assert.IsNotNil(t, err)
+	err = packer.writeWinAckSize(mw, 1)
+	assert.IsNotNil(t, err)
+	err = packer.writePeerBandwidth(mw, 1, 2)
+	assert.IsNotNil(t, err)
+	err = packer.writeConnect(mw, "live", "rtmp://127.0.0.1/live")
+	assert.IsNotNil(t, err)
+	err = packer.writeConnectResult(mw, 1)
+	assert.IsNotNil(t, err)
+	err = packer.writeCreateStream(mw)
+	assert.IsNotNil(t, err)
+	err = packer.writeCreateStreamResult(mw, 1)
+	assert.IsNotNil(t, err)
+	err = packer.writePlay(mw, "test", 1)
+	assert.IsNotNil(t, err)
+	err = packer.writePublish(mw, "live", "test", 1)
+	assert.IsNotNil(t, err)
+	err = packer.writeOnStatusPublish(mw, 1)
+	assert.IsNotNil(t, err)
+	err = packer.writeOnStatusPlay(mw, 1)
+	assert.IsNotNil(t, err)
 }
 
