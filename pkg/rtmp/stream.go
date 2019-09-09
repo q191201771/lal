@@ -2,7 +2,7 @@ package rtmp
 
 import "github.com/q191201771/nezha/pkg/log"
 
-var initMsgLen = 4096
+const initMsgLen = 4096
 
 type Header struct {
 	CSID   int

@@ -2,17 +2,10 @@ package rtmp
 
 import (
 	"bytes"
-	"errors"
 	"github.com/q191201771/nezha/pkg/assert"
+	"github.com/q191201771/nezha/pkg/mockwriter"
 	"testing"
 )
-
-type MockWriter struct {
-}
-
-func (w *MockWriter) Write(p []byte) (n int, err error) {
-	return 0, errors.New("mock error")
-}
 
 func TestWriteMessageHandler(t *testing.T) {
 	//buf := &bytes.Buffer{}
@@ -126,7 +119,7 @@ func TestCorner(t *testing.T) {
 	}()
 
 	var err error
-	mw := &MockWriter{}
+	mw := mockwriter.NewMockWriter(mockwriter.WriterTypeReturnError)
 	packer := NewMessagePacker()
 
 	err = packer.writeProtocolControlMessage(mw, 1, 2)
