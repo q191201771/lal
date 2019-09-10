@@ -78,6 +78,23 @@ func (amf0) WriteString(writer io.Writer, val string) error {
 	return err
 }
 
+func (amf0) WriteNull(writer io.Writer) error {
+	_, err := writer.Write([]byte{AMF0TypeMarkerNull})
+	return err
+}
+
+func (amf0) WriteBoolean(writer io.Writer, b bool) error {
+	if _, err := writer.Write([]byte{AMF0TypeMarkerBoolean}); err != nil {
+		return err
+	}
+	v := uint8(0)
+	if b {
+		v = 1
+	}
+	_, err := writer.Write([]byte{v})
+	return err
+}
+
 func (amf0) WriteObject(writer io.Writer, objs []ObjectPair) error {
 	if _, err := writer.Write([]byte{AMF0TypeMarkerObject}); err != nil {
 		return err
@@ -98,17 +115,16 @@ func (amf0) WriteObject(writer io.Writer, objs []ObjectPair) error {
 			if err := AMF0.WriteNumber(writer, float64(objs[i].value.(int))); err != nil {
 				return err
 			}
+		case bool:
+			if err := AMF0.WriteBoolean(writer, objs[i].value.(bool)); err != nil {
+				return err
+			}
 		default:
 			// TODO chef: if other types.
 			panic(objs[i].value)
 		}
 	}
 	_, err := writer.Write(AMF0TypeMarkerObjectEndBytes)
-	return err
-}
-
-func (amf0) WriteNull(writer io.Writer) error {
-	_, err := writer.Write([]byte{AMF0TypeMarkerNull})
 	return err
 }
 
@@ -146,7 +162,7 @@ func (amf0) ReadLongStringWithoutType(b []byte) (string, int, error) {
 
 func (amf0) ReadString(b []byte) (val string, l int, err error) {
 	if len(b) < 1 {
-		return "", 0, ErrAMFInvalidType
+		return "", 0, ErrAMFTooShort
 	}
 	switch b[0] {
 	case AMF0TypeMarkerString:

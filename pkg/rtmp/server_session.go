@@ -40,10 +40,10 @@ const (
 )
 
 type ServerSession struct {
-	AppName    string
-	StreamName string
+	AppName                string
+	StreamName             string
 	StreamNameWithRawQuery string
-	UniqueKey  string
+	UniqueKey              string
 
 	obs           ServerSessionObserver
 	t             ServerSessionType

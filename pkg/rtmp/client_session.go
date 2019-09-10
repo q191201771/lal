@@ -17,20 +17,20 @@ import (
 type ClientSession struct {
 	UniqueKey string
 
-	t              ClientSessionType
-	obs            PullSessionObserver // only for PullSession
-	timeout        ClientSessionTimeout
-	doResultChan   chan struct{}
-	errChan        chan error
-	packer         *MessagePacker
-	chunkComposer  *ChunkComposer
-	url            *url.URL
-	tcURL          string
-	appName        string
-	streamName     string
+	t                      ClientSessionType
+	obs                    PullSessionObserver // only for PullSession
+	timeout                ClientSessionTimeout
+	doResultChan           chan struct{}
+	errChan                chan error
+	packer                 *MessagePacker
+	chunkComposer          *ChunkComposer
+	url                    *url.URL
+	tcURL                  string
+	appName                string
+	streamName             string
 	streamNameWithRawQuery string
-	hs             HandshakeClient
-	peerWinAckSize int
+	hs                     HandshakeClient
+	peerWinAckSize         int
 
 	Conn  connection.Connection
 	wChan chan []byte

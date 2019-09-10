@@ -38,7 +38,7 @@ func NewGroup(appName string, streamName string) *Group {
 	uk := unique.GenUniqueKey("RTMPGROUP")
 	log.Debugf("NewGroup. [%s] appName=%s, streamName=%s", uk, appName, streamName)
 	return &Group{
-		UniqueKey: uk,
+		UniqueKey:     uk,
 		appName:       appName,
 		streamName:    streamName,
 		subSessionSet: make(map[*ServerSession]struct{}),
