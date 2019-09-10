@@ -43,7 +43,6 @@ func main() {
 	var firstTagTS uint32
 	var firstTagTick int64
 
-
 	for i := 0; ; i++ {
 		log.Infof(" > round. i=%d, totalBaseTS=%d, prevTS=%d, thisBaseTS=%d",
 			i, totalBaseTS, prevTS, thisBaseTS)
@@ -120,7 +119,7 @@ func main() {
 				diffTS := h.Timestamp - firstTagTS
 				//log.Infof("%d %d %d %d", n, diffTick, diffTS, int64(diffTS) - diffTick)
 				if diffTick < int64(diffTS) {
-					time.Sleep(time.Duration(int64(diffTS) - diffTick) * time.Millisecond)
+					time.Sleep(time.Duration(int64(diffTS)-diffTick) * time.Millisecond)
 				}
 			} else {
 				firstTagTick = time.Now().UnixNano() / 1000000
