@@ -3,7 +3,6 @@ package main
 import (
 	"flag"
 	"github.com/q191201771/lal/pkg/rtmp"
-	"github.com/q191201771/nezha/pkg/errors"
 	"github.com/q191201771/nezha/pkg/log"
 	"os"
 )
@@ -24,9 +23,9 @@ func main() {
 		ReadAVTimeoutMS:  10000,
 	})
 	err := session.Pull(url)
-	errors.PanicIfErrorOccur(err)
+	log.FatalIfErrorNotNil(err)
 	err = session.WaitLoop()
-	errors.PanicIfErrorOccur(err)
+	log.FatalIfErrorNotNil(err)
 }
 
 func parseFlag() string {

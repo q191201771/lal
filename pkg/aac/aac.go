@@ -19,6 +19,7 @@ type ADTS struct {
 	adtsHeader        []byte
 }
 
+// 传入 AAC Sequence Header，一会生成 ADTS 头时需要使用
 // @param <payload> rtmp message payload，包含前面2个字节
 func (obj *ADTS) PutAACSequenceHeader(payload []byte) {
 	soundFormat := payload[0] >> 4        // 10=AAC
@@ -40,6 +41,7 @@ func (obj *ADTS) PutAACSequenceHeader(payload []byte) {
 	log.Debugf("%+v", obj)
 }
 
+// 获取 ADTS 头，注意，每个包的长度不同，所以生成的每个包的 ADTS 头也不同
 // @param <length> rtmp message payload长度，包含前面2个字节
 func (obj *ADTS) GetADTS(length uint16) []byte {
 	// adts fixed header:
@@ -82,6 +84,7 @@ func (obj *ADTS) GetADTS(length uint16) []byte {
 	return obj.adtsHeader
 }
 
+// 将 rtmp AAC 传入，输出带 ADTS 头的 AAC ES流
 // @param <payload> rtmp message payload部分
 func CaptureAAC(w io.Writer, payload []byte) {
 	if payload[1] == 0 {

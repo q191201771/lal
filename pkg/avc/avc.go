@@ -3,7 +3,6 @@ package avc
 import (
 	"errors"
 	"github.com/q191201771/nezha/pkg/bele"
-	utilErrors "github.com/q191201771/nezha/pkg/errors"
 	"io"
 )
 
@@ -70,7 +69,11 @@ func CaptureAVC(w io.Writer, payload []byte) {
 	// sps pps
 	if payload[0] == 0x17 && payload[1] == 0x00 {
 		sps, pps, err := ParseAVCSeqHeader(payload)
-		utilErrors.PanicIfErrorOccur(err)
+		if err != nil {
+			// TODO chef: error handler
+			return
+		}
+		//utilErrors.PanicIfErrorOccur(err)
 		_, _ = w.Write(NaluStartCode)
 		_, _ = w.Write(sps)
 		_, _ = w.Write(NaluStartCode)

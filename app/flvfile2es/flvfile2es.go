@@ -5,7 +5,6 @@ import (
 	"github.com/q191201771/lal/pkg/aac"
 	"github.com/q191201771/lal/pkg/avc"
 	"github.com/q191201771/lal/pkg/httpflv"
-	"github.com/q191201771/nezha/pkg/errors"
 	"github.com/q191201771/nezha/pkg/log"
 	"io"
 	"os"
@@ -17,22 +16,22 @@ func main() {
 
 	var ffr httpflv.FlvFileReader
 	err = ffr.Open(flvFileName)
-	errors.PanicIfErrorOccur(err)
+	log.FatalIfErrorNotNil(err)
 	defer ffr.Dispose()
 	log.Infof("open flv file succ.")
 
-	afp, err := os.Open(aacFileName)
-	errors.PanicIfErrorOccur(err)
+	afp, err := os.Create(aacFileName)
+	log.FatalIfErrorNotNil(err)
 	defer afp.Close()
 	log.Infof("open es aac file succ.")
 
-	vfp, err := os.Open(avcFileName)
-	errors.PanicIfErrorOccur(err)
+	vfp, err := os.Create(avcFileName)
+	log.FatalIfErrorNotNil(err)
 	defer vfp.Close()
 	log.Infof("open es h264 file succ.")
 
 	_, err = ffr.ReadFlvHeader()
-	errors.PanicIfErrorOccur(err)
+	log.FatalIfErrorNotNil(err)
 
 	for {
 		tag, err := ffr.ReadTag()
@@ -40,7 +39,7 @@ func main() {
 			log.Infof("EOF.")
 			break
 		}
-		errors.PanicIfErrorOccur(err)
+		log.FatalIfErrorNotNil(err)
 
 		payload := tag.Payload()
 

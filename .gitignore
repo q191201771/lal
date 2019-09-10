@@ -9,6 +9,7 @@ coverage.html
 /lal
 /lal_linux
 /lal.log
+/tmp
 
 /pkg/hls/
 /demo/
