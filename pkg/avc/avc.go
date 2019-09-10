@@ -65,20 +65,19 @@ func ParseAVCSeqHeader(payload []byte) (sps, pps []byte, err error) {
 
 // 将rtmp avc数据转换成avc裸流
 // @param <payload> rtmp message的payload部分 或者 flv tag的payload部分
-func CaptureAVC(w io.Writer, payload []byte) {
+func CaptureAVC(w io.Writer, payload []byte) error {
 	// sps pps
 	if payload[0] == 0x17 && payload[1] == 0x00 {
 		sps, pps, err := ParseAVCSeqHeader(payload)
 		if err != nil {
-			// TODO chef: error handler
-			return
+			return err
 		}
 		//utilErrors.PanicIfErrorOccur(err)
 		_, _ = w.Write(NaluStartCode)
 		_, _ = w.Write(sps)
 		_, _ = w.Write(NaluStartCode)
 		_, _ = w.Write(pps)
-		return
+		return nil
 	}
 
 	// payload中可能存在多个nalu
@@ -93,4 +92,5 @@ func CaptureAVC(w io.Writer, payload []byte) {
 		i += naluLen
 		break
 	}
+	return nil
 }
