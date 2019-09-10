@@ -4,8 +4,6 @@ package rtmp
 // @pure
 // 提供amf0格式的编码与解码的操作
 
-// TODO chef: writeBoolean
-
 import (
 	"bytes"
 	"github.com/q191201771/nezha/pkg/bele"

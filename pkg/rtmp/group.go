@@ -1,7 +1,6 @@
 package rtmp
 
 import (
-	"fmt"
 	"github.com/q191201771/nezha/pkg/log"
 	"github.com/q191201771/nezha/pkg/unique"
 	"sync"
@@ -36,7 +35,7 @@ type Group struct {
 
 func NewGroup(appName string, streamName string) *Group {
 	uk := unique.GenUniqueKey("RTMPGROUP")
-	log.Debugf("NewGroup. [%s] appName=%s, streamName=%s", uk, appName, streamName)
+	log.Debugf("new group. [%s] appName=%s, streamName=%s", uk, appName, streamName)
 	return &Group{
 		UniqueKey:     uk,
 		appName:       appName,
@@ -64,6 +63,10 @@ func (group *Group) Dispose() {
 func (group *Group) AddPubSession(session *ServerSession) {
 	log.Debugf("add PubSession into group. [%s] [%s]", group.UniqueKey, session.UniqueKey)
 	group.mutex.Lock()
+	if group.pubSession != nil {
+		log.Errorf("PubSession already exist in group. [%s] old=%s, new=%s", group.UniqueKey, group.pubSession.UniqueKey, session.UniqueKey)
+	}
+
 	group.pubSession = session
 	group.mutex.Unlock()
 	session.SetPubSessionObserver(group)
@@ -96,25 +99,27 @@ func (group *Group) DelSubSession(session *ServerSession) {
 
 func (group *Group) Pull(addr string, connectTimeout int64) {
 	// TODO chef: config me,
-	group.pullSession = NewPullSession(group, PullSessionTimeout{
-		ConnectTimeoutMS: int(connectTimeout),
-	})
-
-	defer func() {
-		group.mutex.Lock()
-		defer group.mutex.Unlock()
-		log.Infof("del rtmp PullSession out of group. [%s] [%s]", group.UniqueKey, group.pullSession)
-		group.pullSession = nil
-	}()
-
-	url := fmt.Sprintf("rtmp://%s/%s/%s", addr, group.appName, group.streamName)
-	if err := group.pullSession.Pull(url); err != nil {
-		log.Error(err)
-	}
-	if err := group.pullSession.WaitLoop(); err != nil {
-		log.Debugf("rtmp PullSession loop done. [%s] [%s] err=%v", group.UniqueKey, group.pullSession.UniqueKey, err)
-		return
-	}
+	// v1.0.0 版本之前先不提供去其他节点回源的功能
+	panic("not impl yet")
+	//group.pullSession = NewPullSession(group, PullSessionTimeout{
+	//	ConnectTimeoutMS: int(connectTimeout),
+	//})
+	//
+	//defer func() {
+	//	group.mutex.Lock()
+	//	defer group.mutex.Unlock()
+	//	log.Infof("del rtmp PullSession out of group. [%s] [%s]", group.UniqueKey, group.pullSession)
+	//	group.pullSession = nil
+	//}()
+	//
+	//url := fmt.Sprintf("rtmp://%s/%s/%s", addr, group.appName, group.streamName)
+	//if err := group.pullSession.Pull(url); err != nil {
+	//	log.Error(err)
+	//}
+	//if err := group.pullSession.WaitLoop(); err != nil {
+	//	log.Debugf("rtmp PullSession loop done. [%s] [%s] err=%v", group.UniqueKey, group.pullSession.UniqueKey, err)
+	//	return
+	//}
 }
 
 func (group *Group) IsTotalEmpty() bool {

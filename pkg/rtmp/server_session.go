@@ -114,6 +114,16 @@ func (s *ServerSession) AsyncWrite(msg []byte) error {
 	return nil
 }
 
+func (s *ServerSession) ReadableType()string {
+	switch s.t {
+	case ServerSessionTypePub:
+		return "PUB"
+	case ServerSessionTypeSub:
+		return "SUB"
+	}
+	return  "UNKNOWN"
+}
+
 func (s *ServerSession) runReadLoop() error {
 	return s.chunkComposer.RunLoop(s.rb, s.doMsg)
 }

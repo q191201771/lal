@@ -16,8 +16,9 @@ type Server struct {
 	addr string
 	ln   net.Listener
 
-	groupMap map[string]*Group
 	mutex    sync.Mutex
+	groupMap map[string]*Group
+	// TODO chef: 清除空的group
 }
 
 func NewServer(obs ServerObserver, addr string) *Server {
@@ -34,27 +35,29 @@ func (server *Server) RunLoop() error {
 	if err != nil {
 		return err
 	}
-	log.Infof("start rtmp listen. addr=%s", server.addr)
+	log.Infof("start rtmp server listen. addr=%s", server.addr)
 	for {
 		conn, err := server.ln.Accept()
 		if err != nil {
 			return err
 		}
-		go server.handleConnect(conn)
+		go server.handleTCPConnect(conn)
 	}
 }
 
 func (server *Server) Dispose() {
+	// TODO chef: close groupMap
+
 	if err := server.ln.Close(); err != nil {
 		log.Error(err)
 	}
 }
 
-func (server *Server) handleConnect(conn net.Conn) {
+func (server *Server) handleTCPConnect(conn net.Conn) {
 	log.Infof("accept a rtmp connection. remoteAddr=%v", conn.RemoteAddr())
 	session := NewServerSession(server, conn)
 	err := session.RunLoop()
-	log.Infof("close a rtmp session.type=%d, err=%v", session.t, err)
+	log.Infof("close a rtmp session. type=%s, err=%v", session.ReadableType(), err)
 	switch session.t {
 	case ServerSessionTypeUnknown:
 	// noop
