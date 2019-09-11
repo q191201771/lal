@@ -16,9 +16,9 @@ var sm *ServerManager
 
 func main() {
 	confFile := parseFlag()
-	initLog()
-	log.Infof("bininfo: %s", bininfo.StringifySingleLine())
 	config := loadConf(confFile)
+	initLog(config.Log)
+	log.Infof("bininfo: %s", bininfo.StringifySingleLine())
 
 	sm = NewServerManager(config)
 
@@ -43,16 +43,9 @@ func parseFlag() string {
 	return *cf
 }
 
-func initLog() {
-	// TODO chef: 在配置文件中配置这些
-	c := log.Config{
-		Level:       log.LevelDebug,
-		Filename:    "./logs/lal.log",
-		IsToStdout:  true,
-		RotateMByte: 1024,
-	}
-	if err := log.Init(c); err != nil {
-		_, _ = fmt.Fprintf(os.Stderr, "initial log failed. err=%v", err)
+func initLog(config log.Config) {
+	if err := log.Init(config); err != nil {
+		_, _ = fmt.Fprintf(os.Stderr, "initial log failed. err=%+v", err)
 		os.Exit(1)
 	}
 	log.Info("initial log succ.")
@@ -61,10 +54,10 @@ func initLog() {
 func loadConf(confFile string) *Config {
 	config, err := LoadConf(confFile)
 	if err != nil {
-		log.Errorf("load Conf failed. file=%s err=%v", confFile, err)
+		log.Errorf("load conf failed. file=%s err=%+v", confFile, err)
 		os.Exit(1)
 	}
-	log.Infof("load conf file succ. file=%s content=%v", confFile, config)
+	log.Infof("load conf file succ. file=%s content=%+v", confFile, config)
 	return config
 }
 

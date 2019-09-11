@@ -2,11 +2,13 @@ package main
 
 import (
 	"encoding/json"
+	"github.com/q191201771/nezha/pkg/log"
 	"io/ioutil"
 )
 
 type Config struct {
 	RTMP RTMP `json:"rtmp"`
+	Log log.Config
 
 	SubIdleTimeout int64   `json:"sub_idle_timeout"`
 	GOPCacheNum    int     `json:"gop_cache_number"`

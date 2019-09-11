@@ -65,6 +65,12 @@ $git clone https://github.com/q191201771/lal.git && cd lal && ./build.sh
 {
   "rtmp": {
     "addr": ":19350" // rtmp服务监听的端口
+  },
+  "log": {
+    "level": 0,                   // 日志级别，0 debug 1 info 2 warn 3 error
+    "filename": "./logs/lal.log", // 日志输出文件
+    "is_to_stdout": true,         // 是否打印至标志控制台输出
+    "rotate_mbyte": 1024          // 日志按大小翻滚
   }
 }
 ```

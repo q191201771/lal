@@ -1,5 +1,11 @@
 {
   "rtmp": {
     "addr": ":19350"
+  },
+  "log": {
+    "level": 0,
+    "filename": "./logs/lal.log",
+    "is_to_stdout": true,
+    "rotate_mbyte": 1024
   }
 }
