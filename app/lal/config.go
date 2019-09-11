@@ -6,12 +6,12 @@ import (
 )
 
 type Config struct {
-	SubIdleTimeout int64 `json:"sub_idle_timeout"`
-	GOPCacheNum    int   `json:"gop_cache_number"`
+	RTMP RTMP `json:"rtmp"`
 
-	HTTPFlv HTTPFlv `json:"httpflv"`
-	RTMP    RTMP    `json:"rtmp"`
-	Pull    Pull    `json:"pull"`
+	SubIdleTimeout int64   `json:"sub_idle_timeout"`
+	GOPCacheNum    int     `json:"gop_cache_number"`
+	HTTPFlv        HTTPFlv `json:"httpflv"`
+	Pull           Pull    `json:"pull"`
 }
 
 type HTTPFlv struct {

@@ -70,7 +70,9 @@ func (sm *ServerManager) RunLoop() {
 
 func (sm *ServerManager) Dispose() {
 	log.Debug("Dispose manager.")
-	sm.httpFlvServer.Dispose()
+	if sm.httpFlvServer != nil {
+		sm.httpFlvServer.Dispose()
+	}
 	sm.rtmpServer.Dispose()
 	sm.exitChan <- true
 	sm.mutex.Lock()

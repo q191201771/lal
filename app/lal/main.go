@@ -8,7 +8,8 @@ import (
 	"net/http"
 	_ "net/http/pprof"
 	"os"
-	"time"
+	"os/signal"
+	"syscall"
 )
 
 var sm *ServerManager
@@ -20,11 +21,11 @@ func main() {
 	config := loadConf(confFile)
 
 	sm = NewServerManager(config)
-	go sm.RunLoop()
 
-	//shutdownAfter(60 * time.Second)
+	go runWebPProf()
+	go runSignalHandler()
 
-	startWebPProf()
+	sm.RunLoop()
 }
 
 func parseFlag() string {
@@ -67,18 +68,18 @@ func loadConf(confFile string) *Config {
 	return config
 }
 
-func startWebPProf() {
+func runWebPProf() {
+	log.Info("start web pprof listen. addr=:10001")
 	if err := http.ListenAndServe("0.0.0.0:10001", nil); err != nil {
 		log.Error(err)
 		return
 	}
-	log.Info("start pprof listen. addr=:10001")
 }
 
-// TODO chef: 添加优雅退出信号处理
-func shutdownAfter(d time.Duration) {
-	go func() {
-		time.Sleep(d)
-		sm.Dispose()
-	}()
+func runSignalHandler() {
+	c := make(chan os.Signal)
+	signal.Notify(c, syscall.SIGUSR1, syscall.SIGUSR2)
+	s := <-c
+	log.Infof("recv signal. s=%+v", s)
+	sm.Dispose()
 }
