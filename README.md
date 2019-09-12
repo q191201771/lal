@@ -77,7 +77,42 @@ $git clone https://github.com/q191201771/lal.git && cd lal && ./build.sh
 
 #### roadmap
 
-第一阶段：实现rtmp转发服务器
+有建议、意见、bug、功能等等欢迎提 issue 啊，100% 会回复的。
+
+lal 服务器目标版本roadmap如下：
+
+**v1.0.0**
+
+实现 rtmp 转发服务器。目前已经基本完成了。大概在十一假期发布。
+
+- 各种 rtmp 推流、拉流客户端兼容性测试
+- 和其它主流 rtmp 服务器的性能对比测试
+- 整理日志
+- 调整框架代码
+- 稳定性测试
+
+**v1.0.0**
+
+- Gop 缓存功能
+- http-flv 拉流
+- rtmp 转推
+- rtmp 回源
+- http-flv 回源
+
+**v2.0.0**
+
+- hls
+
+**v3.0.0**
+
+- udp quic srt
+- rtp/rtcp
+- webrtc
+
+**v4.0.0**
+
+- 分布式。提供与外部调度系统交互的接口。应对多级分发场景，或平级源站类型场景
+
 
 最终目标：
 

@@ -147,3 +147,11 @@ func TestPackCorner(t *testing.T) {
 	err = packer.writeOnStatusPlay(mw, 1)
 	assert.IsNotNil(t, err)
 }
+
+func BenchmarkMessagePacker(b *testing.B) {
+	mw := mockwriter.NewMockWriter(mockwriter.WriterTypeDoNothing)
+	packer := NewMessagePacker()
+	for i := 0; i < b.N; i++ {
+		_ = packer.writeConnect(mw, "live", "rtmp://127.0.0.1/live")
+	}
+}

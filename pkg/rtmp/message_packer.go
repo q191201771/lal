@@ -1,11 +1,12 @@
 package rtmp
 
+// message_packer.go
+// @pure
 // 打包并发送 rtmp 信令
 
 import (
 	"bytes"
 	"github.com/q191201771/nezha/pkg/bele"
-	"github.com/q191201771/nezha/pkg/log"
 	"io"
 )
 
@@ -49,19 +50,14 @@ func (packer *MessagePacker) writeProtocolControlMessage(writer io.Writer, typeI
 }
 
 func (packer *MessagePacker) writeChunkSize(writer io.Writer, val int) error {
-	// TODO chef: 日志放这还是放在调用方更合适些
-	log.Infof("<----- SetChunkSize %d", val)
 	return packer.writeProtocolControlMessage(writer, typeidSetChunkSize, val)
 }
 
 func (packer *MessagePacker) writeWinAckSize(writer io.Writer, val int) error {
-	log.Infof("<----- Window Acknowledgement Size %d", val)
 	return packer.writeProtocolControlMessage(writer, typeidWinAckSize, val)
 }
 
 func (packer *MessagePacker) writePeerBandwidth(writer io.Writer, val int, limitType uint8) error {
-	log.Infof("<----- Set Peer Bandwidth")
-
 	packer.writeMessageHeader(csidProtocolControl, 5, typeidBandwidth, 0)
 	_ = bele.WriteBE(packer.b, uint32(val))
 	_ = packer.b.WriteByte(limitType)
@@ -70,8 +66,6 @@ func (packer *MessagePacker) writePeerBandwidth(writer io.Writer, val int, limit
 }
 
 func (packer *MessagePacker) writeConnect(writer io.Writer, appName, tcURL string) error {
-	log.Infof("<----- connect('%s')", appName)
-
 	packer.writeMessageHeader(csidOverConnection, 0, typeidCommandMessageAMF0, 0)
 	_ = AMF0.WriteString(packer.b, "connect")
 	_ = AMF0.WriteNumber(packer.b, float64(tidClientConnect))
@@ -91,8 +85,6 @@ func (packer *MessagePacker) writeConnect(writer io.Writer, appName, tcURL strin
 }
 
 func (packer *MessagePacker) writeConnectResult(writer io.Writer, tid int) error {
-	log.Infof("<----_result('NetConnection.Connect.Success')")
-
 	packer.writeMessageHeader(csidOverConnection, 190, typeidCommandMessageAMF0, 0)
 	_ = AMF0.WriteString(packer.b, "_result")
 	_ = AMF0.WriteNumber(packer.b, float64(tid))
@@ -113,8 +105,6 @@ func (packer *MessagePacker) writeConnectResult(writer io.Writer, tid int) error
 }
 
 func (packer *MessagePacker) writeCreateStream(writer io.Writer) error {
-	log.Info("<----- createStream()")
-
 	// 25 = 15 + 9 + 1
 	packer.writeMessageHeader(csidOverConnection, 25, typeidCommandMessageAMF0, 0)
 	_ = AMF0.WriteString(packer.b, "createStream")
@@ -125,8 +115,6 @@ func (packer *MessagePacker) writeCreateStream(writer io.Writer) error {
 }
 
 func (packer *MessagePacker) writeCreateStreamResult(writer io.Writer, tid int) error {
-	log.Info("<----_result()")
-
 	packer.writeMessageHeader(csidOverConnection, 29, typeidCommandMessageAMF0, 0)
 	_ = AMF0.WriteString(packer.b, "_result")
 	_ = AMF0.WriteNumber(packer.b, float64(tid))
@@ -137,8 +125,6 @@ func (packer *MessagePacker) writeCreateStreamResult(writer io.Writer, tid int) 
 }
 
 func (packer *MessagePacker) writePlay(writer io.Writer, streamName string, streamID int) error {
-	log.Infof("<----- play('%s')", streamName)
-
 	packer.writeMessageHeader(csidOverStream, 0, typeidCommandMessageAMF0, streamID)
 	_ = AMF0.WriteString(packer.b, "play")
 	_ = AMF0.WriteNumber(packer.b, float64(tidClientPlay))
@@ -152,8 +138,6 @@ func (packer *MessagePacker) writePlay(writer io.Writer, streamName string, stre
 }
 
 func (packer *MessagePacker) writePublish(writer io.Writer, appName string, streamName string, streamID int) error {
-	log.Infof("<----- publish('%s')", streamName)
-
 	packer.writeMessageHeader(csidOverStream, 0, typeidCommandMessageAMF0, streamID)
 	_ = AMF0.WriteString(packer.b, "publish")
 	_ = AMF0.WriteNumber(packer.b, float64(tidClientPublish))
@@ -168,8 +152,6 @@ func (packer *MessagePacker) writePublish(writer io.Writer, appName string, stre
 }
 
 func (packer *MessagePacker) writeOnStatusPublish(writer io.Writer, streamID int) error {
-	log.Infof("<----onStatus('NetStream.Publish.Start')")
-
 	packer.writeMessageHeader(csidOverStream, 105, typeidCommandMessageAMF0, streamID)
 	_ = AMF0.WriteString(packer.b, "onStatus")
 	_ = AMF0.WriteNumber(packer.b, 0)
@@ -185,8 +167,6 @@ func (packer *MessagePacker) writeOnStatusPublish(writer io.Writer, streamID int
 }
 
 func (packer *MessagePacker) writeOnStatusPlay(writer io.Writer, streamID int) error {
-	log.Infof("<----onStatus('NetStream.Play.Start')")
-
 	packer.writeMessageHeader(csidOverStream, 96, typeidCommandMessageAMF0, streamID)
 	_ = AMF0.WriteString(packer.b, "onStatus")
 	_ = AMF0.WriteNumber(packer.b, 0)

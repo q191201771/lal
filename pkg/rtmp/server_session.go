@@ -68,8 +68,10 @@ type ServerSession struct {
 }
 
 func NewServerSession(obs ServerSessionObserver, conn net.Conn) *ServerSession {
+	uk := unique.GenUniqueKey("RTMPPUBSUB")
+	log.Infof("lifecycle new rtmp.ServerSession. [%s]", uk)
 	return &ServerSession{
-		UniqueKey:     unique.GenUniqueKey("RTMPPUBSUB"),
+		UniqueKey:     uk,
 		obs:           obs,
 		t:             ServerSessionTypeUnknown,
 		chunkComposer: NewChunkComposer(),
@@ -99,6 +101,7 @@ func (s *ServerSession) RunLoop() (err error) {
 }
 
 func (s *ServerSession) Dispose() {
+	log.Infof("lifecycle dispose rtmp.ServerSession. [%s]", s.UniqueKey)
 	if atomic.LoadUint32(&s.hasClosedFlag) == 1 {
 		return
 	}
@@ -156,12 +159,17 @@ func (s *ServerSession) handshake() error {
 	if err := s.hs.ReadC0C1(s.rb); err != nil {
 		return err
 	}
+	log.Infof("-----> Handshake C0+C1. [%s]", s.UniqueKey)
+
+	log.Infof("<----- Handshake S0S1S2. [%s]", s.UniqueKey)
 	if err := s.hs.WriteS0S1S2(s.conn); err != nil {
 		return err
 	}
+
 	if err := s.hs.ReadC2(s.rb); err != nil {
 		return err
 	}
+	log.Infof("-----> Handshake C2. [%s]", s.UniqueKey)
 	return nil
 }
 
@@ -281,15 +289,22 @@ func (s *ServerSession) doConnect(tid int, stream *Stream) error {
 	}
 	log.Infof("-----> connect('%s'). [%s]", s.AppName, s.UniqueKey)
 
+	log.Infof("<----- Window Acknowledgement Size %d. [%s]", windowAcknowledgementSize, s.UniqueKey)
 	if err := s.packer.writeWinAckSize(s.conn, windowAcknowledgementSize); err != nil {
 		return err
 	}
+
+	log.Infof("<----- Set Peer Bandwidth. [%s]", s.UniqueKey)
 	if err := s.packer.writePeerBandwidth(s.conn, peerBandwidth, peerBandwidthLimitTypeDynamic); err != nil {
 		return err
 	}
+
+	log.Infof("<----- SetChunkSize %d. [%s]", LocalChunkSize, s.UniqueKey)
 	if err := s.packer.writeChunkSize(s.conn, LocalChunkSize); err != nil {
 		return err
 	}
+
+	log.Infof("<---- _result('NetConnection.Connect.Success'). [%s]", s.UniqueKey)
 	if err := s.packer.writeConnectResult(s.conn, tid); err != nil {
 		return err
 	}
@@ -297,7 +312,8 @@ func (s *ServerSession) doConnect(tid int, stream *Stream) error {
 }
 
 func (s *ServerSession) doCreateStream(tid int, stream *Stream) error {
-	log.Infof("-----> createStream() [%s]", s.UniqueKey)
+	log.Infof("-----> createStream(). [%s]", s.UniqueKey)
+	log.Infof("<---- _result(). [%s]", s.UniqueKey)
 	if err := s.packer.writeCreateStreamResult(s.conn, tid); err != nil {
 		return err
 	}
@@ -319,16 +335,15 @@ func (s *ServerSession) doPublish(tid int, stream *Stream) (err error) {
 	if err != nil {
 		return err
 	}
-	log.Debug(pubType)
+	log.Debugf("[%s] pubType=%s", s.UniqueKey, pubType)
 	log.Infof("-----> publish('%s') [%s]", s.StreamName, s.UniqueKey)
+
 	// TODO chef: hardcode streamID
+	log.Infof("<---- onStatus('NetStream.Publish.Start'). [%s]", s.UniqueKey)
 	if err := s.packer.writeOnStatusPublish(s.conn, 1); err != nil {
 		return err
 	}
 	s.t = ServerSessionTypePub
-	newUniqueKey := strings.Replace(s.UniqueKey, "RTMPPUBSUB", "RTMPPUB", 1)
-	log.Infof("session unique key upgrade. %s -> %s", s.UniqueKey, newUniqueKey)
-	s.UniqueKey = newUniqueKey
 	s.obs.NewRTMPPubSessionCB(s)
 	return nil
 }
@@ -344,16 +359,14 @@ func (s *ServerSession) doPlay(tid int, stream *Stream) (err error) {
 	ss := strings.Split(s.StreamNameWithRawQuery, "?")
 	s.StreamName = ss[0]
 
-	log.Infof("-----> play('%s') [%s]", s.StreamName, s.UniqueKey)
+	log.Infof("-----> play('%s'). [%s]", s.StreamName, s.UniqueKey)
 	// TODO chef: start duration reset
 
+	log.Infof("<----onStatus('NetStream.Play.Start'). [%s]", s.UniqueKey)
 	if err := s.packer.writeOnStatusPlay(s.conn, 1); err != nil {
 		return err
 	}
 	s.t = ServerSessionTypeSub
-	newUniqueKey := strings.Replace(s.UniqueKey, "RTMPPUBSUB", "RTMPSUB", 1)
-	log.Infof("session unique key upgrade. %s -> %s", s.UniqueKey, newUniqueKey)
-	s.UniqueKey = newUniqueKey
 	s.obs.NewRTMPSubSessionCB(s)
 	return nil
 }

@@ -29,7 +29,7 @@ type ClientSession struct {
 	appName                string
 	streamName             string
 	streamNameWithRawQuery string
-	hs                     HandshakeClient
+	hc                     HandshakeClientSimple
 	peerWinAckSize         int
 
 	Conn  connection.Connection
@@ -62,8 +62,10 @@ func NewClientSession(t ClientSessionType, obs PullSessionObserver, timeout Clie
 	case CSTPushSession:
 		uk = "RTMPPUSH"
 	}
+	log.Infof("lifecycle new rtmp client session. [%s]", uk)
 
 	return &ClientSession{
+		UniqueKey:     unique.GenUniqueKey(uk),
 		t:             t,
 		obs:           obs,
 		timeout:       timeout,
@@ -71,7 +73,6 @@ func NewClientSession(t ClientSessionType, obs PullSessionObserver, timeout Clie
 		errChan:       make(chan error),
 		packer:        NewMessagePacker(),
 		chunkComposer: NewChunkComposer(),
-		UniqueKey:     unique.GenUniqueKey(uk),
 		wChan:         make(chan []byte, wChanSize),
 	}
 }
@@ -103,10 +104,14 @@ func (s *ClientSession) do(rawURL string) <-chan error {
 		ch <- err
 		return ch
 	}
+
+	log.Infof("<----- SetChunkSize %d. [%s]", LocalChunkSize, s.UniqueKey)
 	if err := s.packer.writeChunkSize(s.Conn, LocalChunkSize); err != nil {
 		ch <- err
 		return ch
 	}
+
+	log.Infof("<----- connect('%s'). [%s]", s.appName, s.UniqueKey)
 	if err := s.packer.writeConnect(s.Conn, s.appName, s.tcURL); err != nil {
 		ch <- err
 		return ch
@@ -269,6 +274,7 @@ func (s *ClientSession) doResultMessage(stream *Stream, tid int) error {
 		switch code {
 		case "NetConnection.Connect.Success":
 			log.Infof("-----> _result(\"NetConnection.Connect.Success\"). [%s]", s.UniqueKey)
+			log.Infof("<----- createStream(). [%s]", s.UniqueKey)
 			if err := s.packer.writeCreateStream(s.Conn); err != nil {
 				return err
 			}
@@ -287,10 +293,12 @@ func (s *ClientSession) doResultMessage(stream *Stream, tid int) error {
 		log.Infof("-----> _result(). [%s]", s.UniqueKey)
 		switch s.t {
 		case CSTPullSession:
+			log.Infof("<----- play('%s'). [%s]", s.streamNameWithRawQuery, s.UniqueKey)
 			if err := s.packer.writePlay(s.Conn, s.streamNameWithRawQuery, sid); err != nil {
 				return err
 			}
 		case CSTPushSession:
+			log.Infof("<----- publish('%s')", s.streamNameWithRawQuery, s.UniqueKey)
 			if err := s.packer.writePublish(s.Conn, s.appName, s.streamNameWithRawQuery, sid); err != nil {
 				return err
 			}
@@ -354,13 +362,18 @@ func (s *ClientSession) parseURL(rawURL string) error {
 }
 
 func (s *ClientSession) handshake() error {
-	if err := s.hs.WriteC0C1(s.Conn); err != nil {
+	log.Infof("<----- Handshake C0+C1. [%s]", s.UniqueKey)
+	if err := s.hc.WriteC0C1(s.Conn); err != nil {
 		return err
 	}
-	if err := s.hs.ReadS0S1S2(s.Conn); err != nil {
+
+	if err := s.hc.ReadS0S1S2(s.Conn); err != nil {
 		return err
 	}
-	if err := s.hs.WriteC2(s.Conn); err != nil {
+	log.Infof("-----> Handshake S0+S1+S2. [%s]", s.UniqueKey)
+
+	log.Infof("<----- Handshake C2. [%s]", s.UniqueKey)
+	if err := s.hc.WriteC2(s.Conn); err != nil {
 		return err
 	}
 	return nil

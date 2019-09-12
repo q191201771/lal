@@ -6,10 +6,14 @@ package rtmp
 
 import (
 	"bytes"
+	"errors"
 	"github.com/q191201771/nezha/pkg/bele"
 	"io"
+)
 
-	"errors"
+var (
+	ErrAMFInvalidType = errors.New("lal.AMF0: invalid type.")
+	ErrAMFTooShort    = errors.New("lal.AMF0: too short.")
 )
 
 const (
@@ -21,24 +25,19 @@ const (
 	AMF0TypeMarkerObjectEnd  = uint8(0x09)
 	AMF0TypeMarkerLongString = uint8(0x0c)
 
-	AMF0TypeMarkerMovieclip   = uint8(0x04)
-	AMF0TypeMarkerUndefined   = uint8(0x06)
-	AMF0TypeMarkerReference   = uint8(0x07)
-	AMF0TypeMarkerEcmaArray   = uint8(0x08)
-	AMF0TypeMarkerStrictArray = uint8(0x0a)
-	AMF0TypeMarkerData        = uint8(0x0b)
-	AMF0TypeMarkerUnsupported = uint8(0x0d)
-	AMF0TypeMarkerRecordset   = uint8(0x0e)
-	AMF0TypeMarkerXmlDocument = uint8(0x0f)
-	AMF0TypeMarkerTypedObject = uint8(0x10)
+	//AMF0TypeMarkerMovieclip   = uint8(0x04)
+	//AMF0TypeMarkerUndefined   = uint8(0x06)
+	//AMF0TypeMarkerReference   = uint8(0x07)
+	//AMF0TypeMarkerEcmaArray   = uint8(0x08)
+	//AMF0TypeMarkerStrictArray = uint8(0x0a)
+	//AMF0TypeMarkerData        = uint8(0x0b)
+	//AMF0TypeMarkerUnsupported = uint8(0x0d)
+	//AMF0TypeMarkerRecordset   = uint8(0x0e)
+	//AMF0TypeMarkerXmlDocument = uint8(0x0f)
+	//AMF0TypeMarkerTypedObject = uint8(0x10)
 )
 
 var AMF0TypeMarkerObjectEndBytes = []byte{0, 0, AMF0TypeMarkerObjectEnd}
-
-var (
-	ErrAMFInvalidType = errors.New("lal.AMF0: invalid type.")
-	ErrAMFTooShort    = errors.New("lal.AMF0: too short.")
-)
 
 type ObjectPair struct {
 	key   string

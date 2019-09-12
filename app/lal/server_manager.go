@@ -52,42 +52,40 @@ func (sm *ServerManager) RunLoop() {
 
 	t := time.NewTicker(1 * time.Second)
 	defer t.Stop()
-	// TODO chef: erase me, just for debug
-	tmpT := time.NewTicker(10 * time.Second)
-	defer tmpT.Stop()
+	var count uint32
 	for {
 		select {
 		case <-sm.exitChan:
 			return
 		case <-t.C:
 			sm.check()
-		case <-tmpT.C:
-			// TODO chef: lock
-			log.Infof("group size:%d", len(sm.groupManagerMap))
+			count++
+			if (count % 10) == 0 {
+				sm.mutex.Lock()
+				log.Infof("group size:%d", len(sm.groupManagerMap))
+				sm.mutex.Unlock()
+			}
 		}
 	}
 }
 
 func (sm *ServerManager) Dispose() {
-	log.Debug("Dispose manager.")
+	log.Debug("dispose server manager.")
 	if sm.httpFlvServer != nil {
 		sm.httpFlvServer.Dispose()
 	}
-	sm.rtmpServer.Dispose()
-	sm.exitChan <- true
+	if sm.rtmpServer != nil {
+		sm.rtmpServer.Dispose()
+	}
+
 	sm.mutex.Lock()
-	defer sm.mutex.Unlock()
 	for _, gm := range sm.groupManagerMap {
 		gm.Dispose(lalErr)
 	}
 	sm.groupManagerMap = nil
-}
+	sm.mutex.Unlock()
 
-// ServerObserver of httpflv.Server
-func (sm *ServerManager) NewHTTPFlvSubSessionCB(session *httpflv.SubSession, httpFlvGroup *httpflv.Group) bool {
-	gm := sm.getOrCreateGroupManager(session.AppName, session.StreamName)
-	gm.AddHTTPFlvSubSession(session, httpFlvGroup)
-	return true
+	sm.exitChan <- true
 }
 
 // ServerObserver of rtmp.Server
@@ -103,12 +101,19 @@ func (sm *ServerManager) NewRTMPSubSessionCB(session *rtmp.ServerSession, rtmpGr
 	return true
 }
 
+// ServerObserver of httpflv.Server
+func (sm *ServerManager) NewHTTPFlvSubSessionCB(session *httpflv.SubSession, httpFlvGroup *httpflv.Group) bool {
+	gm := sm.getOrCreateGroupManager(session.AppName, session.StreamName)
+	gm.AddHTTPFlvSubSession(session, httpFlvGroup)
+	return true
+}
+
 func (sm *ServerManager) check() {
 	sm.mutex.Lock()
 	defer sm.mutex.Unlock()
 	for k, gm := range sm.groupManagerMap {
 		if gm.IsTotalEmpty() {
-			log.Infof("erase empty group. [%s]", gm.UniqueKey)
+			log.Infof("erase empty group manager. [%s]", gm.UniqueKey)
 			gm.Dispose(lalErr)
 			delete(sm.groupManagerMap, k)
 		}

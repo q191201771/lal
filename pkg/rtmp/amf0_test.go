@@ -238,3 +238,28 @@ func TestAMF0Corner(t *testing.T) {
 	}
 	_ = AMF0.WriteObject(mw, objs)
 }
+
+func BenchmarkAmf0_ReadObject(b *testing.B) {
+	out := &bytes.Buffer{}
+	objs := []ObjectPair{
+		{"air", 3},
+		{"ban", "cat"},
+		{"dog", true},
+	}
+	_ = AMF0.WriteObject(out, objs)
+	for i := 0; i < b.N; i++ {
+		_, _, _ = AMF0.ReadObject(out.Bytes())
+	}
+}
+
+func BenchmarkAmf0_WriteObject(b *testing.B) {
+	out := &bytes.Buffer{}
+	objs := []ObjectPair{
+		{"air", 3},
+		{"ban", "cat"},
+		{"dog", true},
+	}
+	for i := 0; i < b.N; i++ {
+		_ = AMF0.WriteObject(out, objs)
+	}
+}

@@ -34,7 +34,7 @@ func parseFlag() string {
 	flag.Parse()
 	if *binInfoFlag {
 		_, _ = fmt.Fprint(os.Stderr, bininfo.StringifyMultiLine())
-		os.Exit(1)
+		os.Exit(0)
 	}
 	if *cf == "" {
 		flag.Usage()
@@ -62,8 +62,10 @@ func loadConf(confFile string) *Config {
 }
 
 func runWebPProf() {
-	log.Info("start web pprof listen. addr=:10001")
-	if err := http.ListenAndServe("0.0.0.0:10001", nil); err != nil {
+	// TODO chef: config me
+	addr := ":10001"
+	log.Infof("start web pprof listen. addr=%s", addr)
+	if err := http.ListenAndServe(addr, nil); err != nil {
 		log.Error(err)
 		return
 	}

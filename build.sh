@@ -21,17 +21,12 @@ LDFlags=" \
     -X 'github.com/q191201771/nezha/pkg/bininfo.BuildGoVersion=${BuildGoVersion}' \
 "
 
-cd ${ROOT_DIR}/app/lal && go build -ldflags "$LDFlags" -o ${ROOT_DIR}/bin/lal
-
-cd ${ROOT_DIR}/app/flvfile2rtmppush && go build -ldflags "$LDFlags" -o ${ROOT_DIR}/bin/flvfile2rtmppush
-
-cd ${ROOT_DIR}/app/flvfile2es && go build -o ${ROOT_DIR}/bin/flvfile2es
-
-cd ${ROOT_DIR}/app/httpflvpull && go build -o ${ROOT_DIR}/bin/httpflvpull
-
-cd ${ROOT_DIR}/app/modflvfile && go build -o ${ROOT_DIR}/bin/modflvfile
-
-cd ${ROOT_DIR}/app/rtmppull && go build -o ${ROOT_DIR}/bin/rtmppull
-
-${ROOT_DIR}/bin/lal -v
-ls -lrt ${ROOT_DIR}/bin
+cd ${ROOT_DIR}/app/lal && go build -ldflags "$LDFlags" -o ${ROOT_DIR}/bin/lal &&
+cd ${ROOT_DIR}/app/flvfile2rtmppush && go build -ldflags "$LDFlags" -o ${ROOT_DIR}/bin/flvfile2rtmppush &&
+cd ${ROOT_DIR}/app/flvfile2es && go build -o ${ROOT_DIR}/bin/flvfile2es &&
+cd ${ROOT_DIR}/app/httpflvpull && go build -o ${ROOT_DIR}/bin/httpflvpull &&
+cd ${ROOT_DIR}/app/modflvfile && go build -o ${ROOT_DIR}/bin/modflvfile &&
+cd ${ROOT_DIR}/app/rtmppull && go build -o ${ROOT_DIR}/bin/rtmppull &&
+${ROOT_DIR}/bin/lal -v &&
+ls -lrt ${ROOT_DIR}/bin &&
+echo 'build done.'

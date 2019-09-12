@@ -17,29 +17,30 @@ type Group struct {
 	appName    string
 	streamName string
 
+	exitChan chan struct{}
+
+	mutex sync.Mutex
 	pubSession      *ServerSession
 	pullSession     *PullSession
 	subSessionSet   map[*ServerSession]struct{}
-	prevAudioHeader *Header
-	prevVideoHeader *Header
-
+	obs GroupObserver
+	//prevAudioHeader *Header
+	//prevVideoHeader *Header
 	// TODO chef:
 	metadata        []byte
 	avcKeySeqHeader []byte
 	aacSeqHeader    []byte
 
-	mutex sync.Mutex
-
-	obs GroupObserver
 }
 
 func NewGroup(appName string, streamName string) *Group {
 	uk := unique.GenUniqueKey("RTMPGROUP")
-	log.Debugf("new group. [%s] appName=%s, streamName=%s", uk, appName, streamName)
+	log.Infof("lifecycle new rtmp.Group. [%s] appName=%s, streamName=%s", uk, appName, streamName)
 	return &Group{
 		UniqueKey:     uk,
 		appName:       appName,
 		streamName:    streamName,
+		exitChan: make(chan struct{}, 1),
 		subSessionSet: make(map[*ServerSession]struct{}),
 	}
 }
@@ -50,6 +51,8 @@ func (group *Group) RunLoop() {
 
 	for {
 		select {
+		case <-group.exitChan:
+			break
 		case <-t.C:
 			//noop
 		}
@@ -57,7 +60,18 @@ func (group *Group) RunLoop() {
 }
 
 func (group *Group) Dispose() {
+	log.Infof("lifecycle dispose rtmp.Group. [%s]", group.UniqueKey)
+	group.exitChan <- struct{}{}
 
+	group.mutex.Lock()
+	defer group.mutex.Unlock()
+	if group.pubSession != nil {
+		group.pubSession.Dispose()
+	}
+	// TODO chef: dispose pull session
+	for session := range group.subSessionSet {
+		session.Dispose()
+	}
 }
 
 func (group *Group) AddPubSession(session *ServerSession) {

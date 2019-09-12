@@ -6,9 +6,9 @@ import (
 	"testing"
 )
 
-func TestAll(t *testing.T) {
+func TestHandshakeSimple(t *testing.T) {
 	var err error
-	var hc HandshakeClient
+	var hc HandshakeClientSimple
 	var hs HandshakeServer
 	b := &bytes.Buffer{}
 	err = hc.WriteC0C1(b)
@@ -23,4 +23,51 @@ func TestAll(t *testing.T) {
 	assert.Equal(t, nil, err)
 	err = hs.ReadC2(b)
 	assert.Equal(t, nil, err)
+}
+
+func TestHandshakeComplex(t *testing.T) {
+	var err error
+	var hc HandshakeClientComplex
+	var hs HandshakeServer
+	b := &bytes.Buffer{}
+	err = hc.WriteC0C1(b)
+	assert.Equal(t, nil, err)
+	err = hs.ReadC0C1(b)
+	assert.Equal(t, nil, err)
+	err = hs.WriteS0S1S2(b)
+	assert.Equal(t, nil, err)
+	err = hc.ReadS0S1S2(b)
+	assert.Equal(t, nil, err)
+	err = hc.WriteC2(b)
+	assert.Equal(t, nil, err)
+	err = hs.ReadC2(b)
+	assert.Equal(t, nil, err)
+}
+
+func BenchmarkHandshakeSimple(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		var hc HandshakeClientSimple
+		var hs HandshakeServer
+		b := &bytes.Buffer{}
+		_ = hc.WriteC0C1(b)
+		_ = hs.ReadC0C1(b)
+		_ = hs.WriteS0S1S2(b)
+		_ = hc.ReadS0S1S2(b)
+		_ = hc.WriteC2(b)
+		_ = hs.ReadC2(b)
+	}
+}
+
+func BenchmarkHandshakeComplex(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		var hc HandshakeClientComplex
+		var hs HandshakeServer
+		b := &bytes.Buffer{}
+		_ = hc.WriteC0C1(b)
+		_ = hs.ReadC0C1(b)
+		_ = hs.WriteS0S1S2(b)
+		_ = hc.ReadS0S1S2(b)
+		_ = hc.WriteC2(b)
+		_ = hs.ReadC2(b)
+	}
 }

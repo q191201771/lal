@@ -46,18 +46,20 @@ func (server *Server) RunLoop() error {
 }
 
 func (server *Server) Dispose() {
-	// TODO chef: close groupMap
-
 	if err := server.ln.Close(); err != nil {
 		log.Error(err)
+	}
+	server.mutex.Lock()
+	defer server.mutex.Unlock()
+	for _, g := range server.groupMap {
+		g.Dispose()
 	}
 }
 
 func (server *Server) handleTCPConnect(conn net.Conn) {
 	log.Infof("accept a rtmp connection. remoteAddr=%v", conn.RemoteAddr())
 	session := NewServerSession(server, conn)
-	err := session.RunLoop()
-	log.Infof("close a rtmp session. type=%s, err=%v", session.ReadableType(), err)
+	_ = session.RunLoop()
 	switch session.t {
 	case ServerSessionTypeUnknown:
 	// noop
