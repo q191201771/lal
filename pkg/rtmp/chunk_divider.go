@@ -8,15 +8,14 @@ import (
 	"github.com/q191201771/nezha/pkg/bele"
 )
 
-// TODO chef: 新的message的第一个chunk始终使用fmt0格式，不参考前一个message
+// TODO chef: 新的message的第一个chunk始终使用fmt0格式，没有参考前一个message
 func Message2Chunks(message []byte, header *Header, chunkSize int) []byte {
 	return message2Chunks(message, header, nil, chunkSize)
 }
 
-// TODO chef: 返回值直接传入
-func calcHeader(header *Header, prevHeader *Header) []byte {
+// @param 返回头的大小
+func calcHeader(header *Header, prevHeader *Header, out []byte) int {
 	var index int
-	out := make([]byte, 16)
 
 	// 计算fmt和timestamp
 	fmt := uint8(0)
@@ -69,9 +68,9 @@ func calcHeader(header *Header, prevHeader *Header) []byte {
 		index += 3
 
 		if fmt <= 1 {
-			bele.BEPutUint24(out[index:], uint32(header.MsgLen))
+			bele.BEPutUint24(out[index:], header.MsgLen)
 			index += 3
-			out[index] = uint8(header.MsgTypeID)
+			out[index] = header.MsgTypeID
 			index++
 
 			if fmt == 0 {
@@ -88,7 +87,7 @@ func calcHeader(header *Header, prevHeader *Header) []byte {
 		index += 4
 	}
 
-	return out[0:index]
+	return index
 }
 
 func message2Chunks(message []byte, header *Header, prevHeader *Header, chunkSize int) []byte {
@@ -112,9 +111,8 @@ func message2Chunks(message []byte, header *Header, prevHeader *Header, chunkSiz
 	// NOTICE 和srs交互时，发现srs要求message中的非第一个chunk不能使用fmt0
 	// 将message切割成chunk放入chunk body中
 	for i := 0; i < numOfChunk; i++ {
-		head := calcHeader(header, prevHeader)
-		copy(out[index:], head)
-		index += len(head)
+		headLen := calcHeader(header, prevHeader, out[index:])
+		index += headLen
 
 		if i != numOfChunk-1 {
 			copy(out[index:], message[i*chunkSize:i*chunkSize+chunkSize])

@@ -189,7 +189,6 @@ func (s *ClientSession) doDataMessageAMF0(stream *Stream) error {
 	case "|RtmpSampleAccess": // TODO chef: handle this?
 		return nil
 	default:
-		// TODO chef:
 		log.Error(val)
 		log.Error(hex.Dump(stream.msg.buf[stream.msg.b:stream.msg.e]))
 	}
@@ -298,7 +297,7 @@ func (s *ClientSession) doResultMessage(stream *Stream, tid int) error {
 				return err
 			}
 		case CSTPushSession:
-			log.Infof("<----- publish('%s')", s.streamNameWithRawQuery, s.UniqueKey)
+			log.Infof("<----- publish('%s'). [%s]", s.streamNameWithRawQuery, s.UniqueKey)
 			if err := s.packer.writePublish(s.Conn, s.appName, s.streamNameWithRawQuery, sid); err != nil {
 				return err
 			}
@@ -356,7 +355,7 @@ func (s *ClientSession) parseURL(rawURL string) error {
 	} else {
 		s.streamNameWithRawQuery = s.streamName + "?" + s.url.RawQuery
 	}
-	log.Debugf("%s %s %s %+v", s.tcURL, s.appName, s.streamNameWithRawQuery, *s.url)
+	log.Debugf("parseURL. [%s] %s %s %s %+v", s.UniqueKey, s.tcURL, s.appName, s.streamNameWithRawQuery, *s.url)
 
 	return nil
 }
@@ -393,7 +392,6 @@ func (s *ClientSession) tcpConnect() error {
 		return err
 	}
 
-	// TODO chef: 超时由接口设置
 	s.Conn = connection.New(conn, connection.Config{
 		ReadBufSize: readBufSize,
 	})

@@ -32,11 +32,11 @@ Go语言编写的流媒体 库 / 客户端 / 服务端
 ```
 app/                  ......各种main包的源码文件，一个子目录对应一个main包，即对应可生成一个可执行文件
 |-- lal/              ......[最重要的] 流媒体服务器
+|-- flvfile2es        ......将本地flv文件分离成h264/avc es流文件以及aac es流文件
 |-- flvfile2rtmppush  ......rtmp推流客户端，输入是本地flv文件，文件推送完毕后，可循环推送（rtmp push流并不断开）
-|-- rtmppull          ......rtmp拉流客户端
 |-- httpflvpull       ......http-flv拉流客户端
 |-- modflvfile        ......修改本地flv文件
-|-- flvfile2es        ......将本地flv文件分离成h264/avc es流文件以及aac es流文件
+|-- rtmppull          ......rtmp拉流客户端，存储为本地flv文件
 pkg/                  ......源码包
 |-- aac/              ......音频aac编解码格式相关
 |-- avc/              ......视频avc h264编解码格式相关
@@ -67,12 +67,29 @@ $git clone https://github.com/q191201771/lal.git && cd lal && ./build.sh
     "addr": ":19350" // rtmp服务监听的端口
   },
   "log": {
-    "level": 0,                   // 日志级别，0 debug 1 info 2 warn 3 error
+    "level": 1,                   // 日志级别，1 debug, 2 info, 3 warn, 4 error, 5 fatal
     "filename": "./logs/lal.log", // 日志输出文件
     "is_to_stdout": true,         // 是否打印至标志控制台输出
-    "rotate_mbyte": 1024          // 日志按大小翻滚
+    "is_rotate_daily": true,      // 日志按天翻滚
+    "short_file_flag": true       // 日志末尾是否携带源码文件名以及行号的信息
   }
 }
+```
+
+### 测试过的客户端
+
+```
+推流端：
+- OBS 21.0.3(mac)
+- ffmpeg 3.4.2(mac)
+- srs-bench (srs项目配套的一个压测工具)
+- flvfile2rtmppush (lal app中的rtmp推流客户端)
+
+拉流端：
+- VLC 2.2.6(mac)
+- MPV 0.29.1(mac)
+- ffmpeg 3.4.2(mac)
+- srs-bench (srs项目配套的一个压测工具)
 ```
 
 #### roadmap

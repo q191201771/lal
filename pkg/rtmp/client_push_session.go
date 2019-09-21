@@ -23,5 +23,3 @@ func NewPushSession(timeout PushSessionTimeout) *PushSession {
 func (s *PushSession) Push(rawURL string) error {
 	return s.Do(rawURL)
 }
-
-// TODO chef: add function to write av data

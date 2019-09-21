@@ -1,4 +1,4 @@
-package main
+package logic
 
 import (
 	"encoding/json"
@@ -7,21 +7,27 @@ import (
 )
 
 type Config struct {
-	RTMP RTMP `json:"rtmp"`
-	Log log.Config
+	RTMP  RTMP       `json:"rtmp"`
+	Log   log.Config `json:"log"`
+	PProf PProf      `json:"pprof"`
 
+	// v1.0.0之前不提供
 	SubIdleTimeout int64   `json:"sub_idle_timeout"`
 	GOPCacheNum    int     `json:"gop_cache_number"`
 	HTTPFlv        HTTPFlv `json:"httpflv"`
 	Pull           Pull    `json:"pull"`
 }
 
-type HTTPFlv struct {
-	SubListenAddr string `json:"sub_listen_addr"`
-}
-
 type RTMP struct {
 	Addr string `json:"addr"`
+}
+
+type PProf struct {
+	Addr string `json:"addr"`
+}
+
+type HTTPFlv struct {
+	SubListenAddr string `json:"sub_listen_addr"`
 }
 
 type Pull struct {

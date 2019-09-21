@@ -68,9 +68,9 @@ func main() {
 
 			// TODO chef: 转换代码放入lal某个包中
 			var h rtmp.Header
-			h.MsgLen = int(tag.Header.DataSize) //len(tag.Raw)-httpflv.TagHeaderSize
+			h.MsgLen = tag.Header.DataSize //len(tag.Raw)-httpflv.TagHeaderSize
 
-			h.MsgTypeID = int(tag.Header.T)
+			h.MsgTypeID = tag.Header.T
 			h.MsgStreamID = rtmp.MSID1
 			switch tag.Header.T {
 			case httpflv.TagTypeMetadata:

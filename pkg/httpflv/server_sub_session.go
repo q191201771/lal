@@ -158,7 +158,7 @@ func (session *SubSession) Dispose(err error) {
 		atomic.StoreUint32(&session.hasClosedFlag, 1)
 		close(session.exitChan)
 		if err := session.conn.Close(); err != nil {
-			log.Error("conn close error. [%s] err=%v", session.UniqueKey, err)
+			log.Errorf("conn close error. [%s] err=%v", session.UniqueKey, err)
 		}
 	})
 }

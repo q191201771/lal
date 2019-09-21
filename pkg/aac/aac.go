@@ -22,12 +22,13 @@ type ADTS struct {
 // 传入 AAC Sequence Header，一会生成 ADTS 头时需要使用
 // @param <payload> rtmp message payload，包含前面2个字节
 func (obj *ADTS) PutAACSequenceHeader(payload []byte) {
+	log.Debugf(hex.Dump(payload[:4]))
 	soundFormat := payload[0] >> 4        // 10=AAC
 	soundRate := (payload[0] >> 2) & 0x03 // 3=44kHz. For AAC: always 3
 	soundSize := (payload[0] >> 1) & 0x01 // 0=snd8Bit 1=snd16Bit
 	soundType := payload[0] & 0x01        // For AAC: always 1
-
-	//aacPacketType := payload[1] // 0:sequence header 1:AAC raw
+	aacPacketType := payload[1]           // 0:sequence header 1:AAC raw
+	log.Debugf("%d %d %d %d %d", soundFormat, soundRate, soundSize, soundType, aacPacketType)
 
 	obj.audioObjectType = (payload[2] & 0xf8) >> 3                              // 5bit 编码结构类型
 	obj.samplingFrequencyIndex = ((payload[2] & 0x07) << 1) | (payload[3] >> 7) // 4bit 音频采样率索引值
@@ -35,9 +36,6 @@ func (obj *ADTS) PutAACSequenceHeader(payload []byte) {
 	obj.frameLengthFlag = (payload[3] & 0x04) >> 2                              // 1bit
 	obj.dependOnCoreCoder = (payload[3] & 0x02) >> 1                            // 1bit
 	obj.extensionFlag = payload[3] & 0x01                                       // 1bit
-
-	log.Debugf(hex.Dump(payload[:4]))
-	log.Debugf("%d %d %d %d", soundFormat, soundRate, soundSize, soundType)
 	log.Debugf("%+v", obj)
 }
 

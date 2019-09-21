@@ -64,7 +64,7 @@ func (session *PullSession) Dispose(err error) {
 	session.closeOnce.Do(func() {
 		log.Infof("lifecycle dispose PullSession. [%s] reason=%v", session.UniqueKey, err)
 		if err := session.Conn.Close(); err != nil {
-			log.Error("conn close error. [%s] err=%v", session.UniqueKey, err)
+			log.Errorf("conn close error. [%s] err=%v", session.UniqueKey, err)
 		}
 	})
 }

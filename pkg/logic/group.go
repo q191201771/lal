@@ -1,15 +1,13 @@
-package rtmp
+package logic
 
 import (
+	"github.com/q191201771/lal/pkg/httpflv"
+	"github.com/q191201771/lal/pkg/rtmp"
 	"github.com/q191201771/nezha/pkg/log"
 	"github.com/q191201771/nezha/pkg/unique"
 	"sync"
 	"time"
 )
-
-type GroupObserver interface {
-	AVMsgObserver
-}
 
 type Group struct {
 	UniqueKey string
@@ -19,29 +17,27 @@ type Group struct {
 
 	exitChan chan struct{}
 
-	mutex sync.Mutex
-	pubSession      *ServerSession
-	pullSession     *PullSession
-	subSessionSet   map[*ServerSession]struct{}
-	obs GroupObserver
-	//prevAudioHeader *Header
-	//prevVideoHeader *Header
+	mutex         sync.Mutex
+	pubSession    *rtmp.ServerSession
+	pullSession   *rtmp.PullSession
+	subSessionSet map[*rtmp.ServerSession]struct{}
 	// TODO chef:
 	metadata        []byte
 	avcKeySeqHeader []byte
 	aacSeqHeader    []byte
-
 }
+
+var _ rtmp.PubSessionObserver = &Group{}
 
 func NewGroup(appName string, streamName string) *Group {
 	uk := unique.GenUniqueKey("RTMPGROUP")
-	log.Infof("lifecycle new rtmp.Group. [%s] appName=%s, streamName=%s", uk, appName, streamName)
+	log.Infof("lifecycle new group. [%s] appName=%s, streamName=%s", uk, appName, streamName)
 	return &Group{
 		UniqueKey:     uk,
 		appName:       appName,
 		streamName:    streamName,
-		exitChan: make(chan struct{}, 1),
-		subSessionSet: make(map[*ServerSession]struct{}),
+		exitChan:      make(chan struct{}, 1),
+		subSessionSet: make(map[*rtmp.ServerSession]struct{}),
 	}
 }
 
@@ -59,8 +55,8 @@ func (group *Group) RunLoop() {
 	}
 }
 
-func (group *Group) Dispose() {
-	log.Infof("lifecycle dispose rtmp.Group. [%s]", group.UniqueKey)
+func (group *Group) Dispose(err error) {
+	log.Infof("lifecycle dispose group. [%s]", group.UniqueKey)
 	group.exitChan <- struct{}{}
 
 	group.mutex.Lock()
@@ -68,47 +64,55 @@ func (group *Group) Dispose() {
 	if group.pubSession != nil {
 		group.pubSession.Dispose()
 	}
-	// TODO chef: dispose pull session
 	for session := range group.subSessionSet {
 		session.Dispose()
 	}
 }
 
-func (group *Group) AddPubSession(session *ServerSession) {
+func (group *Group) AddRTMPPubSession(session *rtmp.ServerSession) bool {
 	log.Debugf("add PubSession into group. [%s] [%s]", group.UniqueKey, session.UniqueKey)
 	group.mutex.Lock()
 	if group.pubSession != nil {
 		log.Errorf("PubSession already exist in group. [%s] old=%s, new=%s", group.UniqueKey, group.pubSession.UniqueKey, session.UniqueKey)
+		return false
 	}
 
 	group.pubSession = session
 	group.mutex.Unlock()
 	session.SetPubSessionObserver(group)
+	return true
 }
 
-func (group *Group) AddSubSession(session *ServerSession) {
+func (group *Group) AddRTMPSubSession(session *rtmp.ServerSession) {
 	log.Debugf("add SubSession into group. [%s] [%s]", group.UniqueKey, session.UniqueKey)
 	group.mutex.Lock()
+	defer group.mutex.Unlock()
 	group.subSessionSet[session] = struct{}{}
-	group.mutex.Unlock()
 
 	// TODO chef: 多长没有拉流session存在的功能
 	//group.turnToEmptyTick = 0
 }
 
-func (group *Group) DelPubSession(session *ServerSession) {
+func (group *Group) DelRTMPPubSession(session *rtmp.ServerSession) {
 	log.Debugf("del PubSession from group. [%s] [%s]", group.UniqueKey, session.UniqueKey)
 	group.mutex.Lock()
+	defer group.mutex.Unlock()
 	group.pubSession = nil
-	group.mutex.Unlock()
+	group.metadata = nil
+	group.avcKeySeqHeader = nil
+	group.aacSeqHeader = nil
 
 }
 
-func (group *Group) DelSubSession(session *ServerSession) {
+func (group *Group) DelRTMPSubSession(session *rtmp.ServerSession) {
 	log.Debugf("del SubSession from group. [%s] [%s]", group.UniqueKey, session.UniqueKey)
 	group.mutex.Lock()
+	defer group.mutex.Unlock()
 	delete(group.subSessionSet, session)
-	group.mutex.Unlock()
+}
+
+func (group *Group) AddHTTPFlvSubSession(session *httpflv.SubSession, httpFlvGroup *httpflv.Group) {
+	panic("not impl")
 }
 
 func (group *Group) Pull(addr string, connectTimeout int64) {
@@ -148,39 +152,30 @@ func (group *Group) IsInExist() bool {
 	return group.pubSession != nil
 }
 
-func (group *Group) SetObserver(obs GroupObserver) {
-	group.obs = obs
-}
-
 // PubSession or PullSession
-func (group *Group) ReadRTMPAVMsgCB(header Header, timestampAbs uint32, message []byte) {
+func (group *Group) ReadRTMPAVMsgCB(header rtmp.Header, timestampAbs uint32, message []byte) {
 	group.mutex.Lock()
 	defer group.mutex.Unlock()
-
 	group.broadcastRTMP2RTMP(header, timestampAbs, message)
-
-	if group.obs != nil {
-		group.obs.ReadRTMPAVMsgCB(header, timestampAbs, message)
-	}
 }
 
-func (group *Group) broadcastRTMP2RTMP(header Header, timestampAbs uint32, message []byte) {
-	//log.Infof("%+v", header)
+func (group *Group) broadcastRTMP2RTMP(header rtmp.Header, timestampAbs uint32, message []byte) {
+	log.Infof("%+v", header)
 	// # 1. 设置好头部信息
-	var currHeader Header
-	currHeader.MsgLen = len(message)
+	var currHeader rtmp.Header
+	currHeader.MsgLen = uint32(len(message))
 	currHeader.Timestamp = timestampAbs
 	currHeader.MsgTypeID = header.MsgTypeID
-	currHeader.MsgStreamID = MSID1
+	currHeader.MsgStreamID = rtmp.MSID1
 	switch header.MsgTypeID {
-	case TypeidDataMessageAMF0:
-		currHeader.CSID = CSIDAMF
+	case rtmp.TypeidDataMessageAMF0:
+		currHeader.CSID = rtmp.CSIDAMF
 		//prevHeader = nil
-	case TypeidAudio:
-		currHeader.CSID = CSIDAudio
+	case rtmp.TypeidAudio:
+		currHeader.CSID = rtmp.CSIDAudio
 		//prevHeader = group.prevAudioHeader
-	case TypeidVideo:
-		currHeader.CSID = CSIDVideo
+	case rtmp.TypeidVideo:
+		currHeader.CSID = rtmp.CSIDVideo
 		//prevHeader = group.prevVideoHeader
 	}
 
@@ -190,11 +185,11 @@ func (group *Group) broadcastRTMP2RTMP(header Header, timestampAbs uint32, messa
 	for session := range group.subSessionSet {
 		// ## 2.1. 一个message广播给多个sub session时，只做一次chunk切割
 		if absChunks == nil {
-			absChunks = Message2Chunks(message, &currHeader, LocalChunkSize)
+			absChunks = rtmp.Message2Chunks(message, &currHeader, rtmp.LocalChunkSize)
 		}
 
 		// ## 2.2. 如果是新的sub session，发送已缓存的信息
-		if session.isFresh {
+		if session.IsFresh {
 			// 发送缓存的头部信息
 			if group.metadata != nil {
 				session.AsyncWrite(group.metadata)
@@ -205,23 +200,23 @@ func (group *Group) broadcastRTMP2RTMP(header Header, timestampAbs uint32, messa
 			if group.aacSeqHeader != nil {
 				session.AsyncWrite(group.aacSeqHeader)
 			}
-			session.isFresh = false
+			session.IsFresh = false
 		}
 
 		// ## 2.3. 判断当前包的类型，以及sub session的状态，决定是否发送并更新sub session的状态
 		switch header.MsgTypeID {
-		case TypeidDataMessageAMF0:
+		case rtmp.TypeidDataMessageAMF0:
 			session.AsyncWrite(absChunks)
-		case TypeidAudio:
+		case rtmp.TypeidAudio:
 			session.AsyncWrite(absChunks)
-		case TypeidVideo:
-			if session.waitKeyNalu {
+		case rtmp.TypeidVideo:
+			if session.WaitKeyNalu {
 				if message[0] == 0x17 && message[1] == 0x0 {
 					session.AsyncWrite(absChunks)
 				}
 				if message[0] == 0x17 && message[1] == 0x1 {
 					session.AsyncWrite(absChunks)
-					session.waitKeyNalu = false
+					session.WaitKeyNalu = false
 				}
 			} else {
 				session.AsyncWrite(absChunks)
@@ -234,28 +229,63 @@ func (group *Group) broadcastRTMP2RTMP(header Header, timestampAbs uint32, messa
 	// # 3. 缓存 metadata 和 avc key seq header 和 aac seq header
 	// 由于可能没有订阅者，所以message可能还没做chunk切割，所以这里要做判断是否做chunk切割
 	switch header.MsgTypeID {
-	case TypeidDataMessageAMF0:
+	case rtmp.TypeidDataMessageAMF0:
 		if absChunks == nil {
-			absChunks = Message2Chunks(message, &currHeader, LocalChunkSize)
+			absChunks = rtmp.Message2Chunks(message, &currHeader, rtmp.LocalChunkSize)
 		}
 		log.Debugf("cache metadata. [%s]", group.UniqueKey)
 		group.metadata = absChunks
-	case TypeidVideo:
+	case rtmp.TypeidVideo:
 		// TODO chef: magic number
 		if message[0] == 0x17 && message[1] == 0x0 {
 			if absChunks == nil {
-				absChunks = Message2Chunks(message, &currHeader, LocalChunkSize)
+				absChunks = rtmp.Message2Chunks(message, &currHeader, rtmp.LocalChunkSize)
 			}
 			log.Debugf("cache avc key seq header. [%s]", group.UniqueKey)
 			group.avcKeySeqHeader = absChunks
 		}
-	case TypeidAudio:
+	case rtmp.TypeidAudio:
 		if (message[0]>>4) == 0x0a && message[1] == 0x0 {
 			if absChunks == nil {
-				absChunks = Message2Chunks(message, &currHeader, LocalChunkSize)
+				absChunks = rtmp.Message2Chunks(message, &currHeader, rtmp.LocalChunkSize)
 			}
 			log.Debugf("cache aac seq header. [%s]", group.UniqueKey)
 			group.aacSeqHeader = absChunks
 		}
 	}
+}
+
+func (group *Group) pullIfNeeded() {
+	panic("not impl")
+	//if !gm.isInExist() {
+	//	switch gm.config.Pull.Type {
+	//	case "httpflv":
+	//		go gm.httpFlvGroup.Pull(gm.config.Pull.Addr, gm.config.Pull.ConnectTimeout, gm.config.Pull.ReadTimeout)
+	//	case "rtmp":
+	//		go gm.rtmpGroup.Pull(gm.config.Pull.Addr, gm.config.Pull.ConnectTimeout)
+	//	}
+	//}
+}
+
+func (group *Group) isInExist() bool {
+	panic("not impl")
+	//return (gm.rtmpGroup != nil && gm.rtmpGroup.IsInExist()) ||
+	//	(gm.httpFlvGroup != nil && gm.httpFlvGroup.IsInExist())
+}
+
+// GroupObserver of httpflv.Group
+func (group *Group) ReadHTTPRespHeaderCB() {
+	// noop
+}
+
+// GroupObserver of httpflv.Group
+func (group *Group) ReadFlvHeaderCB(flvHeader []byte) {
+	// noop
+}
+
+// GroupObserver of httpflv.Group
+func (group *Group) ReadFlvTagCB(tag *httpflv.Tag) {
+	log.Info("ReadFlvTagCB")
+
+	// TODO chef: broadcast to rtmp.Group
 }

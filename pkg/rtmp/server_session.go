@@ -19,9 +19,9 @@ import (
 type ServerSessionObserver interface {
 	NewRTMPPubSessionCB(session *ServerSession) // 上层代码应该在这个事件回调中注册音视频数据的监听
 	NewRTMPSubSessionCB(session *ServerSession)
-	//DelRTMPPubSessionCB(session *PubSession)
-	//DelRTMPSubSessionCB(session *SubSession)
 }
+
+var _ ServerSessionObserver = &Server{}
 
 type PubSessionObserver interface {
 	AVMsgObserver
@@ -63,13 +63,13 @@ type ServerSession struct {
 	avObs PubSessionObserver
 
 	// only for SubSession
-	isFresh     bool
-	waitKeyNalu bool
+	IsFresh     bool
+	WaitKeyNalu bool
 }
 
 func NewServerSession(obs ServerSessionObserver, conn net.Conn) *ServerSession {
 	uk := unique.GenUniqueKey("RTMPPUBSUB")
-	log.Infof("lifecycle new rtmp.ServerSession. [%s]", uk)
+	log.Infof("lifecycle new rtmp server session. [%s]", uk)
 	return &ServerSession{
 		UniqueKey:     uk,
 		obs:           obs,
@@ -81,8 +81,8 @@ func NewServerSession(obs ServerSessionObserver, conn net.Conn) *ServerSession {
 		wb:            bufio.NewWriterSize(conn, writeBufSize),
 		wChan:         make(chan []byte, wChanSize),
 		exitChan:      make(chan struct{}),
-		isFresh:       true,
-		waitKeyNalu:   true,
+		IsFresh:       true,
+		WaitKeyNalu:   true,
 	}
 }
 
@@ -101,7 +101,7 @@ func (s *ServerSession) RunLoop() (err error) {
 }
 
 func (s *ServerSession) Dispose() {
-	log.Infof("lifecycle dispose rtmp.ServerSession. [%s]", s.UniqueKey)
+	log.Infof("lifecycle dispose rtmp server session. [%s]", s.UniqueKey)
 	if atomic.LoadUint32(&s.hasClosedFlag) == 1 {
 		return
 	}
@@ -177,7 +177,8 @@ func (s *ServerSession) doMsg(stream *Stream) error {
 	//log.Debugf("%d %d %v", stream.header.msgTypeID, stream.msgLen, stream.header)
 	switch stream.header.MsgTypeID {
 	case typeidSetChunkSize:
-		// TODO chef:
+		// noop
+		// 因为底层的 chunk composer 已经处理过了，这里就不用处理
 	case typeidCommandMessageAMF0:
 		return s.doCommandMessage(stream)
 	case TypeidDataMessageAMF0:
@@ -218,7 +219,8 @@ func (s *ServerSession) doDataMessageAMF0(stream *Stream) error {
 	}
 
 	switch val {
-	case "|RtmpSampleAccess": // TODO chef: handle this?
+	case "|RtmpSampleAccess":
+		log.Warn("recv |RtmpSampleAccess. ignore it.")
 		return nil
 	case "@setDataFrame":
 		// macos obs
@@ -234,9 +236,7 @@ func (s *ServerSession) doDataMessageAMF0(stream *Stream) error {
 	case "onMetaData":
 		// noop
 	default:
-		// TODO chef:
-		log.Error(val)
-		log.Error(hex.Dump(stream.msg.buf[stream.msg.b:stream.msg.e]))
+		log.Errorf("recv unknown message. val=%s, hex=%s", val, hex.Dump(stream.msg.buf[stream.msg.b:stream.msg.e]))
 		return nil
 	}
 
@@ -338,9 +338,8 @@ func (s *ServerSession) doPublish(tid int, stream *Stream) (err error) {
 	log.Debugf("[%s] pubType=%s", s.UniqueKey, pubType)
 	log.Infof("-----> publish('%s') [%s]", s.StreamName, s.UniqueKey)
 
-	// TODO chef: hardcode streamID
 	log.Infof("<---- onStatus('NetStream.Publish.Start'). [%s]", s.UniqueKey)
-	if err := s.packer.writeOnStatusPublish(s.conn, 1); err != nil {
+	if err := s.packer.writeOnStatusPublish(s.conn, MSID1); err != nil {
 		return err
 	}
 	s.t = ServerSessionTypePub
@@ -363,7 +362,7 @@ func (s *ServerSession) doPlay(tid int, stream *Stream) (err error) {
 	// TODO chef: start duration reset
 
 	log.Infof("<----onStatus('NetStream.Play.Start'). [%s]", s.UniqueKey)
-	if err := s.packer.writeOnStatusPlay(s.conn, 1); err != nil {
+	if err := s.packer.writeOnStatusPlay(s.conn, MSID1); err != nil {
 		return err
 	}
 	s.t = ServerSessionTypeSub

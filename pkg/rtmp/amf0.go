@@ -12,8 +12,8 @@ import (
 )
 
 var (
-	ErrAMFInvalidType = errors.New("lal.AMF0: invalid type.")
-	ErrAMFTooShort    = errors.New("lal.AMF0: too short.")
+	ErrAMFInvalidType = errors.New("lal.AMF0: invalid type")
+	ErrAMFTooShort    = errors.New("lal.AMF0: too short")
 )
 
 const (
@@ -117,7 +117,7 @@ func (amf0) WriteObject(writer io.Writer, objs []ObjectPair) error {
 				return err
 			}
 		default:
-			// TODO chef: if other types.
+			// TODO chef: 换成 nezha log panic
 			panic(objs[i].value)
 		}
 	}
@@ -251,7 +251,7 @@ func (amf0) ReadObject(b []byte) (map[string]interface{}, int, error) {
 			obj[k] = v
 			index += l
 		default:
-			// TODO chef: if other types.
+			// TODO chef: 换成 nezha log panic
 			panic(vt)
 		}
 	}

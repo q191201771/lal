@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"github.com/q191201771/nezha/pkg/bininfo"
 	"github.com/q191201771/nezha/pkg/log"
+	"github.com/q191201771/lal/pkg/logic"
 	"net/http"
 	_ "net/http/pprof"
 	"os"
@@ -12,7 +13,7 @@ import (
 	"syscall"
 )
 
-var sm *ServerManager
+var sm *logic.ServerManager
 
 func main() {
 	confFile := parseFlag()
@@ -20,9 +21,11 @@ func main() {
 	initLog(config.Log)
 	log.Infof("bininfo: %s", bininfo.StringifySingleLine())
 
-	sm = NewServerManager(config)
+	sm = logic.NewServerManager(config)
 
-	go runWebPProf()
+	if config.PProf.Addr != "" {
+		go runWebPProf(config.PProf.Addr)
+	}
 	go runSignalHandler()
 
 	sm.RunLoop()
@@ -43,16 +46,8 @@ func parseFlag() string {
 	return *cf
 }
 
-func initLog(config log.Config) {
-	if err := log.Init(config); err != nil {
-		_, _ = fmt.Fprintf(os.Stderr, "initial log failed. err=%+v", err)
-		os.Exit(1)
-	}
-	log.Info("initial log succ.")
-}
-
-func loadConf(confFile string) *Config {
-	config, err := LoadConf(confFile)
+func loadConf(confFile string) *logic.Config {
+	config, err := logic.LoadConf(confFile)
 	if err != nil {
 		log.Errorf("load conf failed. file=%s err=%+v", confFile, err)
 		os.Exit(1)
@@ -61,9 +56,15 @@ func loadConf(confFile string) *Config {
 	return config
 }
 
-func runWebPProf() {
-	// TODO chef: config me
-	addr := ":10001"
+func initLog(config log.Config) {
+	if err := log.Init(config); err != nil {
+		_, _ = fmt.Fprintf(os.Stderr, "initial log failed. err=%+v", err)
+		os.Exit(1)
+	}
+	log.Info("initial log succ.")
+}
+
+func runWebPProf(addr string) {
 	log.Infof("start web pprof listen. addr=%s", addr)
 	if err := http.ListenAndServe(addr, nil); err != nil {
 		log.Error(err)

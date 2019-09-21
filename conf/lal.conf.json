@@ -3,9 +3,13 @@
     "addr": ":19350"
   },
   "log": {
-    "level": 0,
+    "level": 1,
     "filename": "./logs/lal.log",
     "is_to_stdout": true,
-    "rotate_mbyte": 1024
+    "is_rotate_daily": true,
+    "short_file_flag": true
+  },
+  "pprof": {
+    "addr": ":10001"
   }
 }

@@ -10,10 +10,6 @@ import (
 	"time"
 )
 
-// TODO chef: doc
-
-// TODO chef: HandshakeClient with complex mode
-
 const version = uint8(3)
 
 const (
@@ -65,8 +61,11 @@ var random1528Buf []byte
 type HandshakeClient interface {
 	WriteC0C1(writer io.Writer) error
 	ReadS0S1S2(reader io.Reader) error
-	WriterC2(writer io.Writer) error
+	WriteC2(writer io.Writer) error
 }
+
+var _ HandshakeClient = &HandshakeClientSimple{}
+var _ HandshakeClient = &HandshakeClientComplex{}
 
 type HandshakeClientSimple struct {
 	c0c1 []byte
@@ -131,7 +130,6 @@ func (c *HandshakeClientSimple) WriteC0C1(writer io.Writer) error {
 	return err
 }
 
-
 func (c *HandshakeClientSimple) ReadS0S1S2(reader io.Reader) error {
 	s0s1s2 := make([]byte, s0s1s2Len)
 	if _, err := io.ReadAtLeast(reader, s0s1s2, s0s1s2Len); err != nil {
@@ -150,7 +148,6 @@ func (c *HandshakeClientSimple) WriteC2(write io.Writer) error {
 	_, err := write.Write(c.c2)
 	return err
 }
-
 
 func (s *HandshakeServer) ReadC0C1(reader io.Reader) (err error) {
 	c0c1 := make([]byte, c0c1Len)
@@ -280,7 +277,6 @@ func random1528(out []byte) {
 }
 
 func init() {
-	// TODO chef: hack lal in
 	bs := []byte{'l', 'a', 'l'}
 	bsl := len(bs)
 	random1528Buf = make([]byte, 1528)

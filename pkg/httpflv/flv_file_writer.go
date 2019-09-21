@@ -16,7 +16,7 @@ func (ffw *FlvFileWriter) WriteRaw(b []byte) (err error) {
 	return
 }
 
-func (ffw *FlvFileWriter) WriteTag(tag *Tag) (err error) {
+func (ffw *FlvFileWriter) WriteTag(tag Tag) (err error) {
 	_, err = ffw.fp.Write(tag.Raw)
 	return
 }

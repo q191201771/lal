@@ -28,7 +28,7 @@ func NewMessagePacker() *MessagePacker {
 	}
 }
 
-func (packer *MessagePacker) writeMessageHeader(csid int, bodyLen int, typeID int, streamID int) {
+func (packer *MessagePacker) writeMessageHeader(csid int, bodyLen int, typeID uint8, streamID int) {
 	// 目前这个函数只供发送信令时调用，信令的 csid 都是小于等于 63 的，如果传入的 csid 大于 63，直接 panic
 	if csid > 63 {
 		panic(csid)
@@ -38,11 +38,11 @@ func (packer *MessagePacker) writeMessageHeader(csid int, bodyLen int, typeID in
 	// 0 0 0 是时间戳
 	_, _ = packer.b.Write([]byte{uint8(fmt<<6 | csid), 0, 0, 0})
 	_ = bele.WriteBEUint24(packer.b, uint32(bodyLen))
-	_, _ = packer.b.Write([]byte{uint8(typeID)})
+	_ = packer.b.WriteByte(typeID)
 	_ = bele.WriteLE(packer.b, uint32(streamID))
 }
 
-func (packer *MessagePacker) writeProtocolControlMessage(writer io.Writer, typeID int, val int) error {
+func (packer *MessagePacker) writeProtocolControlMessage(writer io.Writer, typeID uint8, val int) error {
 	packer.writeMessageHeader(csidProtocolControl, 4, typeID, 0)
 	_ = bele.WriteBE(packer.b, uint32(val))
 	_, err := packer.b.WriteTo(writer)
@@ -70,7 +70,6 @@ func (packer *MessagePacker) writeConnect(writer io.Writer, appName, tcURL strin
 	_ = AMF0.WriteString(packer.b, "connect")
 	_ = AMF0.WriteNumber(packer.b, float64(tidClientConnect))
 
-	// TODO chef: hack lal in
 	objs := []ObjectPair{
 		{key: "app", value: appName},
 		{key: "type", value: "nonprivate"},
