@@ -160,7 +160,7 @@ func (group *Group) ReadRTMPAVMsgCB(header rtmp.Header, timestampAbs uint32, mes
 }
 
 func (group *Group) broadcastRTMP2RTMP(header rtmp.Header, timestampAbs uint32, message []byte) {
-	log.Infof("%+v", header)
+	//log.Infof("%+v", header)
 	// # 1. 设置好头部信息
 	var currHeader rtmp.Header
 	currHeader.MsgLen = uint32(len(message))

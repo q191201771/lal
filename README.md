@@ -72,6 +72,9 @@ $git clone https://github.com/q191201771/lal.git && cd lal && ./build.sh
     "is_to_stdout": true,         // 是否打印至标志控制台输出
     "is_rotate_daily": true,      // 日志按天翻滚
     "short_file_flag": true       // 日志末尾是否携带源码文件名以及行号的信息
+  },
+  "pprof": {
+    "addr": ":10001" // Go pprof web 地址
   }
 }
 ```
