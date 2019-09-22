@@ -1,5 +1,7 @@
 <p align="center">
+<a title="logo" target="_blank" href="https://github.com/q191201771/lal">
 <img alt="Wide" src="https://pengrl.com/images/other/lallogo.png">
+</a>
 <br>
 Go语言编写的流媒体 库 / 客户端 / 服务端
 <br><br>

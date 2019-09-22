@@ -1,3 +1,18 @@
+#### v0.2.0
+
+- [结构调整] 将 app/lal 的部分代码抽离到 pkg/logic 中，使得其他 app 可以使用
+- [结构调整] 将协议层 rtmp.Group 和 应用层 app/lal 中的 GroupManager 合并为 逻辑层 pkg/logic 的 Group，以后只在逻辑层维护一个 Group，用于处理各种具体协议的输入输出流的挂载
+- [功能] pkg/logic 中新增 trans.go: RTMPMsg2FlvTag
+- [功能] PubSession 退出时，清空缓存的 meta、avc header、aac header
+- [功能] PubSession 已经存在时，后续再连接的 Pub 直接关闭掉
+- [功能] app/rtmppull 存储为flv文件
+- [优化] chunk divider: calcHeader 在原地计算
+- [其他] rtmp 中所有 typeid 相关的类型 int -> uint8，msgLen 相关的类型 int -> uint32
+- [其他] 更新 nezha，新版本的日志库
+- [其他] 整理日志
+- [其他] pprof web 地址放入配置文件中
+- [测试] 使用一些开源工具对 app/lal 做推流、拉流测试
+
 #### v0.1.0
 
 - /app/flvfile2rtmppush 优化推流平稳性
