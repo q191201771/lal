@@ -7,6 +7,7 @@ package rtmp
 import (
 	"github.com/q191201771/nezha/pkg/bele"
 	"io"
+	"log"
 )
 
 type ChunkComposer struct {
@@ -25,9 +26,9 @@ func (c *ChunkComposer) SetPeerChunkSize(val uint32) {
 	c.peerChunkSize = val
 }
 
-func (c *ChunkComposer) GetPeerChunkSize() uint32 {
-	return c.peerChunkSize
-}
+//func (c *ChunkComposer) GetPeerChunkSize() uint32 {
+//	return c.peerChunkSize
+//}
 
 type CompleteMessageCB func(stream *Stream) error
 
@@ -152,7 +153,7 @@ func (c *ChunkComposer) RunLoop(reader io.Reader, cb CompleteMessageCB) error {
 			stream.msg.clear()
 		}
 		if stream.msg.len() > stream.header.MsgLen {
-			panic(0)
+			log.Panicf("stream msg len should not greater than len field in header. stream.msg.len=%d, len.in.header=%d", stream.msg.len(), stream.header.MsgLen)
 		}
 	}
 }

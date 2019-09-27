@@ -8,6 +8,7 @@ import (
 	"bytes"
 	"errors"
 	"github.com/q191201771/nezha/pkg/bele"
+	"github.com/q191201771/nezha/pkg/log"
 	"io"
 )
 
@@ -25,6 +26,7 @@ const (
 	AMF0TypeMarkerObjectEnd  = uint8(0x09)
 	AMF0TypeMarkerLongString = uint8(0x0c)
 
+	// 还没用到的类型
 	//AMF0TypeMarkerMovieclip   = uint8(0x04)
 	//AMF0TypeMarkerUndefined   = uint8(0x06)
 	//AMF0TypeMarkerReference   = uint8(0x07)
@@ -40,8 +42,8 @@ const (
 var AMF0TypeMarkerObjectEndBytes = []byte{0, 0, AMF0TypeMarkerObjectEnd}
 
 type ObjectPair struct {
-	key   string
-	value interface{}
+	Key   string
+	Value interface{}
 }
 
 type amf0 struct{}
@@ -97,28 +99,27 @@ func (amf0) WriteObject(writer io.Writer, objs []ObjectPair) error {
 		return err
 	}
 	for i := 0; i < len(objs); i++ {
-		if err := bele.WriteBE(writer, uint16(len(objs[i].key))); err != nil {
+		if err := bele.WriteBE(writer, uint16(len(objs[i].Key))); err != nil {
 			return err
 		}
-		if _, err := writer.Write([]byte(objs[i].key)); err != nil {
+		if _, err := writer.Write([]byte(objs[i].Key)); err != nil {
 			return err
 		}
-		switch objs[i].value.(type) {
+		switch objs[i].Value.(type) {
 		case string:
-			if err := AMF0.WriteString(writer, objs[i].value.(string)); err != nil {
+			if err := AMF0.WriteString(writer, objs[i].Value.(string)); err != nil {
 				return err
 			}
 		case int:
-			if err := AMF0.WriteNumber(writer, float64(objs[i].value.(int))); err != nil {
+			if err := AMF0.WriteNumber(writer, float64(objs[i].Value.(int))); err != nil {
 				return err
 			}
 		case bool:
-			if err := AMF0.WriteBoolean(writer, objs[i].value.(bool)); err != nil {
+			if err := AMF0.WriteBoolean(writer, objs[i].Value.(bool)); err != nil {
 				return err
 			}
 		default:
-			// TODO chef: 换成 nezha log panic
-			panic(objs[i].value)
+			log.Panicf("unknown value type. i=%d, v=%v", i, objs[i].Value)
 		}
 	}
 	_, err := writer.Write(AMF0TypeMarkerObjectEndBytes)
@@ -251,8 +252,7 @@ func (amf0) ReadObject(b []byte) (map[string]interface{}, int, error) {
 			obj[k] = v
 			index += l
 		default:
-			// TODO chef: 换成 nezha log panic
-			panic(vt)
+			log.Panicf("unknown type. vt=%d", vt)
 		}
 	}
 

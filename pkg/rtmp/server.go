@@ -3,6 +3,7 @@ package rtmp
 import (
 	"github.com/q191201771/nezha/pkg/log"
 	"net"
+	"sync"
 )
 
 type ServerObserver interface {
@@ -15,6 +16,7 @@ type ServerObserver interface {
 type Server struct {
 	obs  ServerObserver
 	addr string
+	m    sync.Mutex
 	ln   net.Listener
 }
 
@@ -27,7 +29,9 @@ func NewServer(obs ServerObserver, addr string) *Server {
 
 func (server *Server) RunLoop() error {
 	var err error
+	server.m.Lock()
 	server.ln, err = net.Listen("tcp", server.addr)
+	server.m.Unlock()
 	if err != nil {
 		return err
 	}
@@ -42,6 +46,11 @@ func (server *Server) RunLoop() error {
 }
 
 func (server *Server) Dispose() {
+	server.m.Lock()
+	defer server.m.Unlock()
+	if server.ln == nil {
+		return
+	}
 	if err := server.ln.Close(); err != nil {
 		log.Error(err)
 	}

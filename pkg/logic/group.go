@@ -111,7 +111,7 @@ func (group *Group) DelRTMPSubSession(session *rtmp.ServerSession) {
 	delete(group.subSessionSet, session)
 }
 
-func (group *Group) AddHTTPFlvSubSession(session *httpflv.SubSession, httpFlvGroup *httpflv.Group) {
+func (group *Group) AddHTTPFlvSubSession(session *httpflv.SubSession) {
 	panic("not impl")
 }
 
@@ -185,7 +185,7 @@ func (group *Group) broadcastRTMP2RTMP(header rtmp.Header, timestampAbs uint32, 
 	for session := range group.subSessionSet {
 		// ## 2.1. 一个message广播给多个sub session时，只做一次chunk切割
 		if absChunks == nil {
-			absChunks = rtmp.Message2Chunks(message, &currHeader, rtmp.LocalChunkSize)
+			absChunks = rtmp.Message2Chunks(message, &currHeader)
 		}
 
 		// ## 2.2. 如果是新的sub session，发送已缓存的信息
@@ -231,7 +231,7 @@ func (group *Group) broadcastRTMP2RTMP(header rtmp.Header, timestampAbs uint32, 
 	switch header.MsgTypeID {
 	case rtmp.TypeidDataMessageAMF0:
 		if absChunks == nil {
-			absChunks = rtmp.Message2Chunks(message, &currHeader, rtmp.LocalChunkSize)
+			absChunks = rtmp.Message2Chunks(message, &currHeader)
 		}
 		log.Debugf("cache metadata. [%s]", group.UniqueKey)
 		group.metadata = absChunks
@@ -239,7 +239,7 @@ func (group *Group) broadcastRTMP2RTMP(header rtmp.Header, timestampAbs uint32, 
 		// TODO chef: magic number
 		if message[0] == 0x17 && message[1] == 0x0 {
 			if absChunks == nil {
-				absChunks = rtmp.Message2Chunks(message, &currHeader, rtmp.LocalChunkSize)
+				absChunks = rtmp.Message2Chunks(message, &currHeader)
 			}
 			log.Debugf("cache avc key seq header. [%s]", group.UniqueKey)
 			group.avcKeySeqHeader = absChunks
@@ -247,7 +247,7 @@ func (group *Group) broadcastRTMP2RTMP(header rtmp.Header, timestampAbs uint32, 
 	case rtmp.TypeidAudio:
 		if (message[0]>>4) == 0x0a && message[1] == 0x0 {
 			if absChunks == nil {
-				absChunks = rtmp.Message2Chunks(message, &currHeader, rtmp.LocalChunkSize)
+				absChunks = rtmp.Message2Chunks(message, &currHeader)
 			}
 			log.Debugf("cache aac seq header. [%s]", group.UniqueKey)
 			group.aacSeqHeader = absChunks

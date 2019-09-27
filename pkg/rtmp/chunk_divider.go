@@ -8,9 +8,21 @@ import (
 	"github.com/q191201771/nezha/pkg/bele"
 )
 
+type ChunkDivider struct {
+	localChunkSize int
+}
+
+var defaultChunkDivider = ChunkDivider{
+	localChunkSize: LocalChunkSize,
+}
+
+func Message2Chunks(message []byte, header *Header) []byte {
+	return defaultChunkDivider.Message2Chunks(message, header)
+}
+
 // TODO chef: 新的message的第一个chunk始终使用fmt0格式，没有参考前一个message
-func Message2Chunks(message []byte, header *Header, chunkSize int) []byte {
-	return message2Chunks(message, header, nil, chunkSize)
+func (d *ChunkDivider) Message2Chunks(message []byte, header *Header) []byte {
+	return message2Chunks(message, header, nil, d.localChunkSize)
 }
 
 // @param 返回头的大小

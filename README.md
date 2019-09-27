@@ -27,7 +27,7 @@ Go语言编写的流媒体 库 / 客户端 / 服务端
 
 ---
 
-#### 工程目录说明
+#### 源码框架
 
 简单来说，主要源码在`app/`和`pkg/`两个目录下，后续我再画些源码架构图。
 
@@ -43,22 +43,27 @@ pkg/                  ......源码包
 |-- aac/              ......音频aac编解码格式相关
 |-- avc/              ......视频avc h264编解码格式相关
 |-- httpflv/          ......http-flv协议
+|-- logic/            ......lal服务器的上层业务
 |-- rtmp/             ......rtmp协议
 bin/                  ......可执行文件编译输出目录
 conf/                 ......配置文件目录
 ```
 
+目前唯一的第三方依赖（我自己写的 Go 基础库）： [github.com/q191201771/nezha](https://github.com/q191201771/nezha)
+
 #### 编译和运行
 
 ```
+# 不使用 Go module
 $go get -u github.com/q191201771/lal
 # cd into $GOPATH/src/github.com/q191201771/lal
 $./build.sh
 
-$./bin/lal -c conf/lal.conf.json
-
-#如果使用 go module
+# 使用 go module
 $git clone https://github.com/q191201771/lal.git && cd lal && ./build.sh
+
+# 运行
+$./bin/lal -c conf/lal.conf.json
 ```
 
 #### 配置文件说明
@@ -81,6 +86,8 @@ $git clone https://github.com/q191201771/lal.git && cd lal && ./build.sh
 }
 ```
 
+其它放在代码中的配置： TODO
+
 ### 测试过的客户端
 
 ```
@@ -99,13 +106,13 @@ $git clone https://github.com/q191201771/lal.git && cd lal && ./build.sh
 
 #### roadmap
 
-有建议、意见、bug、功能等等欢迎提 issue 啊，100% 会回复的。
+**有建议、意见、bug、功能等等欢迎提 issue 啊，100% 会回复的。**
 
 lal 服务器目标版本roadmap如下：
 
 **v1.0.0**
 
-实现 rtmp 转发服务器。目前已经基本完成了。大概在十一假期发布。
+实现 rtmp 转发服务器。（目前基本功能已经完成了）
 
 - 各种 rtmp 推流、拉流客户端兼容性测试
 - 和其它主流 rtmp 服务器的性能对比测试
@@ -113,38 +120,39 @@ lal 服务器目标版本roadmap如下：
 - 调整框架代码
 - 稳定性测试
 
-**v1.0.0**
+**v2.0.0**
 
-- Gop 缓存功能
 - http-flv 拉流
+- Gop 缓存功能
+
+**v3.0.0**
+
 - rtmp 转推
 - rtmp 回源
 - http-flv 回源
 
-**v2.0.0**
-
-- hls
-
-**v3.0.0**
+**v4.0.0**
 
 - udp quic srt
 - rtp/rtcp
 - webrtc
 
-**v4.0.0**
+**v5.0.0**
 
 - 分布式。提供与外部调度系统交互的接口。应对多级分发场景，或平级源站类型场景
 
+**没有排到预期版本中的功能**
+
+- hls
+- h265
 
 最终目标：
+
+性能ok，框架清晰，代码对于任何新手来说都是可读可维护的。
 
 * 实现一个支持多种流媒体协议（比如rtmp, http-flv, hls, rtp/rtcp 等），多种底层传输协议（比如tcp, udp, srt, quic 等）的服务器
 * 所有协议都以模块化的库形式提供给需要的用户使用
 * 提供多种协议的推流客户端、拉流客户端，或者说演示demo
-
-#### 依赖
-
-- [github.com/q191201771/nezha](https://github.com/q191201771/nezha) 我自己写的Go基础库
 
 #### 文档
 

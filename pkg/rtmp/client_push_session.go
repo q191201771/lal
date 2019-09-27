@@ -21,5 +21,5 @@ func NewPushSession(timeout PushSessionTimeout) *PushSession {
 }
 
 func (s *PushSession) Push(rawURL string) error {
-	return s.Do(rawURL)
+	return s.doWithTimeout(rawURL)
 }

@@ -2,6 +2,7 @@ package rtmp
 
 import (
 	"encoding/hex"
+	"errors"
 	"github.com/q191201771/nezha/pkg/bele"
 	"github.com/q191201771/nezha/pkg/connection"
 	"github.com/q191201771/nezha/pkg/log"
@@ -12,6 +13,8 @@ import (
 	"time"
 )
 
+var ErrClientSessionTimeout = errors.New("rtmp.ClientSession timeout")
+
 // rtmp客户端类型连接的底层实现
 // rtmp包的使用者应该优先使用基于ClientSession实现的PushSession和PullSession
 type ClientSession struct {
@@ -20,8 +23,6 @@ type ClientSession struct {
 	t                      ClientSessionType
 	obs                    PullSessionObserver // only for PullSession
 	timeout                ClientSessionTimeout
-	doResultChan           chan struct{}
-	errChan                chan error
 	packer                 *MessagePacker
 	chunkComposer          *ChunkComposer
 	url                    *url.URL
@@ -32,8 +33,8 @@ type ClientSession struct {
 	hc                     HandshakeClientSimple
 	peerWinAckSize         int
 
-	Conn  connection.Connection
-	wChan chan []byte
+	conn         connection.Connection
+	doResultChan chan struct{}
 }
 
 type ClientSessionType int
@@ -58,34 +59,37 @@ func NewClientSession(t ClientSessionType, obs PullSessionObserver, timeout Clie
 	var uk string
 	switch t {
 	case CSTPullSession:
-		uk = "RTMPPULL"
+		uk = unique.GenUniqueKey("RTMPPULL")
 	case CSTPushSession:
-		uk = "RTMPPUSH"
+		uk = unique.GenUniqueKey("RTMPPUSH")
 	}
 	log.Infof("lifecycle new rtmp client session. [%s]", uk)
 
 	return &ClientSession{
-		UniqueKey:     unique.GenUniqueKey(uk),
+		UniqueKey:     uk,
 		t:             t,
 		obs:           obs,
 		timeout:       timeout,
-		doResultChan:  make(chan struct{}),
-		errChan:       make(chan error),
+		doResultChan:  make(chan struct{}, 1),
 		packer:        NewMessagePacker(),
 		chunkComposer: NewChunkComposer(),
-		wChan:         make(chan []byte, wChanSize),
 	}
 }
 
 // 阻塞直到收到服务端返回的 publish start / play start 信令 或者超时
-func (s *ClientSession) Do(rawURL string) error {
+func (s *ClientSession) doWithTimeout(rawURL string) error {
+	if s.timeout.DoTimeoutMS == 0 {
+		err := <-s.do(rawURL)
+		return err
+	}
 	t := time.NewTimer(time.Duration(s.timeout.DoTimeoutMS) * time.Millisecond)
+	defer t.Stop()
 	select {
+	// TODO chef: 这种写法执行不到超时
 	case err := <-s.do(rawURL):
 		return err
 	case <-t.C:
-		return rtmpErr
-
+		return ErrClientSessionTimeout
 	}
 }
 
@@ -106,26 +110,24 @@ func (s *ClientSession) do(rawURL string) <-chan error {
 	}
 
 	log.Infof("<----- SetChunkSize %d. [%s]", LocalChunkSize, s.UniqueKey)
-	if err := s.packer.writeChunkSize(s.Conn, LocalChunkSize); err != nil {
+	if err := s.packer.writeChunkSize(s.conn, LocalChunkSize); err != nil {
 		ch <- err
 		return ch
 	}
 
 	log.Infof("<----- connect('%s'). [%s]", s.appName, s.UniqueKey)
-	if err := s.packer.writeConnect(s.Conn, s.appName, s.tcURL); err != nil {
+	if err := s.packer.writeConnect(s.conn, s.appName, s.tcURL); err != nil {
 		ch <- err
 		return ch
 	}
 
-	go func() {
-		s.errChan <- s.runReadLoop()
-	}()
+	go s.runReadLoop()
 
 	select {
 	case <-s.doResultChan:
 		ch <- nil
 		break
-	case err := <-s.errChan:
+	case err := <-s.conn.Done():
 		ch <- err
 		break
 	}
@@ -133,17 +135,26 @@ func (s *ClientSession) do(rawURL string) <-chan error {
 }
 
 func (s *ClientSession) WaitLoop() error {
-	return <-s.errChan
-}
-
-// TODO chef: mod to async
-func (s *ClientSession) TmpWrite(b []byte) error {
-	_, err := s.Conn.Write(b)
+	err := <-s.conn.Done()
 	return err
 }
 
-func (s *ClientSession) runReadLoop() error {
-	return s.chunkComposer.RunLoop(s.Conn, s.doMsg)
+func (s *ClientSession) AsyncWrite(msg []byte) error {
+	_, err := s.conn.Write(msg)
+	return err
+}
+
+func (s *ClientSession) Flush() error {
+	return s.conn.Flush()
+}
+
+func (s *ClientSession) Dispose() {
+	log.Infof("lifecycle dispose rtmp client session. [%s]", s.UniqueKey)
+	_ = s.conn.Close()
+}
+
+func (s *ClientSession) runReadLoop() {
+	_ = s.chunkComposer.RunLoop(s.conn, s.doMsg)
 }
 
 func (s *ClientSession) doMsg(stream *Stream) error {
@@ -274,7 +285,7 @@ func (s *ClientSession) doResultMessage(stream *Stream, tid int) error {
 		case "NetConnection.Connect.Success":
 			log.Infof("-----> _result(\"NetConnection.Connect.Success\"). [%s]", s.UniqueKey)
 			log.Infof("<----- createStream(). [%s]", s.UniqueKey)
-			if err := s.packer.writeCreateStream(s.Conn); err != nil {
+			if err := s.packer.writeCreateStream(s.conn); err != nil {
 				return err
 			}
 		default:
@@ -293,12 +304,12 @@ func (s *ClientSession) doResultMessage(stream *Stream, tid int) error {
 		switch s.t {
 		case CSTPullSession:
 			log.Infof("<----- play('%s'). [%s]", s.streamNameWithRawQuery, s.UniqueKey)
-			if err := s.packer.writePlay(s.Conn, s.streamNameWithRawQuery, sid); err != nil {
+			if err := s.packer.writePlay(s.conn, s.streamNameWithRawQuery, sid); err != nil {
 				return err
 			}
 		case CSTPushSession:
 			log.Infof("<----- publish('%s'). [%s]", s.streamNameWithRawQuery, s.UniqueKey)
-			if err := s.packer.writePublish(s.Conn, s.appName, s.streamNameWithRawQuery, sid); err != nil {
+			if err := s.packer.writePublish(s.conn, s.appName, s.streamNameWithRawQuery, sid); err != nil {
 				return err
 			}
 		}
@@ -362,17 +373,17 @@ func (s *ClientSession) parseURL(rawURL string) error {
 
 func (s *ClientSession) handshake() error {
 	log.Infof("<----- Handshake C0+C1. [%s]", s.UniqueKey)
-	if err := s.hc.WriteC0C1(s.Conn); err != nil {
+	if err := s.hc.WriteC0C1(s.conn); err != nil {
 		return err
 	}
 
-	if err := s.hc.ReadS0S1S2(s.Conn); err != nil {
+	if err := s.hc.ReadS0S1S2(s.conn); err != nil {
 		return err
 	}
 	log.Infof("-----> Handshake S0+S1+S2. [%s]", s.UniqueKey)
 
 	log.Infof("<----- Handshake C2. [%s]", s.UniqueKey)
-	if err := s.hc.WriteC2(s.Conn); err != nil {
+	if err := s.hc.WriteC2(s.conn); err != nil {
 		return err
 	}
 	return nil
@@ -392,15 +403,17 @@ func (s *ClientSession) tcpConnect() error {
 		return err
 	}
 
-	s.Conn = connection.New(conn, connection.Config{
+	s.conn = connection.New(conn, connection.Config{
 		ReadBufSize: readBufSize,
 	})
 	return nil
 }
 
 func (s *ClientSession) notifyDoResultSucc() {
-	s.Conn.ModWriteBufSize(writeBufSize)
-	s.Conn.ModReadTimeoutMS(s.timeout.ReadAVTimeoutMS)
-	s.Conn.ModWriteTimeoutMS(s.timeout.WriteAVTimeoutMS)
+	s.conn.ModWriteChanSize(wChanSize)
+	s.conn.ModWriteBufSize(writeBufSize)
+	s.conn.ModReadTimeoutMS(s.timeout.ReadAVTimeoutMS)
+	s.conn.ModWriteTimeoutMS(s.timeout.WriteAVTimeoutMS)
+
 	s.doResultChan <- struct{}{}
 }

@@ -1,15 +1,13 @@
 package rtmp
 
 import (
-	"bufio"
 	"encoding/hex"
 	"github.com/q191201771/nezha/pkg/bele"
+	"github.com/q191201771/nezha/pkg/connection"
 	"github.com/q191201771/nezha/pkg/log"
 	"github.com/q191201771/nezha/pkg/unique"
 	"net"
 	"strings"
-	"sync"
-	"sync/atomic"
 )
 
 // TODO chef: PubSession SubSession
@@ -51,13 +49,7 @@ type ServerSession struct {
 	chunkComposer *ChunkComposer
 	packer        *MessagePacker
 
-	conn          net.Conn
-	rb            *bufio.Reader
-	wb            *bufio.Writer
-	wChan         chan []byte
-	closeOnce     sync.Once
-	exitChan      chan struct{}
-	hasClosedFlag uint32
+	conn connection.Connection
 
 	// only for PubSession
 	avObs PubSessionObserver
@@ -71,16 +63,14 @@ func NewServerSession(obs ServerSessionObserver, conn net.Conn) *ServerSession {
 	uk := unique.GenUniqueKey("RTMPPUBSUB")
 	log.Infof("lifecycle new rtmp server session. [%s]", uk)
 	return &ServerSession{
+		conn: connection.New(conn, connection.Config{
+			ReadBufSize: readBufSize,
+		}),
 		UniqueKey:     uk,
 		obs:           obs,
 		t:             ServerSessionTypeUnknown,
 		chunkComposer: NewChunkComposer(),
 		packer:        NewMessagePacker(),
-		conn:          conn,
-		rb:            bufio.NewReaderSize(conn, readBufSize),
-		wb:            bufio.NewWriterSize(conn, writeBufSize),
-		wChan:         make(chan []byte, wChanSize),
-		exitChan:      make(chan struct{}),
 		IsFresh:       true,
 		WaitKeyNalu:   true,
 	}
@@ -88,85 +78,42 @@ func NewServerSession(obs ServerSessionObserver, conn net.Conn) *ServerSession {
 
 func (s *ServerSession) RunLoop() (err error) {
 	if err = s.handshake(); err != nil {
-		s.dispose(err)
 		return err
 	}
 
-	go s.runWriteLoop()
+	return s.runReadLoop()
+}
 
-	if err = s.chunkComposer.RunLoop(s.rb, s.doMsg); err != nil {
-		s.dispose(err)
-	}
+func (s *ServerSession) AsyncWrite(msg []byte) error {
+	_, err := s.conn.Write(msg)
 	return err
+}
+
+func (s *ServerSession) Flush() error {
+	return s.conn.Flush()
 }
 
 func (s *ServerSession) Dispose() {
 	log.Infof("lifecycle dispose rtmp server session. [%s]", s.UniqueKey)
-	if atomic.LoadUint32(&s.hasClosedFlag) == 1 {
-		return
-	}
-	s.dispose(nil)
-}
-
-func (s *ServerSession) AsyncWrite(msg []byte) error {
-	if atomic.LoadUint32(&s.hasClosedFlag) == 1 {
-		return rtmpErr
-	}
-
-	s.wChan <- msg
-	return nil
-}
-
-func (s *ServerSession) ReadableType() string {
-	switch s.t {
-	case ServerSessionTypePub:
-		return "PUB"
-	case ServerSessionTypeSub:
-		return "SUB"
-	}
-	return "UNKNOWN"
+	_ = s.conn.Close()
 }
 
 func (s *ServerSession) runReadLoop() error {
-	return s.chunkComposer.RunLoop(s.rb, s.doMsg)
-}
-
-func (s *ServerSession) runWriteLoop() {
-	for {
-		select {
-		case <-s.exitChan:
-			return
-		case msg := <-s.wChan:
-			if _, err := s.conn.Write(msg); err != nil {
-				s.dispose(err)
-				return
-			}
-		}
-	}
-}
-
-func (s *ServerSession) dispose(err error) {
-	s.closeOnce.Do(func() {
-		atomic.StoreUint32(&s.hasClosedFlag, 1)
-		close(s.exitChan)
-		if err := s.conn.Close(); err != nil {
-			log.Errorf("conn close error. [%s] err=%v", s.UniqueKey, err)
-		}
-	})
+	return s.chunkComposer.RunLoop(s.conn, s.doMsg)
 }
 
 func (s *ServerSession) handshake() error {
-	if err := s.hs.ReadC0C1(s.rb); err != nil {
+	if err := s.hs.ReadC0C1(s.conn); err != nil {
 		return err
 	}
 	log.Infof("-----> Handshake C0+C1. [%s]", s.UniqueKey)
 
-	log.Infof("<----- Handshake S0S1S2. [%s]", s.UniqueKey)
+	log.Infof("<----- Handshake S0+S1+S2. [%s]", s.UniqueKey)
 	if err := s.hs.WriteS0S1S2(s.conn); err != nil {
 		return err
 	}
 
-	if err := s.hs.ReadC2(s.rb); err != nil {
+	if err := s.hs.ReadC2(s.conn); err != nil {
 		return err
 	}
 	log.Infof("-----> Handshake C2. [%s]", s.UniqueKey)
@@ -338,12 +285,18 @@ func (s *ServerSession) doPublish(tid int, stream *Stream) (err error) {
 	log.Debugf("[%s] pubType=%s", s.UniqueKey, pubType)
 	log.Infof("-----> publish('%s') [%s]", s.StreamName, s.UniqueKey)
 
+	// 回调放在回复客户端信令之前
+	s.t = ServerSessionTypePub
+	s.obs.NewRTMPPubSessionCB(s)
+
 	log.Infof("<---- onStatus('NetStream.Publish.Start'). [%s]", s.UniqueKey)
 	if err := s.packer.writeOnStatusPublish(s.conn, MSID1); err != nil {
 		return err
 	}
-	s.t = ServerSessionTypePub
-	s.obs.NewRTMPPubSessionCB(s)
+
+	// 回复完信令后修改 connection 的属性
+	s.ModConnProps()
+
 	return nil
 }
 
@@ -361,11 +314,29 @@ func (s *ServerSession) doPlay(tid int, stream *Stream) (err error) {
 	log.Infof("-----> play('%s'). [%s]", s.StreamName, s.UniqueKey)
 	// TODO chef: start duration reset
 
+	// 回调放在回复客户端信令之前
+	s.t = ServerSessionTypeSub
+	s.obs.NewRTMPSubSessionCB(s)
+
 	log.Infof("<----onStatus('NetStream.Play.Start'). [%s]", s.UniqueKey)
 	if err := s.packer.writeOnStatusPlay(s.conn, MSID1); err != nil {
 		return err
 	}
-	s.t = ServerSessionTypeSub
-	s.obs.NewRTMPSubSessionCB(s)
+
+	// 回复完信令后修改 connection 的属性
+	s.ModConnProps()
+
 	return nil
+}
+
+func (s *ServerSession) ModConnProps() {
+	s.conn.ModWriteChanSize(wChanSize)
+	s.conn.ModWriteBufSize(writeBufSize)
+
+	switch s.t {
+	case ServerSessionTypePub:
+		s.conn.ModReadTimeoutMS(serverSessionReadAVTimeoutMS)
+	case ServerSessionTypeSub:
+		s.conn.ModWriteTimeoutMS(serverSessionWriteAVTimeoutMS)
+	}
 }

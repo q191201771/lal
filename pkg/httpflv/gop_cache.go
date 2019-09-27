@@ -1,5 +1,8 @@
 package httpflv
 
+/*
+// v1.0.0 版本之前不提供 httpflv 功能
+
 import (
 	"bytes"
 	"github.com/q191201771/nezha/pkg/log"
@@ -200,3 +203,5 @@ func (c *GOPCache) syncOldestKeyNaluTimestampToSeqHeader() {
 		c.aacSeqHeader.Header.Timestamp = ts
 	}
 }
+
+*/

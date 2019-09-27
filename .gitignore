@@ -11,9 +11,11 @@ coverage.html
 /lal.log
 /tmp
 
-/pkg/hls/
 /demo/
 /bin/
 /.idea/
 /.trash/
 /logs/
+
+/pkg/hls/
+/pkg/rtmp/testdata/test.flv

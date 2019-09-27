@@ -9,7 +9,7 @@ import (
 type ServerObserver interface {
 	// 通知上层有新的拉流者
 	// 返回值： true则允许拉流，false则关闭连接
-	NewHTTPFlvSubSessionCB(session *SubSession, group *Group) bool
+	NewHTTPFlvSubSessionCB(session *SubSession) bool
 }
 
 type Server struct {
@@ -17,10 +17,8 @@ type Server struct {
 	addr            string
 	subWriteTimeout int64
 
+	m  sync.Mutex
 	ln net.Listener
-
-	groupMap map[string]*Group
-	mutex    sync.Mutex
 }
 
 func NewServer(obs ServerObserver, addr string, subWriteTimeout int64) *Server {
@@ -28,13 +26,14 @@ func NewServer(obs ServerObserver, addr string, subWriteTimeout int64) *Server {
 		obs:             obs,
 		addr:            addr,
 		subWriteTimeout: subWriteTimeout,
-		groupMap:        make(map[string]*Group),
 	}
 }
 
 func (server *Server) RunLoop() error {
 	var err error
+	server.m.Lock()
 	server.ln, err = net.Listen("tcp", server.addr)
+	server.m.Unlock()
 	if err != nil {
 		return err
 	}
@@ -49,22 +48,14 @@ func (server *Server) RunLoop() error {
 }
 
 func (server *Server) Dispose() {
+	server.m.Lock()
+	defer server.m.Unlock()
+	if server.ln == nil {
+		return
+	}
 	if err := server.ln.Close(); err != nil {
 		log.Error(err)
 	}
-}
-
-func (server *Server) GetOrCreateGroup(appName string, streamName string) *Group {
-	server.mutex.Lock()
-	defer server.mutex.Unlock()
-
-	group, exist := server.groupMap[streamName]
-	if !exist {
-		group = NewGroup(appName, streamName)
-		server.groupMap[streamName] = group
-	}
-	go group.RunLoop()
-	return group
 }
 
 func (server *Server) handleConnect(conn net.Conn) {
@@ -76,10 +67,7 @@ func (server *Server) handleConnect(conn net.Conn) {
 	}
 	log.Infof("-----> http request. [%s] uri=%s", session.UniqueKey, session.URI)
 
-	group := server.GetOrCreateGroup(session.AppName, session.StreamName)
-	group.AddHTTPFlvSubSession(session)
-
-	if !server.obs.NewHTTPFlvSubSessionCB(session, group) {
+	if !server.obs.NewHTTPFlvSubSessionCB(session) {
 		session.Dispose(httpFlvErr)
 	}
 }

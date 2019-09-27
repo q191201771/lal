@@ -82,6 +82,35 @@ type HandshakeServer struct {
 	s0s1s2       []byte
 }
 
+func (c *HandshakeClientSimple) WriteC0C1(writer io.Writer) error {
+	c.c0c1 = make([]byte, c0c1Len)
+	c.c0c1[0] = version
+	bele.BEPutUint32(c.c0c1[1:5], uint32(time.Now().UnixNano()))
+	random1528(c.c0c1[9:])
+
+	_, err := writer.Write(c.c0c1)
+	return err
+}
+
+func (c *HandshakeClientSimple) ReadS0S1S2(reader io.Reader) error {
+	s0s1s2 := make([]byte, s0s1s2Len)
+	if _, err := io.ReadAtLeast(reader, s0s1s2, s0s1s2Len); err != nil {
+		return err
+	}
+	//if s0s1s2[0] != version {
+	//	return rtmpErr
+	//}
+	// use s2 as c2
+	c.c2 = append(c.c2, s0s1s2[s0s1Len:]...)
+
+	return nil
+}
+
+func (c *HandshakeClientSimple) WriteC2(write io.Writer) error {
+	_, err := write.Write(c.c2)
+	return err
+}
+
 func (c *HandshakeClientComplex) WriteC0C1(writer io.Writer) error {
 	c.c0c1 = make([]byte, c0c1Len)
 	c.c0c1[0] = version
@@ -116,35 +145,6 @@ func (c *HandshakeClientComplex) ReadS0S1S2(reader io.Reader) error {
 }
 
 func (c *HandshakeClientComplex) WriteC2(write io.Writer) error {
-	_, err := write.Write(c.c2)
-	return err
-}
-
-func (c *HandshakeClientSimple) WriteC0C1(writer io.Writer) error {
-	c.c0c1 = make([]byte, c0c1Len)
-	c.c0c1[0] = version
-	bele.BEPutUint32(c.c0c1[1:5], uint32(time.Now().UnixNano()))
-	random1528(c.c0c1[9:])
-
-	_, err := writer.Write(c.c0c1)
-	return err
-}
-
-func (c *HandshakeClientSimple) ReadS0S1S2(reader io.Reader) error {
-	s0s1s2 := make([]byte, s0s1s2Len)
-	if _, err := io.ReadAtLeast(reader, s0s1s2, s0s1s2Len); err != nil {
-		return err
-	}
-	//if s0s1s2[0] != version {
-	//	return rtmpErr
-	//}
-	// use s2 as c2
-	c.c2 = append(c.c2, s0s1s2[s0s1Len:]...)
-
-	return nil
-}
-
-func (c *HandshakeClientSimple) WriteC2(write io.Writer) error {
 	_, err := write.Write(c.c2)
 	return err
 }

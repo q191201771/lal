@@ -71,10 +71,10 @@ func (packer *MessagePacker) writeConnect(writer io.Writer, appName, tcURL strin
 	_ = AMF0.WriteNumber(packer.b, float64(tidClientConnect))
 
 	objs := []ObjectPair{
-		{key: "app", value: appName},
-		{key: "type", value: "nonprivate"},
-		{key: "flashVer", value: "FMLE/3.0 (compatible; Lal0.0.1)"},
-		{key: "tcUrl", value: tcURL},
+		{Key: "app", Value: appName},
+		{Key: "type", Value: "nonprivate"},
+		{Key: "flashVer", Value: "FMLE/3.0 (compatible; Lal0.0.1)"},
+		{Key: "tcUrl", Value: tcURL},
 	}
 	_ = AMF0.WriteObject(packer.b, objs)
 	raw := packer.b.Bytes()
@@ -88,15 +88,15 @@ func (packer *MessagePacker) writeConnectResult(writer io.Writer, tid int) error
 	_ = AMF0.WriteString(packer.b, "_result")
 	_ = AMF0.WriteNumber(packer.b, float64(tid))
 	objs := []ObjectPair{
-		{key: "fmsVer", value: "FMS/3,0,1,123"},
-		{key: "capabilities", value: 31},
+		{Key: "fmsVer", Value: "FMS/3,0,1,123"},
+		{Key: "capabilities", Value: 31},
 	}
 	_ = AMF0.WriteObject(packer.b, objs)
 	objs = []ObjectPair{
-		{key: "level", value: "status"},
-		{key: "code", value: "NetConnection.Connect.Success"},
-		{key: "description", value: "Connection succeeded."},
-		{key: "objectEncoding", value: 0},
+		{Key: "level", Value: "status"},
+		{Key: "code", Value: "NetConnection.Connect.Success"},
+		{Key: "description", Value: "Connection succeeded."},
+		{Key: "objectEncoding", Value: 0},
 	}
 	_ = AMF0.WriteObject(packer.b, objs)
 	_, err := packer.b.WriteTo(writer)
@@ -156,9 +156,9 @@ func (packer *MessagePacker) writeOnStatusPublish(writer io.Writer, streamID int
 	_ = AMF0.WriteNumber(packer.b, 0)
 	_ = AMF0.WriteNull(packer.b)
 	objs := []ObjectPair{
-		{key: "level", value: "status"},
-		{key: "code", value: "NetStream.Publish.Start"},
-		{key: "description", value: "Start publishing"},
+		{Key: "level", Value: "status"},
+		{Key: "code", Value: "NetStream.Publish.Start"},
+		{Key: "description", Value: "Start publishing"},
 	}
 	_ = AMF0.WriteObject(packer.b, objs)
 	_, err := packer.b.WriteTo(writer)
@@ -171,9 +171,9 @@ func (packer *MessagePacker) writeOnStatusPlay(writer io.Writer, streamID int) e
 	_ = AMF0.WriteNumber(packer.b, 0)
 	_ = AMF0.WriteNull(packer.b)
 	objs := []ObjectPair{
-		{key: "level", value: "status"},
-		{key: "code", value: "NetStream.Play.Start"},
-		{key: "description", value: "Start live"},
+		{Key: "level", Value: "status"},
+		{Key: "code", Value: "NetStream.Play.Start"},
+		{Key: "description", Value: "Start live"},
 	}
 	_ = AMF0.WriteObject(packer.b, objs)
 	_, err := packer.b.WriteTo(writer)

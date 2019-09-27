@@ -25,5 +25,5 @@ func NewPullSession(obs PullSessionObserver, timeout PullSessionTimeout) *PullSe
 }
 
 func (s *PullSession) Pull(rawURL string) error {
-	return s.Do(rawURL)
+	return s.doWithTimeout(rawURL)
 }

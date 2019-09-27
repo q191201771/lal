@@ -2,16 +2,6 @@ package rtmp
 
 import "errors"
 
-// 一些更专业的配置项，暂时只在该源码文件中配置，不提供外部配置接口
-var (
-	readBufSize               = 4096
-	writeBufSize              = 4096
-	wChanSize                 = 1024
-	windowAcknowledgementSize = 5000000
-	peerBandwidth             = 5000000
-	LocalChunkSize            = 4096 // 本端设置的chunk size
-)
-
 var rtmpErr = errors.New("rtmp: fxxk")
 
 const (
@@ -22,8 +12,8 @@ const (
 	csidOverConnection  = 3
 	csidOverStream      = 5
 
-	minCSID = 2
-	maxCSID = 65599
+	//minCSID = 2
+	//maxCSID = 65599
 )
 
 const (
@@ -48,12 +38,13 @@ const (
 // basic header 3 | message header 11 | extended ts 4
 const maxHeaderSize = 18
 
+// rtmp头中3字节时间戳的最大值
 const maxTimestampInMessageHeader uint32 = 0xFFFFFF
 
 const defaultChunkSize = 128 // 未收到对端设置chunk size时的默认值
 
 const (
-	MSID0 = 0 // 所有除 publish、play、onStatus 之外的信令
+	//MSID0 = 0 // 所有除 publish、play、onStatus 之外的信令
 	MSID1 = 1 // publish、play、onStatus 以及 音视频数据
 )
 

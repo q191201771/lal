@@ -19,6 +19,7 @@ func (ffr *FlvFileReader) ReadFlvHeader() ([]byte, error) {
 	return flvHeader, err
 }
 
+// TODO chef: 返回 Tag 类型，对比 bench
 func (ffr *FlvFileReader) ReadTag() (*Tag, error) {
 	return readTag(ffr.fp)
 }

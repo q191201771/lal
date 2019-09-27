@@ -85,8 +85,8 @@ func main() {
 				if totalBaseTS == 0 {
 					// 第一个metadata直接发送
 					//log.Debugf("CHEFERASEME write metadata.")
-					chunks := rtmp.Message2Chunks(tag.Raw[11:11+h.MsgLen], &h, rtmp.LocalChunkSize)
-					err = ps.TmpWrite(chunks)
+					chunks := rtmp.Message2Chunks(tag.Raw[11:11+h.MsgLen], &h)
+					err = ps.AsyncWrite(chunks)
 					log.FatalIfErrorNotNil(err)
 				} else {
 					// noop
@@ -111,7 +111,7 @@ func main() {
 				h.Timestamp = prevTS
 			}
 
-			chunks := rtmp.Message2Chunks(tag.Raw[11:11+h.MsgLen], &h, rtmp.LocalChunkSize)
+			chunks := rtmp.Message2Chunks(tag.Raw[11:11+h.MsgLen], &h)
 
 			if hasTraceFirstTagTS {
 				n := time.Now().UnixNano() / 1000000
@@ -127,7 +127,7 @@ func main() {
 				hasTraceFirstTagTS = true
 			}
 
-			err = ps.TmpWrite(chunks)
+			err = ps.AsyncWrite(chunks)
 			log.FatalIfErrorNotNil(err)
 
 			prevTS = h.Timestamp

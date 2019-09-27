@@ -1,10 +1,7 @@
 package httpflv
 
-import (
-	"fmt"
-	"github.com/q191201771/nezha/pkg/log"
-	"sync"
-)
+/*
+// v1.0.0 版本之前不提供 httpflv 功能
 
 // TODO chef: set me by config
 var gopCacheNum = 2
@@ -154,3 +151,5 @@ func (group *Group) ReadFlvTagCB(tag *Tag) {
 		group.obs.ReadFlvTagCB(tag)
 	}
 }
+
+*/

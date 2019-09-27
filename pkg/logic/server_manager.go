@@ -116,9 +116,9 @@ func (sm *ServerManager) DelRTMPSubSessionCB(session *rtmp.ServerSession) {
 }
 
 // ServerObserver of httpflv.Server
-func (sm *ServerManager) NewHTTPFlvSubSessionCB(session *httpflv.SubSession, httpFlvGroup *httpflv.Group) bool {
+func (sm *ServerManager) NewHTTPFlvSubSessionCB(session *httpflv.SubSession) bool {
 	group := sm.getOrCreateGroup(session.AppName, session.StreamName)
-	group.AddHTTPFlvSubSession(session, httpFlvGroup)
+	group.AddHTTPFlvSubSession(session)
 	return true
 }
 
