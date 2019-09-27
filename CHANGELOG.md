@@ -1,3 +1,13 @@
+#### v0.3.0
+
+- [功能] package logic: 增加 func FlvTag2RTMPMsg
+- [代码调整] package rtmp: ClientSession 和 ServerSession 使用 nezha 中的 connection 做连接管理
+- [代码调整] package rtmp: 增加 struct ChunkDivider
+- [代码调整] package rtmp: 调整一些接口
+- [代码调整] package httpflv: 删除了 group， gop 相关的代码，后续会放入 package logic 中
+- [测试] package rtmp: 增加 `example_test.go` 用于测试整个 rtmp 包的流程
+- [其他] 更新 nezha -> 0.3.0
+
 #### v0.2.0
 
 - [结构调整] 将 app/lal 的部分代码抽离到 pkg/logic 中，使得其他 app 可以使用
