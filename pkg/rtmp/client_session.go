@@ -3,10 +3,10 @@ package rtmp
 import (
 	"encoding/hex"
 	"errors"
-	"github.com/q191201771/nezha/pkg/bele"
-	"github.com/q191201771/nezha/pkg/connection"
-	"github.com/q191201771/nezha/pkg/log"
-	"github.com/q191201771/nezha/pkg/unique"
+	"github.com/q191201771/naza/pkg/bele"
+	"github.com/q191201771/naza/pkg/connection"
+	log "github.com/q191201771/naza/pkg/nazalog"
+	"github.com/q191201771/naza/pkg/unique"
 	"net"
 	"net/url"
 	"strings"
@@ -403,8 +403,8 @@ func (s *ClientSession) tcpConnect() error {
 		return err
 	}
 
-	s.conn = connection.New(conn, connection.Config{
-		ReadBufSize: readBufSize,
+	s.conn = connection.New(conn, func(option *connection.Option) {
+		option.ReadBufSize = readBufSize
 	})
 	return nil
 }

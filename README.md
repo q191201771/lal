@@ -49,7 +49,7 @@ bin/                  ......可执行文件编译输出目录
 conf/                 ......配置文件目录
 ```
 
-目前唯一的第三方依赖（我自己写的 Go 基础库）： [github.com/q191201771/nezha](https://github.com/q191201771/nezha)
+目前唯一的第三方依赖（我自己写的 Go 基础库）： [github.com/q191201771/naza](https://github.com/q191201771/naza)
 
 #### 编译和运行
 
@@ -86,7 +86,7 @@ $./bin/lal -c conf/lal.conf.json
 }
 ```
 
-其它放在代码中的配置： TODO
+其它放在代码中的配置： [rtmp/var.go](https://github.com/q191201771/lal/blob/master/pkg/rtmp/var.go)
 
 ### 测试过的客户端
 

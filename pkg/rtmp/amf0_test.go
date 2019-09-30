@@ -3,8 +3,8 @@ package rtmp_test
 import (
 	"bytes"
 	. "github.com/q191201771/lal/pkg/rtmp"
-	"github.com/q191201771/nezha/pkg/assert"
-	"github.com/q191201771/nezha/pkg/mockwriter"
+	"github.com/q191201771/naza/pkg/assert"
+	"github.com/q191201771/naza/pkg/mockwriter"
 	"strings"
 	"testing"
 )

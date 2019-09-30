@@ -1,6 +1,31 @@
 #!/usr/bin/env bash
 
-set -e
+# 在 macos 下运行 gofmt 检查
+uname=$(uname)
+if [[ "$uname" == "Darwin" ]]; then
+    echo "CHEFERASEME run gofmt check..."
+    gofiles=$(git diff --name-only --diff-filter=ACM | grep '.go$')
+    if [ ! -z "$gofiles" ]; then
+        #echo "CHEFERASEME mod gofiles exist:" $gofiles
+        unformatted=$(gofmt -l $gofiles)
+        if [ ! -z "$unformatted" ]; then
+            echo "Go files should be formatted with gofmt. Please run:"
+            for fn in $unformatted; do
+                echo "  gofmt -w $PWD/$fn"
+            done
+            #exit 1
+        else
+            echo "Go files be formatted."
+        fi
+    else
+        echo "CHEFERASEME mod gofiles not exist."
+    fi
+else
+  echo "CHEFERASEME not run gofmt check..."
+fi
+
+# 跑 go test 生成测试覆盖率
+echo "CHEFERASEME run coverage test..."
 echo "" > coverage.txt
 
 for d in $(go list ./... | grep -v vendor | grep lal/pkg); do

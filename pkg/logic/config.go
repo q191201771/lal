@@ -2,13 +2,14 @@ package logic
 
 import (
 	"encoding/json"
-	"github.com/q191201771/nezha/pkg/log"
+	log "github.com/q191201771/naza/pkg/nazalog"
+	"github.com/q191201771/naza/pkg/nazajson"
 	"io/ioutil"
 )
 
 type Config struct {
 	RTMP  RTMP       `json:"rtmp"`
-	Log   log.Config `json:"log"`
+	Log   log.Option `json:"log"`
 	PProf PProf      `json:"pprof"`
 
 	// v1.0.0之前不提供
@@ -49,6 +50,25 @@ func LoadConf(confFile string) (*Config, error) {
 	}
 
 	// TODO chef: check item valid.
+	j, err := nazajson.New(rawContent)
+	if err != nil {
+		return nil, err
+	}
+	if !j.Exist("log.level") {
+		config.Log.Level = log.LevelDebug
+	}
+	if !j.Exist("log.filename") {
+		config.Log.Filename = "./logs/lal.log"
+	}
+	if !j.Exist("log.is_to_stdout") {
+		config.Log.IsToStdout = true
+	}
+	if !j.Exist("log.is_rotate_daily") {
+		config.Log.IsRotateDaily = true
+	}
+	if !j.Exist("log.short_file_flag") {
+		config.Log.ShortFileFlag = true
+	}
 
 	return &config, nil
 }

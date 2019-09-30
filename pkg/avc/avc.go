@@ -2,7 +2,7 @@ package avc
 
 import (
 	"errors"
-	"github.com/q191201771/nezha/pkg/bele"
+	"github.com/q191201771/naza/pkg/bele"
 	"io"
 )
 

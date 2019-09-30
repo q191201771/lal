@@ -5,7 +5,7 @@ package rtmp
 // 读取chunk，并组织chunk，生成message返回给上层
 
 import (
-	"github.com/q191201771/nezha/pkg/bele"
+	"github.com/q191201771/naza/pkg/bele"
 	"io"
 	"log"
 )

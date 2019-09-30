@@ -5,7 +5,7 @@ import (
 	"github.com/q191201771/lal/pkg/httpflv"
 	"github.com/q191201771/lal/pkg/logic"
 	"github.com/q191201771/lal/pkg/rtmp"
-	"github.com/q191201771/nezha/pkg/log"
+	log "github.com/q191201771/naza/pkg/nazalog"
 	"os"
 )
 

@@ -1,9 +1,10 @@
 package httpflv
 
 import (
-	"github.com/q191201771/nezha/pkg/connection"
-	"github.com/q191201771/nezha/pkg/log"
-	"github.com/q191201771/nezha/pkg/unique"
+	"fmt"
+	"github.com/q191201771/naza/pkg/connection"
+	log "github.com/q191201771/naza/pkg/nazalog"
+	"github.com/q191201771/naza/pkg/unique"
 	"net"
 	"net/url"
 	"strings"
@@ -94,19 +95,19 @@ func (session *PullSession) Connect(rawURL string) error {
 	if err != nil {
 		return err
 	}
-	session.Conn = connection.New(conn, connection.Config{
-		ReadBufSize:    readBufSize,
-		WriteTimeoutMS: session.config.ReadTimeoutMS,
-		ReadTimeoutMS:  session.config.ReadTimeoutMS,
+	session.Conn = connection.New(conn, func(option *connection.Option) {
+		option.ReadBufSize = readBufSize
+		option.WriteTimeoutMS = session.config.ReadTimeoutMS // TODO chef: 为什么是 Read 赋值给 Write
+		option.ReadTimeoutMS = session.config.ReadTimeoutMS
 	})
 	return nil
 }
 
 func (session *PullSession) WriteHTTPRequest() error {
 	// # 发送 http GET 请求
-	_, err := session.Conn.Printf(
-		"GET %s HTTP/1.0\r\nAccept: */*\r\nRange: byte=0-\r\nConnection: close\r\nHost: %s\r\nIcy-MetaData: 1\r\n\r\n",
+	req := fmt.Sprintf("GET %s HTTP/1.0\r\nAccept: */*\r\nRange: byte=0-\r\nConnection: close\r\nHost: %s\r\nIcy-MetaData: 1\r\n\r\n",
 		session.uri, session.host)
+	_, err := session.Conn.Write([]byte(req))
 	return err
 }
 

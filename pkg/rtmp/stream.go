@@ -1,6 +1,6 @@
 package rtmp
 
-import "github.com/q191201771/nezha/pkg/log"
+import log "github.com/q191201771/naza/pkg/nazalog"
 
 const initMsgLen = 4096
 

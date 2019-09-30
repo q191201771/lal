@@ -3,8 +3,8 @@ package logic
 import (
 	"github.com/q191201771/lal/pkg/httpflv"
 	"github.com/q191201771/lal/pkg/rtmp"
-	"github.com/q191201771/nezha/pkg/log"
-	"github.com/q191201771/nezha/pkg/unique"
+	log "github.com/q191201771/naza/pkg/nazalog"
+	"github.com/q191201771/naza/pkg/unique"
 	"sync"
 	"time"
 )

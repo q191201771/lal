@@ -3,7 +3,7 @@ package main
 import (
 	"flag"
 	"github.com/q191201771/lal/pkg/httpflv"
-	"github.com/q191201771/nezha/pkg/log"
+	log "github.com/q191201771/naza/pkg/nazalog"
 	"io"
 	"os"
 )
