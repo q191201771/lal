@@ -1,3 +1,10 @@
+#### v0.3.1
+
+- [功能] 读取配置文件时，部分未配置的字段设置初始值
+- [其他] build.sh 中 git信息单引号替换成双引号
+- [其他] test.sh 中 加入 gofmt 检查
+- [其他] 更新 naza -> 0.4.0
+
 #### v0.3.0
 
 - [功能] package logic: 增加 func FlvTag2RTMPMsg
