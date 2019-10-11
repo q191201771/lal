@@ -19,3 +19,4 @@ coverage.html
 
 /pkg/hls/
 /pkg/rtmp/testdata/test.flv
+/pkg/rtmp/testdata/test.flv.bak

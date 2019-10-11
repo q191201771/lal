@@ -9,7 +9,7 @@ Go语言编写的流媒体 库 / 客户端 / 服务端
 <a title="codecov" target="_blank" href="https://codecov.io/gh/q191201771/lal"><img src="https://codecov.io/gh/q191201771/lal/branch/master/graph/badge.svg?style=flat-square"></a>
 <a title="goreportcard" target="_blank" href="https://goreportcard.com/report/github.com/q191201771/lal"><img src="https://goreportcard.com/badge/github.com/q191201771/lal?style=flat-square"></a>
 <br>
-<a title="codesize" target="_blank" href="https://github.com/q191201771/lal"><img src="https://img.shields.io/github/languages/code-size/q191201771/lal.svg?style=flat-square?style=flat-square"></a>
+<a title="codeline" target="_blank" href="https://github.com/q191201771/lal"><img src="https://sloc.xyz/github/q191201771/lal/?category=code"></a>
 <a title="license" target="_blank" href="https://github.com/q191201771/lal/blob/master/LICENSE"><img src="https://img.shields.io/badge/license-MIT-brightgreen.svg?style=flat-square"></a>
 <a title="lastcommit" target="_blank" href="https://github.com/q191201771/lal/commits/master"><img src="https://img.shields.io/github/commit-activity/m/q191201771/lal.svg?style=flat-square"></a>
 <a title="commitactivity" target="_blank" href="https://github.com/q191201771/lal/graphs/commit-activity"><img src="https://img.shields.io/github/last-commit/q191201771/lal.svg?style=flat-square"></a>
@@ -88,7 +88,7 @@ $./bin/lal -c conf/lal.conf.json
 
 其它放在代码中的配置： [rtmp/var.go](https://github.com/q191201771/lal/blob/master/pkg/rtmp/var.go)
 
-### 测试过的客户端
+#### 测试过的客户端
 
 ```
 推流端：
@@ -158,3 +158,9 @@ lal 服务器目标版本roadmap如下：
 
 * [rtmp handshake | rtmp握手简单模式和复杂模式](https://pengrl.com/p/20027/)
 * [rtmp协议中的chunk stream id, message stream id, transaction id, message type id](https://pengrl.com/p/25610/)
+
+#### 联系我
+
+欢迎扫码加我微信，进行技术交流或扯淡。
+
+<img src="https://pengrl.com/images/yoko_vx.jpeg" width="180" height="180" />

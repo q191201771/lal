@@ -28,6 +28,17 @@ fi
 echo "CHEFERASEME run coverage test..."
 echo "" > coverage.txt
 
+if [ ! -f "pkg/rtmp/testdata/test.flv" ]; then
+    echo "CHEFERASEME test.flv not exist."
+    if [ ! -d "pkg/rtmp/testdata" ]; then
+        echo "CHEFERASEME mkdir."
+        mkdir "pkg/rtmp/testdata"
+    fi
+    wget https://pengrl.com/images/other/source.200kbps.768x320.flv -O pkg/rtmp/testdata/test.flv
+else
+    echo "CHEFERASEME test.flv exist."
+fi
+
 for d in $(go list ./... | grep -v vendor | grep lal/pkg); do
     go test -race -coverprofile=profile.out -covermode=atomic $d
     if [ -f profile.out ]; then
