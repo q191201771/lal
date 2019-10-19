@@ -9,9 +9,10 @@
 package httpflv
 
 import (
-	log "github.com/q191201771/naza/pkg/nazalog"
 	"net"
 	"sync"
+
+	log "github.com/q191201771/naza/pkg/nazalog"
 )
 
 type ServerObserver interface {

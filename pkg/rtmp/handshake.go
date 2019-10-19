@@ -12,10 +12,11 @@ import (
 	"bytes"
 	"crypto/hmac"
 	"crypto/sha256"
-	"github.com/q191201771/naza/pkg/bele"
-	log "github.com/q191201771/naza/pkg/nazalog"
 	"io"
 	"time"
+
+	"github.com/q191201771/naza/pkg/bele"
+	log "github.com/q191201771/naza/pkg/nazalog"
 )
 
 const version = uint8(3)

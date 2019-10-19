@@ -9,8 +9,9 @@
 package httpflv
 
 import (
-	"github.com/q191201771/naza/pkg/bele"
 	"io"
+
+	"github.com/q191201771/naza/pkg/bele"
 )
 
 // TODO chef: make these const

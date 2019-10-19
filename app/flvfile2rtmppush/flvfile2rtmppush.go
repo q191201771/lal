@@ -11,13 +11,14 @@ package main
 import (
 	"flag"
 	"fmt"
+	"io"
+	"os"
+	"time"
+
 	"github.com/q191201771/lal/pkg/httpflv"
 	"github.com/q191201771/lal/pkg/rtmp"
 	"github.com/q191201771/naza/pkg/bininfo"
 	log "github.com/q191201771/naza/pkg/nazalog"
-	"io"
-	"os"
-	"time"
 )
 
 //rtmp推流客户端，输入是本地flv文件，文件推送完毕后，可循环推送（rtmp push流并不断开）

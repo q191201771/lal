@@ -10,9 +10,10 @@ package rtmp
 
 import (
 	"bytes"
+	"testing"
+
 	"github.com/q191201771/naza/pkg/assert"
 	"github.com/q191201771/naza/pkg/mockwriter"
-	"testing"
 )
 
 func TestWriteMessageHandler(t *testing.T) {

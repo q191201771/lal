@@ -10,9 +10,10 @@ package main
 
 import (
 	"flag"
+	"os"
+
 	"github.com/q191201771/lal/pkg/httpflv"
 	log "github.com/q191201771/naza/pkg/nazalog"
-	"os"
 )
 
 func main() {

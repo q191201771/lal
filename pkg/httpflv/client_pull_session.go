@@ -10,14 +10,15 @@ package httpflv
 
 import (
 	"fmt"
-	"github.com/q191201771/naza/pkg/connection"
-	log "github.com/q191201771/naza/pkg/nazalog"
-	"github.com/q191201771/naza/pkg/unique"
 	"net"
 	"net/url"
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/q191201771/naza/pkg/connection"
+	log "github.com/q191201771/naza/pkg/nazalog"
+	"github.com/q191201771/naza/pkg/unique"
 )
 
 type PullSessionConfig struct {

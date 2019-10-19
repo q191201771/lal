@@ -10,9 +10,10 @@ package logic
 
 import (
 	"encoding/json"
-	log "github.com/q191201771/naza/pkg/nazalog"
-	"github.com/q191201771/naza/pkg/nazajson"
 	"io/ioutil"
+
+	"github.com/q191201771/naza/pkg/nazajson"
+	log "github.com/q191201771/naza/pkg/nazalog"
 )
 
 type Config struct {
@@ -62,11 +63,14 @@ func LoadConf(confFile string) (*Config, error) {
 	if err != nil {
 		return nil, err
 	}
+	if !j.Exist("rtmp.addr") {
+		config.RTMP.Addr = ":1935"
+	}
 	if !j.Exist("log.level") {
 		config.Log.Level = log.LevelDebug
 	}
 	if !j.Exist("log.filename") {
-		config.Log.Filename = "./logs/lal.log"
+		config.Log.Filename = "./logs/lals.log"
 	}
 	if !j.Exist("log.is_to_stdout") {
 		config.Log.IsToStdout = true

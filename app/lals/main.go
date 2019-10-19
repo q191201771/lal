@@ -11,14 +11,15 @@ package main
 import (
 	"flag"
 	"fmt"
-	"github.com/q191201771/lal/pkg/logic"
-	"github.com/q191201771/naza/pkg/bininfo"
-	log "github.com/q191201771/naza/pkg/nazalog"
 	"net/http"
 	_ "net/http/pprof"
 	"os"
 	"os/signal"
 	"syscall"
+
+	"github.com/q191201771/lal/pkg/logic"
+	"github.com/q191201771/naza/pkg/bininfo"
+	log "github.com/q191201771/naza/pkg/nazalog"
 )
 
 var sm *logic.ServerManager

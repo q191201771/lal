@@ -11,14 +11,15 @@ package rtmp
 import (
 	"encoding/hex"
 	"errors"
-	"github.com/q191201771/naza/pkg/bele"
-	"github.com/q191201771/naza/pkg/connection"
-	log "github.com/q191201771/naza/pkg/nazalog"
-	"github.com/q191201771/naza/pkg/unique"
 	"net"
 	"net/url"
 	"strings"
 	"time"
+
+	"github.com/q191201771/naza/pkg/bele"
+	"github.com/q191201771/naza/pkg/connection"
+	log "github.com/q191201771/naza/pkg/nazalog"
+	"github.com/q191201771/naza/pkg/unique"
 )
 
 var ErrClientSessionTimeout = errors.New("rtmp.ClientSession timeout")

@@ -10,9 +10,10 @@ package rtmp_test
 
 import (
 	"bytes"
+	"testing"
+
 	. "github.com/q191201771/lal/pkg/rtmp"
 	"github.com/q191201771/naza/pkg/assert"
-	"testing"
 )
 
 func TestHandshakeSimple(t *testing.T) {

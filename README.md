@@ -33,7 +33,7 @@ Go语言编写的流媒体 库 / 客户端 / 服务端
 
 ```
 app/                  ......各种main包的源码文件，一个子目录对应一个main包，即对应可生成一个可执行文件
-|-- lal/              ......[最重要的] 流媒体服务器
+|-- lals/             ......[最重要的] 流媒体服务器
 |-- flvfile2es        ......将本地flv文件分离成h264/avc es流文件以及aac es流文件
 |-- flvfile2rtmppush  ......rtmp推流客户端，输入是本地flv文件，文件推送完毕后，可循环推送（rtmp push流并不断开）
 |-- httpflvpull       ......http-flv拉流客户端
@@ -43,7 +43,7 @@ pkg/                  ......源码包
 |-- aac/              ......音频aac编解码格式相关
 |-- avc/              ......视频avc h264编解码格式相关
 |-- httpflv/          ......http-flv协议
-|-- logic/            ......lal服务器的上层业务
+|-- logic/            ......lals服务器的上层业务
 |-- rtmp/             ......rtmp协议
 bin/                  ......可执行文件编译输出目录
 conf/                 ......配置文件目录
@@ -63,7 +63,7 @@ $./build.sh
 $git clone https://github.com/q191201771/lal.git && cd lal && ./build.sh
 
 # 运行
-$./bin/lal -c conf/lal.conf.json
+$./bin/lals -c conf/lals.conf.json
 ```
 
 #### 配置文件说明
@@ -108,7 +108,7 @@ $./bin/lal -c conf/lal.conf.json
 
 **有建议、意见、bug、功能等等欢迎提 issue 啊，100% 会回复的。**
 
-lal 服务器目标版本roadmap如下：
+lals 服务器目标版本roadmap如下：
 
 **v1.0.0**
 

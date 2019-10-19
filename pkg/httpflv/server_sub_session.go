@@ -10,14 +10,15 @@ package httpflv
 
 import (
 	"bufio"
-	log "github.com/q191201771/naza/pkg/nazalog"
-	"github.com/q191201771/naza/pkg/unique"
 	"net"
 	url2 "net/url"
 	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
+
+	log "github.com/q191201771/naza/pkg/nazalog"
+	"github.com/q191201771/naza/pkg/unique"
 )
 
 var flvHTTPResponseHeaderStr = "HTTP/1.1 200 OK\r\n" +

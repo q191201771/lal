@@ -9,12 +9,13 @@
 package logic
 
 import (
+	"sync"
+	"time"
+
 	"github.com/q191201771/lal/pkg/httpflv"
 	"github.com/q191201771/lal/pkg/rtmp"
 	log "github.com/q191201771/naza/pkg/nazalog"
 	"github.com/q191201771/naza/pkg/unique"
-	"sync"
-	"time"
 )
 
 type Group struct {

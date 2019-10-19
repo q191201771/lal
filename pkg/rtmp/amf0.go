@@ -15,9 +15,10 @@ package rtmp
 import (
 	"bytes"
 	"errors"
+	"io"
+
 	"github.com/q191201771/naza/pkg/bele"
 	log "github.com/q191201771/naza/pkg/nazalog"
-	"io"
 )
 
 var (

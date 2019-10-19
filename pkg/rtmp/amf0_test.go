@@ -10,11 +10,12 @@ package rtmp_test
 
 import (
 	"bytes"
+	"strings"
+	"testing"
+
 	. "github.com/q191201771/lal/pkg/rtmp"
 	"github.com/q191201771/naza/pkg/assert"
 	"github.com/q191201771/naza/pkg/mockwriter"
-	"strings"
-	"testing"
 )
 
 func TestAmf0_WriteNumber_ReadNumber(t *testing.T) {

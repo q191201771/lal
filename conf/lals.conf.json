@@ -4,7 +4,7 @@
   },
   "log": {
     "level": 1,
-    "filename": "./logs/lal.log",
+    "filename": "./logs/lals.log",
     "is_to_stdout": true,
     "is_rotate_daily": true,
     "short_file_flag": true

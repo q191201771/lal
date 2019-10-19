@@ -10,8 +10,9 @@ package aac
 
 import (
 	"encoding/hex"
-	log "github.com/q191201771/naza/pkg/nazalog"
 	"io"
+
+	log "github.com/q191201771/naza/pkg/nazalog"
 )
 
 var adts ADTS

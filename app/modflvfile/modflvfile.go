@@ -10,10 +10,11 @@ package main
 
 import (
 	"flag"
-	"github.com/q191201771/lal/pkg/httpflv"
-	log "github.com/q191201771/naza/pkg/nazalog"
 	"io"
 	"os"
+
+	"github.com/q191201771/lal/pkg/httpflv"
+	log "github.com/q191201771/naza/pkg/nazalog"
 )
 
 // 修改flv文件的一些信息（比如某些tag的时间戳）后另存文件
