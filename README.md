@@ -27,6 +27,8 @@ Go语言编写的流媒体 库 / 客户端 / 服务端
 
 ---
 
+Go语言编写的流媒体 库 / 客户端 / 服务器。目前 rtmp / http-flv 部分基本完成了。
+
 #### 源码框架
 
 简单来说，主要源码在`app/`和`pkg/`两个目录下，后续我再画些源码架构图。
@@ -60,6 +62,7 @@ $go get -u github.com/q191201771/lal
 $./build.sh
 
 # 使用 go module
+$export GOPROXY=https://goproxy.cn
 $git clone https://github.com/q191201771/lal.git && cd lal && ./build.sh
 
 # 运行
@@ -73,12 +76,15 @@ $./bin/lals -c conf/lals.conf.json
   "rtmp": {
     "addr": ":19350" // rtmp服务监听的端口
   },
+  "httpflv": {
+    "sub_listen_addr": ":8080"
+  },
   "log": {
-    "level": 1,                   // 日志级别，1 debug, 2 info, 3 warn, 4 error, 5 fatal
-    "filename": "./logs/lal.log", // 日志输出文件
-    "is_to_stdout": true,         // 是否打印至标志控制台输出
-    "is_rotate_daily": true,      // 日志按天翻滚
-    "short_file_flag": true       // 日志末尾是否携带源码文件名以及行号的信息
+    "level": 1,                    // 日志级别，1 debug, 2 info, 3 warn, 4 error, 5 fatal
+    "filename": "./logs/lals.log", // 日志输出文件
+    "is_to_stdout": true,          // 是否打印至标志控制台输出
+    "is_rotate_daily": true,       // 日志按天翻滚
+    "short_file_flag": true        // 日志末尾是否携带源码文件名以及行号的信息
   },
   "pprof": {
     "addr": ":10001" // Go pprof web 地址
@@ -86,7 +92,10 @@ $./bin/lals -c conf/lals.conf.json
 }
 ```
 
-其它放在代码中的配置： [rtmp/var.go](https://github.com/q191201771/lal/blob/master/pkg/rtmp/var.go)
+其它放在代码中的配置：
+
+- [rtmp/var.go](https://github.com/q191201771/lal/blob/master/pkg/rtmp/var.go)
+- [httpflv/var.go](https://github.com/q191201771/lal/blob/master/pkg/httpflv/var.go)
 
 #### 测试过的客户端
 
@@ -112,8 +121,11 @@ lals 服务器目标版本roadmap如下：
 
 **v1.0.0**
 
-实现 rtmp 转发服务器。（目前基本功能已经完成了）
-
+- 接收 rtmp 推流 [DONE]
+- 转发给 rtmp 拉流 [DONE]
+- 转发给 http-flv 拉流 [DONE]
+- AAC [DONE]
+- H264 [DONE]
 - 各种 rtmp 推流、拉流客户端兼容性测试
 - 和其它主流 rtmp 服务器的性能对比测试
 - 整理日志
@@ -122,7 +134,6 @@ lals 服务器目标版本roadmap如下：
 
 **v2.0.0**
 
-- http-flv 拉流
 - Gop 缓存功能
 
 **v3.0.0**
