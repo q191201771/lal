@@ -1,3 +1,9 @@
+#### v0.4.0
+
+- [功能] 将 rtmp pub session 的音视频转发给httpflv sub session
+- [依赖] httpflv ServerSubSession 使用 naza connection
+- [其他] 增加测试，加载flv文件后使用rtmp推流至服务器，然后分别使用rtmp和httpflv将流拉取下来，存成文件，判断和输入文件是否相等
+
 #### v0.3.2
 
 - [功能] 默认的rtmp地址
