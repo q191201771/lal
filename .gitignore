@@ -15,5 +15,7 @@ coverage.html
 /logs/
 
 /pkg/hls/
-/pkg/rtmp/testdata/test.flv
-/pkg/rtmp/testdata/test.flv.bak
+/testdata
+/pkg/rtmp/testdata
+/pkg/httpflv/testdata
+/pkg/logic/testdata

@@ -107,7 +107,7 @@ func (c *HandshakeClientSimple) ReadS0S1S2(reader io.Reader) error {
 		return err
 	}
 	//if s0s1s2[0] != version {
-	//	return rtmpErr
+	//	return ErrRTMP
 	//}
 	// use s2 as c2
 	c.c2 = append(c.c2, s0s1s2[s0s1Len:]...)
@@ -144,7 +144,7 @@ func (c *HandshakeClientComplex) ReadS0S1S2(reader io.Reader) error {
 		return err
 	}
 	//if s0s1s2[0] != version {
-	//	return rtmpErr
+	//	return ErrRTMP
 	//}
 	// TODO chef: 这里复杂模式的 c2 构造没有完全按照规范
 	// nginx rtmp module 作为 server 端时，不会校验 c2 内容
@@ -222,7 +222,7 @@ func (s *HandshakeServer) ReadC2(reader io.Reader) error {
 
 func parseChallenge(c0c1 []byte) []byte {
 	//if c0c1[0] != version {
-	//	return nil, rtmpErr
+	//	return nil, ErrRTMP
 	//}
 	ver := bele.BEUint32(c0c1[5:])
 	if ver == 0 {

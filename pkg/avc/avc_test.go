@@ -27,10 +27,10 @@ func TestCorner(t *testing.T) {
 	sps, pps, err := ParseAVCSeqHeader([]byte{0})
 	assert.Equal(t, nil, sps)
 	assert.Equal(t, nil, pps)
-	assert.Equal(t, err, avcErr)
+	assert.Equal(t, err, ErrAVC)
 
 	b := &bytes.Buffer{}
 	err = CaptureAVC(b, []byte{0x17, 0x0, 0x1})
 	assert.Equal(t, nil, b.Bytes())
-	assert.Equal(t, err, avcErr)
+	assert.Equal(t, err, ErrAVC)
 }

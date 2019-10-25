@@ -17,8 +17,8 @@ import (
 
 type ServerObserver interface {
 	NewRTMPPubSessionCB(session *ServerSession) bool // 返回true则允许推流，返回false则强制关闭这个连接
-	NewRTMPSubSessionCB(session *ServerSession) bool // 返回true则允许拉流，返回false则强制关闭这个连接
 	DelRTMPPubSessionCB(session *ServerSession)
+	NewRTMPSubSessionCB(session *ServerSession) bool // 返回true则允许拉流，返回false则强制关闭这个连接
 	DelRTMPSubSessionCB(session *ServerSession)
 }
 

@@ -23,7 +23,7 @@ func main() {
 	var err error
 	flvFileName, aacFileName, avcFileName := parseFlag()
 
-	var ffr httpflv.FlvFileReader
+	var ffr httpflv.FLVFileReader
 	err = ffr.Open(flvFileName)
 	log.FatalIfErrorNotNil(err)
 	defer ffr.Dispose()
@@ -39,7 +39,7 @@ func main() {
 	defer vfp.Close()
 	log.Infof("open es h264 file succ.")
 
-	_, err = ffr.ReadFlvHeader()
+	_, err = ffr.ReadFLVHeader()
 	log.FatalIfErrorNotNil(err)
 
 	for {

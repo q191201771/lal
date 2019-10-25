@@ -22,7 +22,7 @@ import (
 	"github.com/q191201771/naza/pkg/unique"
 )
 
-var ErrClientSessionTimeout = errors.New("rtmp.ClientSession timeout")
+var ErrClientSessionTimeout = errors.New("lal.rtmp: client session timeout")
 
 // rtmp客户端类型连接的底层实现
 // rtmp包的使用者应该优先使用基于ClientSession实现的PushSession和PullSession
@@ -251,7 +251,7 @@ func (s *ClientSession) doOnStatusMessage(stream *Stream, tid int) error {
 	}
 	code, ok := infos["code"]
 	if !ok {
-		return rtmpErr
+		return ErrRTMP
 	}
 	switch s.t {
 	case CSTPushSession:
@@ -288,7 +288,7 @@ func (s *ClientSession) doResultMessage(stream *Stream, tid int) error {
 		}
 		code, ok := infos["code"].(string)
 		if !ok {
-			return rtmpErr
+			return ErrRTMP
 		}
 		switch code {
 		case "NetConnection.Connect.Success":
@@ -330,7 +330,7 @@ func (s *ClientSession) doResultMessage(stream *Stream, tid int) error {
 
 func (s *ClientSession) doProtocolControlMessage(stream *Stream) error {
 	if stream.msg.len() < 4 {
-		return rtmpErr
+		return ErrRTMP
 	}
 	val := int(bele.BEUint32(stream.msg.buf))
 
@@ -356,16 +356,16 @@ func (s *ClientSession) parseURL(rawURL string) error {
 		return err
 	}
 	if s.url.Scheme != "rtmp" || len(s.url.Host) == 0 || len(s.url.Path) == 0 || s.url.Path[0] != '/' {
-		return rtmpErr
+		return ErrRTMP
 	}
 	index := strings.LastIndexByte(rawURL, '/')
 	if index == -1 {
-		return rtmpErr
+		return ErrRTMP
 	}
 	s.tcURL = rawURL[:index]
 	strs := strings.Split(s.url.Path[1:], "/")
 	if len(strs) != 2 {
-		return rtmpErr
+		return ErrRTMP
 	}
 	s.appName = strs[0]
 	// 有的rtmp服务器会使用url后面的参数（比如说用于鉴权），这里把它带上

@@ -15,7 +15,7 @@ import (
 	"github.com/q191201771/naza/pkg/bele"
 )
 
-var avcErr = errors.New("avc: fxxk")
+var ErrAVC = errors.New("lal.avc: fxxk")
 
 var NaluStartCode = []byte{0x0, 0x0, 0x0, 0x1}
 
@@ -34,7 +34,7 @@ func ParseAVCSeqHeader(payload []byte) (sps, pps []byte, err error) {
 	// TODO chef: check if read out of <payload> range
 
 	if payload[0] != 0x17 || payload[1] != 0x00 || payload[2] != 0 || payload[3] != 0 || payload[4] != 0 {
-		err = avcErr
+		err = ErrAVC
 		return
 	}
 

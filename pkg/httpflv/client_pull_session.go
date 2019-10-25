@@ -13,7 +13,6 @@ import (
 	"net"
 	"net/url"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/q191201771/naza/pkg/connection"
@@ -31,14 +30,13 @@ type PullSession struct {
 
 	config PullSessionConfig
 
-	Conn      connection.Connection
-	closeOnce sync.Once
+	Conn connection.Connection
 
 	host string
 	uri  string
 	addr string
 
-	readFlvTagCB ReadFlvTagCB
+	readFLVTagCB ReadFLVTagCB
 }
 
 func NewPullSession(config PullSessionConfig) *PullSession {
@@ -50,7 +48,7 @@ func NewPullSession(config PullSessionConfig) *PullSession {
 	}
 }
 
-type ReadFlvTagCB func(tag *Tag)
+type ReadFLVTagCB func(tag *Tag)
 
 // 阻塞直到拉流失败
 //
@@ -58,8 +56,8 @@ type ReadFlvTagCB func(tag *Tag)
 // http://{domain}/{app_name}/{stream_name}.flv
 // http://{ip}/{domain}/{app_name}/{stream_name}.flv
 //
-// @param readFlvTagCB 读取到 flv tag 数据时回调。回调结束后，PullSession不会再使用 <tag> 数据。
-func (session *PullSession) Pull(rawURL string, readFlvTagCB ReadFlvTagCB) error {
+// @param readFLVTagCB 读取到 flv tag 数据时回调。回调结束后，PullSession不会再使用 <tag> 数据。
+func (session *PullSession) Pull(rawURL string, readFLVTagCB ReadFLVTagCB) error {
 	if err := session.Connect(rawURL); err != nil {
 		return err
 	}
@@ -67,16 +65,12 @@ func (session *PullSession) Pull(rawURL string, readFlvTagCB ReadFlvTagCB) error
 		return err
 	}
 
-	return session.runReadLoop(readFlvTagCB)
+	return session.runReadLoop(readFLVTagCB)
 }
 
 func (session *PullSession) Dispose(err error) {
-	session.closeOnce.Do(func() {
-		log.Infof("lifecycle dispose PullSession. [%s] reason=%v", session.UniqueKey, err)
-		if err := session.Conn.Close(); err != nil {
-			log.Errorf("conn close error. [%s] err=%v", session.UniqueKey, err)
-		}
-	})
+	log.Infof("lifecycle dispose PullSession. [%s] reason=%v", session.UniqueKey, err)
+	_ = session.Conn.Close()
 }
 
 func (session *PullSession) Connect(rawURL string) error {
@@ -86,7 +80,7 @@ func (session *PullSession) Connect(rawURL string) error {
 		return err
 	}
 	if url.Scheme != "http" || !strings.HasSuffix(url.Path, ".flv") {
-		return httpFlvErr
+		return ErrHTTPFLV
 	}
 
 	session.host = url.Host
@@ -128,7 +122,7 @@ func (session *PullSession) ReadHTTPRespHeader() (firstLine string, headers map[
 	}
 
 	if !strings.Contains(firstLine, "200") || len(headers) == 0 {
-		err = httpFlvErr
+		err = ErrHTTPFLV
 		return
 	}
 	log.Infof("-----> http response header. [%s]", session.UniqueKey)
@@ -136,7 +130,7 @@ func (session *PullSession) ReadHTTPRespHeader() (firstLine string, headers map[
 	return
 }
 
-func (session *PullSession) ReadFlvHeader() ([]byte, error) {
+func (session *PullSession) ReadFLVHeader() ([]byte, error) {
 	flvHeader := make([]byte, flvHeaderSize)
 	_, err := session.Conn.ReadAtLeast(flvHeader, flvHeaderSize)
 	if err != nil {
@@ -152,12 +146,12 @@ func (session *PullSession) ReadTag() (*Tag, error) {
 	return readTag(session.Conn)
 }
 
-func (session *PullSession) runReadLoop(readFlvTagCB ReadFlvTagCB) error {
+func (session *PullSession) runReadLoop(readFLVTagCB ReadFLVTagCB) error {
 	if _, _, err := session.ReadHTTPRespHeader(); err != nil {
 		return err
 	}
 
-	if _, err := session.ReadFlvHeader(); err != nil {
+	if _, err := session.ReadFLVHeader(); err != nil {
 		return err
 	}
 
@@ -166,6 +160,6 @@ func (session *PullSession) runReadLoop(readFlvTagCB ReadFlvTagCB) error {
 		if err != nil {
 			return err
 		}
-		readFlvTagCB(tag)
+		readFLVTagCB(tag)
 	}
 }

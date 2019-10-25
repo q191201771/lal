@@ -100,7 +100,7 @@ func IsAACSeqHeader(tag []byte) bool {
 	return tag[0] == TagTypeAudio && tag[TagHeaderSize]>>4 == SoundFormatAAC && tag[TagHeaderSize+1] == AACPacketTypeSeqHeader
 }
 
-func PackHTTPFlvTag(t uint8, timestamp uint32, in []byte) []byte {
+func PackHTTPFLVTag(t uint8, timestamp uint32, in []byte) []byte {
 	out := make([]byte, TagHeaderSize+len(in)+prevTagSizeFieldSize)
 	out[0] = t
 	bele.BEPutUint24(out[1:], uint32(len(in)))

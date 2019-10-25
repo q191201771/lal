@@ -56,12 +56,12 @@ func main() {
 		log.Infof(" > round. i=%d, totalBaseTS=%d, prevTS=%d, thisBaseTS=%d",
 			i, totalBaseTS, prevTS, thisBaseTS)
 
-		var ffr httpflv.FlvFileReader
+		var ffr httpflv.FLVFileReader
 		err = ffr.Open(flvFileName)
 		log.FatalIfErrorNotNil(err)
 		log.Infof("open succ. filename=%s", flvFileName)
 
-		flvHeader, err := ffr.ReadFlvHeader()
+		flvHeader, err := ffr.ReadFLVHeader()
 		log.FatalIfErrorNotNil(err)
 		log.Infof("read flv header succ. %v", flvHeader)
 

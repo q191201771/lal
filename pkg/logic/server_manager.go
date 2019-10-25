@@ -20,14 +20,13 @@ import (
 type ServerManager struct {
 	config *Config
 
-	httpFlvServer *httpflv.Server
+	httpflvServer *httpflv.Server
 	rtmpServer    *rtmp.Server
-	groupMap      map[string]*Group // TODO chef: with appName
-	mutex         sync.Mutex
 	exitChan      chan struct{}
-}
 
-var _ rtmp.ServerObserver = &ServerManager{}
+	mutex    sync.Mutex
+	groupMap map[string]*Group // TODO chef: with appName
+}
 
 func NewServerManager(config *Config) *ServerManager {
 	m := &ServerManager{
@@ -35,8 +34,8 @@ func NewServerManager(config *Config) *ServerManager {
 		groupMap: make(map[string]*Group),
 		exitChan: make(chan struct{}),
 	}
-	if len(config.HTTPFlv.SubListenAddr) != 0 {
-		m.httpFlvServer = httpflv.NewServer(m, config.HTTPFlv.SubListenAddr, config.SubIdleTimeout)
+	if len(config.HTTPFLV.SubListenAddr) != 0 {
+		m.httpflvServer = httpflv.NewServer(m, config.HTTPFLV.SubListenAddr)
 	}
 	if len(config.RTMP.Addr) != 0 {
 		m.rtmpServer = rtmp.NewServer(m, config.RTMP.Addr)
@@ -45,9 +44,9 @@ func NewServerManager(config *Config) *ServerManager {
 }
 
 func (sm *ServerManager) RunLoop() {
-	if sm.httpFlvServer != nil {
+	if sm.httpflvServer != nil {
 		go func() {
-			if err := sm.httpFlvServer.RunLoop(); err != nil {
+			if err := sm.httpflvServer.RunLoop(); err != nil {
 				log.Error(err)
 			}
 		}()
@@ -82,8 +81,8 @@ func (sm *ServerManager) RunLoop() {
 
 func (sm *ServerManager) Dispose() {
 	log.Debug("dispose server manager.")
-	if sm.httpFlvServer != nil {
-		sm.httpFlvServer.Dispose()
+	if sm.httpflvServer != nil {
+		sm.httpflvServer.Dispose()
 	}
 	if sm.rtmpServer != nil {
 		sm.rtmpServer.Dispose()
@@ -91,9 +90,8 @@ func (sm *ServerManager) Dispose() {
 
 	sm.mutex.Lock()
 	for _, group := range sm.groupMap {
-		group.Dispose(lalErr)
+		group.Dispose(ErrLogic)
 	}
-	sm.groupMap = nil
 	sm.mutex.Unlock()
 
 	sm.exitChan <- struct{}{}
@@ -101,34 +99,58 @@ func (sm *ServerManager) Dispose() {
 
 // ServerObserver of rtmp.Server
 func (sm *ServerManager) NewRTMPPubSessionCB(session *rtmp.ServerSession) bool {
+	sm.mutex.Lock()
+	defer sm.mutex.Unlock()
 	group := sm.getOrCreateGroup(session.AppName, session.StreamName)
 	return group.AddRTMPPubSession(session)
 }
 
 // ServerObserver of rtmp.Server
+func (sm *ServerManager) DelRTMPPubSessionCB(session *rtmp.ServerSession) {
+	sm.mutex.Lock()
+	defer sm.mutex.Unlock()
+	group := sm.getGroup(session.AppName, session.StreamName)
+	if group != nil {
+		group.DelRTMPPubSession(session)
+	}
+}
+
+// ServerObserver of rtmp.Server
 func (sm *ServerManager) NewRTMPSubSessionCB(session *rtmp.ServerSession) bool {
+	sm.mutex.Lock()
+	defer sm.mutex.Unlock()
 	group := sm.getOrCreateGroup(session.AppName, session.StreamName)
 	group.AddRTMPSubSession(session)
 	return true
 }
 
 // ServerObserver of rtmp.Server
-func (sm *ServerManager) DelRTMPPubSessionCB(session *rtmp.ServerSession) {
-	group := sm.getOrCreateGroup(session.AppName, session.StreamName)
-	group.DelRTMPPubSession(session)
-}
-
-// ServerObserver of rtmp.Server
 func (sm *ServerManager) DelRTMPSubSessionCB(session *rtmp.ServerSession) {
-	group := sm.getOrCreateGroup(session.AppName, session.StreamName)
-	group.DelRTMPSubSession(session)
+	sm.mutex.Lock()
+	defer sm.mutex.Unlock()
+	group := sm.getGroup(session.AppName, session.StreamName)
+	if group != nil {
+		group.DelRTMPSubSession(session)
+	}
 }
 
 // ServerObserver of httpflv.Server
-func (sm *ServerManager) NewHTTPFlvSubSessionCB(session *httpflv.SubSession) bool {
+func (sm *ServerManager) NewHTTPFLVSubSessionCB(session *httpflv.SubSession) bool {
+	sm.mutex.Lock()
+	defer sm.mutex.Unlock()
 	group := sm.getOrCreateGroup(session.AppName, session.StreamName)
-	group.AddHTTPFlvSubSession(session)
+	group.AddHTTPFLVSubSession(session)
 	return true
+}
+
+// ServerObserver of httpflv.Server
+func (sm *ServerManager) DelHTTPFLVSubSessionCB(session *httpflv.SubSession) {
+	sm.mutex.Lock()
+	defer sm.mutex.Unlock()
+	group := sm.getGroup(session.AppName, session.StreamName)
+	if group != nil {
+		group.DelHTTPFLVSubSession(session)
+	}
 }
 
 func (sm *ServerManager) check() {
@@ -137,20 +159,26 @@ func (sm *ServerManager) check() {
 	for k, group := range sm.groupMap {
 		if group.IsTotalEmpty() {
 			log.Infof("erase empty group manager. [%s]", group.UniqueKey)
-			group.Dispose(lalErr)
+			group.Dispose(ErrLogic)
 			delete(sm.groupMap, k)
 		}
 	}
 }
 
 func (sm *ServerManager) getOrCreateGroup(appName string, streamName string) *Group {
-	sm.mutex.Lock()
-	defer sm.mutex.Unlock()
 	group, exist := sm.groupMap[streamName]
 	if !exist {
 		group = NewGroup(appName, streamName)
 		sm.groupMap[streamName] = group
 	}
 	go group.RunLoop()
+	return group
+}
+
+func (sm *ServerManager) getGroup(appName string, streamName string) *Group {
+	group, exist := sm.groupMap[streamName]
+	if !exist {
+		return nil
+	}
 	return group
 }

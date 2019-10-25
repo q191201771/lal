@@ -67,9 +67,9 @@ func TestAmf0_WriteString_ReadString(t *testing.T) {
 func TestAmf0_WriteObject_ReadObject(t *testing.T) {
 	out := &bytes.Buffer{}
 	objs := []ObjectPair{
-		{"air", 3},
-		{"ban", "cat"},
-		{"dog", true},
+		{Key: "air", Value: 3},
+		{Key: "ban", Value: "cat"},
+		{Key: "dog", Value: true},
 	}
 	err := AMF0.WriteObject(out, objs)
 	assert.Equal(t, nil, err)
@@ -153,9 +153,9 @@ func TestAMF0Corner(t *testing.T) {
 	assert.IsNotNil(t, err)
 
 	objs = []ObjectPair{
-		{"air", 3},
-		{"ban", "cat"},
-		{"dog", true},
+		{Key: "air", Value: 3},
+		{Key: "ban", Value: "cat"},
+		{Key: "dog", Value: true},
 	}
 	for i := uint32(0); i < 14; i++ {
 		mw = mockwriter.NewMockWriter(mockwriter.WriterTypeDoNothing)
@@ -244,7 +244,7 @@ func TestAMF0Corner(t *testing.T) {
 		recover()
 	}()
 	objs = []ObjectPair{
-		{"key", []byte{1}},
+		{Key: "key", Value: []byte{1}},
 	}
 	_ = AMF0.WriteObject(mw, objs)
 }
@@ -252,9 +252,9 @@ func TestAMF0Corner(t *testing.T) {
 func BenchmarkAmf0_ReadObject(b *testing.B) {
 	out := &bytes.Buffer{}
 	objs := []ObjectPair{
-		{"air", 3},
-		{"ban", "cat"},
-		{"dog", true},
+		{Key: "air", Value: 3},
+		{Key: "ban", Value: "cat"},
+		{Key: "dog", Value: true},
 	}
 	_ = AMF0.WriteObject(out, objs)
 	for i := 0; i < b.N; i++ {
@@ -265,9 +265,9 @@ func BenchmarkAmf0_ReadObject(b *testing.B) {
 func BenchmarkAmf0_WriteObject(b *testing.B) {
 	out := &bytes.Buffer{}
 	objs := []ObjectPair{
-		{"air", 3},
-		{"ban", "cat"},
-		{"dog", true},
+		{Key: "air", Value: 3},
+		{Key: "ban", Value: "cat"},
+		{Key: "dog", Value: true},
 	}
 	for i := 0; i < b.N; i++ {
 		_ = AMF0.WriteObject(out, objs)

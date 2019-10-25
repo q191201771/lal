@@ -10,7 +10,7 @@ package rtmp
 
 import "errors"
 
-var rtmpErr = errors.New("rtmp: fxxk")
+var ErrRTMP = errors.New("lal.rtmp: fxxk")
 
 const (
 	CSIDAMF             = 5

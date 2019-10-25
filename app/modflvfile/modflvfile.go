@@ -56,19 +56,19 @@ func main() {
 	var err error
 	inFileName, outFileName := parseFlag()
 
-	var ffr httpflv.FlvFileReader
+	var ffr httpflv.FLVFileReader
 	err = ffr.Open(inFileName)
 	log.FatalIfErrorNotNil(err)
 	defer ffr.Dispose()
 	log.Infof("open input flv file succ.")
 
-	var ffw httpflv.FlvFileWriter
+	var ffw httpflv.FLVFileWriter
 	err = ffw.Open(outFileName)
 	log.FatalIfErrorNotNil(err)
 	defer ffw.Dispose()
 	log.Infof("open output flv file succ.")
 
-	flvHeader, err := ffr.ReadFlvHeader()
+	flvHeader, err := ffr.ReadFLVHeader()
 	log.FatalIfErrorNotNil(err)
 
 	err = ffw.WriteRaw(flvHeader)

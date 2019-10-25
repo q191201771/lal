@@ -17,35 +17,22 @@ import (
 )
 
 type Config struct {
-	RTMP  RTMP       `json:"rtmp"`
-	Log   log.Option `json:"log"`
-	PProf PProf      `json:"pprof"`
-
-	// v1.0.0之前不提供
-	SubIdleTimeout int64   `json:"sub_idle_timeout"`
-	GOPCacheNum    int     `json:"gop_cache_number"`
-	HTTPFlv        HTTPFlv `json:"httpflv"`
-	Pull           Pull    `json:"pull"`
+	RTMP    RTMP       `json:"rtmp"`
+	HTTPFLV HTTPFLV    `json:"httpflv"`
+	Log     log.Option `json:"log"`
+	PProf   PProf      `json:"pprof"`
 }
 
 type RTMP struct {
 	Addr string `json:"addr"`
 }
 
-type PProf struct {
-	Addr string `json:"addr"`
-}
-
-type HTTPFlv struct {
+type HTTPFLV struct {
 	SubListenAddr string `json:"sub_listen_addr"`
 }
 
-type Pull struct {
-	Type                      string `json:"type"`
-	Addr                      string `json:"addr"`
-	ConnectTimeout            int64  `json:"connect_timeout"`
-	ReadTimeout               int64  `json:"read_timeout"`
-	StopPullWhileNoSubTimeout int64  `json:"stop_pull_while_no_sub_timeout"`
+type PProf struct {
+	Addr string `json:"addr"`
 }
 
 func LoadConf(confFile string) (*Config, error) {
@@ -58,14 +45,15 @@ func LoadConf(confFile string) (*Config, error) {
 		return nil, err
 	}
 
-	// TODO chef: check item valid.
 	j, err := nazajson.New(rawContent)
 	if err != nil {
 		return nil, err
 	}
-	if !j.Exist("rtmp.addr") {
-		config.RTMP.Addr = ":1935"
-	}
+
+	// 检查配置必须项
+	// 暂时无
+
+	// 配置不存在时，设置默认值
 	if !j.Exist("log.level") {
 		config.Log.Level = log.LevelDebug
 	}

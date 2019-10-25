@@ -112,7 +112,7 @@ func calcHeader(header *Header, prevHeader *Header, out []byte) int {
 
 func message2Chunks(message []byte, header *Header, prevHeader *Header, chunkSize int) []byte {
 	//if header.CSID < minCSID || header.CSID > maxCSID {
-	//	return nil, rtmpErr
+	//	return nil, ErrRTMP
 	//}
 
 	// 计算chunk数量，最后一个chunk的大小

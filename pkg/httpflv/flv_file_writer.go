@@ -10,26 +10,26 @@ package httpflv
 
 import "os"
 
-type FlvFileWriter struct {
+type FLVFileWriter struct {
 	fp *os.File
 }
 
-func (ffw *FlvFileWriter) Open(filename string) (err error) {
+func (ffw *FLVFileWriter) Open(filename string) (err error) {
 	ffw.fp, err = os.Create(filename)
 	return
 }
 
-func (ffw *FlvFileWriter) WriteRaw(b []byte) (err error) {
+func (ffw *FLVFileWriter) WriteRaw(b []byte) (err error) {
 	_, err = ffw.fp.Write(b)
 	return
 }
 
-func (ffw *FlvFileWriter) WriteTag(tag Tag) (err error) {
+func (ffw *FLVFileWriter) WriteTag(tag Tag) (err error) {
 	_, err = ffw.fp.Write(tag.Raw)
 	return
 }
 
-func (ffw *FlvFileWriter) Dispose() {
+func (ffw *FLVFileWriter) Dispose() {
 	if ffw.fp != nil {
 		_ = ffw.fp.Close()
 	}

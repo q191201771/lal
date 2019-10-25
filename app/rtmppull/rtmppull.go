@@ -19,13 +19,13 @@ import (
 )
 
 type Obs struct {
-	w httpflv.FlvFileWriter
+	w httpflv.FLVFileWriter
 }
 
 func (obs *Obs) ReadRTMPAVMsgCB(header rtmp.Header, timestampAbs uint32, message []byte) {
 	log.Infof("%+v, abs ts=%d", header, timestampAbs)
-	tag := logic.Trans.RTMPMsg2FlvTag(header, timestampAbs, message)
-	err := obs.w.WriteTag(tag)
+	tag := logic.Trans.RTMPMsg2FLVTag(header, timestampAbs, message)
+	err := obs.w.WriteTag(*tag)
 	log.FatalIfErrorNotNil(err)
 }
 
@@ -43,7 +43,7 @@ func main() {
 	err = obs.w.Open(outFileName)
 	log.FatalIfErrorNotNil(err)
 	//defer obs.w.Dispose()
-	err = obs.w.WriteRaw(httpflv.FlvHeader)
+	err = obs.w.WriteRaw(httpflv.FLVHeader)
 	log.FatalIfErrorNotNil(err)
 
 	err = session.WaitLoop()
