@@ -30,8 +30,8 @@ func (so *MockServerObserver) NewHTTPFLVSubSessionCB(session *httpflv.SubSession
 }
 
 func (so *MockServerObserver) DelHTTPFLVSubSessionCB(session *httpflv.SubSession) {
-
 }
+
 func TestExample(t *testing.T) {
 	var err error
 
@@ -39,12 +39,11 @@ func TestExample(t *testing.T) {
 	s := httpflv.NewServer(&so, serverAddr)
 	go s.RunLoop()
 
-	pullSession := httpflv.NewPullSession(httpflv.PullSessionConfig{
-		ConnectTimeoutMS: 1000,
-		ReadTimeoutMS:    1000,
+	pullSession := httpflv.NewPullSession(func(option *httpflv.PullSessionOption) {
+		option.ConnectTimeoutMS = 1000
+		option.ReadTimeoutMS = 1000
 	})
-	err = pullSession.Pull(pullURL, func(tag *httpflv.Tag) {
-
+	err = pullSession.Pull(pullURL, func(tag httpflv.Tag) {
 	})
 	log.Debugf("pull failed. err=%+v", err)
 }

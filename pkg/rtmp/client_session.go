@@ -24,14 +24,16 @@ import (
 
 var ErrClientSessionTimeout = errors.New("lal.rtmp: client session timeout")
 
-// rtmp客户端类型连接的底层实现
-// rtmp包的使用者应该优先使用基于ClientSession实现的PushSession和PullSession
+// rtmp 客户端类型连接的底层实现
+// package rtmp 的使用者应该优先使用基于 ClientSession 实现的 PushSession 和 PullSession
 type ClientSession struct {
 	UniqueKey string
 
-	t                      ClientSessionType
-	obs                    PullSessionObserver // only for PullSession
-	timeout                ClientSessionTimeout
+	t      ClientSessionType
+	option ClientSessionOption
+
+	onReadRTMPAVMsg OnReadRTMPAVMsg
+
 	packer                 *MessagePacker
 	chunkComposer          *ChunkComposer
 	url                    *url.URL
@@ -53,18 +55,26 @@ const (
 	CSTPushSession
 )
 
-// 单位毫秒，如果为0，则没有超时
-type ClientSessionTimeout struct {
+type ClientSessionOption struct {
+	// 单位毫秒，如果为0，则没有超时
 	ConnectTimeoutMS int // 建立连接超时
 	DoTimeoutMS      int // 从发起连接（包含了建立连接的时间）到收到publish或play信令结果的超时
 	ReadAVTimeoutMS  int // 读取音视频数据的超时
 	WriteAVTimeoutMS int // 发送音视频数据的超时
 }
 
+var defaultClientSessOption = ClientSessionOption{
+	ConnectTimeoutMS: 0,
+	DoTimeoutMS:      0,
+	ReadAVTimeoutMS:  0,
+	WriteAVTimeoutMS: 0,
+}
+
+type ModClientSessionOption func(option *ClientSessionOption)
+
 // @param t: session的类型，只能是推或者拉
-// @param obs: 回调结束后，buffer会被重复使用
 // @param timeout: 设置各种超时
-func NewClientSession(t ClientSessionType, obs PullSessionObserver, timeout ClientSessionTimeout) *ClientSession {
+func NewClientSession(t ClientSessionType, modOptions ...ModClientSessionOption) *ClientSession {
 	var uk string
 	switch t {
 	case CSTPullSession:
@@ -74,24 +84,28 @@ func NewClientSession(t ClientSessionType, obs PullSessionObserver, timeout Clie
 	}
 	log.Infof("lifecycle new rtmp client session. [%s]", uk)
 
+	option := defaultClientSessOption
+	for _, fn := range modOptions {
+		fn(&option)
+	}
+
 	return &ClientSession{
 		UniqueKey:     uk,
 		t:             t,
-		obs:           obs,
-		timeout:       timeout,
+		option:        option,
 		doResultChan:  make(chan struct{}, 1),
 		packer:        NewMessagePacker(),
 		chunkComposer: NewChunkComposer(),
 	}
 }
 
-// 阻塞直到收到服务端返回的 publish start / play start 信令 或者超时
+// 阻塞直到收到服务端返回的 publish / play 对应结果的信令或者发生错误
 func (s *ClientSession) doWithTimeout(rawURL string) error {
-	if s.timeout.DoTimeoutMS == 0 {
+	if s.option.DoTimeoutMS == 0 {
 		err := <-s.do(rawURL)
 		return err
 	}
-	t := time.NewTimer(time.Duration(s.timeout.DoTimeoutMS) * time.Millisecond)
+	t := time.NewTimer(time.Duration(s.option.DoTimeoutMS) * time.Millisecond)
 	defer t.Stop()
 	select {
 	// TODO chef: 这种写法执行不到超时
@@ -185,7 +199,7 @@ func (s *ClientSession) doMsg(stream *Stream) error {
 	case TypeidAudio:
 		fallthrough
 	case TypeidVideo:
-		s.obs.ReadRTMPAVMsgCB(stream.header, stream.timestampAbs, stream.msg.buf[stream.msg.b:stream.msg.e])
+		s.onReadRTMPAVMsg(stream.toAVMsg())
 	default:
 		log.Errorf("read unknown msg type id. [%s] typeid=%+v", s.UniqueKey, stream.header)
 		panic(0)
@@ -212,7 +226,7 @@ func (s *ClientSession) doDataMessageAMF0(stream *Stream) error {
 		log.Error(val)
 		log.Error(hex.Dump(stream.msg.buf[stream.msg.b:stream.msg.e]))
 	}
-	s.obs.ReadRTMPAVMsgCB(stream.header, stream.timestampAbs, stream.msg.buf[stream.msg.b:stream.msg.e])
+	s.onReadRTMPAVMsg(stream.toAVMsg())
 	return nil
 }
 
@@ -408,7 +422,7 @@ func (s *ClientSession) tcpConnect() error {
 	}
 
 	var conn net.Conn
-	if conn, err = net.DialTimeout("tcp", addr, time.Duration(s.timeout.ConnectTimeoutMS)*time.Millisecond); err != nil {
+	if conn, err = net.DialTimeout("tcp", addr, time.Duration(s.option.ConnectTimeoutMS)*time.Millisecond); err != nil {
 		return err
 	}
 
@@ -421,8 +435,8 @@ func (s *ClientSession) tcpConnect() error {
 func (s *ClientSession) notifyDoResultSucc() {
 	s.conn.ModWriteChanSize(wChanSize)
 	s.conn.ModWriteBufSize(writeBufSize)
-	s.conn.ModReadTimeoutMS(s.timeout.ReadAVTimeoutMS)
-	s.conn.ModWriteTimeoutMS(s.timeout.WriteAVTimeoutMS)
+	s.conn.ModReadTimeoutMS(s.option.ReadAVTimeoutMS)
+	s.conn.ModWriteTimeoutMS(s.option.WriteAVTimeoutMS)
 
 	s.doResultChan <- struct{}{}
 }

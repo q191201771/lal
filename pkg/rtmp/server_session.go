@@ -19,8 +19,6 @@ import (
 	"github.com/q191201771/naza/pkg/unique"
 )
 
-// TODO chef: PubSession SubSession
-
 // TODO chef: 没有进化成Pub Sub时的超时释放
 
 type ServerSessionObserver interface {
@@ -148,8 +146,8 @@ func (s *ServerSession) doMsg(stream *Stream) error {
 			log.Errorf("read audio/video message but server session not pub type. [%s]", s.UniqueKey)
 			return ErrRTMP
 		}
-		//log.Infof("t:%d ts:%d len:%d", stream.header.MsgTypeID, stream.timestampAbs, stream.msg.e - stream.msg.b)
-		s.avObs.ReadRTMPAVMsgCB(stream.header, stream.timestampAbs, stream.msg.buf[stream.msg.b:stream.msg.e])
+		//log.Infof("t:%d ts:%d len:%d", stream.header.MsgTypeID, stream.header.timestampAbs, stream.msg.e - stream.msg.b)
+		s.avObs.OnReadRTMPAVMsg(stream.toAVMsg())
 	default:
 		log.Warnf("unknown message. [%s] typeid=%d", s.UniqueKey, stream.header.MsgTypeID)
 
@@ -196,7 +194,7 @@ func (s *ServerSession) doDataMessageAMF0(stream *Stream) error {
 		return nil
 	}
 
-	s.avObs.ReadRTMPAVMsgCB(stream.header, stream.timestampAbs, stream.msg.buf[stream.msg.b:stream.msg.e])
+	s.avObs.OnReadRTMPAVMsg(stream.toAVMsg())
 	return nil
 }
 

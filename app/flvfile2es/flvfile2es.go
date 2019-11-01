@@ -39,9 +39,6 @@ func main() {
 	defer vfp.Close()
 	log.Infof("open es h264 file succ.")
 
-	_, err = ffr.ReadFLVHeader()
-	log.FatalIfErrorNotNil(err)
-
 	for {
 		tag, err := ffr.ReadTag()
 		if err == io.EOF {
@@ -52,7 +49,7 @@ func main() {
 
 		payload := tag.Payload()
 
-		switch tag.Header.T {
+		switch tag.Header.Type {
 		case httpflv.TagTypeAudio:
 			aac.CaptureAAC(afp, payload)
 		case httpflv.TagTypeVideo:

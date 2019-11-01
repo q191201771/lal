@@ -13,26 +13,22 @@ import (
 	"strings"
 )
 
-type Writer interface {
-	// TODO chef: return error
-	WriteTag(tag *Tag)
-}
-
 var ErrHTTPFLV = errors.New("lal.httpflv: fxxk")
 
 const (
-	flvHeaderSize    = 13
-	prevTagFieldSize = 4
-)
+	TagHeaderSize int = 11
 
-var FLVHeader = []byte{0x46, 0x4c, 0x56, 0x01, 0x05, 0x00, 0x00, 0x00, 0x09, 0x00, 0x00, 0x00, 0x00}
+	flvHeaderSize            = 13
+	prevTagSizeFieldSize int = 4
+)
 
 type LineReader interface {
 	ReadLine() (line []byte, isPrefix bool, err error)
 }
 
-// return 1st line and other headers with kv format
-func parseHTTPHeader(r LineReader) (n int, firstLine string, headers map[string]string, err error) {
+// @return firstLine: request 的 request line 或 response 的 status line
+// @return headers: 头中的键值对
+func parseHTTPHeader(r LineReader) (firstLine string, headers map[string]string, err error) {
 	headers = make(map[string]string)
 
 	var line []byte
@@ -46,7 +42,6 @@ func parseHTTPHeader(r LineReader) (n int, firstLine string, headers map[string]
 		return
 	}
 	firstLine = string(line)
-	n += len(line)
 
 	for {
 		line, isPrefix, err = r.ReadLine()
@@ -61,7 +56,6 @@ func parseHTTPHeader(r LineReader) (n int, firstLine string, headers map[string]
 			return
 		}
 		l := string(line)
-		n += len(l)
 		pos := strings.Index(l, ":")
 		if pos == -1 {
 			err = ErrHTTPFLV
@@ -70,4 +64,22 @@ func parseHTTPHeader(r LineReader) (n int, firstLine string, headers map[string]
 		headers[strings.Trim(l[0:pos], " ")] = strings.Trim(l[pos+1:], " ")
 	}
 	return
+}
+
+func parseRequestLine(line string) (method string, uri string, version string, err error) {
+	items := strings.Split(line, " ")
+	if len(items) != 3 {
+		err = ErrHTTPFLV
+		return
+	}
+	return items[0], items[1], items[2], nil
+}
+
+func parseStatusLine(line string) (version string, statusCode string, reason string, err error) {
+	items := strings.Split(line, " ")
+	if len(items) != 3 {
+		err = ErrHTTPFLV
+		return
+	}
+	return items[0], items[1], items[2], nil
 }

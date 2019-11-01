@@ -19,6 +19,7 @@ type ServerObserver interface {
 	// 通知上层有新的拉流者
 	// 返回值： true则允许拉流，false则关闭连接
 	NewHTTPFLVSubSessionCB(session *SubSession) bool
+
 	DelHTTPFLVSubSessionCB(session *SubSession)
 }
 
@@ -39,12 +40,15 @@ func NewServer(obs ServerObserver, addr string) *Server {
 
 func (server *Server) RunLoop() error {
 	var err error
+
 	server.m.Lock()
 	server.ln, err = net.Listen("tcp", server.addr)
 	server.m.Unlock()
+
 	if err != nil {
 		return err
 	}
+
 	log.Infof("start httpflv listen. addr=%s", server.addr)
 	for {
 		conn, err := server.ln.Accept()
@@ -67,10 +71,10 @@ func (server *Server) Dispose() {
 }
 
 func (server *Server) handleConnect(conn net.Conn) {
-	log.Infof("accept a http flv connection. remoteAddr=%v", conn.RemoteAddr())
+	log.Infof("accept a httpflv connection. remoteAddr=%v", conn.RemoteAddr())
 	session := NewSubSession(conn)
 	if err := session.ReadRequest(); err != nil {
-		log.Errorf("read SubSession request error. [%s]", session.UniqueKey)
+		log.Errorf("read httpflv SubSession request error. [%s]", session.UniqueKey)
 		return
 	}
 	log.Infof("-----> http request. [%s] uri=%s", session.UniqueKey, session.URI)

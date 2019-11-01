@@ -6,7 +6,7 @@
 //
 // Author: Chef (191201771@qq.com)
 
-package logic
+package logic_test
 
 import (
 	"bytes"
@@ -17,14 +17,17 @@ import (
 	"testing"
 	"time"
 
-	"github.com/q191201771/naza/pkg/nazaatomic"
-	"github.com/q191201771/naza/pkg/nazalog"
+	"github.com/q191201771/lal/pkg/logic"
 
 	"github.com/q191201771/lal/pkg/httpflv"
 	"github.com/q191201771/lal/pkg/rtmp"
-
 	"github.com/q191201771/naza/pkg/assert"
+	"github.com/q191201771/naza/pkg/nazaatomic"
+	"github.com/q191201771/naza/pkg/nazalog"
 )
+
+// 读取 flv 文件，使用 rtmp 协议推送至服务端，之后分别用 rtmp 协议以及 httpflv 协议从服务端拉流，再将拉取的流保存为flv文件，
+// 最后用三份 flv 文件做对比，看是否完全一致。
 
 var (
 	tt *testing.T
@@ -52,17 +55,6 @@ var (
 	rtmpPullTagCount    nazaatomic.Uint32
 )
 
-type MockRTMPPullSessionObserver struct {
-}
-
-// TODO chef: httpflv 和 rtmp 两种协议的 pull 接口形式不统一
-func (mrpso *MockRTMPPullSessionObserver) ReadRTMPAVMsgCB(header rtmp.Header, timestampAbs uint32, message []byte) {
-	tag := Trans.RTMPMsg2FLVTag(header, timestampAbs, message)
-	err := RTMPWriter.WriteTag(*tag)
-	assert.Equal(tt, nil, err)
-	rtmpPullTagCount.Increment()
-}
-
 func TestExample(t *testing.T) {
 	tt = t
 
@@ -71,7 +63,7 @@ func TestExample(t *testing.T) {
 	err = fileReader.Open(rFLVFileName)
 	assert.Equal(t, nil, err)
 
-	config, err := LoadConf(confFile)
+	config, err := logic.LoadConf(confFile)
 	assert.IsNotNil(t, config)
 	assert.Equal(t, nil, err)
 
@@ -79,7 +71,7 @@ func TestExample(t *testing.T) {
 	httpflvPullURL = fmt.Sprintf("http://127.0.0.1%s/live/11111.flv", config.HTTPFLV.SubListenAddr)
 	rtmpPullURL = fmt.Sprintf("rtmp://127.0.0.1%s/live/11111", config.RTMP.Addr)
 
-	sm := NewServerManager(config)
+	sm := logic.NewServerManager(config)
 	go sm.RunLoop()
 
 	time.Sleep(200 * time.Millisecond)
@@ -95,20 +87,24 @@ func TestExample(t *testing.T) {
 	assert.Equal(t, nil, err)
 
 	go func() {
-		var mrpso MockRTMPPullSessionObserver
-		rtmpPullSession = rtmp.NewPullSession(&mrpso, rtmp.PullSessionTimeout{
-			ReadAVTimeoutMS: 500,
+		rtmpPullSession = rtmp.NewPullSession(func(option *rtmp.PullSessionOption) {
+			option.ReadAVTimeoutMS = 500
 		})
-		err := rtmpPullSession.Pull(rtmpPullURL)
-		assert.Equal(t, nil, err)
+		err := rtmpPullSession.Pull(rtmpPullURL, func(msg rtmp.AVMsg) {
+			tag := logic.Trans.RTMPMsg2FLVTag(msg)
+			err := RTMPWriter.WriteTag(*tag)
+			assert.Equal(tt, nil, err)
+			rtmpPullTagCount.Increment()
+		})
+		nazalog.Error(err)
 	}()
 
 	go func() {
-		httpflvPullSession = httpflv.NewPullSession(httpflv.PullSessionConfig{
-			ReadTimeoutMS: 500,
+		httpflvPullSession = httpflv.NewPullSession(func(option *httpflv.PullSessionOption) {
+			option.ReadTimeoutMS = 500
 		})
-		err := httpflvPullSession.Pull(httpflvPullURL, func(tag *httpflv.Tag) {
-			err := HTTPFLVWriter.WriteTag(*tag)
+		err := httpflvPullSession.Pull(httpflvPullURL, func(tag httpflv.Tag) {
+			err := HTTPFLVWriter.WriteTag(tag)
 			assert.Equal(t, nil, err)
 			httpflvPullTagCount.Increment()
 		})
@@ -117,12 +113,10 @@ func TestExample(t *testing.T) {
 
 	time.Sleep(200 * time.Millisecond)
 
-	pushSession = rtmp.NewPushSession(rtmp.PushSessionTimeout{})
+	pushSession = rtmp.NewPushSession()
 	err = pushSession.Push(pushURL)
 	assert.Equal(t, nil, err)
 
-	_, err = fileReader.ReadFLVHeader()
-	assert.Equal(t, nil, err)
 	for {
 		tag, err := fileReader.ReadTag()
 		if err == io.EOF {
@@ -130,8 +124,8 @@ func TestExample(t *testing.T) {
 		}
 		assert.Equal(t, nil, err)
 		fileTagCount.Increment()
-		h, _, m := Trans.FLVTag2RTMPMsg(*tag)
-		chunks := rtmp.Message2Chunks(m, &h)
+		msg := logic.Trans.FLVTag2RTMPMsg(tag)
+		chunks := rtmp.Message2Chunks(msg.Message, &msg.Header)
 		err = pushSession.AsyncWrite(chunks)
 		assert.Equal(t, nil, err)
 	}

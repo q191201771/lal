@@ -8,30 +8,50 @@
 
 package rtmp
 
-type PullSessionObserver interface {
-	AVMsgObserver
-}
-
 type PullSession struct {
-	*ClientSession
+	core *ClientSession
 }
 
-type PullSessionTimeout struct {
+type PullSessionOption struct {
 	ConnectTimeoutMS int
 	PullTimeoutMS    int
 	ReadAVTimeoutMS  int
 }
 
-func NewPullSession(obs PullSessionObserver, timeout PullSessionTimeout) *PullSession {
+var defaultPullSessionOption = PullSessionOption{
+	ConnectTimeoutMS: 0,
+	PullTimeoutMS:    0,
+	ReadAVTimeoutMS:  0,
+}
+
+type ModPullSessionOption func(option *PullSessionOption)
+
+func NewPullSession(modOptions ...ModPullSessionOption) *PullSession {
+	opt := defaultPullSessionOption
+	for _, fn := range modOptions {
+		fn(&opt)
+	}
+
 	return &PullSession{
-		ClientSession: NewClientSession(CSTPullSession, obs, ClientSessionTimeout{
-			ConnectTimeoutMS: timeout.ConnectTimeoutMS,
-			DoTimeoutMS:      timeout.PullTimeoutMS,
-			ReadAVTimeoutMS:  timeout.ReadAVTimeoutMS,
+		core: NewClientSession(CSTPullSession, func(option *ClientSessionOption) {
+			option.ConnectTimeoutMS = opt.ConnectTimeoutMS
+			option.DoTimeoutMS = opt.PullTimeoutMS
+			option.ReadAVTimeoutMS = opt.ReadAVTimeoutMS
 		}),
 	}
 }
 
-func (s *PullSession) Pull(rawURL string) error {
-	return s.doWithTimeout(rawURL)
+// 阻塞直到连接断开或发生错误
+//
+// @param onReadRTMPAVMsg: 回调结束后，内存块会被 PullSession 重复使用
+func (s *PullSession) Pull(rawURL string, onReadRTMPAVMsg OnReadRTMPAVMsg) error {
+	s.core.onReadRTMPAVMsg = onReadRTMPAVMsg
+	if err := s.core.doWithTimeout(rawURL); err != nil {
+		return err
+	}
+	return s.core.WaitLoop()
+}
+
+func (s *PullSession) Dispose() {
+	s.core.Dispose()
 }

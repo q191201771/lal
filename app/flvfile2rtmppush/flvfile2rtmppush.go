@@ -15,6 +15,8 @@ import (
 	"os"
 	"time"
 
+	"github.com/q191201771/lal/pkg/logic"
+
 	"github.com/q191201771/lal/pkg/httpflv"
 	"github.com/q191201771/lal/pkg/rtmp"
 	"github.com/q191201771/naza/pkg/bininfo"
@@ -35,10 +37,10 @@ func main() {
 
 	log.Info(bininfo.StringifySingleLine())
 
-	ps := rtmp.NewPushSession(rtmp.PushSessionTimeout{
-		ConnectTimeoutMS: 3000,
-		PushTimeoutMS:    5000,
-		WriteAVTimeoutMS: 10000,
+	ps := rtmp.NewPushSession(func(option *rtmp.PushSessionOption) {
+		option.ConnectTimeoutMS = 3000
+		option.PushTimeoutMS = 5000
+		option.WriteAVTimeoutMS = 10000
 	})
 	err = ps.Push(rtmpPushURL)
 	log.FatalIfErrorNotNil(err)
@@ -61,10 +63,6 @@ func main() {
 		log.FatalIfErrorNotNil(err)
 		log.Infof("open succ. filename=%s", flvFileName)
 
-		flvHeader, err := ffr.ReadFLVHeader()
-		log.FatalIfErrorNotNil(err)
-		log.Infof("read flv header succ. %v", flvHeader)
-
 		hasReadThisBaseTS = false
 
 		for {
@@ -75,25 +73,13 @@ func main() {
 			}
 			log.FatalIfErrorNotNil(err)
 
-			// TODO chef: 转换代码放入lal某个包中
-			var h rtmp.Header
-			h.MsgLen = tag.Header.DataSize //len(tag.Raw)-httpflv.TagHeaderSize
+			h := logic.Trans.FLVTagHeader2RTMPHeader(tag.Header)
 
-			h.MsgTypeID = tag.Header.T
-			h.MsgStreamID = rtmp.MSID1
-			switch tag.Header.T {
-			case httpflv.TagTypeMetadata:
-				h.CSID = rtmp.CSIDAMF
-			case httpflv.TagTypeAudio:
-				h.CSID = rtmp.CSIDAudio
-			case httpflv.TagTypeVideo:
-				h.CSID = rtmp.CSIDVideo
-			}
-
-			if tag.Header.T == httpflv.TagTypeMetadata {
+			if tag.IsMetadata() {
 				if totalBaseTS == 0 {
 					// 第一个metadata直接发送
 					//log.Debugf("CHEFERASEME write metadata.")
+					h.TimestampAbs = 0
 					chunks := rtmp.Message2Chunks(tag.Raw[11:11+h.MsgLen], &h)
 					err = ps.AsyncWrite(chunks)
 					log.FatalIfErrorNotNil(err)
@@ -106,18 +92,18 @@ func main() {
 			if hasReadThisBaseTS {
 				// 之前已经读到了这轮读文件的base值，ts要减去base
 				//log.Debugf("CHEFERASEME %+v %d %d %d.", tag.Header, tag.Header.Timestamp, thisBaseTS, totalBaseTS)
-				h.Timestamp = tag.Header.Timestamp - thisBaseTS + totalBaseTS
+				h.TimestampAbs = tag.Header.Timestamp - thisBaseTS + totalBaseTS
 			} else {
 				// 设置base，ts设置为上一轮读文件的值
 				//log.Debugf("CHEFERASEME %+v %d %d %d.", tag.Header, tag.Header.Timestamp, thisBaseTS, totalBaseTS)
 				thisBaseTS = tag.Header.Timestamp
-				h.Timestamp = totalBaseTS
+				h.TimestampAbs = totalBaseTS
 				hasReadThisBaseTS = true
 			}
 
-			if h.Timestamp < prevTS {
+			if h.TimestampAbs < prevTS {
 				// ts比上一个包的还小，直接设置为上一包的值，并且不sleep直接发送
-				h.Timestamp = prevTS
+				h.TimestampAbs = prevTS
 			}
 
 			chunks := rtmp.Message2Chunks(tag.Raw[11:11+h.MsgLen], &h)
@@ -125,21 +111,21 @@ func main() {
 			if hasTraceFirstTagTS {
 				n := time.Now().UnixNano() / 1000000
 				diffTick := n - firstTagTick
-				diffTS := h.Timestamp - firstTagTS
+				diffTS := h.TimestampAbs - firstTagTS
 				//log.Infof("%d %d %d %d", n, diffTick, diffTS, int64(diffTS) - diffTick)
 				if diffTick < int64(diffTS) {
 					time.Sleep(time.Duration(int64(diffTS)-diffTick) * time.Millisecond)
 				}
 			} else {
 				firstTagTick = time.Now().UnixNano() / 1000000
-				firstTagTS = h.Timestamp
+				firstTagTS = h.TimestampAbs
 				hasTraceFirstTagTS = true
 			}
 
 			err = ps.AsyncWrite(chunks)
 			log.FatalIfErrorNotNil(err)
 
-			prevTS = h.Timestamp
+			prevTS = h.TimestampAbs
 		}
 
 		totalBaseTS = prevTS + 1

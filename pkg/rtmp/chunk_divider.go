@@ -24,11 +24,12 @@ var defaultChunkDivider = ChunkDivider{
 	localChunkSize: LocalChunkSize,
 }
 
+// @param header 注意，内部使用 TimestampAbs 而非 Timestamp
 func Message2Chunks(message []byte, header *Header) []byte {
 	return defaultChunkDivider.Message2Chunks(message, header)
 }
 
-// TODO chef: 新的message的第一个chunk始终使用fmt0格式，没有参考前一个message
+// TODO chef: 新的 message 的第一个 chunk 始终使用 fmt0 格式，没有参考前一个 message
 func (d *ChunkDivider) Message2Chunks(message []byte, header *Header) []byte {
 	return message2Chunks(message, header, nil, d.localChunkSize)
 }
@@ -41,19 +42,19 @@ func calcHeader(header *Header, prevHeader *Header, out []byte) int {
 	fmt := uint8(0)
 	var timestamp uint32
 	if prevHeader == nil {
-		timestamp = header.Timestamp
+		timestamp = header.TimestampAbs
 	} else {
 		if header.MsgStreamID == prevHeader.MsgStreamID {
 			fmt++
 			if header.MsgLen == prevHeader.MsgLen && header.MsgTypeID == prevHeader.MsgTypeID {
 				fmt++
-				if header.Timestamp == prevHeader.Timestamp {
+				if header.TimestampAbs == prevHeader.TimestampAbs {
 					fmt++
 				}
 			}
-			timestamp = header.Timestamp - prevHeader.Timestamp
+			timestamp = header.TimestampAbs - prevHeader.TimestampAbs
 		} else {
-			timestamp = header.Timestamp
+			timestamp = header.TimestampAbs
 		}
 	}
 

@@ -91,7 +91,7 @@ func (server *Server) NewRTMPPubSessionCB(session *ServerSession) {
 // ServerSessionObserver
 func (server *Server) NewRTMPSubSessionCB(session *ServerSession) {
 	if !server.obs.NewRTMPSubSessionCB(session) {
-		// TODO chef: 关闭这个连接
+		session.Dispose()
 		return
 	}
 }

@@ -28,7 +28,7 @@ var exitFlag bool
 
 func hookTag(tag *httpflv.Tag) {
 	log.Infof("%+v", tag.Header)
-	if tag.Header.T == httpflv.TagTypeAudio {
+	if tag.Header.Type == httpflv.TagTypeAudio {
 
 		//if countA < 3 {
 		//	httpflv.ModTagTimestamp(tag, 16777205)
@@ -38,7 +38,7 @@ func hookTag(tag *httpflv.Tag) {
 			log.Info("aac header.")
 		}
 	}
-	if tag.Header.T == httpflv.TagTypeVideo {
+	if tag.Header.Type == httpflv.TagTypeVideo {
 		//if countV < 3 {
 		//	httpflv.ModTagTimestamp(tag, 16777205)
 		//}
@@ -82,12 +82,12 @@ func main() {
 			break
 		}
 		log.FatalIfErrorNotNil(err)
-		if tag.Header.T == 9 && tag.Header.DataSize == 68 && tag.Header.Timestamp == 677764 {
+		if tag.Header.Type == httpflv.TagTypeVideo && tag.Header.DataSize == 68 && tag.Header.Timestamp == 677764 {
 			break
 		}
 
 		//log.Infof("> hook. %+v", tag)
-		hookTag(tag)
+		hookTag(&tag)
 		//log.Infof("< hook. %+v", tag)
 		err = ffw.WriteRaw(tag.Raw)
 		log.FatalIfErrorNotNil(err)

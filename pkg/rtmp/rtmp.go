@@ -56,10 +56,13 @@ const (
 	MSID1 = 1 // publish、play、onStatus 以及 音视频数据
 )
 
-// 接收到音视频类型数据时的回调函数。目前被PullSession以及PubSession使用。
-type AVMsgObserver interface {
-	// @param header:
-	// @param timestampAbs: 绝对时间戳
-	// @param message: 不包含头内容。回调结束后，PubSession 会继续使用这块内存。
-	ReadRTMPAVMsgCB(header Header, timestampAbs uint32, message []byte)
+type AVMsg struct {
+	Header  Header
+	Message []byte // 不包含 rtmp 头
 }
+
+type AVMsgObserver interface {
+	OnReadRTMPAVMsg(msg AVMsg)
+}
+
+type OnReadRTMPAVMsg func(msg AVMsg)

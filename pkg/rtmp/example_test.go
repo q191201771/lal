@@ -12,7 +12,6 @@ import (
 	"bytes"
 	"io"
 	"io/ioutil"
-	"os"
 	"sync"
 	"sync/atomic"
 	"testing"
@@ -25,6 +24,9 @@ import (
 	log "github.com/q191201771/naza/pkg/nazalog"
 )
 
+// 读取 flv 文件，使用 rtmp 协议发送至服务端，再使用 rtmp 协议从服务端拉流，转换 flv 格式存储为文件，
+// 检查两份 flv 文件是否完全一致。
+
 var (
 	serverAddr = ":10001"
 	pushURL    = "rtmp://127.0.0.1:10001/live/test"
@@ -36,6 +38,7 @@ var (
 
 var (
 	pubSessionObs MockPubSessionObserver
+	pullSession   *rtmp.PullSession
 	subSession    *rtmp.ServerSession
 	wg            sync.WaitGroup
 	w             httpflv.FLVFileWriter
@@ -72,34 +75,13 @@ func (so *MockServerObserver) DelRTMPSubSessionCB(session *rtmp.ServerSession) {
 type MockPubSessionObserver struct {
 }
 
-func (pso *MockPubSessionObserver) ReadRTMPAVMsgCB(header rtmp.Header, timestampAbs uint32, message []byte) {
+func (pso *MockPubSessionObserver) OnReadRTMPAVMsg(msg rtmp.AVMsg) {
 	bc++
 	// 转发
-	var currHeader rtmp.Header
-	currHeader.MsgLen = uint32(len(message))
-	currHeader.Timestamp = timestampAbs
-	currHeader.MsgTypeID = header.MsgTypeID
-	currHeader.MsgStreamID = rtmp.MSID1
-	switch header.MsgTypeID {
-	case rtmp.TypeidDataMessageAMF0:
-		currHeader.CSID = rtmp.CSIDAMF
-	case rtmp.TypeidAudio:
-		currHeader.CSID = rtmp.CSIDAudio
-	case rtmp.TypeidVideo:
-		currHeader.CSID = rtmp.CSIDVideo
-	}
+	currHeader := logic.Trans.MakeDefaultRTMPHeader(msg.Header)
 	var absChunks []byte
-	absChunks = rtmp.Message2Chunks(message, &currHeader)
+	absChunks = rtmp.Message2Chunks(msg.Message, &currHeader)
 	subSession.AsyncWrite(absChunks)
-}
-
-type MockPullSessionObserver struct {
-}
-
-func (pso *MockPullSessionObserver) ReadRTMPAVMsgCB(header rtmp.Header, timestampAbs uint32, message []byte) {
-	tag := logic.Trans.RTMPMsg2FLVTag(header, timestampAbs, message)
-	w.WriteTag(*tag)
-	atomic.AddUint32(&wc, 1)
 }
 
 func TestExample(t *testing.T) {
@@ -120,14 +102,17 @@ func TestExample(t *testing.T) {
 	// 等待 server 开始监听
 	time.Sleep(100 * time.Millisecond)
 
-	var pso MockPullSessionObserver
-	pullSession := rtmp.NewPullSession(&pso, rtmp.PullSessionTimeout{})
-	log.Debug("tag1")
-	err = pullSession.Pull(pullURL)
-	assert.Equal(t, nil, err)
-	log.Debugf("tag2, %v", err)
+	go func() {
+		pullSession = rtmp.NewPullSession()
+		err = pullSession.Pull(pullURL, func(msg rtmp.AVMsg) {
+			tag := logic.Trans.RTMPMsg2FLVTag(msg)
+			w.WriteTag(*tag)
+			atomic.AddUint32(&wc, 1)
+		})
+		log.Error(err)
+	}()
 
-	pushSession := rtmp.NewPushSession(rtmp.PushSessionTimeout{})
+	pushSession := rtmp.NewPushSession()
 	err = pushSession.Push(pushURL)
 	assert.Equal(t, nil, err)
 
@@ -136,8 +121,6 @@ func TestExample(t *testing.T) {
 	err = w.WriteRaw(httpflv.FLVHeader)
 	assert.Equal(t, nil, err)
 
-	_, err = r.ReadFLVHeader()
-	assert.Equal(t, nil, err)
 	for {
 		tag, err := r.ReadTag()
 		if err == io.EOF {
@@ -145,8 +128,11 @@ func TestExample(t *testing.T) {
 		}
 		assert.Equal(t, nil, err)
 		rc++
-		h, _, m := logic.Trans.FLVTag2RTMPMsg(*tag)
-		chunks := rtmp.Message2Chunks(m, &h)
+		//log.Debugf("send tag. %d", tag.Header.Timestamp)
+		msg := logic.Trans.FLVTag2RTMPMsg(tag)
+		//log.Debugf("send msg. %d %d", msg.Header.Timestamp, msg.Header.TimestampAbs)
+		chunks := rtmp.Message2Chunks(msg.Message, &msg.Header)
+		//log.Debugf("%s", hex.Dump(chunks[:16]))
 		err = pushSession.AsyncWrite(chunks)
 		assert.Equal(t, nil, err)
 	}
@@ -185,6 +171,6 @@ func compareFile(t *testing.T) {
 	assert.Equal(t, nil, err)
 	res := bytes.Compare(r, w)
 	assert.Equal(t, 0, res)
-	err = os.Remove(wFLVFile)
+	//err = os.Remove(wFLVFile)
 	assert.Equal(t, nil, err)
 }

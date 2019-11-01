@@ -30,8 +30,6 @@ var flvHTTPResponseHeaderStr = "HTTP/1.1 200 OK\r\n" +
 
 var flvHTTPResponseHeader = []byte(flvHTTPResponseHeaderStr)
 
-var flvHeaderBuf13 = []byte{0x46, 0x4c, 0x56, 0x01, 0x05, 0x0, 0x0, 0x0, 0x09, 0x0, 0x0, 0x0, 0x0}
-
 type SubSession struct {
 	UniqueKey string
 
@@ -72,22 +70,23 @@ func (session *SubSession) ReadRequest() (err error) {
 		}
 	}()
 
-	var firstLine string
-	_, firstLine, session.Headers, err = parseHTTPHeader(session.conn)
-	if err != nil {
+	var (
+		requestLine string
+		method      string
+	)
+	if requestLine, session.Headers, err = parseHTTPHeader(session.conn); err != nil {
 		return
 	}
-
-	items := strings.Split(string(firstLine), " ")
-	if len(items) != 3 || items[0] != "GET" {
+	if method, session.URI, _, err = parseRequestLine(requestLine); err != nil {
+		return
+	}
+	if method != "GET" {
 		err = ErrHTTPFLV
 		return
 	}
 
-	session.URI = items[1]
 	var urlObj *url2.URL
-	urlObj, err = url2.Parse(session.URI)
-	if err != nil {
+	if urlObj, err = url2.Parse(session.URI); err != nil {
 		return
 	}
 	if !strings.HasSuffix(urlObj.Path, ".flv") {
@@ -95,7 +94,7 @@ func (session *SubSession) ReadRequest() (err error) {
 		return
 	}
 
-	items = strings.Split(urlObj.Path, "/")
+	items := strings.Split(urlObj.Path, "/")
 	if len(items) != 3 {
 		err = ErrHTTPFLV
 		return
@@ -124,7 +123,7 @@ func (session *SubSession) WriteHTTPResponseHeader() {
 
 func (session *SubSession) WriteFLVHeader() {
 	log.Infof("<----- http flv header. [%s]", session.UniqueKey)
-	session.WriteRawPacket(flvHeaderBuf13)
+	session.WriteRawPacket(FLVHeader)
 }
 
 func (session *SubSession) WriteTag(tag *Tag) {

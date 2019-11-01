@@ -151,14 +151,14 @@ func (group *Group) IsInExist() bool {
 }
 
 // PubSession or PullSession
-func (group *Group) ReadRTMPAVMsgCB(header rtmp.Header, timestampAbs uint32, message []byte) {
+func (group *Group) OnReadRTMPAVMsg(msg rtmp.AVMsg) {
 	group.mutex.Lock()
 	defer group.mutex.Unlock()
 
-	group.broadcastRTMP(header, timestampAbs, message)
+	group.broadcastRTMP(msg)
 }
 
-func (group *Group) broadcastRTMP(header rtmp.Header, timestampAbs uint32, message []byte) {
+func (group *Group) broadcastRTMP(msg rtmp.AVMsg) {
 	//log.Infof("%+v", header)
 
 	var (
@@ -168,27 +168,13 @@ func (group *Group) broadcastRTMP(header rtmp.Header, timestampAbs uint32, messa
 	)
 
 	// # 1. 设置好 rtmp 头部信息
-	currHeader.MsgLen = uint32(len(message))
-	currHeader.Timestamp = timestampAbs
-	currHeader.MsgTypeID = header.MsgTypeID
-	currHeader.MsgStreamID = rtmp.MSID1
-	switch header.MsgTypeID {
-	case rtmp.TypeidDataMessageAMF0:
-		currHeader.CSID = rtmp.CSIDAMF
-		//prevHeader = nil
-	case rtmp.TypeidAudio:
-		currHeader.CSID = rtmp.CSIDAudio
-		//prevHeader = group.prevAudioHeader
-	case rtmp.TypeidVideo:
-		currHeader.CSID = rtmp.CSIDVideo
-		//prevHeader = group.prevVideoHeader
-	}
+	currHeader = Trans.MakeDefaultRTMPHeader(msg.Header)
 
 	// # 2. 广播。遍历所有rtmp sub session，决定是否转发
 	for session := range group.rtmpSubSessionSet {
 		// ## 2.1. 一个message广播给多个sub session时，只做一次chunk切割
 		if absChunks == nil {
-			absChunks = rtmp.Message2Chunks(message, &currHeader)
+			absChunks = rtmp.Message2Chunks(msg.Message, &currHeader)
 		}
 
 		// ## 2.2. 如果是新的sub session，发送已缓存的信息
@@ -207,17 +193,17 @@ func (group *Group) broadcastRTMP(header rtmp.Header, timestampAbs uint32, messa
 		}
 
 		// ## 2.3. 判断当前包的类型，以及sub session的状态，决定是否发送，并更新sub session的状态
-		switch header.MsgTypeID {
+		switch msg.Header.MsgTypeID {
 		case rtmp.TypeidDataMessageAMF0:
 			session.AsyncWrite(absChunks)
 		case rtmp.TypeidAudio:
 			session.AsyncWrite(absChunks)
 		case rtmp.TypeidVideo:
 			if session.WaitKeyNalu {
-				if message[0] == 0x17 && message[1] == 0x0 {
+				if msg.Message[0] == 0x17 && msg.Message[1] == 0x0 {
 					session.AsyncWrite(absChunks)
 				}
-				if message[0] == 0x17 && message[1] == 0x1 {
+				if msg.Message[0] == 0x17 && msg.Message[1] == 0x1 {
 					session.AsyncWrite(absChunks)
 					session.WaitKeyNalu = false
 				}
@@ -232,7 +218,7 @@ func (group *Group) broadcastRTMP(header rtmp.Header, timestampAbs uint32, messa
 	for session := range group.httpflvSubSessionSet {
 		// ## 3.1. 将当前 message 转换成 tag 格式
 		if currTag == nil {
-			currTag = Trans.RTMPMsg2FLVTag(header, timestampAbs, message)
+			currTag = Trans.RTMPMsg2FLVTag(msg)
 		}
 
 		// ## 3.2. 如果是新的sub session，发送已缓存的信息
@@ -252,17 +238,17 @@ func (group *Group) broadcastRTMP(header rtmp.Header, timestampAbs uint32, messa
 		}
 
 		// ## 3.3. 判断当前包的类型，以及sub session的状态，决定是否发送，并更新sub session的状态
-		switch header.MsgTypeID {
+		switch msg.Header.MsgTypeID {
 		case rtmp.TypeidDataMessageAMF0:
 			session.WriteTag(currTag)
 		case rtmp.TypeidAudio:
 			session.WriteTag(currTag)
 		case rtmp.TypeidVideo:
 			if session.WaitKeyNalu {
-				if message[0] == 0x17 && message[1] == 0x0 {
+				if msg.Message[0] == 0x17 && msg.Message[1] == 0x0 {
 					session.WriteTag(currTag)
 				}
-				if message[0] == 0x17 && message[1] == 0x1 {
+				if msg.Message[0] == 0x17 && msg.Message[1] == 0x1 {
 					session.WriteTag(currTag)
 					session.WaitKeyNalu = false
 				}
@@ -275,37 +261,37 @@ func (group *Group) broadcastRTMP(header rtmp.Header, timestampAbs uint32, messa
 
 	// # 4. 缓存 rtmp 以及 httpflv 的 metadata 和 avc key seq header 和 aac seq header
 	// 由于可能没有订阅者，所以可能需要重新打包
-	switch header.MsgTypeID {
+	switch msg.Header.MsgTypeID {
 	case rtmp.TypeidDataMessageAMF0:
 		if absChunks == nil {
-			absChunks = rtmp.Message2Chunks(message, &currHeader)
+			absChunks = rtmp.Message2Chunks(msg.Message, &currHeader)
 		}
 		if currTag == nil {
-			currTag = Trans.RTMPMsg2FLVTag(header, timestampAbs, message)
+			currTag = Trans.RTMPMsg2FLVTag(msg)
 		}
 		group.metadata = absChunks
 		group.metadataTag = currTag
 		log.Debugf("cache metadata. [%s]", group.UniqueKey)
 	case rtmp.TypeidVideo:
 		// TODO chef: magic number
-		if message[0] == 0x17 && message[1] == 0x0 {
+		if msg.Message[0] == 0x17 && msg.Message[1] == 0x0 {
 			if absChunks == nil {
-				absChunks = rtmp.Message2Chunks(message, &currHeader)
+				absChunks = rtmp.Message2Chunks(msg.Message, &currHeader)
 			}
 			if currTag == nil {
-				currTag = Trans.RTMPMsg2FLVTag(header, timestampAbs, message)
+				currTag = Trans.RTMPMsg2FLVTag(msg)
 			}
 			group.avcKeySeqHeader = absChunks
 			group.avcKeySeqHeaderTag = currTag
 			log.Debugf("cache avc key seq header. [%s]", group.UniqueKey)
 		}
 	case rtmp.TypeidAudio:
-		if (message[0]>>4) == 0x0a && message[1] == 0x0 {
+		if (msg.Message[0]>>4) == 0x0a && msg.Message[1] == 0x0 {
 			if absChunks == nil {
-				absChunks = rtmp.Message2Chunks(message, &currHeader)
+				absChunks = rtmp.Message2Chunks(msg.Message, &currHeader)
 			}
 			if currTag == nil {
-				currTag = Trans.RTMPMsg2FLVTag(header, timestampAbs, message)
+				currTag = Trans.RTMPMsg2FLVTag(msg)
 			}
 			group.aacSeqHeader = absChunks
 			group.aacSeqHeaderTag = currTag

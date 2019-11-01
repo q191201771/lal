@@ -18,31 +18,53 @@ var Trans trans
 type trans struct {
 }
 
-// 注意，tag -> message [nocopy]
-func (t trans) FLVTag2RTMPMsg(tag httpflv.Tag) (header rtmp.Header, timestampAbs uint32, message []byte) {
-	header.MsgLen = tag.Header.DataSize
-	header.MsgTypeID = tag.Header.T
-	header.MsgStreamID = rtmp.MSID1
-	switch tag.Header.T {
+func (t trans) FLVTagHeader2RTMPHeader(in httpflv.TagHeader) (out rtmp.Header) {
+	out.MsgLen = in.DataSize
+	out.MsgTypeID = in.Type
+	out.MsgStreamID = rtmp.MSID1
+	switch in.Type {
 	case httpflv.TagTypeMetadata:
-		header.CSID = rtmp.CSIDAMF
+		out.CSID = rtmp.CSIDAMF
 	case httpflv.TagTypeAudio:
-		header.CSID = rtmp.CSIDAudio
+		out.CSID = rtmp.CSIDAudio
 	case httpflv.TagTypeVideo:
-		header.CSID = rtmp.CSIDVideo
+		out.CSID = rtmp.CSIDVideo
 	}
-	header.Timestamp = tag.Header.Timestamp
-	timestampAbs = tag.Header.Timestamp
-	message = tag.Raw[11 : 11+header.MsgLen]
+	out.Timestamp = in.Timestamp
+	out.TimestampAbs = in.Timestamp
 	return
 }
 
-// 注意，message -> tag [copy]
-func (t trans) RTMPMsg2FLVTag(header rtmp.Header, timestampAbs uint32, message []byte) *httpflv.Tag {
+func (t trans) MakeDefaultRTMPHeader(in rtmp.Header) (out rtmp.Header) {
+	out.MsgLen = in.MsgLen
+	out.Timestamp = in.Timestamp
+	out.TimestampAbs = in.TimestampAbs
+	out.MsgTypeID = in.MsgTypeID
+	out.MsgStreamID = rtmp.MSID1
+	switch in.MsgTypeID {
+	case rtmp.TypeidDataMessageAMF0:
+		out.CSID = rtmp.CSIDAMF
+	case rtmp.TypeidAudio:
+		out.CSID = rtmp.CSIDAudio
+	case rtmp.TypeidVideo:
+		out.CSID = rtmp.CSIDVideo
+	}
+	return
+}
+
+// 音视频内存块不发生拷贝
+func (t trans) FLVTag2RTMPMsg(tag httpflv.Tag) (msg rtmp.AVMsg) {
+	msg.Header = t.FLVTagHeader2RTMPHeader(tag.Header)
+	msg.Message = tag.Raw[11 : 11+msg.Header.MsgLen]
+	return
+}
+
+// 音视频内存块发生拷贝
+func (t trans) RTMPMsg2FLVTag(msg rtmp.AVMsg) *httpflv.Tag {
 	var tag httpflv.Tag
-	tag.Header.T = header.MsgTypeID
-	tag.Header.DataSize = header.MsgLen
-	tag.Header.Timestamp = timestampAbs
-	tag.Raw = httpflv.PackHTTPFLVTag(header.MsgTypeID, timestampAbs, message)
+	tag.Header.Type = msg.Header.MsgTypeID
+	tag.Header.DataSize = msg.Header.MsgLen
+	tag.Header.Timestamp = msg.Header.TimestampAbs
+	tag.Raw = httpflv.PackHTTPFLVTag(msg.Header.MsgTypeID, msg.Header.TimestampAbs, msg.Message)
 	return &tag
 }

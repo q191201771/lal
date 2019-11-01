@@ -18,35 +18,32 @@ import (
 	log "github.com/q191201771/naza/pkg/nazalog"
 )
 
-type Obs struct {
-	w httpflv.FLVFileWriter
-}
-
-func (obs *Obs) ReadRTMPAVMsgCB(header rtmp.Header, timestampAbs uint32, message []byte) {
-	log.Infof("%+v, abs ts=%d", header, timestampAbs)
-	tag := logic.Trans.RTMPMsg2FLVTag(header, timestampAbs, message)
-	err := obs.w.WriteTag(*tag)
-	log.FatalIfErrorNotNil(err)
-}
-
 func main() {
+	var (
+		w   httpflv.FLVFileWriter
+		err error
+	)
+
 	url, outFileName := parseFlag()
-	var obs Obs
-	session := rtmp.NewPullSession(&obs, rtmp.PullSessionTimeout{
-		ConnectTimeoutMS: 3000,
-		PullTimeoutMS:    5000,
-		ReadAVTimeoutMS:  10000,
+
+	err = w.Open(outFileName)
+	log.FatalIfErrorNotNil(err)
+	defer w.Dispose()
+	err = w.WriteRaw(httpflv.FLVHeader)
+	log.FatalIfErrorNotNil(err)
+
+	session := rtmp.NewPullSession(func(option *rtmp.PullSessionOption) {
+		option.ConnectTimeoutMS = 3000
+		option.PullTimeoutMS = 3000
+		option.ReadAVTimeoutMS = 10000
 	})
-	err := session.Pull(url)
-	log.FatalIfErrorNotNil(err)
 
-	err = obs.w.Open(outFileName)
-	log.FatalIfErrorNotNil(err)
-	//defer obs.w.Dispose()
-	err = obs.w.WriteRaw(httpflv.FLVHeader)
-	log.FatalIfErrorNotNil(err)
-
-	err = session.WaitLoop()
+	err = session.Pull(url, func(msg rtmp.AVMsg) {
+		log.Infof("%+v, abs ts=%d", msg.Header, msg.Header.TimestampAbs)
+		tag := logic.Trans.RTMPMsg2FLVTag(msg)
+		err := w.WriteTag(*tag)
+		log.FatalIfErrorNotNil(err)
+	})
 	log.FatalIfErrorNotNil(err)
 }
 
