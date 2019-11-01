@@ -1,3 +1,22 @@
+#### v0.5.0
+
+- package rtmp:
+    - 增加结构体 ClientSessionOption，PushSessionOption，PullSessionOption
+    - 增加结构体 AVMsg
+    - ClientSession 作为 PushSession 和 PullSession 的私有成员
+    - 将绝对时间戳移入到 Header 结构体中
+    - PullSession::Pull OnReadAVMsg with AVMsg
+    - AVMsgObserver::ReadRTMPAVMsgCB -> OnReadRTMPAVMsg
+- package httpflv:
+    - PullSessionOption
+    - OnReadFLVTag
+    - some func use Tag instead of *Tag
+    - 整个包的代码做了一次整理
+    - FlvFileReader 在 ReadTag 中懒读取 flv header
+- package logic:
+    - 使用 rtmp.AVMsg
+    - 增加两个函数 MakeDefaultRTMPHeader，FLVTagHeader2RTMPHeader
+
 #### v0.4.0
 
 - [功能] 将 rtmp pub session 的音视频转发给httpflv sub session
