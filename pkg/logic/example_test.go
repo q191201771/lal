@@ -125,7 +125,7 @@ func TestExample(t *testing.T) {
 		assert.Equal(t, nil, err)
 		fileTagCount.Increment()
 		msg := logic.Trans.FLVTag2RTMPMsg(tag)
-		chunks := rtmp.Message2Chunks(msg.Message, &msg.Header)
+		chunks := rtmp.Message2Chunks(msg.Payload, &msg.Header)
 		err = pushSession.AsyncWrite(chunks)
 		assert.Equal(t, nil, err)
 	}
@@ -136,7 +136,7 @@ func TestExample(t *testing.T) {
 
 	fileReader.Dispose()
 	pushSession.Dispose()
-	httpflvPullSession.Dispose(nil)
+	httpflvPullSession.Dispose()
 	rtmpPullSession.Dispose()
 	HTTPFLVWriter.Dispose()
 	RTMPWriter.Dispose()

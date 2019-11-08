@@ -78,8 +78,8 @@ func (session *PullSession) Pull(rawURL string, onReadFLVTag OnReadFLVTag) error
 	return session.runReadLoop(onReadFLVTag)
 }
 
-func (session *PullSession) Dispose(err error) {
-	log.Infof("lifecycle dispose PullSession. [%s] reason=%v", session.UniqueKey, err)
+func (session *PullSession) Dispose() {
+	log.Infof("lifecycle dispose PullSession. [%s]", session.UniqueKey)
 	_ = session.Conn.Close()
 }
 

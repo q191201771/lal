@@ -55,7 +55,7 @@ func (t trans) MakeDefaultRTMPHeader(in rtmp.Header) (out rtmp.Header) {
 // 音视频内存块不发生拷贝
 func (t trans) FLVTag2RTMPMsg(tag httpflv.Tag) (msg rtmp.AVMsg) {
 	msg.Header = t.FLVTagHeader2RTMPHeader(tag.Header)
-	msg.Message = tag.Raw[11 : 11+msg.Header.MsgLen]
+	msg.Payload = tag.Raw[11 : 11+msg.Header.MsgLen]
 	return
 }
 
@@ -65,6 +65,6 @@ func (t trans) RTMPMsg2FLVTag(msg rtmp.AVMsg) *httpflv.Tag {
 	tag.Header.Type = msg.Header.MsgTypeID
 	tag.Header.DataSize = msg.Header.MsgLen
 	tag.Header.Timestamp = msg.Header.TimestampAbs
-	tag.Raw = httpflv.PackHTTPFLVTag(msg.Header.MsgTypeID, msg.Header.TimestampAbs, msg.Message)
+	tag.Raw = httpflv.PackHTTPFLVTag(msg.Header.MsgTypeID, msg.Header.TimestampAbs, msg.Payload)
 	return &tag
 }

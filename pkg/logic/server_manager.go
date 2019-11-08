@@ -90,7 +90,7 @@ func (sm *ServerManager) Dispose() {
 
 	sm.mutex.Lock()
 	for _, group := range sm.groupMap {
-		group.Dispose(ErrLogic)
+		group.Dispose()
 	}
 	sm.mutex.Unlock()
 
@@ -159,7 +159,7 @@ func (sm *ServerManager) check() {
 	for k, group := range sm.groupMap {
 		if group.IsTotalEmpty() {
 			log.Infof("erase empty group manager. [%s]", group.UniqueKey)
-			group.Dispose(ErrLogic)
+			group.Dispose()
 			delete(sm.groupMap, k)
 		}
 	}

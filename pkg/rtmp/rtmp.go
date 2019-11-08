@@ -13,9 +13,10 @@ import "errors"
 var ErrRTMP = errors.New("lal.rtmp: fxxk")
 
 const (
-	CSIDAMF             = 5
-	CSIDAudio           = 6
-	CSIDVideo           = 7
+	CSIDAMF   = 5
+	CSIDAudio = 6
+	CSIDVideo = 7
+
 	csidProtocolControl = 2
 	csidOverConnection  = 3
 	csidOverStream      = 5
@@ -25,9 +26,10 @@ const (
 )
 
 const (
-	TypeidAudio              = uint8(8)
-	TypeidVideo              = uint8(9)
-	TypeidDataMessageAMF0    = uint8(18) // meta
+	TypeidAudio           = uint8(8)
+	TypeidVideo           = uint8(9)
+	TypeidDataMessageAMF0 = uint8(18) // meta
+
 	typeidSetChunkSize       = uint8(1)
 	typeidAck                = uint8(3)
 	typeidUserControl        = uint8(4)
@@ -58,7 +60,7 @@ const (
 
 type AVMsg struct {
 	Header  Header
-	Message []byte // 不包含 rtmp 头
+	Payload []byte // 不包含 rtmp 头
 }
 
 type AVMsgObserver interface {

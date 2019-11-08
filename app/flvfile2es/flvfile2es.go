@@ -53,19 +53,19 @@ func main() {
 		case httpflv.TagTypeAudio:
 			aac.CaptureAAC(afp, payload)
 		case httpflv.TagTypeVideo:
-			avc.CaptureAVC(vfp, payload)
+			_ = avc.CaptureAVC(vfp, payload)
 		}
 	}
 }
 
 func parseFlag() (string, string, string) {
 	flv := flag.String("i", "", "specify flv file")
-	aac := flag.String("a", "", "specify es aac file")
-	avc := flag.String("v", "", "specify es h264 file")
+	a := flag.String("a", "", "specify es aac file")
+	v := flag.String("v", "", "specify es h264 file")
 	flag.Parse()
-	if *flv == "" || *avc == "" || *aac == "" {
+	if *flv == "" || *a == "" || *v == "" {
 		flag.Usage()
 		os.Exit(1)
 	}
-	return *flv, *aac, *avc
+	return *flv, *a, *v
 }

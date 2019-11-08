@@ -60,7 +60,7 @@ func (group *Group) RunLoop() {
 	<-group.exitChan
 }
 
-func (group *Group) Dispose(err error) {
+func (group *Group) Dispose() {
 	log.Infof("lifecycle dispose group. [%s]", group.UniqueKey)
 	group.exitChan <- struct{}{}
 
@@ -174,7 +174,7 @@ func (group *Group) broadcastRTMP(msg rtmp.AVMsg) {
 	for session := range group.rtmpSubSessionSet {
 		// ## 2.1. 一个message广播给多个sub session时，只做一次chunk切割
 		if absChunks == nil {
-			absChunks = rtmp.Message2Chunks(msg.Message, &currHeader)
+			absChunks = rtmp.Message2Chunks(msg.Payload, &currHeader)
 		}
 
 		// ## 2.2. 如果是新的sub session，发送已缓存的信息
@@ -200,10 +200,10 @@ func (group *Group) broadcastRTMP(msg rtmp.AVMsg) {
 			session.AsyncWrite(absChunks)
 		case rtmp.TypeidVideo:
 			if session.WaitKeyNalu {
-				if msg.Message[0] == 0x17 && msg.Message[1] == 0x0 {
+				if msg.Payload[0] == 0x17 && msg.Payload[1] == 0x0 {
 					session.AsyncWrite(absChunks)
 				}
-				if msg.Message[0] == 0x17 && msg.Message[1] == 0x1 {
+				if msg.Payload[0] == 0x17 && msg.Payload[1] == 0x1 {
 					session.AsyncWrite(absChunks)
 					session.WaitKeyNalu = false
 				}
@@ -245,10 +245,10 @@ func (group *Group) broadcastRTMP(msg rtmp.AVMsg) {
 			session.WriteTag(currTag)
 		case rtmp.TypeidVideo:
 			if session.WaitKeyNalu {
-				if msg.Message[0] == 0x17 && msg.Message[1] == 0x0 {
+				if msg.Payload[0] == 0x17 && msg.Payload[1] == 0x0 {
 					session.WriteTag(currTag)
 				}
-				if msg.Message[0] == 0x17 && msg.Message[1] == 0x1 {
+				if msg.Payload[0] == 0x17 && msg.Payload[1] == 0x1 {
 					session.WriteTag(currTag)
 					session.WaitKeyNalu = false
 				}
@@ -264,7 +264,7 @@ func (group *Group) broadcastRTMP(msg rtmp.AVMsg) {
 	switch msg.Header.MsgTypeID {
 	case rtmp.TypeidDataMessageAMF0:
 		if absChunks == nil {
-			absChunks = rtmp.Message2Chunks(msg.Message, &currHeader)
+			absChunks = rtmp.Message2Chunks(msg.Payload, &currHeader)
 		}
 		if currTag == nil {
 			currTag = Trans.RTMPMsg2FLVTag(msg)
@@ -274,9 +274,9 @@ func (group *Group) broadcastRTMP(msg rtmp.AVMsg) {
 		log.Debugf("cache metadata. [%s]", group.UniqueKey)
 	case rtmp.TypeidVideo:
 		// TODO chef: magic number
-		if msg.Message[0] == 0x17 && msg.Message[1] == 0x0 {
+		if msg.Payload[0] == 0x17 && msg.Payload[1] == 0x0 {
 			if absChunks == nil {
-				absChunks = rtmp.Message2Chunks(msg.Message, &currHeader)
+				absChunks = rtmp.Message2Chunks(msg.Payload, &currHeader)
 			}
 			if currTag == nil {
 				currTag = Trans.RTMPMsg2FLVTag(msg)
@@ -286,9 +286,9 @@ func (group *Group) broadcastRTMP(msg rtmp.AVMsg) {
 			log.Debugf("cache avc key seq header. [%s]", group.UniqueKey)
 		}
 	case rtmp.TypeidAudio:
-		if (msg.Message[0]>>4) == 0x0a && msg.Message[1] == 0x0 {
+		if (msg.Payload[0]>>4) == 0x0a && msg.Payload[1] == 0x0 {
 			if absChunks == nil {
-				absChunks = rtmp.Message2Chunks(msg.Message, &currHeader)
+				absChunks = rtmp.Message2Chunks(msg.Payload, &currHeader)
 			}
 			if currTag == nil {
 				currTag = Trans.RTMPMsg2FLVTag(msg)

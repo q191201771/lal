@@ -80,7 +80,7 @@ func (pso *MockPubSessionObserver) OnReadRTMPAVMsg(msg rtmp.AVMsg) {
 	// 转发
 	currHeader := logic.Trans.MakeDefaultRTMPHeader(msg.Header)
 	var absChunks []byte
-	absChunks = rtmp.Message2Chunks(msg.Message, &currHeader)
+	absChunks = rtmp.Message2Chunks(msg.Payload, &currHeader)
 	subSession.AsyncWrite(absChunks)
 }
 
@@ -131,7 +131,7 @@ func TestExample(t *testing.T) {
 		//log.Debugf("send tag. %d", tag.Header.Timestamp)
 		msg := logic.Trans.FLVTag2RTMPMsg(tag)
 		//log.Debugf("send msg. %d %d", msg.Header.Timestamp, msg.Header.TimestampAbs)
-		chunks := rtmp.Message2Chunks(msg.Message, &msg.Header)
+		chunks := rtmp.Message2Chunks(msg.Payload, &msg.Header)
 		//log.Debugf("%s", hex.Dump(chunks[:16]))
 		err = pushSession.AsyncWrite(chunks)
 		assert.Equal(t, nil, err)

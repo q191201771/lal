@@ -73,7 +73,6 @@ var defaultClientSessOption = ClientSessionOption{
 type ModClientSessionOption func(option *ClientSessionOption)
 
 // @param t: session的类型，只能是推或者拉
-// @param timeout: 设置各种超时
 func NewClientSession(t ClientSessionType, modOptions ...ModClientSessionOption) *ClientSession {
 	var uk string
 	switch t {

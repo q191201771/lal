@@ -3,7 +3,7 @@
 <img alt="Wide" src="https://pengrl.com/images/other/lallogo.png">
 </a>
 <br>
-Go语言编写的流媒体 库 / 客户端 / 服务端
+Go语言编写的直播流媒体网络传输服务器
 <br><br>
 <a title="TravisCI" target="_blank" href="https://www.travis-ci.org/q191201771/lal"><img src="https://www.travis-ci.org/q191201771/lal.svg?branch=master"></a>
 <a title="codecov" target="_blank" href="https://codecov.io/gh/q191201771/lal"><img src="https://codecov.io/gh/q191201771/lal/branch/master/graph/badge.svg?style=flat-square"></a>
@@ -27,20 +27,40 @@ Go语言编写的流媒体 库 / 客户端 / 服务端
 
 ---
 
-Go语言编写的流媒体 库 / 客户端 / 服务器。目前 rtmp / http-flv 部分基本完成了。
+Go语言编写的直播流媒体网络传输服务器。本项目遵循的原则或者说最终目标是：
 
-#### 源码框架
+* ~~没有蛀。。~~
+* 可读可维护。框架清晰，模块化，按业务逻辑层，协议层，传输层分层。
+* 可快速集成各种协议（rtmp / http-flv / hls, rtp / rtcp / webrtc, quic, srt, over tcp, over udp...）
+* 高性能
 
-简单来说，主要源码在`app/`和`pkg/`两个目录下，后续我再画些源码架构图。
+目前 rtmp / http-flv 部分基本完成了。第一个目标大版本会实现直播源站以及直播 CDN 分发相关的功能。
+
+### README 目录
+
+* 源码框架
+* 编译和运行
+* 配置文件说明
+* 性能测试
+* 测试过的第三方客户端
+* Roadmap
+* 联系我
+
+### 源码框架
+
+简单来说，源码在`app/`和`pkg/`两个目录下，后续我再画些源码架构图。
 
 ```
 app/                  ......各种main包的源码文件，一个子目录对应一个main包，即对应可生成一个可执行文件
 |-- lals/             ......[最重要的] 流媒体服务器
-|-- flvfile2es        ......将本地flv文件分离成h264/avc es流文件以及aac es流文件
-|-- flvfile2rtmppush  ......rtmp推流客户端，输入是本地flv文件，文件推送完毕后，可循环推送（rtmp push流并不断开）
+|-- flvfile2rtmppush  ......// rtmp 推流客户端，读取本地 flv 文件，使用 rtmp 协议推送出去
+                            //
+                            // 支持循环推送：文件推送完毕后，可循环推送（rtmp push 流并不断开）
+                            // 支持推送多路流：相当于一个 rtmp 推流压测工具
 |-- httpflvpull       ......http-flv拉流客户端
-|-- modflvfile        ......修改本地flv文件
 |-- rtmppull          ......rtmp拉流客户端，存储为本地flv文件
+|-- modflvfile        ......修改本地flv文件
+|-- flvfile2es        ......将本地flv文件分离成h264/avc es流文件以及aac es流文件
 pkg/                  ......源码包
 |-- aac/              ......音频aac编解码格式相关
 |-- avc/              ......视频avc h264编解码格式相关
@@ -53,7 +73,7 @@ conf/                 ......配置文件目录
 
 目前唯一的第三方依赖（我自己写的 Go 基础库）： [github.com/q191201771/naza](https://github.com/q191201771/naza)
 
-#### 编译和运行
+### 编译和运行
 
 ```
 # 不使用 Go module
@@ -69,7 +89,7 @@ $git clone https://github.com/q191201771/lal.git && cd lal && ./build.sh
 $./bin/lals -c conf/lals.conf.json
 ```
 
-#### 配置文件说明
+### 配置文件说明
 
 ```
 {
@@ -97,7 +117,28 @@ $./bin/lals -c conf/lals.conf.json
 - [rtmp/var.go](https://github.com/q191201771/lal/blob/master/pkg/rtmp/var.go)
 - [httpflv/var.go](https://github.com/q191201771/lal/blob/master/pkg/httpflv/var.go)
 
-#### 测试过的客户端
+### 性能测试
+
+测试场景一：持续推送 n 路 rtmp 流至 lals（没有拉流）
+
+| 推流数量 | CPU 占用 | 内存占用（RES） |
+| - | - | - |
+| 1000 | （占单个核的）16% | 104MB |
+
+测试场景二：持续推送1路 rtmp 流至 lals，使用 rtmp 协议从 lals 拉取 n 路流
+
+| 拉流数量 | CPU 占用 | 内存占用（RES） |
+| - | - | - |
+| 1000 | （占单个核的）30% | 120MB |
+
+* 测试机：32核16G（lals 服务器和压测工具同时跑在这一个机器上）
+* 压测工具：lal 中的 `/app/flvfile2rtmppush` 以及 `/app/rtmppull`
+* 推流码率：使用 `srs-bench` 中的 flv 文件，大概200kbps
+* lals 版本：基于 git commit: fc0b04651af53a68758f41e5dfccdb7838e55a45
+
+*由于测试机是台共用的机器，上面还跑了许多其他服务，这里列的只是个粗略的数据，还待做更多的性能分析以及优化。如果你对性能感兴趣，欢迎进行测试并将结果反馈给我。*
+
+### 测试过的第三方客户端
 
 ```
 推流端：
@@ -113,11 +154,11 @@ $./bin/lals -c conf/lals.conf.json
 - srs-bench (srs项目配套的一个压测工具)
 ```
 
-#### roadmap
+### Roadmap
 
 **有建议、意见、bug、功能等等欢迎提 issue 啊，100% 会回复的。**
 
-lals 服务器目标版本roadmap如下：
+lals 服务器目标版本功能如下：
 
 **v1.0.0**
 
@@ -157,20 +198,12 @@ lals 服务器目标版本roadmap如下：
 - hls
 - h265
 
-最终目标：
-
-性能ok，框架清晰，代码对于任何新手来说都是可读可维护的。
-
-* 实现一个支持多种流媒体协议（比如rtmp, http-flv, hls, rtp/rtcp 等），多种底层传输协议（比如tcp, udp, srt, quic 等）的服务器
-* 所有协议都以模块化的库形式提供给需要的用户使用
-* 提供多种协议的推流客户端、拉流客户端，或者说演示demo
-
-#### 文档
+### 文档
 
 * [rtmp handshake | rtmp握手简单模式和复杂模式](https://pengrl.com/p/20027/)
 * [rtmp协议中的chunk stream id, message stream id, transaction id, message type id](https://pengrl.com/p/25610/)
 
-#### 联系我
+### 联系我
 
 欢迎扫码加我微信，进行技术交流或扯淡。
 

@@ -44,7 +44,7 @@ func NewStream() *Stream {
 func (stream *Stream) toAVMsg() AVMsg {
 	return AVMsg{
 		Header:  stream.header,
-		Message: stream.msg.buf[stream.msg.b:stream.msg.e],
+		Payload: stream.msg.buf[stream.msg.b:stream.msg.e],
 	}
 }
 
