@@ -1,3 +1,10 @@
+#### v0.6.0
+
+- package rtmp: 结构体的属性重命名 AVMsg.Message -> AVMsg.Payload
+- app/flvfile2rtmppush: 支持推送多路 rtmp 流，相当于一个压测工具
+- app/rtmppull: 支持对特定的一路流并发拉取多份，相当于一个压测工具
+- README 中补充性能测试结果
+
 #### v0.5.0
 
 - package rtmp:
