@@ -13,7 +13,7 @@ import (
 	"testing"
 
 	"github.com/q191201771/naza/pkg/assert"
-	"github.com/q191201771/naza/pkg/mockwriter"
+	"github.com/q191201771/naza/pkg/fake"
 )
 
 func TestWriteMessageHandler(t *testing.T) {
@@ -128,7 +128,7 @@ func TestPackCorner(t *testing.T) {
 	}()
 
 	var err error
-	mw := mockwriter.NewMockWriter(mockwriter.WriterTypeReturnError)
+	mw := fake.NewWriter(fake.WriterTypeReturnError)
 	packer := NewMessagePacker()
 
 	err = packer.writeProtocolControlMessage(mw, 1, 2)
@@ -158,7 +158,7 @@ func TestPackCorner(t *testing.T) {
 }
 
 func BenchmarkMessagePacker(b *testing.B) {
-	mw := mockwriter.NewMockWriter(mockwriter.WriterTypeDoNothing)
+	mw := fake.NewWriter(fake.WriterTypeDoNothing)
 	packer := NewMessagePacker()
 	for i := 0; i < b.N; i++ {
 		_ = packer.writeConnect(mw, "live", "rtmp://127.0.0.1/live")

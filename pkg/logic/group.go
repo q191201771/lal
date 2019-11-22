@@ -162,59 +162,54 @@ func (group *Group) broadcastRTMP(msg rtmp.AVMsg) {
 	//log.Infof("%+v", header)
 
 	var (
-		currHeader rtmp.Header
-		absChunks  []byte
-		currTag    *httpflv.Tag
+		currTag *httpflv.Tag
+		lcd     LazyChunkDivider
 	)
 
-	// # 1. 设置好 rtmp 头部信息
-	currHeader = Trans.MakeDefaultRTMPHeader(msg.Header)
+	// # 1. 设置好用于发送的 rtmp 头部信息
+	currHeader := Trans.MakeDefaultRTMPHeader(msg.Header)
+	lcd.Init(msg.Payload, &currHeader)
 
-	// # 2. 广播。遍历所有rtmp sub session，决定是否转发
+	// # 2. 广播。遍历所有 rtmp sub session，决定是否转发
 	for session := range group.rtmpSubSessionSet {
-		// ## 2.1. 一个message广播给多个sub session时，只做一次chunk切割
-		if absChunks == nil {
-			absChunks = rtmp.Message2Chunks(msg.Payload, &currHeader)
-		}
-
-		// ## 2.2. 如果是新的sub session，发送已缓存的信息
+		// ## 2.1. 如果是新的 sub session，发送已缓存的信息
 		if session.IsFresh {
 			// 发送缓存的头部信息
 			if group.metadata != nil {
-				session.AsyncWrite(group.metadata)
+				_ = session.AsyncWrite(group.metadata)
 			}
 			if group.avcKeySeqHeader != nil {
-				session.AsyncWrite(group.avcKeySeqHeader)
+				_ = session.AsyncWrite(group.avcKeySeqHeader)
 			}
 			if group.aacSeqHeader != nil {
-				session.AsyncWrite(group.aacSeqHeader)
+				_ = session.AsyncWrite(group.aacSeqHeader)
 			}
 			session.IsFresh = false
 		}
 
-		// ## 2.3. 判断当前包的类型，以及sub session的状态，决定是否发送，并更新sub session的状态
+		// ## 2.2. 判断当前包的类型，以及sub session的状态，决定是否发送，并更新sub session的状态
 		switch msg.Header.MsgTypeID {
 		case rtmp.TypeidDataMessageAMF0:
-			session.AsyncWrite(absChunks)
+			_ = session.AsyncWrite(lcd.Get())
 		case rtmp.TypeidAudio:
-			session.AsyncWrite(absChunks)
+			_ = session.AsyncWrite(lcd.Get())
 		case rtmp.TypeidVideo:
 			if session.WaitKeyNalu {
 				if msg.Payload[0] == 0x17 && msg.Payload[1] == 0x0 {
-					session.AsyncWrite(absChunks)
+					_ = session.AsyncWrite(lcd.Get())
 				}
 				if msg.Payload[0] == 0x17 && msg.Payload[1] == 0x1 {
-					session.AsyncWrite(absChunks)
+					_ = session.AsyncWrite(lcd.Get())
 					session.WaitKeyNalu = false
 				}
 			} else {
-				session.AsyncWrite(absChunks)
+				_ = session.AsyncWrite(lcd.Get())
 			}
 
 		}
 	}
 
-	// # 3. 广播。遍历所有httpflv sub session，决定是否转发
+	// # 3. 广播。遍历所有 httpflv sub session，决定是否转发
 	for session := range group.httpflvSubSessionSet {
 		// ## 3.1. 将当前 message 转换成 tag 格式
 		if currTag == nil {
@@ -263,37 +258,28 @@ func (group *Group) broadcastRTMP(msg rtmp.AVMsg) {
 	// 由于可能没有订阅者，所以可能需要重新打包
 	switch msg.Header.MsgTypeID {
 	case rtmp.TypeidDataMessageAMF0:
-		if absChunks == nil {
-			absChunks = rtmp.Message2Chunks(msg.Payload, &currHeader)
-		}
 		if currTag == nil {
 			currTag = Trans.RTMPMsg2FLVTag(msg)
 		}
-		group.metadata = absChunks
+		group.metadata = lcd.Get()
 		group.metadataTag = currTag
 		log.Debugf("cache metadata. [%s]", group.UniqueKey)
 	case rtmp.TypeidVideo:
 		// TODO chef: magic number
 		if msg.Payload[0] == 0x17 && msg.Payload[1] == 0x0 {
-			if absChunks == nil {
-				absChunks = rtmp.Message2Chunks(msg.Payload, &currHeader)
-			}
 			if currTag == nil {
 				currTag = Trans.RTMPMsg2FLVTag(msg)
 			}
-			group.avcKeySeqHeader = absChunks
+			group.avcKeySeqHeader = lcd.Get()
 			group.avcKeySeqHeaderTag = currTag
 			log.Debugf("cache avc key seq header. [%s]", group.UniqueKey)
 		}
 	case rtmp.TypeidAudio:
 		if (msg.Payload[0]>>4) == 0x0a && msg.Payload[1] == 0x0 {
-			if absChunks == nil {
-				absChunks = rtmp.Message2Chunks(msg.Payload, &currHeader)
-			}
 			if currTag == nil {
 				currTag = Trans.RTMPMsg2FLVTag(msg)
 			}
-			group.aacSeqHeader = absChunks
+			group.aacSeqHeader = lcd.Get()
 			group.aacSeqHeaderTag = currTag
 			log.Debugf("cache aac seq header. [%s]", group.UniqueKey)
 		}

@@ -22,6 +22,24 @@ import (
 	log "github.com/q191201771/naza/pkg/nazalog"
 )
 
+// rtmp 拉流客户端，从远端服务器拉取 rtmp 流，存储为本地 flv 文件
+//
+// 另外，作为一个 rtmp 拉流压测工具，已经支持：
+// 1. 对一路流拉取 n 份
+// 2. 拉取 n 路流
+//
+// Usage of ./bin/rtmppull:
+//   -i string
+//     	specify pull rtmp url
+//   -n int
+//     	num of pull connection (default 1)
+//   -o string
+//     	specify ouput flv file
+// Example:
+//   ./bin/rtmppull -i rtmp://127.0.0.1:19350/live/test -o out.flv
+//   ./bin/rtmppull -i rtmp://127.0.0.1:19350/live/test -n 1000
+//   ./bin/rtmppull -i rtmp://127.0.0.1:19350/live/test_{i} -n 1000
+
 func main() {
 	urlTmpl, fileNameTmpl, num := parseFlag()
 	urls, filenames := connect(urlTmpl, fileNameTmpl, num)
@@ -88,6 +106,7 @@ func parseFlag() (urlTmpl string, fileNameTmpl string, num int) {
 		_, _ = fmt.Fprintf(os.Stderr, `Example:
   ./bin/rtmppull -i rtmp://127.0.0.1:19350/live/test -o out.flv
   ./bin/rtmppull -i rtmp://127.0.0.1:19350/live/test -n 1000
+  ./bin/rtmppull -i rtmp://127.0.0.1:19350/live/test_{i} -n 1000
 `)
 		os.Exit(1)
 	}

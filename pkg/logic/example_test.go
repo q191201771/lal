@@ -32,7 +32,8 @@ import (
 var (
 	tt *testing.T
 
-	confFile = "testdata/lals.default.conf.json"
+	rtmpAddr    = ":19350"
+	httpflvAddr = ":8080"
 
 	rFLVFileName      = "testdata/test.flv"
 	wFLVPullFileName  = "testdata/flvpull.flv"
@@ -63,15 +64,16 @@ func TestExample(t *testing.T) {
 	err = fileReader.Open(rFLVFileName)
 	assert.Equal(t, nil, err)
 
-	config, err := logic.LoadConf(confFile)
-	assert.IsNotNil(t, config)
-	assert.Equal(t, nil, err)
+	config := logic.Config{
+		RTMP:    logic.RTMP{Addr: rtmpAddr},
+		HTTPFLV: logic.HTTPFLV{SubListenAddr: httpflvAddr},
+	}
 
 	pushURL = fmt.Sprintf("rtmp://127.0.0.1%s/live/11111", config.RTMP.Addr)
 	httpflvPullURL = fmt.Sprintf("http://127.0.0.1%s/live/11111.flv", config.HTTPFLV.SubListenAddr)
 	rtmpPullURL = fmt.Sprintf("rtmp://127.0.0.1%s/live/11111", config.RTMP.Addr)
 
-	sm := logic.NewServerManager(config)
+	sm := logic.NewServerManager(&config)
 	go sm.RunLoop()
 
 	time.Sleep(200 * time.Millisecond)

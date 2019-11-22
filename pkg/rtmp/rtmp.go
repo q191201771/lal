@@ -63,6 +63,18 @@ type AVMsg struct {
 	Payload []byte // 不包含 rtmp 头
 }
 
+func (msg AVMsg) IsAVCKeySeqHeader() bool {
+	return msg.Header.MsgTypeID == TypeidVideo && msg.Payload[0] == 0x17 && msg.Payload[1] == 0x0
+}
+
+func (msg AVMsg) IsAVCKeyNalu() bool {
+	return msg.Header.MsgTypeID == TypeidVideo && msg.Payload[0] == 0x17 && msg.Payload[1] == 0x1
+}
+
+func (msg AVMsg) IsAACSeqHeader() bool {
+	return msg.Header.MsgTypeID == TypeidAudio && (msg.Payload[0]>>4) == 0x0a && msg.Payload[1] == 0x0
+}
+
 type AVMsgObserver interface {
 	OnReadRTMPAVMsg(msg AVMsg)
 }

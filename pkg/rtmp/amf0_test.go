@@ -15,7 +15,7 @@ import (
 
 	. "github.com/q191201771/lal/pkg/rtmp"
 	"github.com/q191201771/naza/pkg/assert"
-	"github.com/q191201771/naza/pkg/mockwriter"
+	"github.com/q191201771/naza/pkg/fake"
 )
 
 func TestAmf0_WriteNumber_ReadNumber(t *testing.T) {
@@ -106,7 +106,7 @@ func TestAmf0_WriteBoolean_ReadBoolean(t *testing.T) {
 
 func TestAMF0Corner(t *testing.T) {
 	var (
-		mw     *mockwriter.MockWriter
+		mw     *fake.Writer
 		err    error
 		b      []byte
 		str    string
@@ -117,38 +117,38 @@ func TestAMF0Corner(t *testing.T) {
 		objMap map[string]interface{}
 	)
 
-	mw = mockwriter.NewMockWriter(mockwriter.WriterTypeReturnError)
+	mw = fake.NewWriter(fake.WriterTypeReturnError)
 	err = AMF0.WriteNumber(mw, 0)
 	assert.IsNotNil(t, err)
 
-	mw = mockwriter.NewMockWriter(mockwriter.WriterTypeReturnError)
+	mw = fake.NewWriter(fake.WriterTypeReturnError)
 	err = AMF0.WriteBoolean(mw, true)
 	assert.IsNotNil(t, err)
 
 	// WriteString 调用 三次写
-	mw = mockwriter.NewMockWriter(mockwriter.WriterTypeDoNothing)
-	mw.SetSpecificType(map[uint32]mockwriter.WriterType{0: mockwriter.WriterTypeReturnError})
+	mw = fake.NewWriter(fake.WriterTypeDoNothing)
+	mw.SetSpecificType(map[uint32]fake.WriterType{0: fake.WriterTypeReturnError})
 	err = AMF0.WriteString(mw, "0")
 	assert.IsNotNil(t, err)
-	mw = mockwriter.NewMockWriter(mockwriter.WriterTypeDoNothing)
-	mw.SetSpecificType(map[uint32]mockwriter.WriterType{1: mockwriter.WriterTypeReturnError})
+	mw = fake.NewWriter(fake.WriterTypeDoNothing)
+	mw.SetSpecificType(map[uint32]fake.WriterType{1: fake.WriterTypeReturnError})
 	err = AMF0.WriteString(mw, "1")
 	assert.IsNotNil(t, err)
-	mw = mockwriter.NewMockWriter(mockwriter.WriterTypeDoNothing)
-	mw.SetSpecificType(map[uint32]mockwriter.WriterType{2: mockwriter.WriterTypeReturnError})
+	mw = fake.NewWriter(fake.WriterTypeDoNothing)
+	mw.SetSpecificType(map[uint32]fake.WriterType{2: fake.WriterTypeReturnError})
 	err = AMF0.WriteString(mw, "2")
 	assert.IsNotNil(t, err)
 	longStr := strings.Repeat("1", 65536)
-	mw = mockwriter.NewMockWriter(mockwriter.WriterTypeDoNothing)
-	mw.SetSpecificType(map[uint32]mockwriter.WriterType{0: mockwriter.WriterTypeReturnError})
+	mw = fake.NewWriter(fake.WriterTypeDoNothing)
+	mw.SetSpecificType(map[uint32]fake.WriterType{0: fake.WriterTypeReturnError})
 	err = AMF0.WriteString(mw, longStr)
 	assert.IsNotNil(t, err)
-	mw = mockwriter.NewMockWriter(mockwriter.WriterTypeDoNothing)
-	mw.SetSpecificType(map[uint32]mockwriter.WriterType{1: mockwriter.WriterTypeReturnError})
+	mw = fake.NewWriter(fake.WriterTypeDoNothing)
+	mw.SetSpecificType(map[uint32]fake.WriterType{1: fake.WriterTypeReturnError})
 	err = AMF0.WriteString(mw, longStr)
 	assert.IsNotNil(t, err)
-	mw = mockwriter.NewMockWriter(mockwriter.WriterTypeDoNothing)
-	mw.SetSpecificType(map[uint32]mockwriter.WriterType{2: mockwriter.WriterTypeReturnError})
+	mw = fake.NewWriter(fake.WriterTypeDoNothing)
+	mw.SetSpecificType(map[uint32]fake.WriterType{2: fake.WriterTypeReturnError})
 	err = AMF0.WriteString(mw, longStr)
 	assert.IsNotNil(t, err)
 
@@ -158,8 +158,8 @@ func TestAMF0Corner(t *testing.T) {
 		{Key: "dog", Value: true},
 	}
 	for i := uint32(0); i < 14; i++ {
-		mw = mockwriter.NewMockWriter(mockwriter.WriterTypeDoNothing)
-		mw.SetSpecificType(map[uint32]mockwriter.WriterType{i: mockwriter.WriterTypeReturnError})
+		mw = fake.NewWriter(fake.WriterTypeDoNothing)
+		mw.SetSpecificType(map[uint32]fake.WriterType{i: fake.WriterTypeReturnError})
 		err = AMF0.WriteObject(mw, objs)
 		assert.IsNotNil(t, err)
 	}
