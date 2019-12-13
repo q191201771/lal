@@ -154,17 +154,19 @@ $./bin/lals -c conf/lals.conf.json
 ### 测试过的第三方客户端
 
 ```
-推流端：
-- OBS 21.0.3(mac)
-- ffmpeg 3.4.2(mac)
-- srs-bench (srs项目配套的一个压测工具)
-- flvfile2rtmppush (lal app中的rtmp推流客户端)
+rtmp 推流端：
+- OBS 21.0.3(macos)
+- OBS 24.0.3(win10 64 bit)
+- ffmpeg 3.4.2(macos)
+- srs-bench (macos srs项目配套的一个压测工具)
+- flvfile2rtmppush (macos lal app中的rtmp推流客户端)
 
-拉流端：
-- VLC 2.2.6(mac)
-- MPV 0.29.1(mac)
-- ffmpeg 3.4.2(mac)
-- srs-bench (srs项目配套的一个压测工具)
+rtmp / http-flv 拉流端：
+- VLC 3.0.8(macos 10.15.1)
+- VLC 3.0.8(win10)
+- MPV 0.29.1(macos)
+- ffmpeg 3.4.2(macos)
+- srs-bench (macos srs项目配套的一个压测工具)
 ```
 
 ### Roadmap
