@@ -200,7 +200,7 @@ func (s *ClientSession) doMsg(stream *Stream) error {
 	case TypeidVideo:
 		s.onReadRTMPAVMsg(stream.toAVMsg())
 	default:
-		log.Errorf("read unknown msg type id. [%s] typeid=%+v", s.UniqueKey, stream.header)
+		log.Errorf("read unknown message. [%s] typeid=%d, %s", s.UniqueKey, stream.header.MsgTypeID, stream.toDebugString())
 		panic(0)
 	}
 	return nil
@@ -248,7 +248,7 @@ func (s *ClientSession) doCommandMessage(stream *Stream) error {
 	case "onStatus":
 		return s.doOnStatusMessage(stream, tid)
 	default:
-		log.Errorf("read unknown cmd. [%s] cmd=%s", s.UniqueKey, cmd)
+		log.Errorf("read unknown command message. [%s] cmd=%s, %s", s.UniqueKey, cmd, stream.toDebugString())
 	}
 
 	return nil
@@ -357,7 +357,7 @@ func (s *ClientSession) doProtocolControlMessage(stream *Stream) error {
 		// composer内部会自动更新peer chunk size.
 		log.Infof("-----> Set Chunk Size %d. [%s]", val, s.UniqueKey)
 	default:
-		log.Errorf("unknown msg type id. [%s] id=%d", s.UniqueKey, stream.header.MsgTypeID)
+		log.Errorf("read unknown protocol control message. [%s] typeid=%d, %s", s.UniqueKey, stream.header.MsgTypeID, stream.toDebugString())
 	}
 	return nil
 }

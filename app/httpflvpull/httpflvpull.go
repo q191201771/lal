@@ -26,16 +26,23 @@ func main() {
 	session := httpflv.NewPullSession()
 	abr := bitrate.New()
 	vbr := bitrate.New()
+	prevTs := int64(-1)
 	var runFlag nazaatomic.Bool
 	runFlag.Store(true)
 	go func() {
 		for runFlag.Load() {
 			time.Sleep(1 * time.Second)
-			log.Infof("bitrate. audio=%fkb/s, video=%fkb/s", abr.Rate(), vbr.Rate())
+			//log.Infof("bitrate. audio=%fkb/s, video=%fkb/s", abr.Rate(), vbr.Rate())
 		}
 	}()
 	err := session.Pull(url, func(tag httpflv.Tag) {
-		//log.Infof("onReadFLVTag. %+v %t %t", tag.Header, tag.IsAVCKeySeqHeader(), tag.IsAVCKeyNalu())
+		now := time.Now().UnixNano() / 1e6
+		if prevTs != -1 {
+			//log.Infof("%v", now - prevTs)
+		}
+		prevTs = now
+
+		log.Infof("onReadFLVTag. %+v %t %t", tag.Header, tag.IsAVCKeySeqHeader(), tag.IsAVCKeyNalu())
 		switch tag.Header.Type {
 		case httpflv.TagTypeAudio:
 			abr.Add(len(tag.Raw))

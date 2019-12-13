@@ -8,7 +8,12 @@
 
 package rtmp
 
-import log "github.com/q191201771/naza/pkg/nazalog"
+import (
+	"encoding/hex"
+	"fmt"
+
+	log "github.com/q191201771/naza/pkg/nazalog"
+)
 
 const initMsgLen = 4096
 
@@ -39,6 +44,13 @@ func NewStream() *Stream {
 			buf: make([]byte, initMsgLen),
 		},
 	}
+}
+
+// 序列化成可读字符串，一般用于发生错误时打印日志
+func (stream *Stream) toDebugString() string {
+	// 注意，这里打印的二进制数据的其实位置是从 0 开始，而不是 msg.b 位置
+	return fmt.Sprintf("header=%+v, b=%d, hex=%s",
+		stream.header, stream.msg.b, hex.Dump(stream.msg.buf[:stream.msg.e]))
 }
 
 func (stream *Stream) toAVMsg() AVMsg {
@@ -79,6 +91,10 @@ func (msg *StreamMsg) clear() {
 	msg.b = 0
 	msg.e = 0
 }
+
+//func (msg *StreamMsg) bytes() []byte {
+//	return msg.buf[msg.b: msg.e]
+//}
 
 func (msg *StreamMsg) peekStringWithType() (string, error) {
 	str, _, err := AMF0.ReadString(msg.buf[msg.b:msg.e])

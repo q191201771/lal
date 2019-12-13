@@ -9,7 +9,6 @@
 package rtmp
 
 import (
-	"encoding/hex"
 	"net"
 	"strings"
 
@@ -146,10 +145,9 @@ func (s *ServerSession) doMsg(stream *Stream) error {
 			log.Errorf("read audio/video message but server session not pub type. [%s]", s.UniqueKey)
 			return ErrRTMP
 		}
-		//log.Infof("t:%d ts:%d len:%d", stream.header.MsgTypeID, stream.header.timestampAbs, stream.msg.e - stream.msg.b)
 		s.avObs.OnReadRTMPAVMsg(stream.toAVMsg())
 	default:
-		log.Warnf("unknown message. [%s] typeid=%d", s.UniqueKey, stream.header.MsgTypeID)
+		log.Warnf("read unknown message. [%s] typeid=%d, %s", s.UniqueKey, stream.header.MsgTypeID, stream.toDebugString())
 
 	}
 	return nil
@@ -174,7 +172,7 @@ func (s *ServerSession) doDataMessageAMF0(stream *Stream) error {
 
 	switch val {
 	case "|RtmpSampleAccess":
-		log.Warn("recv |RtmpSampleAccess. ignore it.")
+		log.Warnf("read data message, ignore it. [%s] val=%s", s.UniqueKey, val)
 		return nil
 	case "@setDataFrame":
 		// macos obs
@@ -185,12 +183,13 @@ func (s *ServerSession) doDataMessageAMF0(stream *Stream) error {
 			return err
 		}
 		if val != "onMetaData" {
+			log.Errorf("read unknown data message. [%s] val=%s, %s", s.UniqueKey, val, stream.toDebugString())
 			return ErrRTMP
 		}
 	case "onMetaData":
 		// noop
 	default:
-		log.Errorf("recv unknown message. val=%s, hex=%s", val, hex.Dump(stream.msg.buf[stream.msg.b:stream.msg.e]))
+		log.Errorf("read unknown data message. [%s] val=%s, %s", s.UniqueKey, val, stream.toDebugString())
 		return nil
 	}
 
@@ -224,9 +223,9 @@ func (s *ServerSession) doCommandMessage(stream *Stream) error {
 	case "FCUnpublish":
 		fallthrough
 	case "getStreamLength":
-		log.Warnf("read command message,ignore it. [%s] %s", s.UniqueKey, cmd)
+		log.Warnf("read command message, ignore it. [%s] cmd=%s, %s", s.UniqueKey, cmd, stream.toDebugString())
 	default:
-		log.Errorf("unknown cmd. [%s] cmd=%s", s.UniqueKey, cmd)
+		log.Errorf("read unknown command message. [%s] cmd=%s, %s", s.UniqueKey, cmd, stream.toDebugString())
 	}
 	return nil
 }

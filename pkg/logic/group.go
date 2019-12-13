@@ -168,6 +168,8 @@ func (group *Group) broadcastRTMP(msg rtmp.AVMsg) {
 
 	// # 1. 设置好用于发送的 rtmp 头部信息
 	currHeader := Trans.MakeDefaultRTMPHeader(msg.Header)
+	// TODO 这行代码是否放到 MakeDefaultRTMPHeader 中
+	currHeader.MsgLen = uint32(len(msg.Payload))
 	lcd.Init(msg.Payload, &currHeader)
 
 	// # 2. 广播。遍历所有 rtmp sub session，决定是否转发
@@ -263,7 +265,7 @@ func (group *Group) broadcastRTMP(msg rtmp.AVMsg) {
 		}
 		group.metadata = lcd.Get()
 		group.metadataTag = currTag
-		log.Debugf("cache metadata. [%s]", group.UniqueKey)
+		log.Debugf("cache metadata. [%s] rtmp size:%d, flv size:%d", group.UniqueKey, len(group.metadata), group.metadataTag.Header.DataSize)
 	case rtmp.TypeidVideo:
 		// TODO chef: magic number
 		if msg.Payload[0] == 0x17 && msg.Payload[1] == 0x0 {
@@ -272,7 +274,7 @@ func (group *Group) broadcastRTMP(msg rtmp.AVMsg) {
 			}
 			group.avcKeySeqHeader = lcd.Get()
 			group.avcKeySeqHeaderTag = currTag
-			log.Debugf("cache avc key seq header. [%s]", group.UniqueKey)
+			log.Debugf("cache avc key seq header. [%s] rtmp size:%d, flv size:%d", group.UniqueKey, len(group.avcKeySeqHeader), group.avcKeySeqHeaderTag.Header.DataSize)
 		}
 	case rtmp.TypeidAudio:
 		if (msg.Payload[0]>>4) == 0x0a && msg.Payload[1] == 0x0 {
@@ -281,7 +283,7 @@ func (group *Group) broadcastRTMP(msg rtmp.AVMsg) {
 			}
 			group.aacSeqHeader = lcd.Get()
 			group.aacSeqHeaderTag = currTag
-			log.Debugf("cache aac seq header. [%s]", group.UniqueKey)
+			log.Debugf("cache aac seq header. [%s] rtmp size:%d, flv size:%d", group.UniqueKey, len(group.aacSeqHeader), group.aacSeqHeaderTag.Header.DataSize)
 		}
 	}
 }

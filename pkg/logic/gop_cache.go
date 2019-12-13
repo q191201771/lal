@@ -8,7 +8,9 @@
 
 package logic
 
-import "github.com/q191201771/lal/pkg/rtmp"
+import (
+	"github.com/q191201771/lal/pkg/rtmp"
+)
 
 type LazyChunkDivider struct {
 	message []byte

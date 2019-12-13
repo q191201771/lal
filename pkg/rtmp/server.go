@@ -68,7 +68,8 @@ func (server *Server) Dispose() {
 func (server *Server) handleTCPConnect(conn net.Conn) {
 	log.Infof("accept a rtmp connection. remoteAddr=%v", conn.RemoteAddr())
 	session := NewServerSession(server, conn)
-	_ = session.RunLoop()
+	err := session.RunLoop()
+	log.Infof("rtmp loop done. [%s] err=%v", session.UniqueKey, err)
 	switch session.t {
 	case ServerSessionTypeUnknown:
 	// noop
