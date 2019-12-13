@@ -1,3 +1,15 @@
+#### v0.7.0
+
+- [fix] package logic: 转发 rtmp metadata 时，message header 中的 len 字段可能和 body 实际长度不一致
+- [feat] rtmp.AVMsg 增加判断包中音视频数据是否为 seq header 等函数
+- [feat] app/httpflvpull 使用 naza/bitrate 来统计音频和视频的带宽
+- [refactor] logic config 的部分配置移动至 app/lals 中
+- [refactor] logic 增加 LazyChunkDivider 组织代码
+- [log] package rtmp: 一些错误情况下，对接收到包 dump hex
+- [test] 测试推送 n 路 rtmp 流至 lals，再从 lals 拉取这 n 路 rtmp 流的性能消耗
+- [doc] README 中增加测试过的推拉流客户端
+- [dep] update naza -> v0.7.1
+
 #### v0.6.0
 
 - package rtmp: 结构体的属性重命名 AVMsg.Message -> AVMsg.Payload
