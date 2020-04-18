@@ -38,7 +38,8 @@ if [ ! -f "./testdata/test.flv" ]; then
     if [ ! -d "./testdata" ]; then
         mkdir "./testdata"
     fi
-    wget https://pengrl.com/images/other/source.200kbps.768x320.flv -O ./testdata/test.flv
+    #wget https://pengrl.com/images/other/source.200kbps.768x320.flv -O ./testdata/test.flv
+    wget https://github.com/q191201771/doc/raw/master/stuff/source.200kbps.768x320.flv -O ./testdata/test.flv
 fi
 if [ ! -f "./pkg/rtmp/testdata/test.flv" ]; then
     if [ ! -d "./pkg/rtmp/testdata" ]; then
