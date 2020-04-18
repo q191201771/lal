@@ -73,7 +73,7 @@ func initLog(opt log.Option) {
 	if err := log.Init(func(option *log.Option) {
 		*option = opt
 	}); err != nil {
-		_, _ = fmt.Fprintf(os.Stderr, "initial log failed. err=%+v", err)
+		_, _ = fmt.Fprintf(os.Stderr, "initial log failed. err=%+v\n", err)
 		os.Exit(1)
 	}
 	log.Info("initial log succ.")

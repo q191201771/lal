@@ -62,6 +62,9 @@ func LoadConf(confFile string) (*Config, error) {
 	if !j.Exist("log.short_file_flag") {
 		config.Log.ShortFileFlag = true
 	}
+	if !j.Exist("log.assert_behavior") {
+		config.Log.AssertBehavior = log.AssertError
+	}
 
 	return &config, nil
 }

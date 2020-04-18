@@ -9,14 +9,19 @@
 package main
 
 import (
+	"encoding/hex"
 	"flag"
 	"os"
 	"time"
 
+	"github.com/q191201771/lal/pkg/avc"
+
+	"github.com/q191201771/naza/pkg/bele"
+
 	"github.com/q191201771/lal/pkg/httpflv"
 	"github.com/q191201771/naza/pkg/bitrate"
 	"github.com/q191201771/naza/pkg/nazaatomic"
-	log "github.com/q191201771/naza/pkg/nazalog"
+	"github.com/q191201771/naza/pkg/nazalog"
 )
 
 // TODO chef: 存储成 flv 文件
@@ -42,18 +47,41 @@ func main() {
 		}
 		prevTs = now
 
-		log.Infof("onReadFLVTag. %+v %t %t", tag.Header, tag.IsAVCKeySeqHeader(), tag.IsAVCKeyNalu())
 		switch tag.Header.Type {
+		case httpflv.TagTypeMetadata:
+			//nazalog.Infof("onReadFLVTag. %+v", tag.Header)
+			nazalog.Info(hex.Dump(tag.Payload()))
 		case httpflv.TagTypeAudio:
+			//nazalog.Infof("onReadFLVTag. %+v, isSeqHeader=%t", tag.Header, tag.IsAACSeqHeader())
 			abr.Add(len(tag.Raw))
 		case httpflv.TagTypeVideo:
+			nazalog.Infof("onReadFLVTag. %+v, isSeqHeader=%t, isKeyNalu=%t", tag.Header, tag.IsVideoKeySeqHeader(), tag.IsVideoKeyNalu())
+			analysisVideoTag(tag)
 			vbr.Add(len(tag.Raw))
 		}
 	})
 	runFlag.Store(false)
-	if err != nil {
-		log.Error(err)
+	nazalog.FatalIfErrorNotNil(err)
+}
+
+func analysisVideoTag(tag httpflv.Tag) {
+	body := tag.Raw[11:]
+	if body[1] == httpflv.AVCPacketTypeSeqHeader {
+		nazalog.Infof("SH")
+	} else {
+		for i := 5; i != int(tag.Header.DataSize); {
+			naluLen := bele.BEUint32(body[i:])
+			naluType := body[i+4] & 0x1f
+			if naluType == avc.NaluUnitTypeSEI {
+				nazalog.Info("SEI")
+			} else {
+				nazalog.Infof("len=%d, nalu type=%s, slice type=%s", naluLen, avc.NaluUintTypeMapping[naluType], avc.CalcSliceTypeReadable(body[i+4:]))
+			}
+			//nazalog.Info(hex.Dump(body[i+4 : i+20]))
+			i = i + 4 + int(naluLen)
+		}
 	}
+
 }
 
 func parseFlag() string {

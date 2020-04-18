@@ -69,6 +69,25 @@ func (obj *ADTS) GetADTS(length uint16) []byte {
 	// aac_frame_length                   13bit (3: 0000 00**, 5: ***0 0000)
 	// adts_buffer_fullness               11bit (5: 000* ****, 6: **** **00) 0x7ff
 	// number_of_raw_data_blocks_in_frame  2bit (6: 0000 00**)               0
+
+	// sampling_frequency_index
+	// 0: 96000 Hz
+	// 1: 88200 Hz
+	// 2: 64000 Hz
+	// 3: 48000 Hz
+	// 4: 44100 Hz
+	// 5: 32000 Hz
+	// 6: 24000 Hz
+	// 7: 22050 Hz
+	// 8: 16000 Hz
+	// 9: 12000 Hz
+	// 10: 11025 Hz
+	// 11: 8000 Hz
+	// 12: 7350 Hz
+	// 13: Reserved
+	// 14: Reserved
+	// 15: frequency is written explictly
+
 	if obj.adtsHeader == nil {
 		obj.adtsHeader = make([]byte, 7)
 	}

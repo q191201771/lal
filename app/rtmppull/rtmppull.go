@@ -16,6 +16,8 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/q191201771/lal/pkg/aac"
+
 	"github.com/q191201771/lal/pkg/httpflv"
 	"github.com/q191201771/lal/pkg/logic"
 	"github.com/q191201771/lal/pkg/rtmp"
@@ -76,7 +78,14 @@ func pull(url string, filename string) {
 	})
 
 	err = session.Pull(url, func(msg rtmp.AVMsg) {
-		//log.Infof("%+v, abs ts=%d", msg.Header, msg.Header.TimestampAbs)
+		log.Debugf("header=%+v", msg.Header)
+		if msg.IsAACSeqHeader() {
+			log.Infof("header=%+v, abs ts=%d, msg.body=%+v", msg.Header, msg.Header.TimestampAbs, msg.Payload)
+			var adts aac.ADTS
+			adts.PutAACSequenceHeader(msg.Payload)
+			adtsBuf := adts.GetADTS(10)
+			log.Infof("adts=%+v", adtsBuf)
+		}
 		if filename != "" {
 			tag := logic.Trans.RTMPMsg2FLVTag(msg)
 			err := w.WriteTag(*tag)

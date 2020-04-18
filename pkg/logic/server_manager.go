@@ -168,7 +168,7 @@ func (sm *ServerManager) check() {
 func (sm *ServerManager) getOrCreateGroup(appName string, streamName string) *Group {
 	group, exist := sm.groupMap[streamName]
 	if !exist {
-		group = NewGroup(appName, streamName)
+		group = NewGroup(appName, streamName, sm.config.RTMP.GOPNum, sm.config.HTTPFLV.GOPNum)
 		sm.groupMap[streamName] = group
 	}
 	go group.RunLoop()

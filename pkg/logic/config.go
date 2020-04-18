@@ -14,9 +14,11 @@ type Config struct {
 }
 
 type RTMP struct {
-	Addr string `json:"addr"`
+	Addr   string `json:"addr"`
+	GOPNum int    `json:"gop_num"`
 }
 
 type HTTPFLV struct {
 	SubListenAddr string `json:"sub_listen_addr"`
+	GOPNum        int    `json:"gop_num"`
 }

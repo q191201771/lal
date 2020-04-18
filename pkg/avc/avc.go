@@ -11,6 +11,9 @@ package avc
 import (
 	"errors"
 	"io"
+	"math"
+
+	"github.com/q191201771/naza/pkg/nazabits"
 
 	"github.com/q191201771/naza/pkg/bele"
 )
@@ -26,6 +29,78 @@ var NaluUintTypeMapping = map[uint8]string{
 	7: "SPS",
 	8: "PPS",
 	9: "AUD",
+}
+
+var SliceTypeMapping = map[uint8]string{
+	0: "P",
+	1: "B",
+	2: "I",
+	3: "SP",
+	4: "SI",
+	5: "P",
+	6: "B",
+	7: "I",
+	8: "SP",
+	9: "SI",
+}
+
+var (
+	NaluUnitTypeSlice    uint8 = 1
+	NaluUnitTypeIDRSlice uint8 = 5
+	NaluUnitTypeSEI      uint8 = 6
+	NaluUintTypeSPS      uint8 = 7
+	NaluUintTypePPS      uint8 = 8
+	NaluUintTypeAUD      uint8 = 9 // TODO chef
+)
+
+var (
+	SliceTypeP  uint8 = 0
+	SliceTypeB  uint8 = 1
+	SliceTypeI  uint8 = 2
+	SliceTypeSP uint8 = 3 // TODO chef
+	SliceTypeSI uint8 = 4 // TODO chef
+)
+
+func CalcSliceType(nalu []byte) uint8 {
+	c := nalu[1]
+	var leadingZeroBits int
+	index := 6
+	for ; index >= 0; index-- {
+		v := nazabits.GetBit8(c, index)
+		if v == 0 {
+			leadingZeroBits++
+		} else {
+			break
+		}
+	}
+	rbLeadingZeroBits := nazabits.GetBits8(c, index-1, leadingZeroBits)
+	codeNum := int(math.Pow(2, float64(leadingZeroBits))) - 1 + rbLeadingZeroBits
+	if codeNum > 4 {
+		codeNum -= 5
+	}
+	return uint8(codeNum)
+}
+
+func CalcSliceTypeReadable(nalu []byte) string {
+	t := CalcSliceType(nalu)
+	ret, ok := SliceTypeMapping[t]
+	if !ok {
+		return "unknown"
+	}
+	return ret
+}
+
+func CalcNaluType(nalu []byte) uint8 {
+	return nalu[0] & 0x1f
+}
+
+func CalcNaluTypeReadable(nalu []byte) string {
+	t := nalu[0] & 0x1f
+	ret, ok := NaluUintTypeMapping[t]
+	if !ok {
+		return "unknown"
+	}
+	return ret
 }
 
 // 从 rtmp avc sequence header 中解析 sps 和 pps

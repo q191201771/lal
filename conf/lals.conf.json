@@ -1,16 +1,19 @@
 {
   "rtmp": {
-    "addr": ":19350"
+    "addr": ":19350",
+    "gop_num": 2
   },
   "httpflv": {
-    "sub_listen_addr": ":8080"
+    "sub_listen_addr": ":8080",
+    "gop_num": 2
   },
   "log": {
     "level": 1,
     "filename": "./logs/lals.log",
     "is_to_stdout": true,
     "is_rotate_daily": true,
-    "short_file_flag": true
+    "short_file_flag": true,
+    "assert_behavior": 1
   },
   "pprof": {
     "addr": ":10001"

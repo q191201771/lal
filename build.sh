@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-set -x
+#set -x
 
 ROOT_DIR=`pwd`
 
@@ -23,12 +23,39 @@ LDFlags=" \
     -X 'github.com/q191201771/naza/pkg/bininfo.BuildGoVersion=${BuildGoVersion}' \
 "
 
+if [ -d ${ROOT_DIR}/app/analyse_upstream ]; then
+  cd ${ROOT_DIR}/app/analyse_upstream && go build -ldflags "$LDFlags" -o ${ROOT_DIR}/bin/analyse_upstream
+fi
+
+if [ -d ${ROOT_DIR}/app/flvfile2es ]; then
+  cd ${ROOT_DIR}/app/flvfile2es && go build -ldflags "$LDFlags" -o ${ROOT_DIR}/bin/flvfile2es
+fi
+
+if [ -d ${ROOT_DIR}/app/flvfile2rtmppush ]; then
+  cd ${ROOT_DIR}/app/flvfile2rtmppush && go build -ldflags "$LDFlags" -o ${ROOT_DIR}/bin/flvfile2rtmppush
+fi
+
+if [ -d ${ROOT_DIR}/app/httpflvpull ]; then
+  cd ${ROOT_DIR}/app/httpflvpull && go build -ldflags "$LDFlags" -o ${ROOT_DIR}/bin/httpflvpull
+fi
+
+if [ -d ${ROOT_DIR}/app/learnhls ]; then
+  cd ${ROOT_DIR}/app/learnhls && go build -ldflags "$LDFlags" -o ${ROOT_DIR}/bin/learnhls
+fi
+
+if [ -d ${ROOT_DIR}/app/learnmp4 ]; then
+  cd ${ROOT_DIR}/app/learnmp4 && go build -ldflags "$LDFlags" -o ${ROOT_DIR}/bin/learnmp4
+fi
+
+if [ -d ${ROOT_DIR}/app/modflvfile ]; then
+  cd ${ROOT_DIR}/app/modflvfile && go build -ldflags "$LDFlags" -o ${ROOT_DIR}/bin/modflvfile
+fi
+
+if [ -d ${ROOT_DIR}/app/rtmppull ]; then
+  cd ${ROOT_DIR}/app/modflvfile && go build -ldflags "$LDFlags" -o ${ROOT_DIR}/bin/modflvfile
+fi
+
 cd ${ROOT_DIR}/app/lals && go build -ldflags "$LDFlags" -o ${ROOT_DIR}/bin/lals &&
-cd ${ROOT_DIR}/app/flvfile2rtmppush && go build -ldflags "$LDFlags" -o ${ROOT_DIR}/bin/flvfile2rtmppush &&
-cd ${ROOT_DIR}/app/flvfile2es && go build -o ${ROOT_DIR}/bin/flvfile2es &&
-cd ${ROOT_DIR}/app/httpflvpull && go build -o ${ROOT_DIR}/bin/httpflvpull &&
-cd ${ROOT_DIR}/app/modflvfile && go build -o ${ROOT_DIR}/bin/modflvfile &&
-cd ${ROOT_DIR}/app/rtmppull && go build -o ${ROOT_DIR}/bin/rtmppull &&
 ${ROOT_DIR}/bin/lals -v &&
 ls -lrt ${ROOT_DIR}/bin &&
 echo 'build done.'

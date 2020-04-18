@@ -70,7 +70,20 @@ func readAllTag(filename string) (ret []httpflv.Tag) {
 			log.Info("EOF")
 			break
 		}
-		log.FatalIfErrorNotNil(err)
+		if err != nil {
+			log.Info(err)
+			break
+		}
+		//log.FatalIfErrorNotNil(err)
+		if tag.IsMetadata() {
+			log.Debugf("M %d", tag.Header.Timestamp)
+		} else if tag.IsVideoKeySeqHeader() {
+			log.Debugf("V SH %d", tag.Header.Timestamp)
+		} else if tag.IsVideoKeyNalu() {
+			log.Debugf("V K %d", tag.Header.Timestamp)
+		} else if tag.IsAACSeqHeader() {
+			log.Debugf("A SH %d", tag.Header.Timestamp)
+		}
 		ret = append(ret, tag)
 	}
 	log.Infof("read all tag done. num=%d", len(ret))

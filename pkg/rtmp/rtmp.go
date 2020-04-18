@@ -63,16 +63,57 @@ type AVMsg struct {
 	Payload []byte // 不包含 rtmp 头
 }
 
+// 这部分内容，和httpflv中的类似
+const (
+	frameTypeKey   uint8 = 1
+	frameTypeInter uint8 = 2
+	SoundFormatAAC uint8 = 10
+
+	codecIDAVC  uint8 = 7
+	codecIDHEVC uint8 = 12
+
+	AVCKeyFrame   = frameTypeKey<<4 | codecIDAVC
+	AVCInterFrame = frameTypeInter<<4 | codecIDAVC
+
+	HEVCKeyFrame   = frameTypeKey<<4 | codecIDHEVC
+	HEVCInterFrame = frameTypeInter<<4 | codecIDHEVC
+
+	AVCPacketTypeSeqHeader uint8 = 0
+	AVCPacketTypeNalu      uint8 = 1
+
+	HEVCPacketTypeSeqHeader uint8 = 0
+	HEVCPacketTypeNalu      uint8 = 1
+
+	AACPacketTypeSeqHeader uint8 = 0
+	AACPacketTypeRaw       uint8 = 1
+)
+
 func (msg AVMsg) IsAVCKeySeqHeader() bool {
-	return msg.Header.MsgTypeID == TypeidVideo && msg.Payload[0] == 0x17 && msg.Payload[1] == 0x0
+	return msg.Header.MsgTypeID == TypeidVideo && msg.Payload[0] == AVCKeyFrame && msg.Payload[1] == AVCPacketTypeSeqHeader
+}
+
+func (msg AVMsg) IsHEVCKeySeqHeader() bool {
+	return msg.Header.MsgTypeID == TypeidVideo && msg.Payload[0] == HEVCKeyFrame && msg.Payload[1] == HEVCPacketTypeSeqHeader
+}
+
+func (msg AVMsg) IsVideoKeySeqHeader() bool {
+	return msg.IsAVCKeySeqHeader() || msg.IsHEVCKeySeqHeader()
 }
 
 func (msg AVMsg) IsAVCKeyNalu() bool {
-	return msg.Header.MsgTypeID == TypeidVideo && msg.Payload[0] == 0x17 && msg.Payload[1] == 0x1
+	return msg.Header.MsgTypeID == TypeidVideo && msg.Payload[0] == AVCKeyFrame && msg.Payload[1] == AVCPacketTypeNalu
+}
+
+func (msg AVMsg) IsHEVCKeyNalu() bool {
+	return msg.Header.MsgTypeID == TypeidVideo && msg.Payload[0] == HEVCKeyFrame && msg.Payload[1] == HEVCPacketTypeNalu
+}
+
+func (msg AVMsg) IsVideoKeyNalu() bool {
+	return msg.IsAVCKeyNalu() || msg.IsHEVCKeyNalu()
 }
 
 func (msg AVMsg) IsAACSeqHeader() bool {
-	return msg.Header.MsgTypeID == TypeidAudio && (msg.Payload[0]>>4) == 0x0a && msg.Payload[1] == 0x0
+	return msg.Header.MsgTypeID == TypeidAudio && (msg.Payload[0]>>4) == SoundFormatAAC && msg.Payload[1] == AACPacketTypeSeqHeader
 }
 
 type AVMsgObserver interface {

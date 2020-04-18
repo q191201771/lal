@@ -14,8 +14,14 @@ coverage.html
 /.trash/
 /logs/
 
-/pkg/hls/
+/app/learnhls
+/app/learnmp4
+/app/analyse_upstream
+/app/splitm3u8
+/app/downloadtsbym3u8
+/app/modadtsinhls
 /testdata
+/pkg/hls/
 /pkg/rtmp/testdata
 /pkg/httpflv/testdata
 /pkg/logic/testdata

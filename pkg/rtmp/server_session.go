@@ -61,8 +61,8 @@ type ServerSession struct {
 	avObs PubSessionObserver
 
 	// only for SubSession
-	IsFresh     bool
-	WaitKeyNalu bool
+	IsFresh bool
+	//WaitKeyNalu bool
 }
 
 func NewServerSession(obs ServerSessionObserver, conn net.Conn) *ServerSession {
@@ -78,7 +78,7 @@ func NewServerSession(obs ServerSessionObserver, conn net.Conn) *ServerSession {
 		chunkComposer: NewChunkComposer(),
 		packer:        NewMessagePacker(),
 		IsFresh:       true,
-		WaitKeyNalu:   true,
+		//WaitKeyNalu:   true,
 	}
 }
 

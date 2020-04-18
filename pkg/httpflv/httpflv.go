@@ -18,8 +18,47 @@ var ErrHTTPFLV = errors.New("lal.httpflv: fxxk")
 const (
 	TagHeaderSize int = 11
 
-	flvHeaderSize            = 13
+	flvHeaderSize        int = 13
 	prevTagSizeFieldSize int = 4
+)
+
+const (
+	TagTypeMetadata uint8 = 18
+	TagTypeVideo    uint8 = 9
+	TagTypeAudio    uint8 = 8
+)
+
+const (
+	frameTypeKey   uint8 = 1
+	frameTypeInter uint8 = 2
+)
+
+const (
+	codecIDAVC  uint8 = 7
+	codecIDHEVC uint8 = 12
+)
+
+const (
+	AVCKeyFrame   = frameTypeKey<<4 | codecIDAVC
+	AVCInterFrame = frameTypeInter<<4 | codecIDAVC
+
+	HEVCKeyFrame   = frameTypeKey<<4 | codecIDHEVC
+	HEVCInterFrame = frameTypeInter<<4 | codecIDHEVC
+)
+
+const (
+	AVCPacketTypeSeqHeader uint8 = 0
+	AVCPacketTypeNalu      uint8 = 1
+
+	HEVCPacketTypeSeqHeader uint8 = 0
+	HEVCPacketTypeNalu      uint8 = 1
+
+	AACPacketTypeSeqHeader uint8 = 0
+	AACPacketTypeRaw       uint8 = 1
+)
+
+const (
+	SoundFormatAAC uint8 = 10
 )
 
 type LineReader interface {

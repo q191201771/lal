@@ -30,20 +30,14 @@ type Group struct {
 	pullSession          *rtmp.PullSession
 	rtmpSubSessionSet    map[*rtmp.ServerSession]struct{}
 	httpflvSubSessionSet map[*httpflv.SubSession]struct{}
-	// rtmp chunk格式
-	metadata        []byte
-	avcKeySeqHeader []byte
-	aacSeqHeader    []byte
-	// httpflv tag格式
+	gopCache             *GOPCache
 	// TODO chef: 如果没有开启httpflv监听，可以不做格式转换，节约CPU资源
-	metadataTag        *httpflv.Tag
-	avcKeySeqHeaderTag *httpflv.Tag
-	aacSeqHeaderTag    *httpflv.Tag
+	httpflvGopCache *GOPCache
 }
 
 var _ rtmp.PubSessionObserver = &Group{}
 
-func NewGroup(appName string, streamName string) *Group {
+func NewGroup(appName string, streamName string, rtmpGOPNum int, httpflvGOPNum int) *Group {
 	uk := unique.GenUniqueKey("GROUP")
 	log.Infof("lifecycle new group. [%s] appName=%s, streamName=%s", uk, appName, streamName)
 	return &Group{
@@ -53,6 +47,8 @@ func NewGroup(appName string, streamName string) *Group {
 		exitChan:             make(chan struct{}, 1),
 		rtmpSubSessionSet:    make(map[*rtmp.ServerSession]struct{}),
 		httpflvSubSessionSet: make(map[*httpflv.SubSession]struct{}),
+		gopCache:             NewGopCache("rtmp", uk, rtmpGOPNum),
+		httpflvGopCache:      NewGopCache("httpflv", uk, rtmpGOPNum),
 	}
 }
 
@@ -96,12 +92,9 @@ func (group *Group) DelRTMPPubSession(session *rtmp.ServerSession) {
 	group.mutex.Lock()
 	defer group.mutex.Unlock()
 	group.pubSession = nil
-	group.metadata = nil
-	group.avcKeySeqHeader = nil
-	group.aacSeqHeader = nil
-	group.metadataTag = nil
-	group.avcKeySeqHeaderTag = nil
-	group.aacSeqHeaderTag = nil
+
+	group.gopCache.Clear()
+	group.httpflvGopCache.Clear()
 }
 
 func (group *Group) AddRTMPSubSession(session *rtmp.ServerSession) {
@@ -155,135 +148,94 @@ func (group *Group) OnReadRTMPAVMsg(msg rtmp.AVMsg) {
 	group.mutex.Lock()
 	defer group.mutex.Unlock()
 
+	//log.Debugf("%+v, %02x, %02x", msg.Header, msg.Payload[0], msg.Payload[1])
 	group.broadcastRTMP(msg)
 }
 
 func (group *Group) broadcastRTMP(msg rtmp.AVMsg) {
-	//log.Infof("%+v", header)
+	//log.Infof("%+v", msg.Header)
+	//if msg.IsVideoKeyNalu() {
+	//	log.Debug("CHEFERASEME !!!!!!!!!!!!!!!!!!!!!!!!!!!! recv video key nalu.")
+	//}
 
 	var (
-		currTag *httpflv.Tag
-		lcd     LazyChunkDivider
+		lcd    LazyChunkDivider
+		lrm2ft LazyRTMPMsg2FLVTag
 	)
 
 	// # 1. 设置好用于发送的 rtmp 头部信息
 	currHeader := Trans.MakeDefaultRTMPHeader(msg.Header)
 	// TODO 这行代码是否放到 MakeDefaultRTMPHeader 中
 	currHeader.MsgLen = uint32(len(msg.Payload))
+
+	// # 2. 懒初始化rtmp chunk切片，以及httpflv转换
 	lcd.Init(msg.Payload, &currHeader)
+	lrm2ft.Init(msg)
 
-	// # 2. 广播。遍历所有 rtmp sub session，决定是否转发
+	// # 3. 广播。遍历所有 rtmp sub session，转发数据
 	for session := range group.rtmpSubSessionSet {
-		// ## 2.1. 如果是新的 sub session，发送已缓存的信息
+		// ## 3.1. 如果是新的 sub session，发送已缓存的信息
 		if session.IsFresh {
-			// 发送缓存的头部信息
-			if group.metadata != nil {
-				_ = session.AsyncWrite(group.metadata)
+			// TODO 头信息和full gop也可以在SubSession刚加入时发送
+			if group.gopCache.Metadata != nil {
+				_ = session.AsyncWrite(group.gopCache.Metadata)
 			}
-			if group.avcKeySeqHeader != nil {
-				_ = session.AsyncWrite(group.avcKeySeqHeader)
+			if group.gopCache.VideoSeqHeader != nil {
+				_ = session.AsyncWrite(group.gopCache.VideoSeqHeader)
 			}
-			if group.aacSeqHeader != nil {
-				_ = session.AsyncWrite(group.aacSeqHeader)
+			if group.gopCache.AACSeqHeader != nil {
+				_ = session.AsyncWrite(group.gopCache.AACSeqHeader)
+			}
+			fullGOP := group.gopCache.GetFullGOP()
+			for _, gop := range fullGOP {
+				for _, item := range gop.data {
+					_ = session.AsyncWrite(item)
+				}
+			}
+			lastGOP := group.gopCache.GetLastGOP()
+			if lastGOP != nil {
+				for _, item := range lastGOP.data {
+					_ = session.AsyncWrite(item)
+				}
 			}
 			session.IsFresh = false
 		}
 
-		// ## 2.2. 判断当前包的类型，以及sub session的状态，决定是否发送，并更新sub session的状态
-		switch msg.Header.MsgTypeID {
-		case rtmp.TypeidDataMessageAMF0:
-			_ = session.AsyncWrite(lcd.Get())
-		case rtmp.TypeidAudio:
-			_ = session.AsyncWrite(lcd.Get())
-		case rtmp.TypeidVideo:
-			if session.WaitKeyNalu {
-				if msg.Payload[0] == 0x17 && msg.Payload[1] == 0x0 {
-					_ = session.AsyncWrite(lcd.Get())
-				}
-				if msg.Payload[0] == 0x17 && msg.Payload[1] == 0x1 {
-					_ = session.AsyncWrite(lcd.Get())
-					session.WaitKeyNalu = false
-				}
-			} else {
-				_ = session.AsyncWrite(lcd.Get())
-			}
-
-		}
+		// ## 3.2. 转发本次数据
+		_ = session.AsyncWrite(lcd.Get())
 	}
 
-	// # 3. 广播。遍历所有 httpflv sub session，决定是否转发
+	// # 4. 广播。遍历所有 httpflv sub session，转发数据
 	for session := range group.httpflvSubSessionSet {
-		// ## 3.1. 将当前 message 转换成 tag 格式
-		if currTag == nil {
-			currTag = Trans.RTMPMsg2FLVTag(msg)
-		}
-
-		// ## 3.2. 如果是新的sub session，发送已缓存的信息
 		if session.IsFresh {
-			// 发送缓存的头部信息
-			if group.metadataTag != nil {
-				log.Debugf("send cache metadata. [%s]", session.UniqueKey)
-				session.WriteTag(group.metadataTag)
+			if group.httpflvGopCache.Metadata != nil {
+				session.WriteRawPacket(group.httpflvGopCache.Metadata)
 			}
-			if group.avcKeySeqHeaderTag != nil {
-				session.WriteTag(group.avcKeySeqHeaderTag)
+			if group.httpflvGopCache.VideoSeqHeader != nil {
+				session.WriteRawPacket(group.httpflvGopCache.VideoSeqHeader)
 			}
-			if group.aacSeqHeaderTag != nil {
-				session.WriteTag(group.aacSeqHeaderTag)
+			if group.httpflvGopCache.AACSeqHeader != nil {
+				session.WriteRawPacket(group.httpflvGopCache.AACSeqHeader)
+			}
+			fullGOP := group.httpflvGopCache.GetFullGOP()
+			for _, gop := range fullGOP {
+				for _, item := range gop.data {
+					session.WriteRawPacket(item)
+				}
+			}
+			lastGOP := group.httpflvGopCache.GetLastGOP()
+			if lastGOP != nil {
+				for _, item := range lastGOP.data {
+					session.WriteRawPacket(item)
+				}
 			}
 			session.IsFresh = false
 		}
 
-		// ## 3.3. 判断当前包的类型，以及sub session的状态，决定是否发送，并更新sub session的状态
-		switch msg.Header.MsgTypeID {
-		case rtmp.TypeidDataMessageAMF0:
-			session.WriteTag(currTag)
-		case rtmp.TypeidAudio:
-			session.WriteTag(currTag)
-		case rtmp.TypeidVideo:
-			if session.WaitKeyNalu {
-				if msg.Payload[0] == 0x17 && msg.Payload[1] == 0x0 {
-					session.WriteTag(currTag)
-				}
-				if msg.Payload[0] == 0x17 && msg.Payload[1] == 0x1 {
-					session.WriteTag(currTag)
-					session.WaitKeyNalu = false
-				}
-			} else {
-				session.WriteTag(currTag)
-			}
-
-		}
+		session.WriteRawPacket(lrm2ft.Get())
 	}
 
-	// # 4. 缓存 rtmp 以及 httpflv 的 metadata 和 avc key seq header 和 aac seq header
-	// 由于可能没有订阅者，所以可能需要重新打包
-	switch msg.Header.MsgTypeID {
-	case rtmp.TypeidDataMessageAMF0:
-		if currTag == nil {
-			currTag = Trans.RTMPMsg2FLVTag(msg)
-		}
-		group.metadata = lcd.Get()
-		group.metadataTag = currTag
-		log.Debugf("cache metadata. [%s] rtmp size:%d, flv size:%d", group.UniqueKey, len(group.metadata), group.metadataTag.Header.DataSize)
-	case rtmp.TypeidVideo:
-		// TODO chef: magic number
-		if msg.Payload[0] == 0x17 && msg.Payload[1] == 0x0 {
-			if currTag == nil {
-				currTag = Trans.RTMPMsg2FLVTag(msg)
-			}
-			group.avcKeySeqHeader = lcd.Get()
-			group.avcKeySeqHeaderTag = currTag
-			log.Debugf("cache avc key seq header. [%s] rtmp size:%d, flv size:%d", group.UniqueKey, len(group.avcKeySeqHeader), group.avcKeySeqHeaderTag.Header.DataSize)
-		}
-	case rtmp.TypeidAudio:
-		if (msg.Payload[0]>>4) == 0x0a && msg.Payload[1] == 0x0 {
-			if currTag == nil {
-				currTag = Trans.RTMPMsg2FLVTag(msg)
-			}
-			group.aacSeqHeader = lcd.Get()
-			group.aacSeqHeaderTag = currTag
-			log.Debugf("cache aac seq header. [%s] rtmp size:%d, flv size:%d", group.UniqueKey, len(group.aacSeqHeader), group.aacSeqHeaderTag.Header.DataSize)
-		}
-	}
+	// # 4. 缓存关键信息，以及gop
+	group.gopCache.Feed(msg, lcd.Get)
+	group.httpflvGopCache.Feed(msg, lrm2ft.Get)
 }

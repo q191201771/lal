@@ -12,6 +12,7 @@ import (
 	"flag"
 	"io"
 	"os"
+	"time"
 
 	"github.com/q191201771/lal/pkg/httpflv"
 	log "github.com/q191201771/naza/pkg/nazalog"
@@ -28,28 +29,32 @@ var exitFlag bool
 
 func hookTag(tag *httpflv.Tag) {
 	log.Infof("%+v", tag.Header)
-	if tag.Header.Type == httpflv.TagTypeAudio {
-
-		//if countA < 3 {
-		//	httpflv.ModTagTimestamp(tag, 16777205)
-		//}
-		//countA++
-		if tag.IsAACSeqHeader() {
-			log.Info("aac header.")
-		}
+	if tag.Header.Timestamp != 0 {
+		tag.ModTagTimestamp(tag.Header.Timestamp + uint32(time.Now().Unix()/1e6))
+		//tag.Header.Timestamp += 10000
 	}
-	if tag.Header.Type == httpflv.TagTypeVideo {
-		//if countV < 3 {
-		//	httpflv.ModTagTimestamp(tag, 16777205)
-		//}
-		//countV++
-		if tag.IsAVCKeySeqHeader() {
-			log.Info("key seq header.")
-		}
-		if tag.IsAVCKeyNalu() {
-			log.Info("key nalu.")
-		}
-	}
+	//if tag.Header.Type == httpflv.TagTypeAudio {
+	//
+	//	//if countA < 3 {
+	//	//	httpflv.ModTagTimestamp(tag, 16777205)
+	//	//}
+	//	//countA++
+	//	if tag.IsAACSeqHeader() {
+	//		log.Info("aac header.")
+	//	}
+	//}
+	//if tag.Header.Type == httpflv.TagTypeVideo {
+	//	//if countV < 3 {
+	//	//	httpflv.ModTagTimestamp(tag, 16777205)
+	//	//}
+	//	//countV++
+	//	if tag.IsAVCKeySeqHeader() {
+	//		log.Info("key seq header.")
+	//	}
+	//	if tag.IsAVCKeyNalu() {
+	//		log.Info("key nalu.")
+	//	}
+	//}
 }
 
 func main() {
