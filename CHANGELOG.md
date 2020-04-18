@@ -1,3 +1,8 @@
+#### v0.8.0
+
+- [feat] 支持H265/HEVC
+- [feat] 支持GOP缓存
+
 #### v0.7.0
 
 - [fix] package logic: 转发 rtmp metadata 时，message header 中的 len 字段可能和 body 实际长度不一致
