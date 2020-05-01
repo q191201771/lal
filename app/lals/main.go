@@ -14,8 +14,6 @@ import (
 	"net/http"
 	_ "net/http/pprof"
 	"os"
-	"os/signal"
-	"syscall"
 
 	"github.com/q191201771/lal/pkg/logic"
 	"github.com/q191201771/naza/pkg/bininfo"
@@ -85,12 +83,4 @@ func runWebPProf(addr string) {
 		log.Error(err)
 		return
 	}
-}
-
-func runSignalHandler() {
-	c := make(chan os.Signal)
-	signal.Notify(c, syscall.SIGUSR1, syscall.SIGUSR2)
-	s := <-c
-	log.Infof("recv signal. s=%+v", s)
-	sm.Dispose()
 }

@@ -25,10 +25,10 @@ import (
 	log "github.com/q191201771/naza/pkg/nazalog"
 )
 
-// rtmp 推流客户端，读取本地 flv 文件，使用 rtmp 协议推送出去
+// RTMP推流客户端，读取本地FLV文件，使用RTMP协议推送出去
 //
-// 支持循环推送：文件推送完毕后，可循环推送（rtmp push 流并不断开）
-// 支持推送多路流：相当于一个 rtmp 推流压测工具
+// 支持循环推送：文件推送完毕后，可循环推送（RTMP push 流并不断开）
+// 支持推送多路流：相当于一个RTMP推流压测工具
 //
 // Usage of ./bin/flvfile2rtmppush:
 // -i string
@@ -61,7 +61,7 @@ func main() {
 func readAllTag(filename string) (ret []httpflv.Tag) {
 	var ffr httpflv.FLVFileReader
 	err := ffr.Open(filename)
-	log.FatalIfErrorNotNil(err)
+	log.Assert(nil, err)
 	log.Infof("open succ. filename=%s", filename)
 
 	for {
@@ -74,7 +74,6 @@ func readAllTag(filename string) (ret []httpflv.Tag) {
 			log.Info(err)
 			break
 		}
-		//log.FatalIfErrorNotNil(err)
 		if tag.IsMetadata() {
 			log.Debugf("M %d", tag.Header.Timestamp)
 		} else if tag.IsVideoKeySeqHeader() {
@@ -105,7 +104,7 @@ func push(tags []httpflv.Tag, urls []string, isRecursive bool) {
 			option.WriteAVTimeoutMS = 10000
 		})
 		err = ps.Push(urls[i])
-		log.FatalIfErrorNotNil(err)
+		log.Assert(nil, err)
 		log.Infof("push succ. url=%s", urls[i])
 		psList = append(psList, ps)
 	}
@@ -130,12 +129,11 @@ func push(tags []httpflv.Tag, urls []string, isRecursive bool) {
 			if tag.IsMetadata() {
 				if totalBaseTS == 0 {
 					// 第一个metadata直接发送
-					//log.Debugf("CHEFERASEME write metadata.")
 					h.TimestampAbs = 0
 					chunks := rtmp.Message2Chunks(tag.Raw[11:11+h.MsgLen], &h)
 					for _, ps := range psList {
 						err = ps.AsyncWrite(chunks)
-						log.FatalIfErrorNotNil(err)
+						log.Assert(nil, err)
 					}
 				} else {
 					// noop
@@ -145,11 +143,9 @@ func push(tags []httpflv.Tag, urls []string, isRecursive bool) {
 
 			if hasReadThisBaseTS {
 				// 之前已经读到了这轮读文件的base值，ts要减去base
-				//log.Debugf("CHEFERASEME %+v %d %d %d.", tag.Header, tag.Header.Timestamp, thisBaseTS, totalBaseTS)
 				h.TimestampAbs = tag.Header.Timestamp - thisBaseTS + totalBaseTS
 			} else {
 				// 设置base，ts设置为上一轮读文件的值
-				//log.Debugf("CHEFERASEME %+v %d %d %d.", tag.Header, tag.Header.Timestamp, thisBaseTS, totalBaseTS)
 				thisBaseTS = tag.Header.Timestamp
 				h.TimestampAbs = totalBaseTS
 				hasReadThisBaseTS = true
@@ -166,7 +162,6 @@ func push(tags []httpflv.Tag, urls []string, isRecursive bool) {
 				n := time.Now().UnixNano() / 1000000
 				diffTick := n - firstTagTick
 				diffTS := h.TimestampAbs - firstTagTS
-				//log.Infof("%d %d %d %d", n, diffTick, diffTS, int64(diffTS) - diffTick)
 				if diffTick < int64(diffTS) {
 					time.Sleep(time.Duration(int64(diffTS)-diffTick) * time.Millisecond)
 				}
@@ -178,7 +173,7 @@ func push(tags []httpflv.Tag, urls []string, isRecursive bool) {
 
 			for _, ps := range psList {
 				err = ps.AsyncWrite(chunks)
-				log.FatalIfErrorNotNil(err)
+				log.Assert(nil, err)
 			}
 
 			prevTS = h.TimestampAbs

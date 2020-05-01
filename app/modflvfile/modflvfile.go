@@ -31,30 +31,7 @@ func hookTag(tag *httpflv.Tag) {
 	log.Infof("%+v", tag.Header)
 	if tag.Header.Timestamp != 0 {
 		tag.ModTagTimestamp(tag.Header.Timestamp + uint32(time.Now().Unix()/1e6))
-		//tag.Header.Timestamp += 10000
 	}
-	//if tag.Header.Type == httpflv.TagTypeAudio {
-	//
-	//	//if countA < 3 {
-	//	//	httpflv.ModTagTimestamp(tag, 16777205)
-	//	//}
-	//	//countA++
-	//	if tag.IsAACSeqHeader() {
-	//		log.Info("aac header.")
-	//	}
-	//}
-	//if tag.Header.Type == httpflv.TagTypeVideo {
-	//	//if countV < 3 {
-	//	//	httpflv.ModTagTimestamp(tag, 16777205)
-	//	//}
-	//	//countV++
-	//	if tag.IsAVCKeySeqHeader() {
-	//		log.Info("key seq header.")
-	//	}
-	//	if tag.IsAVCKeyNalu() {
-	//		log.Info("key nalu.")
-	//	}
-	//}
 }
 
 func main() {
@@ -63,39 +40,32 @@ func main() {
 
 	var ffr httpflv.FLVFileReader
 	err = ffr.Open(inFileName)
-	log.FatalIfErrorNotNil(err)
+	log.Assert(nil, err)
 	defer ffr.Dispose()
 	log.Infof("open input flv file succ.")
 
 	var ffw httpflv.FLVFileWriter
 	err = ffw.Open(outFileName)
-	log.FatalIfErrorNotNil(err)
+	log.Assert(nil, err)
 	defer ffw.Dispose()
 	log.Infof("open output flv file succ.")
 
 	flvHeader, err := ffr.ReadFLVHeader()
-	log.FatalIfErrorNotNil(err)
+	log.Assert(nil, err)
 
 	err = ffw.WriteRaw(flvHeader)
-	log.FatalIfErrorNotNil(err)
+	log.Assert(nil, err)
 
-	//for i:=0; i < 10; i++{
 	for {
 		tag, err := ffr.ReadTag()
 		if err == io.EOF {
 			log.Infof("EOF.")
 			break
 		}
-		log.FatalIfErrorNotNil(err)
-		if tag.Header.Type == httpflv.TagTypeVideo && tag.Header.DataSize == 68 && tag.Header.Timestamp == 677764 {
-			break
-		}
-
-		//log.Infof("> hook. %+v", tag)
+		log.Assert(nil, err)
 		hookTag(&tag)
-		//log.Infof("< hook. %+v", tag)
 		err = ffw.WriteRaw(tag.Raw)
-		log.FatalIfErrorNotNil(err)
+		log.Assert(nil, err)
 	}
 }
 

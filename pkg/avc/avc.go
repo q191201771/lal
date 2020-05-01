@@ -44,7 +44,7 @@ var SliceTypeMapping = map[uint8]string{
 	9: "SI",
 }
 
-var (
+const (
 	NaluUnitTypeSlice    uint8 = 1
 	NaluUnitTypeIDRSlice uint8 = 5
 	NaluUnitTypeSEI      uint8 = 6
@@ -53,7 +53,7 @@ var (
 	NaluUintTypeAUD      uint8 = 9 // TODO chef
 )
 
-var (
+const (
 	SliceTypeP  uint8 = 0
 	SliceTypeB  uint8 = 1
 	SliceTypeI  uint8 = 2

@@ -105,7 +105,9 @@ func (gc *GOPCache) Feed(msg rtmp.AVMsg, lg LazyGet) {
 				gc.gopList = gc.gopList[1:]
 			}
 		} else {
-			gc.gopList[len(gc.gopList)-1].Feed(msg, lg())
+			if len(gc.gopList) > 0 {
+				gc.gopList[len(gc.gopList)-1].Feed(msg, lg())
+			}
 		}
 	}
 }

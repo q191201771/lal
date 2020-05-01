@@ -13,11 +13,15 @@ import (
 	"io"
 	"os"
 
-	"github.com/q191201771/lal/pkg/aac"
 	"github.com/q191201771/lal/pkg/avc"
+
+	"github.com/q191201771/lal/pkg/aac"
 	"github.com/q191201771/lal/pkg/httpflv"
 	log "github.com/q191201771/naza/pkg/nazalog"
 )
+
+// 将本地FLV文件分离成H264/AVC和AAC的ES流文件
+// TODO chef 做HEVC的支持
 
 func main() {
 	var err error
@@ -25,17 +29,17 @@ func main() {
 
 	var ffr httpflv.FLVFileReader
 	err = ffr.Open(flvFileName)
-	log.FatalIfErrorNotNil(err)
+	log.Assert(nil, err)
 	defer ffr.Dispose()
 	log.Infof("open flv file succ.")
 
 	afp, err := os.Create(aacFileName)
-	log.FatalIfErrorNotNil(err)
+	log.Assert(nil, err)
 	defer afp.Close()
 	log.Infof("open es aac file succ.")
 
 	vfp, err := os.Create(avcFileName)
-	log.FatalIfErrorNotNil(err)
+	log.Assert(nil, err)
 	defer vfp.Close()
 	log.Infof("open es h264 file succ.")
 
@@ -45,7 +49,7 @@ func main() {
 			log.Infof("EOF.")
 			break
 		}
-		log.FatalIfErrorNotNil(err)
+		log.Assert(nil, err)
 
 		payload := tag.Payload()
 

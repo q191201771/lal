@@ -154,9 +154,6 @@ func (group *Group) OnReadRTMPAVMsg(msg rtmp.AVMsg) {
 
 func (group *Group) broadcastRTMP(msg rtmp.AVMsg) {
 	//log.Infof("%+v", msg.Header)
-	//if msg.IsVideoKeyNalu() {
-	//	log.Debug("CHEFERASEME !!!!!!!!!!!!!!!!!!!!!!!!!!!! recv video key nalu.")
-	//}
 
 	var (
 		lcd    LazyChunkDivider

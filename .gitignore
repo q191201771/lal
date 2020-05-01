@@ -8,18 +8,13 @@ coverage.html
 /conf/self.conf.json
 /tmp
 
-/demo/
-/bin/
-/.idea/
-/.trash/
-/logs/
-
-/app/learnhls
-/app/learnmp4
-/app/analyse_upstream
-/app/splitm3u8
-/app/downloadtsbym3u8
-/app/modadtsinhls
+/demo
+/bin
+/release
+/.idea
+/.trash
+/logs
+/playground
 /testdata
 /pkg/hls/
 /pkg/rtmp/testdata

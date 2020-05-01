@@ -12,81 +12,81 @@ import (
 	"encoding/hex"
 	"io"
 
+	"github.com/q191201771/naza/pkg/nazabits"
+
 	log "github.com/q191201771/naza/pkg/nazalog"
 )
 
+// TODO chef: 把Seq Header头两字节的解析和ADTS的内容分离开
+
 var adts ADTS
 
+// Audio Data Transport Stream
 type ADTS struct {
 	audioObjectType        uint8
 	samplingFrequencyIndex uint8
-	channelConfig          uint8
+	channelConfiguration   uint8
 
-	frameLengthFlag   uint8
-	dependOnCoreCoder uint8
-	extensionFlag     uint8
-	adtsHeader        []byte
+	adtsHeader []byte
 }
 
-// 传入 AAC Sequence Header，一会生成 ADTS 头时需要使用
+// 传入AAC Sequence Header，调用GetADTS时需要使用
 // @param <payload> rtmp message payload，包含前面2个字节
 func (obj *ADTS) PutAACSequenceHeader(payload []byte) {
-	log.Debugf(hex.Dump(payload[:4]))
-	soundFormat := payload[0] >> 4        // 10=AAC
-	soundRate := (payload[0] >> 2) & 0x03 // 3=44kHz. For AAC: always 3
-	soundSize := (payload[0] >> 1) & 0x01 // 0=snd8Bit 1=snd16Bit
-	soundType := payload[0] & 0x01        // For AAC: always 1
-	aacPacketType := payload[1]           // 0:sequence header 1:AAC raw
-	log.Debugf("%d %d %d %d %d", soundFormat, soundRate, soundSize, soundType, aacPacketType)
+	// <spec-video_file_format_spec_v10.pdf>, <Audio tags, AUDIODATA>, <page 10/48>
+	// ----------------------------------------------------------------------------
+	// soundFormat    [4b] 10=AAC
+	// soundRate      [2b] 3=44kHz. AAC always 3
+	// soundSize      [1b] 0=snd8Bit, 1=snd16Bit
+	// soundType      [1b] 0=sndMono, 1=sndStereo. AAC always 1
+	// aacPackageType [8b] 0=seq header, 1=AAC raw
+	soundFormat := nazabits.GetBits8(payload[0], 4, 4)
+	soundRate := nazabits.GetBits8(payload[0], 2, 2)
+	soundSize := nazabits.GetBit8(payload[0], 1)
+	soundType := nazabits.GetBit8(payload[0], 0)
+	aacPacketType := payload[1]
+	log.Debugf("%s %d %d %d %d %d", hex.Dump(payload[:4]), soundFormat, soundRate, soundSize, soundType, aacPacketType)
 
-	obj.audioObjectType = (payload[2] & 0xf8) >> 3                              // 5bit 编码结构类型
-	obj.samplingFrequencyIndex = ((payload[2] & 0x07) << 1) | (payload[3] >> 7) // 4bit 音频采样率索引值
-	obj.channelConfig = (payload[3] & 0x78) >> 3                                // 4bit 音频输出声道
-	obj.frameLengthFlag = (payload[3] & 0x04) >> 2                              // 1bit
-	obj.dependOnCoreCoder = (payload[3] & 0x02) >> 1                            // 1bit
-	obj.extensionFlag = payload[3] & 0x01                                       // 1bit
+	// <ISO_IEC_14496-3.pdf>
+	// <1.6.2.1 AudioSpecificConfig>, <page 33/110>
+	// <1.5.1.1 Audio Object type definition>, <page 23/110>
+	// <1.6.3.3 samplingFrequencyIndex>, <page 35/110>
+	// <1.6.3.4 channelConfiguration>
+	// --------------------------------------------------------
+	// audio object type      [5b] 2=AAC LC
+	// samplingFrequencyIndex [4b] 3=48000
+	// channelConfiguration   [4b] 2=left, right front speakers
+	obj.audioObjectType = uint8(nazabits.GetBits16(payload[2:], 11, 5))
+	obj.samplingFrequencyIndex = uint8(nazabits.GetBits16(payload[2:], 7, 4))
+	obj.channelConfiguration = uint8(nazabits.GetBits16(payload[2:], 3, 4))
 	log.Debugf("%+v", obj)
 }
 
-// 获取 ADTS 头，注意，每个包的长度不同，所以生成的每个包的 ADTS 头也不同
+// 获取 ADTS 头，注意，由于ADTS头依赖包的长度，而每个包的长度不同，所以生成的每个包的 ADTS 头也不同
 // @param <length> rtmp message payload长度，包含前面2个字节
 func (obj *ADTS) GetADTS(length uint16) []byte {
-	// adts fixed header:
-	// syncword                           12bit (0: **** ****, 1: **** 0000) 0xfff
-	// ID                                  1bit (1: 0000 *000)               0     0:MPEG-4 1:MPEG-2
-	// layer                               2bit (1: 0000 0**0)               0
-	// protection_absent                   1bit (1: 0000 000*)               1
-	// profile                             2bit (2: **00 0000)
-	// sampling_frequency_index            4bit (2: 00** **00)
-	// private_bit                         1bit (2: 0000 00*0)               0
-	// channel_configuration               3bit (2: 0000 000*, 3: **00 0000)
-	// origin_copy                         1bit (3: 00*0 0000)               0
-	// home                                1bit (3: 000* 0000)               0
-	//
-	// adts variable_header:
-	// copyright_identification_bit        1bit (3: 0000 *000)               0
-	// copyright_identification_start      1bit (3: 0000 0*00)               0
-	// aac_frame_length                   13bit (3: 0000 00**, 5: ***0 0000)
-	// adts_buffer_fullness               11bit (5: 000* ****, 6: **** **00) 0x7ff
-	// number_of_raw_data_blocks_in_frame  2bit (6: 0000 00**)               0
-
-	// sampling_frequency_index
-	// 0: 96000 Hz
-	// 1: 88200 Hz
-	// 2: 64000 Hz
-	// 3: 48000 Hz
-	// 4: 44100 Hz
-	// 5: 32000 Hz
-	// 6: 24000 Hz
-	// 7: 22050 Hz
-	// 8: 16000 Hz
-	// 9: 12000 Hz
-	// 10: 11025 Hz
-	// 11: 8000 Hz
-	// 12: 7350 Hz
-	// 13: Reserved
-	// 14: Reserved
-	// 15: frequency is written explictly
+	// <ISO_IEC_14496-3.pdf>
+	// <1.A.2.2.1 Fixed Header of ADTS>, <page 75/110>
+	// <1.A.2.2.2 Variable Header of ADTS>, <page 76/110>
+	// <1.A.3.2.1 Definitions: Bitstream elements for ADTS>
+	// ----------------------------------------------------
+	// Syncword                 [12b] '1111 1111 1111'
+	// ID                       [1b]  1=MPEG-2 AAC 0=MPEG-4
+	// Layer                    [2b]
+	// protection_absent        [1b]  1=no crc check
+	// Profile_ObjectType       [2b]
+	// sampling_frequency_index [4b]
+	// private_bit              [1b]
+	// channel_configuration    [3b]
+	// origin/copy              [1b]
+	// home                     [1b]
+	// Emphasis???
+	// ------------------------------------
+	// copyright_identification_bit   [1b]
+	// copyright_identification_start [1b]
+	// aac_frame_length               [13b]
+	// adts_buffer_fullness           [11b]
+	// no_raw_data_blocks_in_frame    [2b]
 
 	if obj.adtsHeader == nil {
 		obj.adtsHeader = make([]byte, 7)
@@ -95,11 +95,11 @@ func (obj *ADTS) GetADTS(length uint16) []byte {
 	obj.adtsHeader[1] = 0xf1
 	obj.adtsHeader[2] = ((obj.audioObjectType - 1) << 6) & 0xc0
 	obj.adtsHeader[2] |= (obj.samplingFrequencyIndex << 2) & 0x3c
-	obj.adtsHeader[2] |= (obj.channelConfig >> 2) & 0x01
-	obj.adtsHeader[3] = (obj.channelConfig << 6) & 0xc0
+	obj.adtsHeader[2] |= (obj.channelConfiguration >> 2) & 0x01
+	obj.adtsHeader[3] = (obj.channelConfiguration << 6) & 0xc0
 
-	// 减去前面2个字节，加上adts的7个字节
-	length = length - 2 + 7
+	// 减去前面2个字节，再加上加上adts的7个字节
+	length += 5
 	obj.adtsHeader[3] += uint8(length >> 11) // TODO chef: 为什么这样做，应该只是使用2个字节，取5个再相加是否会超出？
 	obj.adtsHeader[4] = uint8((length & 0x7ff) >> 3)
 	obj.adtsHeader[5] = uint8((length & 0x07) << 5)

@@ -24,11 +24,11 @@ import (
 	log "github.com/q191201771/naza/pkg/nazalog"
 )
 
-// rtmp 拉流客户端，从远端服务器拉取 rtmp 流，存储为本地 flv 文件
+// RTMP拉流客户端，从远端服务器拉取RTMP流，存储为本地FLV文件
 //
-// 另外，作为一个 rtmp 拉流压测工具，已经支持：
-// 1. 对一路流拉取 n 份
-// 2. 拉取 n 路流
+// 另外，作为一个RTMP拉流压测工具，已经支持：
+// 1. 对一路流拉取n份
+// 2. 拉取n路流
 //
 // Usage of ./bin/rtmppull:
 //   -i string
@@ -65,10 +65,10 @@ func pull(url string, filename string) {
 
 	if filename != "" {
 		err = w.Open(filename)
-		log.FatalIfErrorNotNil(err)
+		log.Assert(nil, err)
 		defer w.Dispose()
 		err = w.WriteRaw(httpflv.FLVHeader)
-		log.FatalIfErrorNotNil(err)
+		log.Assert(nil, err)
 	}
 
 	session := rtmp.NewPullSession(func(option *rtmp.PullSessionOption) {
@@ -89,10 +89,10 @@ func pull(url string, filename string) {
 		if filename != "" {
 			tag := logic.Trans.RTMPMsg2FLVTag(msg)
 			err := w.WriteTag(*tag)
-			log.FatalIfErrorNotNil(err)
+			log.Assert(nil, err)
 		}
 	})
-	log.FatalIfErrorNotNil(err)
+	log.Assert(nil, err)
 }
 
 func connect(urlTmpl string, fileNameTmpl string, num int) (urls []string, filenames []string) {
