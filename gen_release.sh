@@ -48,6 +48,7 @@ export GOOS=windows
 cd ${ROOT_DIR}/app/lals && go build -ldflags "$LDFlags" -o ${ROOT_DIR}/${OUT_DIR}/windows/bin/lals
 
 cd ${ROOT_DIR}/${OUT_DIR}
-zip -r linux.zip linux
-zip -r macos.zip macos
-zip -r windows.zip windows
+v=`git tag | tail -n 1`
+zip -r lal_${v}_linux.zip linux
+zip -r lal_${v}_macos.zip macos
+zip -r lal_${v}_windows.zip windows

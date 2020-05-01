@@ -29,8 +29,6 @@ Go语言编写的直播流媒体网络传输服务器
 
 已支持RTMP，HTTP-FLV，H264/AVC，H265/HEVC，AAC，GOP缓存。
 
-
-
 ### README 目录
 
 * 运行
@@ -43,9 +41,9 @@ Go语言编写的直播流媒体网络传输服务器
 
 ### 运行
 
-#### 方式1，直接下载对应平台二进制可执行文件，体验功能
+#### 方式1，直接下载二进制可执行文件，体验功能
 
-TODO
+上[最新发布版本](https://github.com/q191201771/lal/releases/latest)页面，下载对应平台的zip压缩包。
 
 #### 方式2，自己编译
 
@@ -60,8 +58,11 @@ $export GOPROXY=https://goproxy.cn
 $git clone https://github.com/q191201771/lal.git
 $cd lal
 $./build.sh
+```
 
-# 运行
+#### 运行
+
+```shell
 $./bin/lals -c conf/lals.conf.json
 ```
 
@@ -71,7 +72,7 @@ $./bin/lals -c conf/lals.conf.json
 {
   "rtmp": {
     "addr": ":19350", // RTMP服务监听的端口，客户端向lals推拉流都是这个地址
-    "gop_num": 2      // rtmp拉流的GOP缓存数量，加速秒开
+    "gop_num": 2      // RTMP拉流的GOP缓存数量，加速秒开
   },
   "httpflv": {
     "sub_listen_addr": ":8080", // HTTP-FLV拉流地址
