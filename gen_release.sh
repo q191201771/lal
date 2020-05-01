@@ -5,17 +5,24 @@
 ROOT_DIR=`pwd`
 OUT_DIR=release
 
-rm -rf ${ROOT_DIR}/${OUT_DIR}
-mkdir -p ${ROOT_DIR}/${OUT_DIR}/linux/bin
-mkdir -p ${ROOT_DIR}/${OUT_DIR}/linux/conf
-mkdir -p ${ROOT_DIR}/${OUT_DIR}/macos/bin
-mkdir -p ${ROOT_DIR}/${OUT_DIR}/macos/conf
-mkdir -p ${ROOT_DIR}/${OUT_DIR}/windows/bin
-mkdir -p ${ROOT_DIR}/${OUT_DIR}/windows/conf
+v=`git tag | tail -n 1`
+prefix=lal_${v}_
 
-cp conf/lals.conf.json ${ROOT_DIR}/${OUT_DIR}/linux/conf
-cp conf/lals.conf.json ${ROOT_DIR}/${OUT_DIR}/macos/conf
-cp conf/lals.conf.json ${ROOT_DIR}/${OUT_DIR}/windows/conf
+rm -rf ${ROOT_DIR}/${OUT_DIR}
+mkdir -p ${ROOT_DIR}/${OUT_DIR}/${prefix}linux/bin
+mkdir -p ${ROOT_DIR}/${OUT_DIR}/${prefix}linux/conf
+mkdir -p ${ROOT_DIR}/${OUT_DIR}/${prefix}macos/bin
+mkdir -p ${ROOT_DIR}/${OUT_DIR}/${prefix}macos/conf
+mkdir -p ${ROOT_DIR}/${OUT_DIR}/${prefix}windows/bin
+mkdir -p ${ROOT_DIR}/${OUT_DIR}/${prefix}windows/conf
+
+echo ${v} >> ${ROOT_DIR}/${OUT_DIR}/${prefix}linux/VERSION.txt
+echo ${v} >> ${ROOT_DIR}/${OUT_DIR}/${prefix}macos/VERSION.txt
+echo ${v} >> ${ROOT_DIR}/${OUT_DIR}/${prefix}windows/VERSION.txt
+
+cp conf/lals.conf.json ${ROOT_DIR}/${OUT_DIR}/${prefix}linux/conf
+cp conf/lals.conf.json ${ROOT_DIR}/${OUT_DIR}/${prefix}macos/conf
+cp conf/lals.conf.json ${ROOT_DIR}/${OUT_DIR}/${prefix}windows/conf
 
 GitCommitLog=`git log --pretty=oneline -n 1`
 # 将 log 原始字符串中的单引号替换成双引号
@@ -37,18 +44,17 @@ export GOARCH=amd64
 
 echo "build linux..."
 export GOOS=linux
-cd ${ROOT_DIR}/app/lals && go build -ldflags "$LDFlags" -o ${ROOT_DIR}/${OUT_DIR}/linux/bin/lals
+cd ${ROOT_DIR}/app/lals && go build -ldflags "$LDFlags" -o ${ROOT_DIR}/${OUT_DIR}/${prefix}linux/bin/lals
 
 echo "build macos..."
 export GOOS=darwin
-cd ${ROOT_DIR}/app/lals && go build -ldflags "$LDFlags" -o ${ROOT_DIR}/${OUT_DIR}/macos/bin/lals
+cd ${ROOT_DIR}/app/lals && go build -ldflags "$LDFlags" -o ${ROOT_DIR}/${OUT_DIR}/${prefix}macos/bin/lals
 
 echo "build windows..."
 export GOOS=windows
-cd ${ROOT_DIR}/app/lals && go build -ldflags "$LDFlags" -o ${ROOT_DIR}/${OUT_DIR}/windows/bin/lals
+cd ${ROOT_DIR}/app/lals && go build -ldflags "$LDFlags" -o ${ROOT_DIR}/${OUT_DIR}/${prefix}windows/bin/lals
 
 cd ${ROOT_DIR}/${OUT_DIR}
-v=`git tag | tail -n 1`
-zip -r lal_${v}_linux.zip linux
-zip -r lal_${v}_macos.zip macos
-zip -r lal_${v}_windows.zip windows
+zip -r ${prefix}linux.zip ${prefix}linux
+zip -r ${prefix}macos.zip ${prefix}macos
+zip -r ${prefix}windows.zip ${prefix}windows
