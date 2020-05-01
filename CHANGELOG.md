@@ -1,3 +1,12 @@
+#### v0.8.1
+
+- [feat] 新package hevc
+- [fix] windows平台缺少USER1信号导致编译失败
+- [fix] gop缓存时，不以I帧开始的流会崩溃
+- [chore] 提供各平台二进制可执行文件的压缩包
+- [doc] package aac增加一些注释
+- [refactor] 使用naza v0.10.0
+
 #### v0.8.0
 
 - [feat] 支持H265/HEVC
