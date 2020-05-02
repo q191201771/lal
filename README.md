@@ -66,6 +66,8 @@ $./build.sh
 $./bin/lals -c conf/lals.conf.json
 ```
 
+快速体验lal服务器见：[常见推拉流客户端软件的使用方式](https://pengrl.com/p/20051/)
+
 ### 配置文件说明
 
 ```
