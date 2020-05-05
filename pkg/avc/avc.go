@@ -63,8 +63,8 @@ const (
 
 func CalcSliceType(nalu []byte) uint8 {
 	c := nalu[1]
-	var leadingZeroBits int
-	index := 6
+	var leadingZeroBits uint
+	index := uint(6)
 	for ; index >= 0; index-- {
 		v := nazabits.GetBit8(c, index)
 		if v == 0 {
@@ -74,7 +74,7 @@ func CalcSliceType(nalu []byte) uint8 {
 		}
 	}
 	rbLeadingZeroBits := nazabits.GetBits8(c, index-1, leadingZeroBits)
-	codeNum := int(math.Pow(2, float64(leadingZeroBits))) - 1 + rbLeadingZeroBits
+	codeNum := uint(math.Pow(2, float64(leadingZeroBits))) - 1 + uint(rbLeadingZeroBits)
 	if codeNum > 4 {
 		codeNum -= 5
 	}

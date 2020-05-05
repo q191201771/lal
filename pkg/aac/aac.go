@@ -40,11 +40,12 @@ func (obj *ADTS) PutAACSequenceHeader(payload []byte) {
 	// soundSize      [1b] 0=snd8Bit, 1=snd16Bit
 	// soundType      [1b] 0=sndMono, 1=sndStereo. AAC always 1
 	// aacPackageType [8b] 0=seq header, 1=AAC raw
-	soundFormat := nazabits.GetBits8(payload[0], 4, 4)
-	soundRate := nazabits.GetBits8(payload[0], 2, 2)
-	soundSize := nazabits.GetBit8(payload[0], 1)
-	soundType := nazabits.GetBit8(payload[0], 0)
-	aacPacketType := payload[1]
+	br := nazabits.NewBitReader(payload)
+	soundFormat := br.ReadBits8(4)
+	soundRate := br.ReadBits8(2)
+	soundSize := br.ReadBits8(1)
+	soundType := br.ReadBits8(1)
+	aacPacketType := br.ReadBits8(8)
 	log.Debugf("%s %d %d %d %d %d", hex.Dump(payload[:4]), soundFormat, soundRate, soundSize, soundType, aacPacketType)
 
 	// <ISO_IEC_14496-3.pdf>
@@ -56,9 +57,9 @@ func (obj *ADTS) PutAACSequenceHeader(payload []byte) {
 	// audio object type      [5b] 2=AAC LC
 	// samplingFrequencyIndex [4b] 3=48000
 	// channelConfiguration   [4b] 2=left, right front speakers
-	obj.audioObjectType = uint8(nazabits.GetBits16(payload[2:], 11, 5))
-	obj.samplingFrequencyIndex = uint8(nazabits.GetBits16(payload[2:], 7, 4))
-	obj.channelConfiguration = uint8(nazabits.GetBits16(payload[2:], 3, 4))
+	obj.audioObjectType = br.ReadBits8(5)
+	obj.samplingFrequencyIndex = br.ReadBits8(4)
+	obj.channelConfiguration = br.ReadBits8(4)
 	log.Debugf("%+v", obj)
 }
 
@@ -91,21 +92,20 @@ func (obj *ADTS) GetADTS(length uint16) []byte {
 	if obj.adtsHeader == nil {
 		obj.adtsHeader = make([]byte, 7)
 	}
-	obj.adtsHeader[0] = 0xff
-	obj.adtsHeader[1] = 0xf1
-	obj.adtsHeader[2] = ((obj.audioObjectType - 1) << 6) & 0xc0
-	obj.adtsHeader[2] |= (obj.samplingFrequencyIndex << 2) & 0x3c
-	obj.adtsHeader[2] |= (obj.channelConfiguration >> 2) & 0x01
-	obj.adtsHeader[3] = (obj.channelConfiguration << 6) & 0xc0
-
-	// 减去前面2个字节，再加上加上adts的7个字节
+	// 减去头两字节，再加上自身adts头的7个字节
 	length += 5
-	obj.adtsHeader[3] += uint8(length >> 11) // TODO chef: 为什么这样做，应该只是使用2个字节，取5个再相加是否会超出？
-	obj.adtsHeader[4] = uint8((length & 0x7ff) >> 3)
-	obj.adtsHeader[5] = uint8((length & 0x07) << 5)
 
-	obj.adtsHeader[5] |= 0x1f
-	obj.adtsHeader[6] = 0xfc
+	bw := nazabits.NewBitWriter(obj.adtsHeader)
+	bw.WriteBits16(12, 0xFFF)                    // Syncword 0(8) 1(4)
+	bw.WriteBits8(4, 0x1)                        // ID, Layer, protection_absent 1(4)
+	bw.WriteBits8(2, obj.audioObjectType-1)      // 2(2)
+	bw.WriteBits8(4, obj.samplingFrequencyIndex) // 2(4)
+	bw.WriteBits8(1, 0)                          // private_bit 2(1)
+	bw.WriteBits8(3, obj.channelConfiguration)   // 2(1) 3(2)
+	bw.WriteBits8(4, 0)                          // origin/copy, home, copyright_identification_bit, copyright_identification_start 3(4)
+	bw.WriteBits16(13, length)                   // 3(2) 4(8) 5(3)
+	bw.WriteBits16(11, 0x7FF)                    // adts_buffer_fullness 5(5) 6(6)
+	bw.WriteBits8(2, 0)                          // no_raw_data_blocks_in_frame 6(2)
 
 	return obj.adtsHeader
 }
