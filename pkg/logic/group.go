@@ -11,6 +11,8 @@ package logic
 import (
 	"sync"
 
+	"github.com/q191201771/lal/pkg/hls"
+
 	"github.com/q191201771/lal/pkg/httpflv"
 	"github.com/q191201771/lal/pkg/rtmp"
 	log "github.com/q191201771/naza/pkg/nazalog"
@@ -27,9 +29,9 @@ type Group struct {
 
 	mutex                sync.Mutex
 	pubSession           *rtmp.ServerSession
-	pullSession          *rtmp.PullSession
 	rtmpSubSessionSet    map[*rtmp.ServerSession]struct{}
 	httpflvSubSessionSet map[*httpflv.SubSession]struct{}
+	hlsSession           *hls.Session
 	gopCache             *GOPCache
 	// TODO chef: 如果没有开启httpflv监听，可以不做格式转换，节约CPU资源
 	httpflvGopCache *GOPCache
@@ -82,7 +84,10 @@ func (group *Group) AddRTMPPubSession(session *rtmp.ServerSession) bool {
 	}
 
 	group.pubSession = session
+	group.hlsSession = hls.NewSession()
+	group.hlsSession.Start()
 	group.mutex.Unlock()
+
 	session.SetPubSessionObserver(group)
 	return true
 }
@@ -92,6 +97,7 @@ func (group *Group) DelRTMPPubSession(session *rtmp.ServerSession) {
 	group.mutex.Lock()
 	defer group.mutex.Unlock()
 	group.pubSession = nil
+	group.hlsSession.Stop()
 
 	group.gopCache.Clear()
 	group.httpflvGopCache.Clear()
@@ -150,6 +156,7 @@ func (group *Group) OnReadRTMPAVMsg(msg rtmp.AVMsg) {
 
 	//log.Debugf("%+v, %02x, %02x", msg.Header, msg.Payload[0], msg.Payload[1])
 	group.broadcastRTMP(msg)
+	group.hlsSession.FeedRTMPMessage(msg)
 }
 
 func (group *Group) broadcastRTMP(msg rtmp.AVMsg) {

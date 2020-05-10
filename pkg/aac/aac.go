@@ -19,6 +19,7 @@ import (
 
 // TODO chef: 把Seq Header头两字节的解析和ADTS的内容分离开
 
+// TODO chef: 这个全局变量没有并发保证，删除掉
 var adts ADTS
 
 // Audio Data Transport Stream

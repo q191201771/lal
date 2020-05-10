@@ -16,7 +16,6 @@ coverage.html
 /logs
 /playground
 /testdata
-/pkg/hls/
 /pkg/rtmp/testdata
 /pkg/httpflv/testdata
 /pkg/logic/testdata

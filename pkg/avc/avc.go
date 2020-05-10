@@ -50,7 +50,7 @@ const (
 	NaluUnitTypeSEI      uint8 = 6
 	NaluUintTypeSPS      uint8 = 7
 	NaluUintTypePPS      uint8 = 8
-	NaluUintTypeAUD      uint8 = 9 // TODO chef
+	NaluUintTypeAUD      uint8 = 9
 )
 
 const (
@@ -103,6 +103,7 @@ func CalcNaluTypeReadable(nalu []byte) string {
 	return ret
 }
 
+// TODO chef: 参考 hls session的代码，重构这个函数
 // 从 rtmp avc sequence header 中解析 sps 和 pps
 // @param <payload> rtmp message的payload部分 或者 flv tag的payload部分
 func ParseAVCSeqHeader(payload []byte) (sps, pps []byte, err error) {

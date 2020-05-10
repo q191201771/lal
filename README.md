@@ -31,15 +31,15 @@ Go语言编写的直播流媒体网络传输服务器
 
 ### README 目录
 
-* 运行
-* 配置文件说明
-* 仓库目录框架
-* Roadmap
-* 文档
-* 联系我
-* 性能测试，测试过的第三方客户端
+1. 运行
+2. 配置文件说明
+3. 仓库目录框架
+4. Roadmap
+5. 文档
+6. 联系我
+7. 性能测试，测试过的第三方客户端
 
-### 运行
+### 一. 运行
 
 #### 方式1，直接下载编译好的二进制可执行文件，体验功能
 
@@ -60,15 +60,14 @@ $cd lal
 $./build.sh
 ```
 
-#### 运行
-
 ```shell
+# 运行
 $./bin/lals -c conf/lals.conf.json
 ```
 
 快速体验lal服务器见：[常见推拉流客户端软件的使用方式](https://pengrl.com/p/20051/)
 
-### 配置文件说明
+### 二. 配置文件说明
 
 ```
 {
@@ -99,7 +98,7 @@ $./bin/lals -c conf/lals.conf.json
 - [rtmp/var.go](https://github.com/q191201771/lal/blob/master/pkg/rtmp/var.go)
 - [httpflv/var.go](https://github.com/q191201771/lal/blob/master/pkg/httpflv/var.go)
 
-### 仓库目录框架
+### 三. 仓库目录框架
 
 简单来说，源码在`app/`和`pkg/`两个目录下，后续我再画些源码架构图。
 
@@ -135,11 +134,11 @@ conf/                 ......配置文件目录
 目前唯一的第三方依赖（我自己写的Go基础库）： [github.com/q191201771/naza](https://github.com/q191201771/naza)
 
 
-### Roadmap
+### 四. Roadmap
 
 #### 项目原则：
 
-* 代码可读可维护（是的，所有写这的，都是认真的）
+* 代码可读可维护
 * 框架清晰，模块化。业务与协议隔离。协议、网络传输等基础功能都是功能纯粹，可独立使用的库。
 * 高性能
 * 提供各种client代码，即使你使用其他流媒体服务器，这些client也是非常好用的
@@ -176,19 +175,19 @@ conf/                 ......配置文件目录
 - 稳定性测试
 - mp4
 
-### 文档
+### 五. 文档
 
 * [流媒体音视频相关的点我](https://pengrl.com/categories/%E6%B5%81%E5%AA%92%E4%BD%93%E9%9F%B3%E8%A7%86%E9%A2%91/)
 * [Go语言相关的点我](https://pengrl.com/categories/Go/)
 * [我写的其他文章](https://pengrl.com/all/)
 
-### 联系我
+### 六. 联系我
 
-扫码加我微信，进行技术交流或扯淡。微信群已开放。加我后拉你进群。
+扫码加我微信，进行技术交流或扯淡。微信群已开放，加我好友后可拉进群。
 
 <img src="https://pengrl.com/images/yoko_vx.jpeg" width="180" height="180" />
 
-### 性能测试，测试过的第三方客户端
+### 七. 性能测试，测试过的第三方客户端
 
 见[TEST.md](https://github.com/q191201771/lal/blob/master/TEST.md)
 
