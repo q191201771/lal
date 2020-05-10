@@ -27,11 +27,11 @@ Go语言编写的直播流媒体网络传输服务器
 
 ---
 
-已支持RTMP，HTTP-FLV，H264/AVC，H265/HEVC，AAC，GOP缓存。
+已支持RTMP，HTTP-FLV，H264/AVC，H265/HEVC，AAC，GOP缓存。正在实现HLS部分。
 
 ### README 目录
 
-1. 运行
+1. 编译、运行、体验功能
 2. 配置文件说明
 3. 仓库目录框架
 4. Roadmap
@@ -39,13 +39,15 @@ Go语言编写的直播流媒体网络传输服务器
 6. 联系我
 7. 性能测试，测试过的第三方客户端
 
-### 一. 运行
+### 一. 编译、运行、体验功能
 
-#### 方式1，直接下载编译好的二进制可执行文件，体验功能
+#### 编译
+
+方式1，直接下载编译好的二进制可执行文件
 
 上[最新发布版本页面](https://github.com/q191201771/lal/releases/latest)，下载对应平台编译好的二进制可执行文件的zip压缩包。
 
-#### 方式2，自己编译
+方式2，自己编译
 
 ```shell
 # 不使用 Go module
@@ -60,12 +62,15 @@ $cd lal
 $./build.sh
 ```
 
+#### 运行
+
 ```shell
-# 运行
 $./bin/lals -c conf/lals.conf.json
 ```
 
-快速体验lal服务器见：[常见推拉流客户端软件的使用方式](https://pengrl.com/p/20051/)
+#### 体验功能
+
+快速体验lals服务器见：[常见推拉流客户端软件的使用方式](https://pengrl.com/p/20051/)
 
 ### 二. 配置文件说明
 
@@ -155,12 +160,12 @@ conf/                 ......配置文件目录
 - H264/AVC [DONE]
 - H265/HEVC [DONE]
 - GOP缓存 [DONE]
+- HLS
 - RTMP转推
 - RTMP回源
 - HTTP-FLV回源
 - 静态转推、回源
 - 动态转推、回源
-- hls
 - rtsp
 - rtp/rtcp
 - webrtc
