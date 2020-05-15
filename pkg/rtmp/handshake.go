@@ -169,27 +169,19 @@ func (s *HandshakeServer) ReadC0C1(reader io.Reader) (err error) {
 	s2key := parseChallenge(c0c1)
 	s.isSimpleMode = len(s2key) == 0
 
-	c1ts := bele.BEUint32(c0c1[1:])
-	now := uint32(time.Now().UnixNano())
-
 	s.s0s1s2[0] = version
 
 	s1 := s.s0s1s2[1:]
 	s2 := s.s0s1s2[s0s1Len:]
 
-	bele.BEPutUint32(s1, now)
+	bele.BEPutUint32(s1, uint32(time.Now().UnixNano()))
 	random1528(s1[8:])
-
-	bele.BEPutUint32(s2, c1ts)
-	bele.BEPutUint32(s2[4:], now)
-	random1528(s2[8:])
 
 	if s.isSimpleMode {
 		// s1
 		bele.BEPutUint32(s1[4:], 0)
 
-		//copy(s.s0s1s2, c0c1)
-		//copy(s.s0s1s2[s0s1Len:], c0c1)
+		copy(s2, c0c1[1:])
 	} else {
 		// s1
 		copy(s1[4:], serverVersion)
@@ -200,6 +192,8 @@ func (s *HandshakeServer) ReadC0C1(reader io.Reader) (err error) {
 
 		// s2
 		// make digest to s2 suffix position
+		random1528(s2)
+		
 		replyOffs := s2Len - keyLen
 		makeDigestWithoutCenterPart(s2, replyOffs, s2key, s2[replyOffs:])
 	}
@@ -293,3 +287,4 @@ func init() {
 		random1528Buf[i] = bs[i%bsl]
 	}
 }
+
