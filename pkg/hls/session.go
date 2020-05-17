@@ -9,26 +9,53 @@
 package hls
 
 import (
+	"encoding/hex"
 	"fmt"
 	"os"
+
+	"github.com/q191201771/lal/pkg/aac"
 
 	"github.com/q191201771/lal/pkg/rtmp"
 	"github.com/q191201771/naza/pkg/bele"
 	"github.com/q191201771/naza/pkg/nazalog"
 )
 
+type Frag struct {
+	id       uint64
+	keyID    uint64
+	duration float64 // 当前fragment中数据的时长，单位秒
+	active   bool
+	discont  bool
+}
+
 type Session struct {
+	adts aac.ADTS
+	//aacSeqHeader []byte
 	spspps   []byte
 	videoCC  uint8
 	opened   bool
-	frag     uint64
-	videoOut []byte
+	videoOut []byte // 帧
+	fp       *os.File
+
+	fragTS uint64 // 新建立fragment时的时间戳，毫秒 * 90
+	frag   int    // 写入m3u8的EXT-X-MEDIA-SEQUENCE字段
+	nfrags int    // 大序号，增长到winfrags后，就增长frag
+	frags  []Frag // TS文件的环形队列，记录TS的信息，比如写M3U8文件时要用 2 * winfrags + 1
+
+	aframe     []byte
+	aframeBase uint64 // 上一个音频帧的时间戳
+	//aframeNum  uint64
+	aframePTS uint64
 }
 
 func NewSession() *Session {
 	videoOut := make([]byte, 1024*1024)
+	aframe := make([]byte, 1024*1024)
+	frags := make([]Frag, 2*winfrags+1) // TODO chef: 为什么是 * 2 + 1
 	return &Session{
 		videoOut: videoOut,
+		aframe:   aframe,
+		frags:    frags,
 	}
 }
 
@@ -37,9 +64,7 @@ func (s *Session) Start() {
 }
 
 func (s *Session) FeedRTMPMessage(msg rtmp.AVMsg) {
-	// HLS功能正在实现中
 	return
-
 	switch msg.Header.MsgTypeID {
 	case rtmp.TypeidAudio:
 		s.feedAudio(msg)
@@ -52,17 +77,27 @@ func (s *Session) Stop() {
 
 }
 
-func (s *Session) feedAudio(msg rtmp.AVMsg) {
-
-}
+//var debugCount int
 
 func (s *Session) feedVideo(msg rtmp.AVMsg) {
-	ftype := msg.Payload[0] & 0xf0 >> 4
+	//if debugCount == 3 {
+	//	//os.Exit(0)
+	//}
+	//debugCount++
+
+	if msg.Payload[0]&0xF != 7 {
+		// TODO chef: HLS视频现在只做了h264的支持
+		return
+	}
+
+	ftype := msg.Payload[0] & 0xF0 >> 4
 	htype := msg.Payload[1]
+
 	if ftype == 1 && htype == 0 {
 		s.cacheSPSPPS(msg)
 		return
 	}
+
 	cts := bele.BEUint24(msg.Payload[2:])
 
 	audSent := false
@@ -74,7 +109,8 @@ func (s *Session) feedVideo(msg rtmp.AVMsg) {
 		i += 4
 		srcNalType := msg.Payload[i]
 		nalType := srcNalType & 0x1F
-		nazalog.Debug(nalType)
+
+		nazalog.Debugf("hls: h264 NAL type=%d, len=%d(%d) cts=%d.", nalType, nalBytes, len(msg.Payload), cts)
 
 		if nalType >= 7 && nalType <= 9 {
 			nazalog.Warn("should not reach here.")
@@ -121,15 +157,43 @@ func (s *Session) feedVideo(msg rtmp.AVMsg) {
 	frame.sid = streamIDVideo
 	frame.key = ftype == 1
 
-	boundary := frame.key && !s.opened
+	//boundary := frame.key && (true || !s.opened)
+	boundary := frame.key
 
 	s.updateFragment(frame.dts, boundary, 1)
-	mpegtsWriteFrame(&frame, out)
+	mpegtsWriteFrame(s.fp, &frame, out)
 	s.videoCC = frame.cc
 }
 
+func (s *Session) feedAudio(msg rtmp.AVMsg) {
+	if msg.Payload[0]>>4 != 10 {
+		// TODO chef: HLS音频现在只做了h264的支持
+		return
+	}
+
+	if msg.Payload[1] == 0 {
+		s.cacheAACSeqHeader(msg)
+		return
+	}
+
+	pts := uint64(msg.Header.TimestampAbs) * 90
+
+	s.updateFragment(pts, s.spspps == nil, 2)
+
+	adtsHeader := s.adts.GetADTS(uint16(msg.Header.MsgLen))
+	s.aframe = append(s.aframe, adtsHeader...)
+	s.aframe = append(s.aframe, msg.Payload...)
+
+	s.aframePTS = pts
+}
+
+func (s *Session) cacheAACSeqHeader(msg rtmp.AVMsg) {
+	nazalog.Debug("cacheAACSeqHeader")
+	s.adts.PutAACSequenceHeader(msg.Payload)
+}
+
 func (s *Session) cacheSPSPPS(msg rtmp.AVMsg) {
-	nazalog.Debug("cacheSPSPPS")
+	nazalog.Debugf("cacheSPSPPS. %s", hex.Dump(msg.Payload))
 	s.spspps = msg.Payload
 }
 
@@ -158,11 +222,30 @@ func (s *Session) appendSPSPPS(out []byte) []byte {
 	return out
 }
 
-func (s *Session) updateFragment(dts uint64, boundary bool, flushRate int) {
+func (s *Session) updateFragment(ts uint64, boundary bool, flushRate int) {
 	force := false
 	discont := true
+	var f *Frag
+
+	if s.opened {
+		f = s.getFrag(s.nfrags)
+
+		if (ts > s.fragTS && ts-s.fragTS > maxfraglen) || (s.fragTS > ts && s.fragTS-ts > negMaxfraglen) {
+			nazalog.Warnf("hls: force fragment split: fragTS=%d, ts=%d", s.fragTS, ts)
+			force = true
+		} else {
+			// TODO chef: 考虑ts比fragTS小的情况
+			f.duration = float64(ts-s.fragTS) / 90000
+			discont = false
+		}
+	}
+
+	if f != nil && f.duration < fraglen/float64(1000) {
+		boundary = false
+	}
+
 	if boundary || force {
-		s.openFragment(dts, discont)
+		s.openFragment(ts, discont)
 	}
 }
 
@@ -175,8 +258,28 @@ func (s *Session) openFragment(ts uint64, discont bool) {
 	id := s.getFragmentID()
 
 	filename := fmt.Sprintf("%s%d.ts", outPath, id)
-	mpegtsOpenFile(filename)
+	s.fp = mpegtsOpenFile(filename)
 	s.opened = true
+	s.fragTS = ts
+}
+
+func (s *Session) closeFragment() {
+	if !s.opened {
+		// TODO chef: 关注下是否有这种情况
+		nazalog.Assert(true, s.opened)
+	}
+
+	mpegtsCloseFile(s.fp)
+
+	s.nextFrag()
+
+	s.writePlaylist()
+
+	s.opened = false
+}
+
+func (s *Session) writePlaylist() {
+	// to be continued
 }
 
 func (s *Session) ensureDir() {
@@ -184,6 +287,23 @@ func (s *Session) ensureDir() {
 	nazalog.Assert(nil, err)
 }
 
-func (s *Session) getFragmentID() uint64 {
+func (s *Session) getFragmentID() int {
 	return s.frag
 }
+
+func (s *Session) getFrag(n int) *Frag {
+	return &s.frags[(s.frag+n)%(winfrags*2+1)]
+}
+
+// TODO chef: 这个函数重命名为incr更好些
+func (s *Session) nextFrag() {
+	if s.nfrags == winfrags {
+		s.frag++
+	} else {
+		s.nfrags++
+	}
+}
+
+//
+// ngx_rtmp_hls_next_frag() 如果nfrags达到了winfrags，则递增frag，否则递增nfrags
+// 关闭fragment时调用

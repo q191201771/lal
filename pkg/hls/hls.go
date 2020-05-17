@@ -14,7 +14,18 @@ package hls
 // - 只支持H264和AAC
 // - 先参照nginx rtmp module把功能实现，再做重构
 
-var TSHeader = []byte{
+// https://developer.apple.com/documentation/http_live_streaming/example_playlists_for_http_live_streaming/incorporating_ads_into_a_playlist
+// #EXTM3U                     // 固定串
+// #EXT-X-VERSION:3            // 固定串
+// #EXT-X-MEDIA-SEQUENCE       // m3u8文件中，第一个TS文件的序号
+// #EXT-X-TARGETDURATION       // 所有TS文件，最长的时长
+// #EXT-X-PLAYLIST-TYPE: EVENT
+// #EXT-X-DISCONTINUITY        //
+// #EXTINF:                    // 时长 以及TS文件名
+
+// 重构时，需要统一项目中数据的命名，比如，进来的数据称为Frame帧，188字节的封装称为TSPacket包，TS文件称为Fragment
+
+var FixedTSHeader = []byte{
 	/* TS */
 	0x47, 0x40, 0x00, 0x10, 0x00,
 	/* PSI */
@@ -50,8 +61,8 @@ var TSHeader = []byte{
 	/* PMT */
 	0xe1, 0x00,
 	0xf0, 0x00,
-	0x1b, 0xe1, 0x00, 0xf0, 0x00, /* h264 */
-	0x0f, 0xe1, 0x01, 0xf0, 0x00, /* aac */
+	0x1b, 0xe1, 0x00, 0xf0, 0x00, /* h264 epid 256 */
+	0x0f, 0xe1, 0x01, 0xf0, 0x00, /* aac  epid 257 */
 	/* CRC */
 	0x2f, 0x44, 0xb9, 0x9b, /* crc for aac */
 	/* stuffing 157 bytes */
@@ -87,13 +98,11 @@ var nalStartCode3 = []byte{
 	0x00, 0x00, 0x01,
 }
 
-// TODO chef: 有的字段解析的太细了，如果不用，干脆跳过得了
-
-// TS header
+// TS Packet Header
 const (
 	syncByte uint8 = 0x47
 
-	pidPAT uint16 = 0
+	PidPAT uint16 = 0
 
 	// <iso13818-1.pdf> <Table 2-5> <page 38/174>
 	AdaptationFieldControlReserved uint8 = 0 // Reserved for future use by ISO/IEC
@@ -129,17 +138,13 @@ const (
 	delay    uint64 = 63000 // 700 ms PCR delay
 
 	// TODO chef 这些在配置项中提供
-	outPath    = "/tmp/lal/hls/"
-	fraglen    = 5000
-	maxfraglen = fraglen * 10
-	playlen    = 30000
-	winfrags   = playlen / fraglen
+	outPath       = "/tmp/lal/hls/"   // 切片文件输出目录
+	fraglen       = 5000              // 单个TS时长，单位毫秒
+	maxfraglen    = fraglen * 90 * 10 // 单个fragment超过这个时长，强制切割新的fragment，单位毫秒 * 90
+	negMaxfraglen = 1000 * 90         // 当前包时间戳回滚了，比当前fragment的首个时间戳还小，强制切割新的fragment，单位毫秒 * 90
+	playlen       = 30000             // m3u8列表时长
+	winfrags      = playlen / fraglen // 多少个TS文件
+	maxAudioDelay = 300
+	audioBufSize  = 1024 * 1024
+	Sync          = 2
 )
-
-// #EXTM3U
-// #EXT-X-VERSION:3
-// #EXT-X-MEDIA-SEQUENCE
-// #EXT-X-TARGETDURATION
-// #EXT-X-PLAYLIST-TYPE: EVENT
-// #EXT-X-DISCONTINUITY          Indicates an encoding discontinuity between the media file that follows it and the one that preceded it.
-// #EXTINF:

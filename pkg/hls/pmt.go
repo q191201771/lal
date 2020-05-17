@@ -39,24 +39,24 @@ import (
 // --------------
 // CRC32                    [32b] ****
 type PMT struct {
-	tid   uint8
-	ssi   uint8
-	sl    uint16
-	pn    uint16
-	vn    uint8
-	cni   uint8
-	sn    uint8
-	lsn   uint8
-	pp    uint16
-	pil   uint16
-	ppes  []PMTProgramElement
-	crc32 uint32
+	tid             uint8
+	ssi             uint8
+	sl              uint16
+	pn              uint16
+	vn              uint8
+	cni             uint8
+	sn              uint8
+	lsn             uint8
+	pp              uint16
+	pil             uint16
+	ProgramElements []PMTProgramElement
+	crc32           uint32
 }
 
 type PMTProgramElement struct {
-	st   uint8
-	epid uint16
-	esil uint16
+	StreamType uint8
+	Pid        uint16
+	Length     uint16
 }
 
 func ParsePMT(b []byte) (pmt PMT) {
@@ -83,24 +83,24 @@ func ParsePMT(b []byte) (pmt PMT) {
 
 	for i := uint16(0); i < len; i += 5 {
 		var ppe PMTProgramElement
-		ppe.st = br.ReadBits8(8)
+		ppe.StreamType = br.ReadBits8(8)
 		br.ReadBits8(3)
-		ppe.epid = br.ReadBits16(13)
+		ppe.Pid = br.ReadBits16(13)
 		br.ReadBits8(4)
-		ppe.esil = br.ReadBits16(12)
-		if ppe.esil != 0 {
-			nazalog.Warn(ppe.esil)
-			br.ReadBits32(uint(ppe.esil))
+		ppe.Length = br.ReadBits16(12)
+		if ppe.Length != 0 {
+			nazalog.Warn(ppe.Length)
+			br.ReadBits32(uint(ppe.Length))
 		}
-		pmt.ppes = append(pmt.ppes, ppe)
+		pmt.ProgramElements = append(pmt.ProgramElements, ppe)
 	}
 
 	return
 }
 
-func (pmt *PMT) searchPID(pid uint16) *PMTProgramElement {
-	for _, ppe := range pmt.ppes {
-		if ppe.epid == pid {
+func (pmt *PMT) SearchPID(pid uint16) *PMTProgramElement {
+	for _, ppe := range pmt.ProgramElements {
+		if ppe.Pid == pid {
 			return &ppe
 		}
 	}

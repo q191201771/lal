@@ -16,7 +16,7 @@ import (
 // <2.4.3.6 PES packet> <page 49/174>
 // <Table E.1 - PES packet header example> <page 142/174>
 // <F.0.2 PES packet> <page 144/174>
-// packet_start_code_prefix  [24b] ***
+// packet_start_code_prefix  [24b] *** always 0x00, 0x00, 0x01
 // stream_id                 [8b]  *
 // PES_packet_length         [16b] **
 // '10'                      [2b]
@@ -43,7 +43,7 @@ type PES struct {
 	phdl uint8
 }
 
-func parsePES(b []byte) (pes PES) {
+func ParsePES(b []byte) (pes PES, length int) {
 	br := nazabits.NewBitReader(b)
 	pes.pscp = br.ReadBits32(24)
 	pes.sid = br.ReadBits8(8)
@@ -55,6 +55,7 @@ func parsePES(b []byte) (pes PES) {
 	pes.phdl = br.ReadBits8(8)
 
 	br.ReadBytes(uint(pes.phdl))
+	length = 9 + int(pes.phdl)
 
 	return
 }

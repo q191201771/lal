@@ -76,7 +76,7 @@ func ParsePAT(b []byte) (pat PAT) {
 	return
 }
 
-func (pat *PAT) searchPID(pid uint16) bool {
+func (pat *PAT) SearchPID(pid uint16) bool {
 	for _, ppe := range pat.ppes {
 		if pid == ppe.pmpid {
 			return true

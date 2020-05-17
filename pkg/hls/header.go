@@ -16,21 +16,21 @@ import (
 // <iso13818-1.pdf> <2.4.3.2> <page 36/174>
 // sync_byte                    [8b]  * always 0x47
 // transport_error_indicator    [1b]
-// payload_unit_start_indicator [1b]    如果为1，读完头需要跳过一个字节
+// payload_unit_start_indicator [1b]
 // transport_priority           [1b]
 // PID                          [13b] **
 // transport_scrambling_control [2b]
 // adaptation_field_control     [2b]
-// continuity_counter           [4b] *
+// continuity_counter           [4b]  *
 type TSPacketHeader struct {
-	sb   uint8
-	tei  uint8
-	pusi uint8
-	tp   uint8
-	pid  uint16
-	tsc  uint8
-	afc  uint8
-	cc   uint8
+	Sync             uint8
+	Err              uint8
+	PayloadUnitStart uint8
+	Prio             uint8
+	Pid              uint16
+	Scra             uint8
+	Adaptation       uint8
+	CC               uint8
 }
 
 // <iso13818-1.pdf> <Table 2-6> <page 40/174>
@@ -47,28 +47,28 @@ type TSPacketHeader struct {
 // program_clock_reference_base         [33b]
 // reserved                             [6b]
 // program_clock_reference_extension    [9b] ******
-type TSAdaptationField struct {
-	afl uint8
+type TSPacketAdaptation struct {
+	Length uint8
 }
 
-// 解析4字节TS header
+// 解析4字节TS Packet header
 func ParseTSPacketHeader(b []byte) (h TSPacketHeader) {
 	br := nazabits.NewBitReader(b)
-	h.sb = br.ReadBits8(8)
-	nazalog.Assert(uint8(0x47), h.sb)
-	h.tei = br.ReadBits8(1)
-	h.pusi = br.ReadBits8(1)
-	h.tp = br.ReadBits8(1)
-	h.pid = br.ReadBits16(13)
-	h.tsc = br.ReadBits8(2)
-	h.afc = br.ReadBits8(2)
-	h.cc = br.ReadBits8(4)
+	h.Sync = br.ReadBits8(8)
+	nazalog.Assert(uint8(0x47), h.Sync)
+	h.Err = br.ReadBits8(1)
+	h.PayloadUnitStart = br.ReadBits8(1)
+	h.Prio = br.ReadBits8(1)
+	h.Pid = br.ReadBits16(13)
+	h.Scra = br.ReadBits8(2)
+	h.Adaptation = br.ReadBits8(2)
+	h.CC = br.ReadBits8(4)
 	return
 }
 
 // TODO chef
-func ParseTSAdaptationField(b []byte) (f TSAdaptationField) {
+func ParseTSPacketAdaptation(b []byte) (f TSPacketAdaptation) {
 	br := nazabits.NewBitReader(b)
-	f.afl = br.ReadBits8(8)
+	f.Length = br.ReadBits8(8)
 	return
 }
