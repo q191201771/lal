@@ -193,7 +193,7 @@ func (s *HandshakeServer) ReadC0C1(reader io.Reader) (err error) {
 		// s2
 		// make digest to s2 suffix position
 		random1528(s2)
-		
+
 		replyOffs := s2Len - keyLen
 		makeDigestWithoutCenterPart(s2, replyOffs, s2key, s2[replyOffs:])
 	}
@@ -287,4 +287,3 @@ func init() {
 		random1528Buf[i] = bs[i%bsl]
 	}
 }
-

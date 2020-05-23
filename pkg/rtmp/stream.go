@@ -17,10 +17,11 @@ import (
 
 const initMsgLen = 4096
 
+// TODO chef: 将Timestamp字段隐藏，不对外暴露
 type Header struct {
 	CSID        int
 	MsgLen      uint32 // 不包含header的大小
-	Timestamp   uint32 // NOTICE 是 rtmp 协议 header 中的时间戳，可能是绝对的，也可能是相对的。
+	Timestamp   uint32 // NOTICE 是 rtmp 协议 header 中的时间戳，可能是绝对的，也可能是相对的。上层不应该使用这个字段，而应该使用TimestampAbs
 	MsgTypeID   uint8  // 8 audio 9 video 18 metadata
 	MsgStreamID int
 
