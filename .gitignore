@@ -1,5 +1,7 @@
 profile.out
 coverage.html
+*.aac
+*.h264
 
 /pre-commit.sh
 /coverage.txt

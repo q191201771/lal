@@ -13,6 +13,7 @@ import (
 	"github.com/q191201771/naza/pkg/nazalog"
 )
 
+// ------------------------------------------------
 // <iso13818-1.pdf> <2.4.3.2> <page 36/174>
 // sync_byte                    [8b]  * always 0x47
 // transport_error_indicator    [1b]
@@ -22,6 +23,7 @@ import (
 // transport_scrambling_control [2b]
 // adaptation_field_control     [2b]
 // continuity_counter           [4b]  *
+// ------------------------------------------------
 type TSPacketHeader struct {
 	Sync             uint8
 	Err              uint8
@@ -33,6 +35,7 @@ type TSPacketHeader struct {
 	CC               uint8
 }
 
+// ----------------------------------------------------------
 // <iso13818-1.pdf> <Table 2-6> <page 40/174>
 // adaptation_field_length              [8b] * 不包括自己这1字节
 // discontinuity_indicator              [1b]
@@ -47,6 +50,7 @@ type TSPacketHeader struct {
 // program_clock_reference_base         [33b]
 // reserved                             [6b]
 // program_clock_reference_extension    [9b] ******
+// ----------------------------------------------------------
 type TSPacketAdaptation struct {
 	Length uint8
 }

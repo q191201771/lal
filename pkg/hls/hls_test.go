@@ -16,13 +16,13 @@ import (
 )
 
 func TestParseFixedTSPacket(t *testing.T) {
-	h := hls.ParseTSPacketHeader(hls.FixedTSHeader)
+	h := hls.ParseTSPacketHeader(hls.FixedFragmentHeader)
 	nazalog.Debugf("%+v", h)
-	pat := hls.ParsePAT(hls.FixedTSHeader[5:])
+	pat := hls.ParsePAT(hls.FixedFragmentHeader[5:])
 	nazalog.Debugf("%+v", pat)
 
-	h = hls.ParseTSPacketHeader(hls.FixedTSHeader[188:])
+	h = hls.ParseTSPacketHeader(hls.FixedFragmentHeader[188:])
 	nazalog.Debugf("%+v", h)
-	pmt := hls.ParsePMT(hls.FixedTSHeader[188+5:])
+	pmt := hls.ParsePMT(hls.FixedFragmentHeader[188+5:])
 	nazalog.Debugf("%+v", pmt)
 }

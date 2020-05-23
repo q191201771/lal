@@ -13,8 +13,14 @@ package hls
 // - 不提供各种配置项
 // - 只支持H264和AAC
 // - 先参照nginx rtmp module把功能实现，再做重构
+//
+// - 检查所有的容错处理，是否会出现
+// - 配置项
+// - web服务
+// - 清理文件
 
 // https://developer.apple.com/documentation/http_live_streaming/example_playlists_for_http_live_streaming/incorporating_ads_into_a_playlist
+// https://developer.apple.com/documentation/http_live_streaming/example_playlists_for_http_live_streaming/event_playlist_construction
 // #EXTM3U                     // 固定串
 // #EXT-X-VERSION:3            // 固定串
 // #EXT-X-MEDIA-SEQUENCE       // m3u8文件中，第一个TS文件的序号
@@ -25,7 +31,8 @@ package hls
 
 // 重构时，需要统一项目中数据的命名，比如，进来的数据称为Frame帧，188字节的封装称为TSPacket包，TS文件称为Fragment
 
-var FixedTSHeader = []byte{
+// 每个TS文件都以固定的PAT，PMT开始
+var FixedFragmentHeader = []byte{
 	/* TS */
 	0x47, 0x40, 0x00, 0x10, 0x00,
 	/* PSI */
@@ -61,8 +68,8 @@ var FixedTSHeader = []byte{
 	/* PMT */
 	0xe1, 0x00,
 	0xf0, 0x00,
-	0x1b, 0xe1, 0x00, 0xf0, 0x00, /* h264 epid 256 */
-	0x0f, 0xe1, 0x01, 0xf0, 0x00, /* aac  epid 257 */
+	0x1b, 0xe1, 0x00, 0xf0, 0x00, /* avc epid 256 */
+	0x0f, 0xe1, 0x01, 0xf0, 0x00, /* aac epid 257 */
 	/* CRC */
 	0x2f, 0x44, 0xb9, 0x9b, /* crc for aac */
 	/* stuffing 157 bytes */
@@ -104,7 +111,9 @@ const (
 
 	PidPAT uint16 = 0
 
+	// ------------------------------------------
 	// <iso13818-1.pdf> <Table 2-5> <page 38/174>
+	// ------------------------------------------
 	AdaptationFieldControlReserved uint8 = 0 // Reserved for future use by ISO/IEC
 	AdaptationFieldControlNo       uint8 = 1 // No adaptation_field, payload only
 	AdaptationFieldControlOnly     uint8 = 2 // Adaptation_field only, no payload
@@ -113,20 +122,26 @@ const (
 
 // PMT
 const (
+	// -----------------------------------------------------------------------------
 	// <iso13818-1.pdf> <Table 2-29 Stream type assignments> <page 66/174>
 	// 0x0F ISO/IEC 13818-7 Audio with ADTS transport syntax
 	// 0x1B AVC video stream as defined in ITU-T Rec. H.264 | ISO/IEC 14496-10 Video
+	// -----------------------------------------------------------------------------
 	streamTypeAAC uint8 = 0x0F
 	streamTypeAVC uint8 = 0x1B
 )
 
 // PES
 const (
+	// -----------------------------------------------------------------
 	// <iso13818-1.pdf> <Table 2-18-Stream_id assignments> <page 52/174>
-	streamIDAudio uint8 = 192 // 110x xxxx
+	// -----------------------------------------------------------------
+	streamIDAudio uint8 = 192 // 110x xxxx 0xC0
 	streamIDVideo uint8 = 224 // 1110 xxxx
 
+	// ------------------------------
 	// <iso13818-1.pdf> <page 53/174>
+	// ------------------------------
 	PTSDTSFlags0 uint8 = 0 // no PTS no DTS
 	PTSDTSFlags1 uint8 = 1 // forbidden
 	PTSDTSFlags2 uint8 = 2 // only PTS
@@ -134,17 +149,18 @@ const (
 )
 
 const (
-	pidVideo uint16 = 0x100
-	delay    uint64 = 63000 // 700 ms PCR delay
+	PidVideo uint16 = 0x100
+	PidAudio uint16 = 0x101
+	delay    uint64 = 63000 // 700 ms PCR delay TODO chef: 具体作用？
 
 	// TODO chef 这些在配置项中提供
-	outPath       = "/tmp/lal/hls/"   // 切片文件输出目录
-	fraglen       = 5000              // 单个TS时长，单位毫秒
-	maxfraglen    = fraglen * 90 * 10 // 单个fragment超过这个时长，强制切割新的fragment，单位毫秒 * 90
-	negMaxfraglen = 1000 * 90         // 当前包时间戳回滚了，比当前fragment的首个时间戳还小，强制切割新的fragment，单位毫秒 * 90
-	playlen       = 30000             // m3u8列表时长
-	winfrags      = playlen / fraglen // 多少个TS文件
-	maxAudioDelay = 300
-	audioBufSize  = 1024 * 1024
-	Sync          = 2
+	outPath              = "/tmp/lal/hls/"   // 切片文件输出目录
+	fraglen              = 5000              // 单个TS时长，单位毫秒
+	playlen              = 30000             // m3u8列表时长
+	maxfraglen           = fraglen * 90 * 10 // 单个fragment超过这个时长，强制切割新的fragment，单位毫秒 * 90
+	negMaxfraglen        = 1000 * 90         // 当前包时间戳回滚了，比当前fragment的首个时间戳还小，强制切割新的fragment，单位毫秒 * 90
+	winfrags             = playlen / fraglen // 多少个TS文件
+	maxAudioDelay uint64 = 300               // 单位毫秒
+	audioBufSize         = 1024 * 1024
+	Sync                 = 2
 )

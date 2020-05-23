@@ -12,6 +12,7 @@ import (
 	"github.com/q191201771/naza/pkg/nazabits"
 )
 
+// ---------------------------------------------------------------------------------------------------
 // Program association section
 // <iso13818-1.pdf> <2.4.4.3> <page 61/174>
 // table_id                 [8b] *
@@ -31,6 +32,7 @@ import (
 // program_map_PID          [13b] ** if program_number == 0 then network_PID else then program_map_PID
 // --------------
 // CRC_32                   [32b] ****
+// ---------------------------------------------------------------------------------------------------
 type PAT struct {
 	tid   uint8
 	ssi   uint8
@@ -62,9 +64,9 @@ func ParsePAT(b []byte) (pat PAT) {
 	pat.sn = br.ReadBits8(8)
 	pat.lsn = br.ReadBits8(8)
 
-	len := pat.sl - 9
+	length := pat.sl - 9
 
-	for i := uint16(0); i < len; i += 4 {
+	for i := uint16(0); i < length; i += 4 {
 		var ppe PATProgramElement
 		ppe.pn = br.ReadBits16(16)
 		br.ReadBits8(3)

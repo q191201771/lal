@@ -19,13 +19,13 @@ import (
 
 // 比较两个TS文件，注意，该程序还没有写完
 
-var filename1 = "/Volumes/Data/lal-0.ts"
-var filename2 = "/Volumes/Data/nrm-0.ts"
+var filename1 = "/Volumes/Data/tmp/lal-4.ts"
+var filename2 = "/Volumes/Data/tmp/nrm-4.ts"
 
-func skipAudioPacketFilter(tss [][]byte) (ret [][]byte) {
+func skipPacketFilter(tss [][]byte) (ret [][]byte) {
 	for _, ts := range tss {
 		h := hls.ParseTSPacketHeader(ts)
-		if h.Pid == uint16(257) {
+		if h.Pid == hls.PidAudio {
 			continue
 		}
 		ret = append(ret, ts)
@@ -36,6 +36,24 @@ func skipAudioPacketFilter(tss [][]byte) (ret [][]byte) {
 func parsePacket(packet []byte) {
 	h := hls.ParseTSPacketHeader(packet)
 	nazalog.Debugf("%+v", h)
+	index := 4
+
+	var adaptation hls.TSPacketAdaptation
+	switch h.Adaptation {
+	case hls.AdaptationFieldControlNo:
+		// noop
+	case hls.AdaptationFieldControlFollowed:
+		adaptation = hls.ParseTSPacketAdaptation(packet[4:])
+		index++
+	default:
+		nazalog.Warn(h.Adaptation)
+	}
+	index += int(adaptation.Length)
+
+	if h.PayloadUnitStart == 1 && h.Pid == 256 {
+		pes, length := hls.ParsePES(packet[index:])
+		nazalog.Debugf("%+v, %d", pes, length)
+	}
 }
 
 func main() {
@@ -50,10 +68,10 @@ func main() {
 
 	nazalog.Debugf("num of ts1=%d, num of ts2=%d", len(tss1), len(tss2))
 
-	tss1 = skipAudioPacketFilter(tss1)
-	tss2 = skipAudioPacketFilter(tss2)
+	//tss1 = skipPacketFilter(tss1)
+	//tss2 = skipPacketFilter(tss2)
 
-	nazalog.Debugf("after skip audio. num of ts1=%d, num of ts2=%d", len(tss1), len(tss2))
+	nazalog.Debugf("after skip. num of ts1=%d, num of ts2=%d", len(tss1), len(tss2))
 
 	m := len(tss1)
 	if m > len(tss2) {

@@ -84,7 +84,7 @@ func (group *Group) AddRTMPPubSession(session *rtmp.ServerSession) bool {
 	}
 
 	group.pubSession = session
-	group.hlsSession = hls.NewSession()
+	group.hlsSession = hls.NewSession(group.streamName)
 	group.hlsSession.Start()
 	group.mutex.Unlock()
 

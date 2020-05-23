@@ -12,6 +12,7 @@ import (
 	"github.com/q191201771/naza/pkg/nazabits"
 )
 
+// -----------------------------------------------------------
 // <iso13818-1.pdf>
 // <2.4.3.6 PES packet> <page 49/174>
 // <Table E.1 - PES packet header example> <page 142/174>
@@ -33,14 +34,17 @@ import (
 // PES_CRC_flag              [1b]
 // PES_extension_flag        [1b]  *
 // PES_header_data_length    [8b]  *
+// -----------------------------------------------------------
 type PES struct {
-	pscp uint32
-	sid  uint8
-	ppl  uint16
-	pad1 uint8
-	pdf  uint8
-	pad2 uint8
-	phdl uint8
+	pscp       uint32
+	sid        uint8
+	ppl        uint16
+	pad1       uint8
+	ptsDtsFlag uint8
+	pad2       uint8
+	phdl       uint8
+	pts        uint64
+	dts        uint64
 }
 
 func ParsePES(b []byte) (pes PES, length int) {
@@ -50,12 +54,33 @@ func ParsePES(b []byte) (pes PES, length int) {
 	pes.ppl = br.ReadBits16(16)
 
 	pes.pad1 = br.ReadBits8(8)
-	pes.pdf = br.ReadBits8(2)
+	pes.ptsDtsFlag = br.ReadBits8(2)
 	pes.pad2 = br.ReadBits8(6)
 	pes.phdl = br.ReadBits8(8)
 
 	br.ReadBytes(uint(pes.phdl))
 	length = 9 + int(pes.phdl)
 
+	// 处理得不是特别标准
+	if pes.ptsDtsFlag&0x2 != 0 {
+		_, pes.pts = readPTS(b[9:])
+	}
+	if pes.ptsDtsFlag&0x1 != 0 {
+		_, pes.dts = readPTS(b[14:])
+	} else {
+		pes.dts = pes.pts
+	}
+	//pes.pts = (pes.pts - delay) / 90
+	//pes.dts = (pes.dts - delay) / 90
+
+	return
+}
+
+// read pts or dts
+func readPTS(b []byte) (fb uint8, pts uint64) {
+	fb = b[0] >> 4
+	pts |= uint64((b[0]>>1)&0x07) << 30
+	pts |= (uint64(b[1])<<8 | uint64(b[2])) >> 1 << 15
+	pts |= (uint64(b[3])<<8 | uint64(b[4])) >> 1
 	return
 }

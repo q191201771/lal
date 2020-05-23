@@ -56,12 +56,14 @@ func (obj *ADTS) PutAACSequenceHeader(payload []byte) {
 	// <1.6.3.4 channelConfiguration>
 	// --------------------------------------------------------
 	// audio object type      [5b] 2=AAC LC
-	// samplingFrequencyIndex [4b] 3=48000
+	// samplingFrequencyIndex [4b] 3=48000 4=44100
 	// channelConfiguration   [4b] 2=left, right front speakers
 	obj.audioObjectType = br.ReadBits8(5)
 	obj.samplingFrequencyIndex = br.ReadBits8(4)
 	obj.channelConfiguration = br.ReadBits8(4)
 	log.Debugf("%+v", obj)
+
+	obj.adtsHeader = make([]byte, 7)
 }
 
 // 获取 ADTS 头，注意，由于ADTS头依赖包的长度，而每个包的长度不同，所以生成的每个包的 ADTS 头也不同
@@ -90,9 +92,6 @@ func (obj *ADTS) GetADTS(length uint16) []byte {
 	// adts_buffer_fullness           [11b]
 	// no_raw_data_blocks_in_frame    [2b]
 
-	if obj.adtsHeader == nil {
-		obj.adtsHeader = make([]byte, 7)
-	}
 	// 减去头两字节，再加上自身adts头的7个字节
 	length += 5
 
@@ -109,6 +108,10 @@ func (obj *ADTS) GetADTS(length uint16) []byte {
 	bw.WriteBits8(2, 0)                          // no_raw_data_blocks_in_frame 6(2)
 
 	return obj.adtsHeader
+}
+
+func (obj *ADTS) IsNil() bool {
+	return obj.adtsHeader == nil
 }
 
 // 将 rtmp AAC 传入，输出带 ADTS 头的 AAC ES流

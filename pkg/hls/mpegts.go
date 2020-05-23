@@ -28,12 +28,12 @@ type MPEGTSFrame struct {
 func mpegtsOpenFile(filename string) *os.File {
 	fp, err := os.Create(filename)
 	nazalog.Assert(nil, err)
-	mpegtsWriteFile(fp, FixedTSHeader)
+	mpegtsWriteFile(fp, FixedFragmentHeader)
 	return fp
 }
 
 func mpegtsWriteFrame(fp *os.File, frame *MPEGTSFrame, b []byte) {
-	nazalog.Debugf("mpegts: write frame. %+v, size=%d", frame, len(b))
+	//nazalog.Debugf("mpegts: pid=%d, sid=%d, pts=%d, dts=%d, key=%b, size=%d", frame.pid, frame.sid, frame.pts, frame.dts, frame.key, len(b))
 
 	wpos := 0      // 当前packet的写入位置
 	lpos := 0      // 当前帧的处理位置
@@ -111,7 +111,6 @@ func mpegtsWriteFrame(fp *os.File, frame *MPEGTSFrame, b []byte) {
 			// PES_CRC_flag              0
 			// PES_extension_flag        0
 			// PES_header_data_length
-			nazalog.Debug("write PES.")
 			packet[wpos] = 0x00        // packet_start_code_prefix
 			packet[wpos+1] = 0x00      //
 			packet[wpos+2] = 0x01      //
@@ -148,6 +147,7 @@ func mpegtsWriteFrame(fp *os.File, frame *MPEGTSFrame, b []byte) {
 			if frame.pts != frame.dts {
 				mpegtsWritePTS(packet[wpos:], 1, frame.dts+delay)
 				wpos += 5
+				//nazalog.Debugf("%d %d", (frame.pts)/90, (frame.dts)/90)
 			}
 
 			first = false
@@ -239,16 +239,8 @@ func mpegtsWritePTS(out []byte, fb uint8, pts uint64) {
 	out[4] = uint8(val)
 }
 
-//var debugCount int
-
 func mpegtsWriteFile(fp *os.File, b []byte) {
-	//nazalog.Debugf("(%d) mpegts: write %d bytes.", debugCount, len(b))
-	//debugCount++
-	//if debugCount == 60 {
-	//	nazalog.Debugf("%s", hex.Dump(b))
-	//}
 	_, _ = fp.Write(b)
-	_ = fp.Sync()
 }
 
 func mpegtsCloseFile(fp *os.File) {

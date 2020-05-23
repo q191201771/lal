@@ -13,6 +13,7 @@ import (
 	"github.com/q191201771/naza/pkg/nazalog"
 )
 
+// ----------------------------------------
 // Program Map Table
 // <iso13818-1.pdf> <2.4.4.8> <page 64/174>
 // table_id                 [8b]  *
@@ -38,6 +39,7 @@ import (
 // ES_info_length_length    [12b] **
 // --------------
 // CRC32                    [32b] ****
+// ----------------------------------------
 type PMT struct {
 	tid             uint8
 	ssi             uint8
