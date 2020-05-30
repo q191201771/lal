@@ -1,3 +1,11 @@
+#### v0.9.0
+
+- [feat] 新增HLS直播功能
+- [fix] 接收rtmp数据时，同一个message的多个chunk混合使用fmt1，2时，可能出现时间戳多加的情况
+- [refactor] 将app目录下除lals的其他应用移入demo目录下
+- [feat] 新增两个demo：analyseflv和analysehls，分别用于拉取HTTP-FLV和HLS的流，并进行分析
+- [fix] 修改rtmp简单握手，修复macOS ffmpeg 4.2.2向lals推rtmp流时的握手警告
+
 #### v0.8.1
 
 - [feat] 新package hevc
