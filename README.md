@@ -27,7 +27,7 @@ Go语言编写的直播流媒体网络传输服务器
 
 ---
 
-已支持RTMP，HTTP-FLV，H264/AVC，H265/HEVC，AAC，GOP缓存。正在实现HLS部分。
+已支持RTMP，HTTP-FLV，HLS(m3u8 + ts)，H264/AVC，H265/HEVC，AAC，GOP缓存。
 
 ### README 目录
 
@@ -84,6 +84,12 @@ $./bin/lals -c conf/lals.conf.json
     "sub_listen_addr": ":8080", // HTTP-FLV拉流地址
     "gop_num": 2
   },
+  "hls": {
+    "sub_listen_addr": ":8081",   // HLS监听地址
+    "out_path": "/tmp/lal/hls/",  // HLS文件保存根目录
+    "fragment_duration_ms": 3000, // 单个TS文件切片时长
+    "fragment_num": 6             // M3U8文件列表中TS文件的数量
+  },
   "log": {
     "level": 1,                    // 日志级别，1 debug, 2 info, 3 warn, 4 error, 5 fatal
     "filename": "./logs/lals.log", // 日志输出文件
@@ -105,36 +111,41 @@ $./bin/lals -c conf/lals.conf.json
 
 ### 三. 仓库目录框架
 
-简单来说，源码在`app/`和`pkg/`两个目录下，后续我再画些源码架构图。
+简单来说，源码在`pkg/`，`app/`，`demo/`三个目录下。
+
+- `pkg/`：存放各package包，供本repo的程序以及其他业务方使用
+- `app/`：重要程序的入口（目前仅包含lals——基于lal编写的一个通用流媒体服务器程序）
+- `demo/`：存放各种基于`lal/pkg`开发的小程序（小工具），一个子目录是一个程序，详情见各源码文件中头部的说明
 
 ```
-pkg/                  ......源码包
+pkg/                  ......
 |-- rtmp/             ......RTMP协议
 |-- httpflv/          ......HTTP-FLV协议
-|-- logic/            ......lals服务器的上层业务
+|-- hls/              ......HLS协议
+|-- logic/            ......lals服务器程序的上层业务逻辑
 |-- aac/              ......音频AAC编码格式相关
 |-- avc/              ......视频H264/AVC编码格式相关
 |-- hevc/             ......视频H265/HEVC编码格式相关
 
-app/                  ......各种main包的源码文件，一个子目录对应一个main包，也即对应可生成一个可执行文件
-|-- lals/             ......[最重要的]流媒体服务器
-|-- flvfile2rtmppush  ......// RTMP推流客户端，读取本地FLV文件，使用RTMP协议推送出去
-                            //
-                            // 支持循环推送：文件推送完毕后，可循环推送（RTMP push流并不断开）
-                            // 支持推送多路流：相当于一个RTMP推流压测工具
-                            
-|-- rtmppull          ......// RTMP拉流客户端，从远端服务器拉取RTMP流，存储为本地FLV文件
-                            //
-                            // 另外，作为一个RTMP拉流压测工具，已经支持：
-                            // 1. 对一路流拉取n份
-                            // 2. 拉取n路流
-                            
-|-- httpflvpull       ......HTTP-FLV拉流客户端
-|-- modflvfile        ......修改本地FLV文件
-|-- flvfile2es        ......将本地FLV文件分离成H264/AVC和AAC的ES流文件
+app/                  ......
+|-- lals/             ......流媒体服务器lals的main函数入口
+
+demo/                 ......
+|-- analyseflvts      ......
+|-- analysehlsts      ......
+|-- flvfile2rtmppush  ......
+|-- rtmppull          ......
+|-- httpflvpull       ......
+|-- modflvfile        ......
+|-- flvfile2es        ......
+|-- learnts           ......
+|-- tscmp             ......
+
 bin/                  ......可执行文件编译输出目录
 conf/                 ......配置文件目录
 ```
+
+后续我再画些源码架构图。
 
 目前唯一的第三方依赖（我自己写的Go基础库）： [github.com/q191201771/naza](https://github.com/q191201771/naza)
 
@@ -151,16 +162,16 @@ conf/                 ......配置文件目录
 * 不依赖第三方代码
 * 后续可快速集成各种网络传输协议，流媒体封装协议
 
-#### 功能
+#### lals服务器功能
 
-- 接收RTMP推流 [DONE]
-- 转发给RTMP拉流 [DONE]
-- 转发给HTTP-FLV拉流 [DONE]
-- AAC [DONE]
-- H264/AVC [DONE]
-- H265/HEVC [DONE]
-- GOP缓存 [DONE]
-- HLS
+- [x] **pub 接收推流：** RTMP
+- [x] **sub 接收拉流：** RTMP，HTTP-FLV，HLS(m3u8+ts)
+- [x] **音频编码格式：** AAC
+- [x] **视频编码格式：** H264/AVC，H265/HEVC
+- [x] **GOP缓存：** 用于秒开
+
+TODO
+
 - RTMP转推
 - RTMP回源
 - HTTP-FLV回源

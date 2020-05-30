@@ -12,6 +12,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/q191201771/lal/pkg/hls"
+
 	"github.com/q191201771/lal/pkg/httpflv"
 	"github.com/q191201771/lal/pkg/rtmp"
 	log "github.com/q191201771/naza/pkg/nazalog"
@@ -22,6 +24,7 @@ type ServerManager struct {
 
 	httpflvServer *httpflv.Server
 	rtmpServer    *rtmp.Server
+	hlsServer     *hls.Server
 	exitChan      chan struct{}
 
 	mutex    sync.Mutex
@@ -40,6 +43,9 @@ func NewServerManager(config *Config) *ServerManager {
 	if len(config.RTMP.Addr) != 0 {
 		m.rtmpServer = rtmp.NewServer(m, config.RTMP.Addr)
 	}
+	if len(config.HLS.SubListenAddr) != 0 {
+		m.hlsServer = hls.NewServer(config.HLS.SubListenAddr, config.HLS.OutPath)
+	}
 	return m
 }
 
@@ -55,6 +61,14 @@ func (sm *ServerManager) RunLoop() {
 	if sm.rtmpServer != nil {
 		go func() {
 			if err := sm.rtmpServer.RunLoop(); err != nil {
+				log.Error(err)
+			}
+		}()
+	}
+
+	if sm.hlsServer != nil {
+		go func() {
+			if err := sm.hlsServer.RunLoop(); err != nil {
 				log.Error(err)
 			}
 		}()
@@ -168,7 +182,7 @@ func (sm *ServerManager) check() {
 func (sm *ServerManager) getOrCreateGroup(appName string, streamName string) *Group {
 	group, exist := sm.groupMap[streamName]
 	if !exist {
-		group = NewGroup(appName, streamName, sm.config.RTMP.GOPNum, sm.config.HTTPFLV.GOPNum)
+		group = NewGroup(appName, streamName, sm.config.RTMP.GOPNum, sm.config.HTTPFLV.GOPNum, sm.config.HLS.MuxerConfig)
 		sm.groupMap[streamName] = group
 	}
 	go group.RunLoop()

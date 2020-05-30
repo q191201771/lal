@@ -13,9 +13,8 @@ import (
 	"io"
 	"math"
 
-	"github.com/q191201771/naza/pkg/nazabits"
-
 	"github.com/q191201771/naza/pkg/bele"
+	"github.com/q191201771/naza/pkg/nazabits"
 )
 
 var ErrAVC = errors.New("lal.avc: fxxk")
@@ -61,42 +60,52 @@ const (
 	SliceTypeSI uint8 = 4 // TODO chef
 )
 
+func CalcNaluType(nalu []byte) uint8 {
+	return nalu[0] & 0x1f
+}
+
 func CalcSliceType(nalu []byte) uint8 {
 	c := nalu[1]
-	var leadingZeroBits uint
-	index := uint(6)
+	var leadingZeroBits int
+	index := 6 // can't unsigned
 	for ; index >= 0; index-- {
-		v := nazabits.GetBit8(c, index)
+		v := nazabits.GetBit8(c, uint(index))
 		if v == 0 {
 			leadingZeroBits++
 		} else {
 			break
 		}
 	}
-	rbLeadingZeroBits := nazabits.GetBits8(c, index-1, leadingZeroBits)
-	codeNum := uint(math.Pow(2, float64(leadingZeroBits))) - 1 + uint(rbLeadingZeroBits)
+	rbLeadingZeroBits := nazabits.GetBits8(c, uint(index-1), uint(leadingZeroBits))
+	codeNum := int(math.Pow(2, float64(leadingZeroBits))) - 1 + int(rbLeadingZeroBits)
 	if codeNum > 4 {
 		codeNum -= 5
 	}
 	return uint8(codeNum)
 }
 
-func CalcSliceTypeReadable(nalu []byte) string {
-	t := CalcSliceType(nalu)
-	ret, ok := SliceTypeMapping[t]
+func CalcNaluTypeReadable(nalu []byte) string {
+	t := nalu[0] & 0x1f
+	ret, ok := NaluUintTypeMapping[t]
 	if !ok {
 		return "unknown"
 	}
 	return ret
 }
 
-func CalcNaluType(nalu []byte) uint8 {
-	return nalu[0] & 0x1f
-}
+func CalcSliceTypeReadable(nalu []byte) string {
+	naluType := CalcNaluType(nalu)
+	switch naluType {
+	case NaluUnitTypeSEI:
+		fallthrough
+	case NaluUintTypeSPS:
+		fallthrough
+	case NaluUintTypePPS:
+		return ""
+	}
 
-func CalcNaluTypeReadable(nalu []byte) string {
-	t := nalu[0] & 0x1f
-	ret, ok := NaluUintTypeMapping[t]
+	t := CalcSliceType(nalu)
+	ret, ok := SliceTypeMapping[t]
 	if !ok {
 		return "unknown"
 	}

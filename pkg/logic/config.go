@@ -8,9 +8,12 @@
 
 package logic
 
+import "github.com/q191201771/lal/pkg/hls"
+
 type Config struct {
 	RTMP    RTMP    `json:"rtmp"`
 	HTTPFLV HTTPFLV `json:"httpflv"`
+	HLS     HLS     `json:"hls"`
 }
 
 type RTMP struct {
@@ -21,4 +24,9 @@ type RTMP struct {
 type HTTPFLV struct {
 	SubListenAddr string `json:"sub_listen_addr"`
 	GOPNum        int    `json:"gop_num"`
+}
+
+type HLS struct {
+	SubListenAddr string `json:"sub_listen_addr"`
+	*hls.MuxerConfig
 }

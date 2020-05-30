@@ -28,6 +28,7 @@ type Header struct {
 	TimestampAbs uint32 // 经过计算得到的流上的绝对时间戳
 }
 
+// TODO chef: 将这个buffer实现和bytes.Buffer做比较，考虑将它放入naza package中
 type StreamMsg struct {
 	buf []byte
 	b   uint32

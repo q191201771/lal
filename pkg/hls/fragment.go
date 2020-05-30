@@ -14,25 +14,29 @@ import (
 	"github.com/q191201771/naza/pkg/nazalog"
 )
 
-// TODO chef: 这个文件需要和session.go一起重构
+type FragmentOP struct {
+	fp *os.File
+}
 
-type MPEGTSFrame struct {
+type mpegTSFrame struct {
 	pts uint64
 	dts uint64
 	pid uint16
 	sid uint8
 	cc  uint8
-	key bool
+	key bool // 关键帧
 }
 
-func mpegtsOpenFile(filename string) *os.File {
-	fp, err := os.Create(filename)
-	nazalog.Assert(nil, err)
-	mpegtsWriteFile(fp, FixedFragmentHeader)
-	return fp
+func (f *FragmentOP) OpenFile(filename string) (err error) {
+	f.fp, err = os.Create(filename)
+	if err != nil {
+		return
+	}
+	f.writeFile(FixedFragmentHeader)
+	return nil
 }
 
-func mpegtsWriteFrame(fp *os.File, frame *MPEGTSFrame, b []byte) {
+func (f *FragmentOP) WriteFrame(frame *mpegTSFrame, b []byte) {
 	//nazalog.Debugf("mpegts: pid=%d, sid=%d, pts=%d, dts=%d, key=%b, size=%d", frame.pid, frame.sid, frame.pts, frame.dts, frame.key, len(b))
 
 	wpos := 0      // 当前packet的写入位置
@@ -47,7 +51,7 @@ func mpegtsWriteFrame(fp *os.File, frame *MPEGTSFrame, b []byte) {
 		frame.cc++
 
 		// 每个packet都需要添加TS Header
-		// -----TS Header-----
+		// -----TS Header----------------
 		// sync_byte
 		// transport_error_indicator    0
 		// payload_unit_start_indicator
@@ -56,6 +60,7 @@ func mpegtsWriteFrame(fp *os.File, frame *MPEGTSFrame, b []byte) {
 		// transport_scrambling_control 0
 		// adaptation_field_control
 		// continuity_counter
+		// ------------------------------
 		packet[0] = syncByte // sync_byte
 
 		if first {
@@ -72,7 +77,7 @@ func mpegtsWriteFrame(fp *os.File, frame *MPEGTSFrame, b []byte) {
 		if first {
 			if frame.key {
 				// 关键帧的首个packet需要添加Adaptation
-				// -----Adaptation-----
+				// -----Adaptation-----------------------
 				// adaptation_field_length
 				// discontinuity_indicator              0
 				// random_access_indicator              1
@@ -85,6 +90,7 @@ func mpegtsWriteFrame(fp *os.File, frame *MPEGTSFrame, b []byte) {
 				// program_clock_reference_base
 				// reserved
 				// program_clock_reference_extension
+				// --------------------------------------
 				packet[3] |= 0x20                            // adaptation_field_control 设置Adaptation
 				packet[4] = 7                                // adaptation_field_length
 				packet[5] = 0x50                             // random_access_indicator + PCR_flag
@@ -93,7 +99,7 @@ func mpegtsWriteFrame(fp *os.File, frame *MPEGTSFrame, b []byte) {
 			}
 
 			// 帧的首个packet需要添加PES Header
-			// -----PES Header-----
+			// -----PES Header------------
 			// packet_start_code_prefix
 			// stream_id
 			// PES_packet_length
@@ -111,6 +117,7 @@ func mpegtsWriteFrame(fp *os.File, frame *MPEGTSFrame, b []byte) {
 			// PES_CRC_flag              0
 			// PES_extension_flag        0
 			// PES_header_data_length
+			// ---------------------------
 			packet[wpos] = 0x00        // packet_start_code_prefix
 			packet[wpos+1] = 0x00      //
 			packet[wpos+2] = 0x01      //
@@ -147,7 +154,6 @@ func mpegtsWriteFrame(fp *os.File, frame *MPEGTSFrame, b []byte) {
 			if frame.pts != frame.dts {
 				mpegtsWritePTS(packet[wpos:], 1, frame.dts+delay)
 				wpos += 5
-				//nazalog.Debugf("%d %d", (frame.pts)/90, (frame.dts)/90)
 			}
 
 			first = false
@@ -212,8 +218,16 @@ func mpegtsWriteFrame(fp *os.File, frame *MPEGTSFrame, b []byte) {
 			lpos = rpos
 		}
 
-		mpegtsWriteFile(fp, packet)
+		f.writeFile(packet)
 	}
+}
+
+func (f *FragmentOP) CloseFile() {
+	_ = f.fp.Close()
+}
+
+func (f *FragmentOP) writeFile(b []byte) {
+	_, _ = f.fp.Write(b)
 }
 
 func mpegtsdWritePCR(out []byte, pcr uint64) {
@@ -237,12 +251,4 @@ func mpegtsWritePTS(out []byte, fb uint8, pts uint64) {
 	val = ((pts & 0x7FFF) << 1) | 1
 	out[3] = uint8(val >> 8)
 	out[4] = uint8(val)
-}
-
-func mpegtsWriteFile(fp *os.File, b []byte) {
-	_, _ = fp.Write(b)
-}
-
-func mpegtsCloseFile(fp *os.File) {
-	_ = fp.Close()
 }

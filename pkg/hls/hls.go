@@ -9,27 +9,27 @@
 package hls
 
 // TODO
-// package hls处于开发中阶段，请不要使用，第一步计划
-// - 不提供各种配置项
-// - 只支持H264和AAC
-// - 先参照nginx rtmp module把功能实现，再做重构
-//
+// - 支持HEVC
 // - 检查所有的容错处理，是否会出现
+// - 补充单元测试
 // - 配置项
-// - web服务
-// - 清理文件
+// - Server
+//     - Dispose
+//     - 超时时间
+// - 测试windows平台
+// - safari直接播放不了，vlc和ffplay是可以的
 
 // https://developer.apple.com/documentation/http_live_streaming/example_playlists_for_http_live_streaming/incorporating_ads_into_a_playlist
 // https://developer.apple.com/documentation/http_live_streaming/example_playlists_for_http_live_streaming/event_playlist_construction
 // #EXTM3U                     // 固定串
 // #EXT-X-VERSION:3            // 固定串
-// #EXT-X-MEDIA-SEQUENCE       // m3u8文件中，第一个TS文件的序号
+// #EXT-X-MEDIA-SEQUENCE       //
 // #EXT-X-TARGETDURATION       // 所有TS文件，最长的时长
 // #EXT-X-PLAYLIST-TYPE: EVENT
 // #EXT-X-DISCONTINUITY        //
-// #EXTINF:                    // 时长 以及TS文件名
+// #EXTINF:                    // 时长以及TS文件名
 
-// 重构时，需要统一项目中数据的命名，比如，进来的数据称为Frame帧，188字节的封装称为TSPacket包，TS文件称为Fragment
+// 进来的数据称为Frame帧，188字节的封装称为TSPacket包，TS文件称为Fragment
 
 // 每个TS文件都以固定的PAT，PMT开始
 var FixedFragmentHeader = []byte{
@@ -154,13 +154,23 @@ const (
 	delay    uint64 = 63000 // 700 ms PCR delay TODO chef: 具体作用？
 
 	// TODO chef 这些在配置项中提供
-	outPath              = "/tmp/lal/hls/"   // 切片文件输出目录
-	fraglen              = 5000              // 单个TS时长，单位毫秒
-	playlen              = 30000             // m3u8列表时长
-	maxfraglen           = fraglen * 90 * 10 // 单个fragment超过这个时长，强制切割新的fragment，单位毫秒 * 90
-	negMaxfraglen        = 1000 * 90         // 当前包时间戳回滚了，比当前fragment的首个时间戳还小，强制切割新的fragment，单位毫秒 * 90
-	winfrags             = playlen / fraglen // 多少个TS文件
-	maxAudioDelay uint64 = 300               // 单位毫秒
-	audioBufSize         = 1024 * 1024
-	Sync                 = 2
+	negMaxfraglen        = 1000 * 90 // 当前包时间戳回滚了，比当前fragment的首个时间戳还小，强制切割新的fragment，单位毫秒 * 90
+	maxAudioDelay uint64 = 300       // 单位毫秒
+
+	appName = "hls"
 )
+
+func SplitFragment2TSPackets(content []byte) (ret [][]byte) {
+	if len(content)%188 != 0 {
+		return
+	}
+	for {
+		if len(content) == 0 {
+			break
+		}
+
+		ret = append(ret, content[0:188])
+		content = content[188:]
+	}
+	return
+}

@@ -19,6 +19,8 @@ import (
 	log "github.com/q191201771/naza/pkg/nazalog"
 )
 
+// https://pengrl.com/p/20027
+
 const version = uint8(3)
 
 const (

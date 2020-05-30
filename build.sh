@@ -32,6 +32,14 @@ do
   fi
 done
 
+for file in `ls ${ROOT_DIR}/demo`
+do
+  if [ -d ${ROOT_DIR}/demo/${file} ]; then
+    echo "build" ${ROOT_DIR}/demo/${file} "..."
+    cd ${ROOT_DIR}/demo/${file} && go build -ldflags "$LDFlags" -o ${ROOT_DIR}/${OUT_DIR}/${file}
+  fi
+done
+
 for file in `ls ${ROOT_DIR}/playground`
 do
   if [ -d ${ROOT_DIR}/playground/${file} ]; then

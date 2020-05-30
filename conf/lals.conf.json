@@ -7,6 +7,12 @@
     "sub_listen_addr": ":8080",
     "gop_num": 2
   },
+  "hls": {
+    "sub_listen_addr": ":8081",
+    "out_path": "/tmp/lal/hls/",
+    "fragment_duration_ms": 3000,
+    "fragment_num": 6
+  },
   "log": {
     "level": 1,
     "filename": "./logs/lals.log",

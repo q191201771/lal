@@ -10,7 +10,6 @@ coverage.html
 /conf/self.conf.json
 /tmp
 
-/demo
 /bin
 /release
 /.idea

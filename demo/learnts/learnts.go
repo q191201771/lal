@@ -15,7 +15,7 @@ import (
 	"github.com/q191201771/naza/pkg/nazalog"
 )
 
-// 解析TS文件，注意，该程序还没有写完
+// 学习如何解析TS文件。注意，该程序还没有写完。
 
 var (
 	pat        hls.PAT
@@ -85,7 +85,7 @@ func main() {
 	content, err := ioutil.ReadFile(filename)
 	nazalog.Assert(nil, err)
 
-	packets := hls.SplitTS(content)
+	packets := hls.SplitFragment2TSPackets(content)
 
 	for _, packet := range packets {
 		handlePacket(packet)

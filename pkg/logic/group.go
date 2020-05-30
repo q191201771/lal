@@ -25,13 +25,15 @@ type Group struct {
 	appName    string
 	streamName string
 
+	hlsConfig *hls.MuxerConfig
+
 	exitChan chan struct{}
 
 	mutex                sync.Mutex
 	pubSession           *rtmp.ServerSession
 	rtmpSubSessionSet    map[*rtmp.ServerSession]struct{}
 	httpflvSubSessionSet map[*httpflv.SubSession]struct{}
-	hlsSession           *hls.Session
+	hlsMuxer             *hls.Muxer
 	gopCache             *GOPCache
 	// TODO chef: 如果没有开启httpflv监听，可以不做格式转换，节约CPU资源
 	httpflvGopCache *GOPCache
@@ -39,13 +41,14 @@ type Group struct {
 
 var _ rtmp.PubSessionObserver = &Group{}
 
-func NewGroup(appName string, streamName string, rtmpGOPNum int, httpflvGOPNum int) *Group {
+func NewGroup(appName string, streamName string, rtmpGOPNum int, httpflvGOPNum int, hlsConfig *hls.MuxerConfig) *Group {
 	uk := unique.GenUniqueKey("GROUP")
 	log.Infof("lifecycle new group. [%s] appName=%s, streamName=%s", uk, appName, streamName)
 	return &Group{
 		UniqueKey:            uk,
 		appName:              appName,
 		streamName:           streamName,
+		hlsConfig:            hlsConfig,
 		exitChan:             make(chan struct{}, 1),
 		rtmpSubSessionSet:    make(map[*rtmp.ServerSession]struct{}),
 		httpflvSubSessionSet: make(map[*httpflv.SubSession]struct{}),
@@ -84,8 +87,8 @@ func (group *Group) AddRTMPPubSession(session *rtmp.ServerSession) bool {
 	}
 
 	group.pubSession = session
-	group.hlsSession = hls.NewSession(group.streamName)
-	group.hlsSession.Start()
+	group.hlsMuxer = hls.NewMuxer(group.streamName, group.hlsConfig)
+	group.hlsMuxer.Start()
 	group.mutex.Unlock()
 
 	session.SetPubSessionObserver(group)
@@ -97,7 +100,7 @@ func (group *Group) DelRTMPPubSession(session *rtmp.ServerSession) {
 	group.mutex.Lock()
 	defer group.mutex.Unlock()
 	group.pubSession = nil
-	group.hlsSession.Stop()
+	group.hlsMuxer.Stop()
 
 	group.gopCache.Clear()
 	group.httpflvGopCache.Clear()
@@ -156,7 +159,7 @@ func (group *Group) OnReadRTMPAVMsg(msg rtmp.AVMsg) {
 
 	//log.Debugf("%+v, %02x, %02x", msg.Header, msg.Payload[0], msg.Payload[1])
 	group.broadcastRTMP(msg)
-	group.hlsSession.FeedRTMPMessage(msg)
+	group.hlsMuxer.FeedRTMPMessage(msg)
 }
 
 func (group *Group) broadcastRTMP(msg rtmp.AVMsg) {

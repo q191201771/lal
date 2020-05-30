@@ -17,6 +17,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/q191201771/lal/pkg/hls"
+
 	"github.com/q191201771/lal/pkg/logic"
 
 	"github.com/q191201771/lal/pkg/httpflv"
@@ -34,6 +36,7 @@ var (
 
 	rtmpAddr    = ":19350"
 	httpflvAddr = ":8080"
+	hlsAddr     = ":10001"
 
 	rFLVFileName      = "testdata/test.flv"
 	wFLVPullFileName  = "testdata/flvpull.flv"
@@ -67,6 +70,14 @@ func TestExample(t *testing.T) {
 	config := logic.Config{
 		RTMP:    logic.RTMP{Addr: rtmpAddr},
 		HTTPFLV: logic.HTTPFLV{SubListenAddr: httpflvAddr},
+		HLS: logic.HLS{
+			SubListenAddr: hlsAddr,
+			MuxerConfig: &hls.MuxerConfig{
+				OutPath:            "/tmp/lal/hls/",
+				FragmentDurationMS: 3000,
+				FragmentNum:        6,
+			},
+		},
 	}
 
 	pushURL = fmt.Sprintf("rtmp://127.0.0.1%s/live/11111", config.RTMP.Addr)

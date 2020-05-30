@@ -214,6 +214,10 @@ func (amf0) ReadNull(b []byte) (int, error) {
 	return 1, nil
 }
 
+// TODO chef:
+// 考虑将map改成数组
+// - Go的map是顺序随机的，使用map也即丢失了原始数据的顺序性
+// - 如果Object中存在key相同的情况（先不讨论是否合法，如果业务方非要这么用），可能会覆盖导致丢失
 func (amf0) ReadObject(b []byte) (map[string]interface{}, int, error) {
 	if len(b) < 1 {
 		return nil, 0, ErrAMFTooShort
