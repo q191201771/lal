@@ -186,14 +186,7 @@ func (gcq *gopCircularQueue) Empty() bool{
 
 //Len 获取元素的个数
 func (gcq *gopCircularQueue) Len() int{
-	var l int
-	if gcq.first > gcq.last {
-		l = gcq.last + gcq.size - gcq.first
-	} else {
-		l = gcq.last - gcq.first
-	}
-	
-	return l
+	return (gcq.last + gcq.size -  gcq.first) % gcq.size
 }
 
 //Cap 获取队列的容量
