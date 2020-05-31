@@ -139,7 +139,6 @@ type gopCircularQueue struct {
 }
 
 func NewGopCircularQueue(cap int) *gopCircularQueue {
-	
 	if cap < 0 {
 		panic("negative cap argument in NewGopCircularQueue")
 	}
