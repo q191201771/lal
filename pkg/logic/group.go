@@ -199,12 +199,6 @@ func (group *Group) broadcastRTMP(msg rtmp.AVMsg) {
 				}
 			}
 			
-			lastGOP := group.gopCache.LastGOP()
-			if lastGOP != nil {
-				for _, item := range lastGOP.data {
-					_ = session.AsyncWrite(item)
-				}
-			}
 			session.IsFresh = false
 		}
 
@@ -231,12 +225,6 @@ func (group *Group) broadcastRTMP(msg rtmp.AVMsg) {
 				}
 			}
 			
-			lastGOP := group.httpflvGopCache.LastGOP()
-			if lastGOP != nil {
-				for _, item := range lastGOP.data {
-					session.WriteRawPacket(item)
-				}
-			}
 			session.IsFresh = false
 		}
 
