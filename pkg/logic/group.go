@@ -193,13 +193,13 @@ func (group *Group) broadcastRTMP(msg rtmp.AVMsg) {
 			if group.gopCache.AACSeqHeader != nil {
 				_ = session.AsyncWrite(group.gopCache.AACSeqHeader)
 			}
-			fullGOP := group.gopCache.GetFullGOP()
-			for _, gop := range fullGOP {
-				for _, item := range gop.data {
+			for i := 0; i < group.gopCache.GetGopLen();i++ {
+				for _, item := range group.gopCache.GetGopAt(i).data {
 					_ = session.AsyncWrite(item)
 				}
 			}
-			lastGOP := group.gopCache.GetLastGOP()
+			
+			lastGOP := group.gopCache.LastGOP()
 			if lastGOP != nil {
 				for _, item := range lastGOP.data {
 					_ = session.AsyncWrite(item)
@@ -224,13 +224,14 @@ func (group *Group) broadcastRTMP(msg rtmp.AVMsg) {
 			if group.httpflvGopCache.AACSeqHeader != nil {
 				session.WriteRawPacket(group.httpflvGopCache.AACSeqHeader)
 			}
-			fullGOP := group.httpflvGopCache.GetFullGOP()
-			for _, gop := range fullGOP {
-				for _, item := range gop.data {
+			
+			for i := 0; i < group.httpflvGopCache.GetGopLen(); i++ {
+				for _, item := range group.httpflvGopCache.GetGopAt(i).data {
 					session.WriteRawPacket(item)
 				}
 			}
-			lastGOP := group.httpflvGopCache.GetLastGOP()
+			
+			lastGOP := group.httpflvGopCache.LastGOP()
 			if lastGOP != nil {
 				for _, item := range lastGOP.data {
 					session.WriteRawPacket(item)
