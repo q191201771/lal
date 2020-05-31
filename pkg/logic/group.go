@@ -218,7 +218,6 @@ func (group *Group) broadcastRTMP(msg rtmp.AVMsg) {
 			if group.httpflvGopCache.AACSeqHeader != nil {
 				session.WriteRawPacket(group.httpflvGopCache.AACSeqHeader)
 			}
-			
 			for i := 0; i < group.httpflvGopCache.GetGopLen(); i++ {
 				for _, item := range group.httpflvGopCache.GetGopAt(i).data {
 					session.WriteRawPacket(item)
