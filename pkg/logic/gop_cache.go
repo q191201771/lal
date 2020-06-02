@@ -92,9 +92,16 @@ func (gc *GOPCache) Feed(msg rtmp.AVMsg, lg LazyGet) {
 	}
 	if gc.gopCircularQue.Cap() != 0 {
 		if msg.IsVideoKeyNalu() {
-			var gop GOP
+			var gop *GOP
+			if gc.gopCircularQue.Full() {
+				//如果已经满了，获取队首即将被淘汰的GOP
+				gop = gc.gopCircularQue.Front()
+				gop.Clear()
+			} else {
+				gop = &GOP{}
+			}
 			gop.Feed(msg, lg())
-			gc.gopCircularQue.Enqueue(&gop)
+			gc.gopCircularQue.Enqueue(gop)
 		} else {
 			gop := gc.gopCircularQue.Back()
 			if gop != nil {
@@ -129,6 +136,10 @@ type GOP struct {
 
 func (g *GOP) Feed(msg rtmp.AVMsg, b []byte) {
 	g.data = append(g.data, b)
+}
+
+func (g *GOP) Clear() {
+	g.data = g.data[:0]
 }
 
 type gopCircularQueue struct {
@@ -220,7 +231,6 @@ func (gcq *gopCircularQueue) At(pos int) *GOP {
 func (gcq *gopCircularQueue) Clear() {
 	gcq.first = 0
 	gcq.last = 0
-
 }
 
 func (gcq *gopCircularQueue) lastInc() {
