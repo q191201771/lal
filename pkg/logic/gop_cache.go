@@ -99,18 +99,30 @@ func (gc *GOPCache) Feed(msg rtmp.AVMsg, lg LazyGet) {
 
 	if gc.gopSize > 1 {
 		if msg.IsVideoKeyNalu() {
-			gc.gopRing[gc.gopRingLast].Clear()
-			gc.gopRing[gc.gopRingLast].Feed(msg, lg())
-			gc.gopRingLast = (gc.gopRingLast + 1) % gc.gopSize
-			if gc.gopRingLast == gc.gopRingFirst {
-				gc.gopRingFirst = (gc.gopRingFirst + 1) % gc.gopSize
-			}
+			gc.feedNewGop(msg, lg())
 		} else {
-			if gc.gopRingLast != gc.gopRingFirst {
-				gc.gopRing[(gc.gopRingLast - 1 + gc.gopSize) % gc.gopSize].Feed(msg, lg())
-			}
+			gc.feedLastGop(msg, lg())
 		}
 	}
+}
+
+func (gc *GOPCache) feedLastGop(msg rtmp.AVMsg, b []byte) {
+	if gc.gopRingLast != gc.gopRingFirst {
+		gc.gopRing[(gc.gopRingLast - 1 + gc.gopSize) % gc.gopSize].Feed(msg, b)
+	}
+}
+
+func (gc *GOPCache) feedNewGop(msg rtmp.AVMsg, b []byte) {
+	gc.gopRing[gc.gopRingLast].Clear()
+	gc.gopRing[gc.gopRingLast].Feed(msg, b)
+	gc.gopRingLast = (gc.gopRingLast + 1) % gc.gopSize
+	if gc.gopRingLast == gc.gopRingFirst {
+		gc.gopRingFirst = (gc.gopRingFirst + 1) % gc.gopSize
+	}
+}
+
+func (gc *GOPCache) isGopEmpty() bool {
+	return gc.gopRingFirst == gc.gopRingLast
 }
 
 func (gc *GOPCache) GetGopLen() int{
@@ -122,13 +134,6 @@ func (gc *GOPCache) GetGopDataAt(pos int) [][]byte {
 		return nil
 	}
 	return gc.gopRing[(pos + gc.gopRingFirst) % gc.gopSize].data
-}
-
-func (gc *GOPCache) LastGOP() *GOP {
-	if gc.GetGopLen() == 0 {
-		return nil
-	}
-	return &gc.gopRing[(gc.gopRingLast - 1 + gc.gopSize) % gc.gopSize]
 }
 
 func (gc *GOPCache) Clear() {
