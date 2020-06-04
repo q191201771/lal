@@ -194,7 +194,7 @@ func (group *Group) broadcastRTMP(msg rtmp.AVMsg) {
 				_ = session.AsyncWrite(group.gopCache.AACSeqHeader)
 			}
 			for i := 0; i < group.gopCache.GetGopLen();i++ {
-				for _, item := range group.gopCache.GetGopAt(i).data {
+				for _, item := range group.gopCache.GetGopDataAt(i) {
 					_ = session.AsyncWrite(item)
 				}
 			}
@@ -219,7 +219,7 @@ func (group *Group) broadcastRTMP(msg rtmp.AVMsg) {
 				session.WriteRawPacket(group.httpflvGopCache.AACSeqHeader)
 			}
 			for i := 0; i < group.httpflvGopCache.GetGopLen(); i++ {
-				for _, item := range group.httpflvGopCache.GetGopAt(i).data {
+				for _, item := range group.httpflvGopCache.GetGopDataAt(i) {
 					session.WriteRawPacket(item)
 				}
 			}
