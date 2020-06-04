@@ -58,14 +58,20 @@ type GOPCache struct {
 	Metadata       []byte
 	VideoSeqHeader []byte
 	AACSeqHeader   []byte
-	gopCircularQue *gopCircularQueue
+	gopRing        []GOP
+	gopRingFirst   int
+	gopRingLast    int
+	gopSize        int
 }
 
 func NewGopCache(t string, uniqueKey string, gopNum int) *GOPCache {
 	return &GOPCache{
 		t:         t,
 		uniqueKey: uniqueKey,
-		gopCircularQue: NewGopCircularQueue(gopNum),
+		gopSize: gopNum + 1,
+		gopRing: make([]GOP, gopNum + 1, gopNum + 1),
+		gopRingFirst: 0,
+		gopRingLast: 0,
 	}
 }
 
@@ -90,44 +96,47 @@ func (gc *GOPCache) Feed(msg rtmp.AVMsg, lg LazyGet) {
 			return
 		}
 	}
-	if gc.gopCircularQue.Cap() != 0 {
+
+	if gc.gopSize > 1 {
 		if msg.IsVideoKeyNalu() {
-			var gop *GOP
-			if gc.gopCircularQue.Full() {
-				//如果已经满了，获取队首即将被淘汰的GOP
-				gop = gc.gopCircularQue.Front()
-				gop.Clear()
-			} else {
-				gop = &GOP{}
+			gc.gopRing[gc.gopRingLast].Clear()
+			gc.gopRing[gc.gopRingLast].Feed(msg, lg())
+			gc.gopRingLast = (gc.gopRingLast + 1) % gc.gopSize
+			if gc.gopRingLast == gc.gopRingFirst {
+				gc.gopRingFirst = (gc.gopRingFirst + 1) % gc.gopSize
 			}
-			gop.Feed(msg, lg())
-			gc.gopCircularQue.Enqueue(gop)
 		} else {
-			gop := gc.gopCircularQue.Back()
-			if gop != nil {
-				gop.Feed(msg, lg())
+			if gc.gopRingLast != gc.gopRingFirst {
+				gc.gopRing[(gc.gopRingLast - 1 + gc.gopSize) % gc.gopSize].Feed(msg, lg())
 			}
 		}
 	}
 }
 
 func (gc *GOPCache) GetGopLen() int{
-	return gc.gopCircularQue.Len()
+	return (gc.gopRingLast + gc.gopSize - gc.gopRingFirst) % gc.gopSize
 }
 
-func (gc *GOPCache) GetGopAt(pos int) *GOP {
-	return gc.gopCircularQue.At(pos)
+func (gc *GOPCache) GetGopDataAt(pos int) [][]byte {
+	if pos >= gc.GetGopLen() || pos < 0 {
+		return nil
+	}
+	return gc.gopRing[(pos + gc.gopRingFirst) % gc.gopSize].data
 }
 
 func (gc *GOPCache) LastGOP() *GOP {
-	return gc.gopCircularQue.Back()
+	if gc.GetGopLen() == 0 {
+		return nil
+	}
+	return &gc.gopRing[(gc.gopRingLast - 1 + gc.gopSize) % gc.gopSize]
 }
 
 func (gc *GOPCache) Clear() {
 	gc.Metadata = nil
 	gc.VideoSeqHeader = nil
 	gc.AACSeqHeader = nil
-	gc.gopCircularQue.Clear()
+	gc.gopRingLast = 0
+	gc.gopRingFirst = 0
 }
 
 type GOP struct {
@@ -140,103 +149,4 @@ func (g *GOP) Feed(msg rtmp.AVMsg, b []byte) {
 
 func (g *GOP) Clear() {
 	g.data = g.data[:0]
-}
-
-type gopCircularQueue struct {
-	buf []*GOP
-	size int
-	first int
-	last int
-}
-
-func NewGopCircularQueue(cap int) *gopCircularQueue {
-	if cap < 0 {
-		panic("negative cap argument in NewGopCircularQueue")
-	}
-	
-	size := cap + 1
-	return &gopCircularQueue{
-		buf: make([]*GOP, size, size),
-		size: size,
-		first: 0,
-		last: 0,
-	}
-}
-
-//Enqueue 入队
-func (gcq *gopCircularQueue) Enqueue(gop *GOP) {
-	if gcq.Full() {
-		//队列满了，抛弃队首元素
-		gcq.firstInc()
-	}
-	gcq.buf[gcq.last] = gop
-	gcq.lastInc()
-}
-
-//Dequeue 队首元素出队
-func (gcq *gopCircularQueue) Dequeue() *GOP{
-	if gcq.Empty() {
-		return nil
-	}
-	
-	//把first return
-	gop := gcq.buf[gcq.first]
-	gcq.firstInc()
-	
-	return gop
-}
-
-func (gcq *gopCircularQueue) Full() bool {
-	return (gcq.last + 1) % gcq.size == gcq.first
-}
-
-func (gcq *gopCircularQueue) Empty() bool{
-	return gcq.first == gcq.last
-}
-
-//Len 获取元素的个数
-func (gcq *gopCircularQueue) Len() int{
-	return (gcq.last + gcq.size -  gcq.first) % gcq.size
-}
-
-//Cap 获取队列的容量
-func (gcq *gopCircularQueue) Cap() int {
-	return gcq.size - 1
-}
-
-//Front 获取队首元素，不出队
-func (gcq *gopCircularQueue) Front() *GOP {
-	if gcq.Empty() {
-		return nil
-	}
-	return gcq.buf[gcq.first]
-}
-
-//Back 获取队尾元素，不出队
-func (gcq *gopCircularQueue) Back() *GOP {
-	if gcq.Empty() {
-		return nil
-	}
-	return gcq.buf[(gcq.last + gcq.size - 1) % gcq.size]
-}
-
-//At 获取第pos个元素
-func (gcq *gopCircularQueue) At(pos int) *GOP {
-	if pos >= gcq.Len() || pos < 0 {
-		return nil
-	}
-	return gcq.buf[(pos + gcq.first) % gcq.size]
-}
-
-func (gcq *gopCircularQueue) Clear() {
-	gcq.first = 0
-	gcq.last = 0
-}
-
-func (gcq *gopCircularQueue) lastInc() {
-	gcq.last = (gcq.last + 1) % gcq.size
-}
-
-func (gcq *gopCircularQueue) firstInc() {
-	gcq.first = (gcq.first + 1) % gcq.size
 }
