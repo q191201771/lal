@@ -106,12 +106,12 @@ func (gc *GOPCache) Feed(msg rtmp.AVMsg, lg LazyGet) {
 	}
 }
 
-func (gc *GOPCache) GetGOPLen() int {
+func (gc *GOPCache) GetGOPCount() int {
 	return (gc.gopRingLast + gc.gopSize - gc.gopRingFirst) % gc.gopSize
 }
 
 func (gc *GOPCache) GetGOPDataAt(pos int) [][]byte {
-	if pos >= gc.GetGOPLen() || pos < 0 {
+	if pos >= gc.GetGOPCount() || pos < 0 {
 		return nil
 	}
 	return gc.gopRing[(pos+gc.gopRingFirst)%gc.gopSize].data
@@ -132,12 +132,12 @@ func (gc *GOPCache) feedLastGOP(msg rtmp.AVMsg, b []byte) {
 }
 
 func (gc *GOPCache) feedNewGOP(msg rtmp.AVMsg, b []byte) {
-	gc.gopRing[gc.gopRingLast].Clear()
-	gc.gopRing[gc.gopRingLast].Feed(msg, b)
-	gc.gopRingLast = (gc.gopRingLast + 1) % gc.gopSize
 	if gc.isGOPRingFull() {
 		gc.gopRingFirst = (gc.gopRingFirst + 1) % gc.gopSize
 	}
+	gc.gopRing[gc.gopRingLast].Clear()
+	gc.gopRing[gc.gopRingLast].Feed(msg, b)
+	gc.gopRingLast = (gc.gopRingLast + 1) % gc.gopSize
 }
 
 func (gc *GOPCache) isGOPRingFull() bool {
