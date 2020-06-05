@@ -193,8 +193,8 @@ func (group *Group) broadcastRTMP(msg rtmp.AVMsg) {
 			if group.gopCache.AACSeqHeader != nil {
 				_ = session.AsyncWrite(group.gopCache.AACSeqHeader)
 			}
-			for i := 0; i < group.gopCache.GetGopLen(); i++ {
-				for _, item := range group.gopCache.GetGopDataAt(i) {
+			for i := 0; i < group.gopCache.GetGOPCount(); i++ {
+				for _, item := range group.gopCache.GetGOPDataAt(i) {
 					_ = session.AsyncWrite(item)
 				}
 			}
@@ -218,8 +218,8 @@ func (group *Group) broadcastRTMP(msg rtmp.AVMsg) {
 			if group.httpflvGopCache.AACSeqHeader != nil {
 				session.WriteRawPacket(group.httpflvGopCache.AACSeqHeader)
 			}
-			for i := 0; i < group.httpflvGopCache.GetGopLen(); i++ {
-				for _, item := range group.httpflvGopCache.GetGopDataAt(i) {
+			for i := 0; i < group.httpflvGopCache.GetGOPCount(); i++ {
+				for _, item := range group.httpflvGopCache.GetGOPDataAt(i) {
 					session.WriteRawPacket(item)
 				}
 			}
