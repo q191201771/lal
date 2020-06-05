@@ -13,44 +13,43 @@ func TestGOPCache_Feed(t *testing.T) {
 		Payload: []byte{23, 1},
 	}
 	p1 := rtmp.AVMsg{
-		Header:  rtmp.Header{CSID: 0, MsgLen: 0, Timestamp: 1, MsgTypeID: 9, MsgStreamID: 10, TimestampAbs: 0,},
+		Header:  rtmp.Header{CSID: 0, MsgLen: 0, Timestamp: 1, MsgTypeID: 9, MsgStreamID: 10, TimestampAbs: 0},
 		Payload: []byte{6, 0, 1},
 	}
 	i2 := rtmp.AVMsg{
-		Header:  rtmp.Header{CSID: 0, MsgLen: 0, Timestamp: 1, MsgTypeID: 9, MsgStreamID: 10, TimestampAbs: 0,},
+		Header:  rtmp.Header{CSID: 0, MsgLen: 0, Timestamp: 1, MsgTypeID: 9, MsgStreamID: 10, TimestampAbs: 0},
 		Payload: []byte{23, 1},
 	}
 	p2 := rtmp.AVMsg{
-		Header:  rtmp.Header{CSID: 0, MsgLen: 0, Timestamp: 1, MsgTypeID: 9, MsgStreamID: 10, TimestampAbs: 0,},
+		Header:  rtmp.Header{CSID: 0, MsgLen: 0, Timestamp: 1, MsgTypeID: 9, MsgStreamID: 10, TimestampAbs: 0},
 		Payload: []byte{6, 0, 2},
 	}
 	i3 := rtmp.AVMsg{
-		Header:  rtmp.Header{CSID: 0, MsgLen: 0, Timestamp: 1, MsgTypeID: 9, MsgStreamID: 10, TimestampAbs: 0,},
+		Header:  rtmp.Header{CSID: 0, MsgLen: 0, Timestamp: 1, MsgTypeID: 9, MsgStreamID: 10, TimestampAbs: 0},
 		Payload: []byte{23, 1},
 	}
 	p3 := rtmp.AVMsg{
-		Header:  rtmp.Header{CSID: 0, MsgLen: 0, Timestamp: 1, MsgTypeID: 9, MsgStreamID: 10, TimestampAbs: 0,},
+		Header:  rtmp.Header{CSID: 0, MsgLen: 0, Timestamp: 1, MsgTypeID: 9, MsgStreamID: 10, TimestampAbs: 0},
 		Payload: []byte{6, 0, 3},
 	}
 	i4 := rtmp.AVMsg{
-		Header:  rtmp.Header{CSID: 0, MsgLen: 0, Timestamp: 1, MsgTypeID: 9, MsgStreamID: 10, TimestampAbs: 0,},
+		Header:  rtmp.Header{CSID: 0, MsgLen: 0, Timestamp: 1, MsgTypeID: 9, MsgStreamID: 10, TimestampAbs: 0},
 		Payload: []byte{23, 1},
 	}
 	p4 := rtmp.AVMsg{
-		Header:  rtmp.Header{CSID: 0, MsgLen: 0, Timestamp: 1, MsgTypeID: 9, MsgStreamID: 10, TimestampAbs: 0,},
+		Header:  rtmp.Header{CSID: 0, MsgLen: 0, Timestamp: 1, MsgTypeID: 9, MsgStreamID: 10, TimestampAbs: 0},
 		Payload: []byte{6, 0, 4},
 	}
-	i1f := func()[]byte {return []byte{1, 1}}
-	p1f := func()[]byte {return []byte{0, 1}}
-	i2f := func()[]byte {return []byte{1, 2}}
-	p2f := func()[]byte {return []byte{0, 2}}
-	i3f := func()[]byte {return []byte{1, 3}}
-	p3f := func()[]byte {return []byte{0, 3}}
-	i4f := func()[]byte {return []byte{1, 4}}
-	p4f := func()[]byte {return []byte{0, 4}}
+	i1f := func() []byte { return []byte{1, 1} }
+	p1f := func() []byte { return []byte{0, 1} }
+	i2f := func() []byte { return []byte{1, 2} }
+	p2f := func() []byte { return []byte{0, 2} }
+	i3f := func() []byte { return []byte{1, 3} }
+	p3f := func() []byte { return []byte{0, 3} }
+	i4f := func() []byte { return []byte{1, 4} }
+	p4f := func() []byte { return []byte{0, 4} }
 
-
-	nc := NewGopCache("rtmp", "test", 3)
+	nc := NewGOPCache("rtmp", "test", 3)
 	assert.Equal(t, 0, nc.GetGopLen())
 	assert.Equal(t, nil, nc.GetGopDataAt(0))
 	assert.Equal(t, nil, nc.GetGopDataAt(1))
@@ -69,7 +68,6 @@ func TestGOPCache_Feed(t *testing.T) {
 	assert.Equal(t, nil, nc.GetGopDataAt(1))
 	assert.Equal(t, nil, nc.GetGopDataAt(2))
 	assert.Equal(t, nil, nc.GetGopDataAt(3))
-
 
 	nc.Feed(i2, i2f)
 	assert.Equal(t, 2, nc.GetGopLen())
@@ -96,7 +94,6 @@ func TestGOPCache_Feed(t *testing.T) {
 	assert.Equal(t, [][]byte{{1, 2}, {0, 2}}, nc.GetGopDataAt(1))
 	assert.Equal(t, [][]byte{{1, 3}, {0, 3}}, nc.GetGopDataAt(2))
 	assert.Equal(t, nil, nc.GetGopDataAt(3))
-
 
 	nc.Feed(i4, i4f)
 	assert.Equal(t, 3, nc.GetGopLen())

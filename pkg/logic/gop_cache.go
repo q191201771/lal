@@ -20,7 +20,7 @@ import (
 type LazyChunkDivider struct {
 	message []byte
 	header  *rtmp.Header
-	chunks []byte
+	chunks  []byte
 }
 
 func (lcd *LazyChunkDivider) Init(message []byte, header *rtmp.Header) {
@@ -53,8 +53,8 @@ func (l *LazyRTMPMsg2FLVTag) Get() []byte {
 }
 
 type GOPCache struct {
-	t         string
-	uniqueKey string
+	t              string
+	uniqueKey      string
 	Metadata       []byte
 	VideoSeqHeader []byte
 	AACSeqHeader   []byte
@@ -64,14 +64,14 @@ type GOPCache struct {
 	gopSize        int
 }
 
-func NewGopCache(t string, uniqueKey string, gopNum int) *GOPCache {
+func NewGOPCache(t string, uniqueKey string, gopNum int) *GOPCache {
 	return &GOPCache{
-		t:         t,
-		uniqueKey: uniqueKey,
-		gopSize: gopNum + 1,
-		gopRing: make([]GOP, gopNum + 1, gopNum + 1),
+		t:            t,
+		uniqueKey:    uniqueKey,
+		gopSize:      gopNum + 1,
+		gopRing:      make([]GOP, gopNum+1, gopNum+1),
 		gopRingFirst: 0,
-		gopRingLast: 0,
+		gopRingLast:  0,
 	}
 }
 
@@ -99,41 +99,22 @@ func (gc *GOPCache) Feed(msg rtmp.AVMsg, lg LazyGet) {
 
 	if gc.gopSize > 1 {
 		if msg.IsVideoKeyNalu() {
-			gc.feedNewGop(msg, lg())
+			gc.feedNewGOP(msg, lg())
 		} else {
-			gc.feedLastGop(msg, lg())
+			gc.feedLastGOP(msg, lg())
 		}
 	}
 }
 
-func (gc *GOPCache) feedLastGop(msg rtmp.AVMsg, b []byte) {
-	if !gc.isGopEmpty() {
-		gc.gopRing[(gc.gopRingLast - 1 + gc.gopSize) % gc.gopSize].Feed(msg, b)
-	}
-}
-
-func (gc *GOPCache) feedNewGop(msg rtmp.AVMsg, b []byte) {
-	gc.gopRing[gc.gopRingLast].Clear()
-	gc.gopRing[gc.gopRingLast].Feed(msg, b)
-	gc.gopRingLast = (gc.gopRingLast + 1) % gc.gopSize
-	if gc.isGopEmpty() {
-		gc.gopRingFirst = (gc.gopRingFirst + 1) % gc.gopSize
-	}
-}
-
-func (gc *GOPCache) isGopEmpty() bool {
-	return gc.gopRingFirst == gc.gopRingLast
-}
-
-func (gc *GOPCache) GetGopLen() int{
+func (gc *GOPCache) GetGOPLen() int {
 	return (gc.gopRingLast + gc.gopSize - gc.gopRingFirst) % gc.gopSize
 }
 
-func (gc *GOPCache) GetGopDataAt(pos int) [][]byte {
-	if pos >= gc.GetGopLen() || pos < 0 {
+func (gc *GOPCache) GetGOPDataAt(pos int) [][]byte {
+	if pos >= gc.GetGOPLen() || pos < 0 {
 		return nil
 	}
-	return gc.gopRing[(pos + gc.gopRingFirst) % gc.gopSize].data
+	return gc.gopRing[(pos+gc.gopRingFirst)%gc.gopSize].data
 }
 
 func (gc *GOPCache) Clear() {
@@ -142,6 +123,29 @@ func (gc *GOPCache) Clear() {
 	gc.AACSeqHeader = nil
 	gc.gopRingLast = 0
 	gc.gopRingFirst = 0
+}
+
+func (gc *GOPCache) feedLastGOP(msg rtmp.AVMsg, b []byte) {
+	if !gc.isGOPRingEmpty() {
+		gc.gopRing[(gc.gopRingLast-1+gc.gopSize)%gc.gopSize].Feed(msg, b)
+	}
+}
+
+func (gc *GOPCache) feedNewGOP(msg rtmp.AVMsg, b []byte) {
+	gc.gopRing[gc.gopRingLast].Clear()
+	gc.gopRing[gc.gopRingLast].Feed(msg, b)
+	gc.gopRingLast = (gc.gopRingLast + 1) % gc.gopSize
+	if gc.isGOPRingFull() {
+		gc.gopRingFirst = (gc.gopRingFirst + 1) % gc.gopSize
+	}
+}
+
+func (gc *GOPCache) isGOPRingFull() bool {
+	return (gc.gopRingLast+1)%gc.gopSize == gc.gopRingFirst
+}
+
+func (gc *GOPCache) isGOPRingEmpty() bool {
+	return gc.gopRingFirst == gc.gopRingLast
 }
 
 type GOP struct {

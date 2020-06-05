@@ -52,8 +52,8 @@ func NewGroup(appName string, streamName string, rtmpGOPNum int, httpflvGOPNum i
 		exitChan:             make(chan struct{}, 1),
 		rtmpSubSessionSet:    make(map[*rtmp.ServerSession]struct{}),
 		httpflvSubSessionSet: make(map[*httpflv.SubSession]struct{}),
-		gopCache:             NewGopCache("rtmp", uk, rtmpGOPNum),
-		httpflvGopCache:      NewGopCache("httpflv", uk, rtmpGOPNum),
+		gopCache:             NewGOPCache("rtmp", uk, rtmpGOPNum),
+		httpflvGopCache:      NewGOPCache("httpflv", uk, rtmpGOPNum),
 	}
 }
 
@@ -193,12 +193,12 @@ func (group *Group) broadcastRTMP(msg rtmp.AVMsg) {
 			if group.gopCache.AACSeqHeader != nil {
 				_ = session.AsyncWrite(group.gopCache.AACSeqHeader)
 			}
-			for i := 0; i < group.gopCache.GetGopLen();i++ {
+			for i := 0; i < group.gopCache.GetGopLen(); i++ {
 				for _, item := range group.gopCache.GetGopDataAt(i) {
 					_ = session.AsyncWrite(item)
 				}
 			}
-			
+
 			session.IsFresh = false
 		}
 
@@ -223,7 +223,7 @@ func (group *Group) broadcastRTMP(msg rtmp.AVMsg) {
 					session.WriteRawPacket(item)
 				}
 			}
-			
+
 			session.IsFresh = false
 		}
 
