@@ -107,7 +107,7 @@ func (gc *GOPCache) Feed(msg rtmp.AVMsg, lg LazyGet) {
 }
 
 func (gc *GOPCache) feedLastGop(msg rtmp.AVMsg, b []byte) {
-	if gc.gopRingLast != gc.gopRingFirst {
+	if !gc.isGopEmpty() {
 		gc.gopRing[(gc.gopRingLast - 1 + gc.gopSize) % gc.gopSize].Feed(msg, b)
 	}
 }
@@ -116,7 +116,7 @@ func (gc *GOPCache) feedNewGop(msg rtmp.AVMsg, b []byte) {
 	gc.gopRing[gc.gopRingLast].Clear()
 	gc.gopRing[gc.gopRingLast].Feed(msg, b)
 	gc.gopRingLast = (gc.gopRingLast + 1) % gc.gopSize
-	if gc.gopRingLast == gc.gopRingFirst {
+	if gc.isGopEmpty() {
 		gc.gopRingFirst = (gc.gopRingFirst + 1) % gc.gopSize
 	}
 }
