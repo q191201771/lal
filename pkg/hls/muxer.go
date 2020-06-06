@@ -99,7 +99,12 @@ func (m *Muxer) FeedRTMPMessage(msg rtmp.AVMsg) {
 	}
 }
 
+// TODO chef: 可以考虑数据有问题时，返回给上层，直接主动关闭输入流的连接
 func (m *Muxer) feedVideo(msg rtmp.AVMsg) {
+	if len(msg.Payload) < 5 {
+		nazalog.Errorf("invalid video message length. len=%d", len(msg.Payload))
+		return
+	}
 	if msg.Payload[0]&0xF != 7 {
 		// TODO chef: HLS视频现在只做了h264的支持
 		return
@@ -120,8 +125,16 @@ func (m *Muxer) feedVideo(msg rtmp.AVMsg) {
 	// 优化这块buffer
 	out := m.videoOut[0:0]
 	for i := 5; i != len(msg.Payload); {
+		if i+4 > len(msg.Payload) {
+			nazalog.Errorf("slice len not enough. i=%d, len=%d", i, len(msg.Payload))
+			return
+		}
 		nalBytes := int(bele.BEUint32(msg.Payload[i:]))
 		i += 4
+		if i+nalBytes > len(msg.Payload) {
+			nazalog.Errorf("slice len not enough. i=%d, payload len=%d, nalBytes=%d", i, len(msg.Payload), nalBytes)
+			return
+		}
 		srcNalType := msg.Payload[i]
 		nalType := srcNalType & 0x1F
 
@@ -186,6 +199,9 @@ func (m *Muxer) feedVideo(msg rtmp.AVMsg) {
 }
 
 func (m *Muxer) feedAudio(msg rtmp.AVMsg) {
+	if len(msg.Payload) < 3 {
+		nazalog.Errorf("invalid audio message length. len=%d", len(msg.Payload))
+	}
 	if msg.Payload[0]>>4 != 10 {
 		// TODO chef: HLS音频现在只做了h264的支持
 		return
@@ -207,7 +223,6 @@ func (m *Muxer) feedAudio(msg rtmp.AVMsg) {
 	adtsHeader := m.adts.GetADTS(uint16(msg.Header.MsgLen))
 	m.aaframe = append(m.aaframe, adtsHeader...)
 	m.aaframe = append(m.aaframe, msg.Payload[2:]...)
-
 }
 
 func (m *Muxer) cacheAACSeqHeader(msg rtmp.AVMsg) {
