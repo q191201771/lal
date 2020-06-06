@@ -98,12 +98,12 @@ $./bin/lalserver -c conf/lalserver.conf.json
     "addr": ":10001" // Go pprof web地址
   },
   "log": {
-    "level": 1,                    // 日志级别，1 debug, 2 info, 3 warn, 4 error, 5 fatal
+    "level": 1,                         // 日志级别，1 debug, 2 info, 3 warn, 4 error, 5 fatal
     "filename": "./logs/lalserver.log", // 日志输出文件
-    "is_to_stdout": true,          // 是否打印至标志控制台输出
-    "is_rotate_daily": true,       // 日志按天翻滚
-    "short_file_flag": true,       // 日志末尾是否携带源码文件名以及行号的信息
-    "assert_behavior": 1           // 日志断言的行为，1 只打印错误日志 2 打印并退出程序 3 打印并panic
+    "is_to_stdout": true,               // 是否打印至标志控制台输出
+    "is_rotate_daily": true,            // 日志按天翻滚
+    "short_file_flag": true,            // 日志末尾是否携带源码文件名以及行号的信息
+    "assert_behavior": 1                // 日志断言的行为，1 只打印错误日志 2 打印并退出程序 3 打印并panic
   }
 }
 ```
