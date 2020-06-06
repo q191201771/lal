@@ -10,7 +10,6 @@ package hls
 
 import (
 	"github.com/q191201771/naza/pkg/nazabits"
-	"github.com/q191201771/naza/pkg/nazalog"
 )
 
 // ------------------------------------------------
@@ -57,22 +56,22 @@ type TSPacketAdaptation struct {
 
 // 解析4字节TS Packet header
 func ParseTSPacketHeader(b []byte) (h TSPacketHeader) {
+	// TODO chef: 检查长度
 	br := nazabits.NewBitReader(b)
-	h.Sync = br.ReadBits8(8)
-	nazalog.Assert(uint8(0x47), h.Sync)
-	h.Err = br.ReadBits8(1)
-	h.PayloadUnitStart = br.ReadBits8(1)
-	h.Prio = br.ReadBits8(1)
-	h.Pid = br.ReadBits16(13)
-	h.Scra = br.ReadBits8(2)
-	h.Adaptation = br.ReadBits8(2)
-	h.CC = br.ReadBits8(4)
+	h.Sync, _ = br.ReadBits8(8)
+	h.Err, _ = br.ReadBits8(1)
+	h.PayloadUnitStart, _ = br.ReadBits8(1)
+	h.Prio, _ = br.ReadBits8(1)
+	h.Pid, _ = br.ReadBits16(13)
+	h.Scra, _ = br.ReadBits8(2)
+	h.Adaptation, _ = br.ReadBits8(2)
+	h.CC, _ = br.ReadBits8(4)
 	return
 }
 
 // TODO chef
 func ParseTSPacketAdaptation(b []byte) (f TSPacketAdaptation) {
 	br := nazabits.NewBitReader(b)
-	f.Length = br.ReadBits8(8)
+	f.Length, _ = br.ReadBits8(8)
 	return
 }

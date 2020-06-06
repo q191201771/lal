@@ -9,6 +9,7 @@
 package logic
 
 import (
+	"os"
 	"sync"
 	"time"
 
@@ -16,14 +17,14 @@ import (
 
 	"github.com/q191201771/lal/pkg/httpflv"
 	"github.com/q191201771/lal/pkg/rtmp"
-	log "github.com/q191201771/naza/pkg/nazalog"
+	"github.com/q191201771/naza/pkg/nazalog"
 )
 
 type ServerManager struct {
 	config *Config
 
-	httpflvServer *httpflv.Server
 	rtmpServer    *rtmp.Server
+	httpflvServer *httpflv.Server
 	hlsServer     *hls.Server
 	exitChan      chan struct{}
 
@@ -37,39 +38,51 @@ func NewServerManager(config *Config) *ServerManager {
 		groupMap: make(map[string]*Group),
 		exitChan: make(chan struct{}),
 	}
-	if len(config.HTTPFLV.SubListenAddr) != 0 {
-		m.httpflvServer = httpflv.NewServer(m, config.HTTPFLV.SubListenAddr)
+	if config.RTMPConfig.Enable {
+		m.rtmpServer = rtmp.NewServer(m, config.RTMPConfig.Addr)
 	}
-	if len(config.RTMP.Addr) != 0 {
-		m.rtmpServer = rtmp.NewServer(m, config.RTMP.Addr)
+	if config.HTTPFLVConfig.Enable {
+		m.httpflvServer = httpflv.NewServer(m, config.HTTPFLVConfig.SubListenAddr)
 	}
-	if len(config.HLS.SubListenAddr) != 0 {
-		m.hlsServer = hls.NewServer(config.HLS.SubListenAddr, config.HLS.OutPath)
+	if config.HLSConfig.Enable {
+		m.hlsServer = hls.NewServer(config.HLSConfig.SubListenAddr, config.HLSConfig.OutPath)
 	}
 	return m
 }
 
 func (sm *ServerManager) RunLoop() {
-	if sm.httpflvServer != nil {
+	if sm.rtmpServer != nil {
+		if err := sm.rtmpServer.Listen(); err != nil {
+			nazalog.Error(err)
+			os.Exit(1)
+		}
 		go func() {
-			if err := sm.httpflvServer.RunLoop(); err != nil {
-				log.Error(err)
+			if err := sm.rtmpServer.RunLoop(); err != nil {
+				nazalog.Error(err)
 			}
 		}()
 	}
 
-	if sm.rtmpServer != nil {
+	if sm.httpflvServer != nil {
+		if err := sm.httpflvServer.Listen(); err != nil {
+			nazalog.Error(err)
+			os.Exit(1)
+		}
 		go func() {
-			if err := sm.rtmpServer.RunLoop(); err != nil {
-				log.Error(err)
+			if err := sm.httpflvServer.RunLoop(); err != nil {
+				nazalog.Error(err)
 			}
 		}()
 	}
 
 	if sm.hlsServer != nil {
+		if err := sm.hlsServer.Listen(); err != nil {
+			nazalog.Error(err)
+			os.Exit(1)
+		}
 		go func() {
 			if err := sm.hlsServer.RunLoop(); err != nil {
-				log.Error(err)
+				nazalog.Error(err)
 			}
 		}()
 	}
@@ -86,7 +99,7 @@ func (sm *ServerManager) RunLoop() {
 			count++
 			if (count % 10) == 0 {
 				sm.mutex.Lock()
-				log.Infof("group size:%d", len(sm.groupMap))
+				nazalog.Debugf("group size:%d", len(sm.groupMap))
 				sm.mutex.Unlock()
 			}
 		}
@@ -94,12 +107,15 @@ func (sm *ServerManager) RunLoop() {
 }
 
 func (sm *ServerManager) Dispose() {
-	log.Debug("dispose server manager.")
+	nazalog.Debug("dispose server manager.")
+	if sm.rtmpServer != nil {
+		sm.rtmpServer.Dispose()
+	}
 	if sm.httpflvServer != nil {
 		sm.httpflvServer.Dispose()
 	}
-	if sm.rtmpServer != nil {
-		sm.rtmpServer.Dispose()
+	if sm.hlsServer != nil {
+		sm.hlsServer.Dispose()
 	}
 
 	sm.mutex.Lock()
@@ -172,7 +188,7 @@ func (sm *ServerManager) check() {
 	defer sm.mutex.Unlock()
 	for k, group := range sm.groupMap {
 		if group.IsTotalEmpty() {
-			log.Infof("erase empty group manager. [%s]", group.UniqueKey)
+			nazalog.Infof("erase empty group manager. [%s]", group.UniqueKey)
 			group.Dispose()
 			delete(sm.groupMap, k)
 		}
@@ -182,7 +198,7 @@ func (sm *ServerManager) check() {
 func (sm *ServerManager) getOrCreateGroup(appName string, streamName string) *Group {
 	group, exist := sm.groupMap[streamName]
 	if !exist {
-		group = NewGroup(appName, streamName, sm.config.RTMP.GOPNum, sm.config.HTTPFLV.GOPNum, sm.config.HLS.MuxerConfig)
+		group = NewGroup(appName, streamName, sm.config.RTMPConfig.GOPNum, sm.config.HTTPFLVConfig.GOPNum, sm.config.HLSConfig.MuxerConfig)
 		sm.groupMap[streamName] = group
 	}
 	go group.RunLoop()

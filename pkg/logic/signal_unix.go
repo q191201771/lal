@@ -8,7 +8,7 @@
 
 // +build linux darwin netbsd freebsd openbsd dragonfly
 
-package main
+package logic
 
 import (
 	"os"
@@ -18,10 +18,10 @@ import (
 	log "github.com/q191201771/naza/pkg/nazalog"
 )
 
-func runSignalHandler() {
+func runSignalHandler(cb func()) {
 	c := make(chan os.Signal)
 	signal.Notify(c, syscall.SIGUSR1, syscall.SIGUSR2)
 	s := <-c
 	log.Infof("recv signal. s=%+v", s)
-	sm.Dispose()
+	cb()
 }

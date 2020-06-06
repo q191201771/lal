@@ -11,7 +11,6 @@ package avc
 import (
 	"errors"
 	"io"
-	"math"
 
 	"github.com/q191201771/naza/pkg/bele"
 	"github.com/q191201771/naza/pkg/nazabits"
@@ -64,24 +63,23 @@ func CalcNaluType(nalu []byte) uint8 {
 	return nalu[0] & 0x1f
 }
 
+// TODO chef: 考虑将error返回给上层
 func CalcSliceType(nalu []byte) uint8 {
-	c := nalu[1]
-	var leadingZeroBits int
-	index := 6 // can't unsigned
-	for ; index >= 0; index-- {
-		v := nazabits.GetBit8(c, uint(index))
-		if v == 0 {
-			leadingZeroBits++
-		} else {
-			break
-		}
+	br := nazabits.NewBitReader(nalu[1:])
+	// first_mb_in_slice
+	_, err := br.ReadGolomb()
+	if err != nil {
+		return 0
 	}
-	rbLeadingZeroBits := nazabits.GetBits8(c, uint(index-1), uint(leadingZeroBits))
-	codeNum := int(math.Pow(2, float64(leadingZeroBits))) - 1 + int(rbLeadingZeroBits)
-	if codeNum > 4 {
-		codeNum -= 5
+	sliceType, err := br.ReadGolomb()
+	if err != nil {
+		return 0
 	}
-	return uint8(codeNum)
+	// TODO chef: 检查非法数据，slice type范围 [0, 9]
+	if sliceType > 4 {
+		sliceType -= 5
+	}
+	return uint8(sliceType)
 }
 
 func CalcNaluTypeReadable(nalu []byte) string {
@@ -156,6 +154,8 @@ func ParseAVCSeqHeader(payload []byte) (sps, pps []byte, err error) {
 
 	return
 }
+
+// TODO chef: 和HLS中的代码有重复，合并一下
 
 // 将rtmp avc数据转换成avc裸流
 // @param <payload> rtmp message的payload部分 或者 flv tag的payload部分

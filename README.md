@@ -65,56 +65,55 @@ $./build.sh
 #### 运行
 
 ```shell
-$./bin/lals -c conf/lals.conf.json
+$./bin/lalserver -c conf/lalserver.conf.json
 ```
 
 #### 体验功能
 
-快速体验lals服务器见：[常见推拉流客户端软件的使用方式](https://pengrl.com/p/20051/)
+快速体验lalserver服务器见：[常见推拉流客户端软件的使用方式](https://pengrl.com/p/20051/)
 
 ### 二. 配置文件说明
 
 ```
 {
   "rtmp": {
-    "addr": ":19350", // RTMP服务监听的端口，客户端向lals推拉流都是这个地址
+    "enable": true,   // 是否开启rtmp服务的监听
+    "addr": ":19350", // RTMP服务监听的端口，客户端向lalserver推拉流都是这个地址
     "gop_num": 2      // RTMP拉流的GOP缓存数量，加速秒开
   },
   "httpflv": {
+    "enable": true,             // 是否开启HTTP-FLV服务的监听
     "sub_listen_addr": ":8080", // HTTP-FLV拉流地址
     "gop_num": 2
   },
   "hls": {
+    "enable": true,               // 是否开启HLS服务的监听
     "sub_listen_addr": ":8081",   // HLS监听地址
     "out_path": "/tmp/lal/hls/",  // HLS文件保存根目录
-    "fragment_duration_ms": 3000, // 单个TS文件切片时长
+    "fragment_duration_ms": 3000, // 单个TS文件切片时长，单位毫秒
     "fragment_num": 6             // M3U8文件列表中TS文件的数量
+  },
+  "pprof": {
+    "enable": true,  // 是否开启Go pprof web服务的监听
+    "addr": ":10001" // Go pprof web地址
   },
   "log": {
     "level": 1,                    // 日志级别，1 debug, 2 info, 3 warn, 4 error, 5 fatal
-    "filename": "./logs/lals.log", // 日志输出文件
+    "filename": "./logs/lalserver.log", // 日志输出文件
     "is_to_stdout": true,          // 是否打印至标志控制台输出
     "is_rotate_daily": true,       // 日志按天翻滚
     "short_file_flag": true,       // 日志末尾是否携带源码文件名以及行号的信息
     "assert_behavior": 1           // 日志断言的行为，1 只打印错误日志 2 打印并退出程序 3 打印并panic
-  },
-  "pprof": {
-    "addr": ":10001" // Go pprof web地址
   }
 }
 ```
-
-其它放在代码中的配置：
-
-- [rtmp/var.go](https://github.com/q191201771/lal/blob/master/pkg/rtmp/var.go)
-- [httpflv/var.go](https://github.com/q191201771/lal/blob/master/pkg/httpflv/var.go)
 
 ### 三. 仓库目录框架
 
 简单来说，源码在`pkg/`，`app/`，`demo/`三个目录下。
 
 - `pkg/`：存放各package包，供本repo的程序以及其他业务方使用
-- `app/`：重要程序的入口（目前仅包含lals——基于lal编写的一个通用流媒体服务器程序）
+- `app/`：重要程序的入口（目前仅包含lalserver——基于lal编写的一个通用流媒体服务器程序）
 - `demo/`：存放各种基于`lal/pkg`开发的小程序（小工具），一个子目录是一个程序，详情见各源码文件中头部的说明
 
 ```
@@ -122,13 +121,13 @@ pkg/                  ......
 |-- rtmp/             ......RTMP协议
 |-- httpflv/          ......HTTP-FLV协议
 |-- hls/              ......HLS协议
-|-- logic/            ......lals服务器程序的上层业务逻辑
+|-- logic/            ......lalserver服务器程序的上层业务逻辑
 |-- aac/              ......音频AAC编码格式相关
 |-- avc/              ......视频H264/AVC编码格式相关
 |-- hevc/             ......视频H265/HEVC编码格式相关
 
 app/                  ......
-|-- lals/             ......流媒体服务器lals的main函数入口
+|-- lalserver/             ......流媒体服务器lalserver的main函数入口
 
 demo/                 ......
 |-- analyseflv        ......
@@ -162,34 +161,31 @@ conf/                 ......配置文件目录
 * 不依赖第三方代码
 * 后续可快速集成各种网络传输协议，流媒体封装协议
 
-#### lals服务器功能
+#### lalserver服务器功能
 
 - [x] **pub 接收推流：** RTMP
 - [x] **sub 接收拉流：** RTMP，HTTP-FLV，HLS(m3u8+ts)
 - [x] **音频编码格式：** AAC
 - [x] **视频编码格式：** H264/AVC，H265/HEVC
 - [x] **GOP缓存：** 用于秒开
-
-TODO
-
-- RTMP转推
-- RTMP回源
-- HTTP-FLV回源
-- 静态转推、回源
-- 动态转推、回源
-- rtsp
-- rtp/rtcp
-- webrtc
-- udp quic
-- udp srt
-- udp kcp
-- 分布式。提供与外部调度系统交互的接口。应对多级分发场景，或平级源站类型场景
-- 调整框架代码
-- 各种推流、拉流客户端兼容性测试
-- 和其它主流服务器的性能对比测试
-- 整理日志
-- 稳定性测试
-- mp4
+- [ ] RTMP转推
+- [ ] RTMP回源
+- [ ] HTTP-FLV回源
+- [ ] 静态转推、回源
+- [ ] 动态转推、回源
+- [ ] rtsp
+- [ ] rtp/rtcp
+- [ ] webrtc
+- [ ] udp quic
+- [ ] udp srt
+- [ ] udp kcp
+- [ ] mp4
+- [ ] 分布式。提供与外部调度系统交互的接口。应对多级分发场景，或平级源站类型场景
+- [ ] 调整框架代码
+- [ ] 各种推流、拉流客户端兼容性测试
+- [ ] 和其它主流服务器的性能对比测试
+- [ ] 整理日志
+- [ ] 稳定性测试
 
 ### 五. 文档
 

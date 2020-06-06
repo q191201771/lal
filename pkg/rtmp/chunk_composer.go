@@ -188,7 +188,7 @@ func (c *ChunkComposer) getOrCreateStream(csid int) *Stream {
 
 // 临时存放一些rtmp推流case在这，便于理解，以及修改后，回归用
 //
-// 场景：ffmpeg推送test.flv至lals
+// 场景：ffmpeg推送test.flv至lalserver
 // 关注点：message超过chunk时，fmt和timestamp的值
 //
 // ChunkComposer chunk fmt:1 header:{CSID:6 MsgLen:143 Timestamp:40 MsgTypeID:9 MsgStreamID:1 TimestampAbs:520} csid:6 len:143 ts:520

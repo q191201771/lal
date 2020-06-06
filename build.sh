@@ -49,6 +49,6 @@ do
 done
 
 
-${ROOT_DIR}/${OUT_DIR}/lals -v &&
+${ROOT_DIR}/${OUT_DIR}/lalserver -v &&
 ls -lrt ${ROOT_DIR}/${OUT_DIR} &&
 echo 'build done.'

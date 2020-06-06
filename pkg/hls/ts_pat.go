@@ -52,29 +52,30 @@ type PATProgramElement struct {
 }
 
 func ParsePAT(b []byte) (pat PAT) {
+	// TODO chef: 检查长度
 	br := nazabits.NewBitReader(b)
-	pat.tid = br.ReadBits8(8)
-	pat.ssi = br.ReadBits8(1)
-	br.ReadBits8(3)
-	pat.sl = br.ReadBits16(12)
-	pat.tsi = br.ReadBits16(16)
-	br.ReadBits8(2)
-	pat.vn = br.ReadBits8(5)
-	pat.cni = br.ReadBits8(1)
-	pat.sn = br.ReadBits8(8)
-	pat.lsn = br.ReadBits8(8)
+	pat.tid, _ = br.ReadBits8(8)
+	pat.ssi, _ = br.ReadBits8(1)
+	_, _ = br.ReadBits8(3)
+	pat.sl, _ = br.ReadBits16(12)
+	pat.tsi, _ = br.ReadBits16(16)
+	_, _ = br.ReadBits8(2)
+	pat.vn, _ = br.ReadBits8(5)
+	pat.cni, _ = br.ReadBits8(1)
+	pat.sn, _ = br.ReadBits8(8)
+	pat.lsn, _ = br.ReadBits8(8)
 
 	length := pat.sl - 9
 
 	for i := uint16(0); i < length; i += 4 {
 		var ppe PATProgramElement
-		ppe.pn = br.ReadBits16(16)
-		br.ReadBits8(3)
+		ppe.pn, _ = br.ReadBits16(16)
+		_, _ = br.ReadBits8(3)
 		// TODO chef if pn == 0
-		ppe.pmpid = br.ReadBits16(13)
+		ppe.pmpid, _ = br.ReadBits16(13)
 		pat.ppes = append(pat.ppes, ppe)
 	}
-	pat.crc32 = br.ReadBits32(32)
+	pat.crc32, _ = br.ReadBits32(32)
 	return
 }
 

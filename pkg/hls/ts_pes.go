@@ -49,16 +49,16 @@ type PES struct {
 
 func ParsePES(b []byte) (pes PES, length int) {
 	br := nazabits.NewBitReader(b)
-	pes.pscp = br.ReadBits32(24)
-	pes.sid = br.ReadBits8(8)
-	pes.ppl = br.ReadBits16(16)
+	pes.pscp, _ = br.ReadBits32(24)
+	pes.sid, _ = br.ReadBits8(8)
+	pes.ppl, _ = br.ReadBits16(16)
 
-	pes.pad1 = br.ReadBits8(8)
-	pes.ptsDtsFlag = br.ReadBits8(2)
-	pes.pad2 = br.ReadBits8(6)
-	pes.phdl = br.ReadBits8(8)
+	pes.pad1, _ = br.ReadBits8(8)
+	pes.ptsDtsFlag, _ = br.ReadBits8(2)
+	pes.pad2, _ = br.ReadBits8(6)
+	pes.phdl, _ = br.ReadBits8(8)
 
-	br.ReadBytes(uint(pes.phdl))
+	_, _ = br.ReadBytes(uint(pes.phdl))
 	length = 9 + int(pes.phdl)
 
 	// 处理得不是特别标准

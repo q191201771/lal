@@ -1,27 +1,31 @@
 {
   "rtmp": {
+    "enable": true,
     "addr": ":19350",
     "gop_num": 2
   },
   "httpflv": {
+    "enable": true,
     "sub_listen_addr": ":8080",
     "gop_num": 2
   },
   "hls": {
+    "enable": true,
     "sub_listen_addr": ":8081",
     "out_path": "/tmp/lal/hls/",
     "fragment_duration_ms": 3000,
     "fragment_num": 6
   },
+  "pprof": {
+    "enable": true,
+    "addr": ":10001"
+  },
   "log": {
     "level": 1,
-    "filename": "./logs/lals.log",
+    "filename": "./logs/lalserver.log",
     "is_to_stdout": true,
     "is_rotate_daily": true,
     "short_file_flag": true,
     "assert_behavior": 1
-  },
-  "pprof": {
-    "addr": ":10001"
   }
 }

@@ -219,11 +219,12 @@ func (s *ClientSession) doDataMessageAMF0(stream *Stream) error {
 	}
 
 	switch val {
-	case "|RtmpSampleAccess": // TODO chef: handle this?
-		return nil
-	default:
+	case "|RtmpSampleAccess":
+		// TODO chef: handle this?
 		log.Error(val)
 		log.Error(hex.Dump(stream.msg.buf[stream.msg.b:stream.msg.e]))
+		return nil
+	default:
 	}
 	s.onReadRTMPAVMsg(stream.toAVMsg())
 	return nil

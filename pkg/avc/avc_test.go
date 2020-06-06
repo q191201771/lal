@@ -34,3 +34,22 @@ func TestCorner(t *testing.T) {
 	assert.Equal(t, nil, b.Bytes())
 	assert.Equal(t, err, ErrAVC)
 }
+
+func TestCalcSliceType(t *testing.T) {
+	data := []struct {
+		in  []byte
+		out uint8
+	}{
+		{[]byte{0x65, 0x88, 0x82}, SliceTypeI},
+		{[]byte{0x65, 0x88, 0x84}, SliceTypeI},
+		{[]byte{0x41, 0x9a, 0x26}, SliceTypeP},
+		{[]byte{0x41, 0x9a, 0x46}, SliceTypeP},
+		{[]byte{0x41, 0x9a, 0x24}, SliceTypeP},
+		{[]byte{0x41, 0x9e, 0x42}, SliceTypeB},
+	}
+
+	for _, item := range data {
+		assert.Equal(t, CalcSliceType(item.in), item.out)
+	}
+
+}

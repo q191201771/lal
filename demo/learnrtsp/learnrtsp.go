@@ -6,10 +6,17 @@
 //
 // Author: Chef (191201771@qq.com)
 
-// +build windows
-
 package main
 
-func runSignalHandler() {
+import (
+	"github.com/q191201771/lal/pkg/rtsp"
+	"github.com/q191201771/naza/pkg/nazalog"
+)
 
+func main() {
+	s := rtsp.NewServer(":5544")
+	err := s.Listen()
+	nazalog.Assert(nil, err)
+	err = s.RunLoop()
+	nazalog.Error(err)
 }

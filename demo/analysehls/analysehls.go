@@ -71,7 +71,7 @@ func main() {
 
 	go func() {
 		for {
-			content, err := nazahttp.GetHttpFile(m3u8URL, 3000)
+			content, err := nazahttp.GetHTTPFile(m3u8URL, 3000)
 			if err != nil {
 				nazalog.Error(err)
 				return
@@ -107,7 +107,7 @@ func main() {
 			nazalog.Infof("< new frag. filename=%s", f.filename)
 			tsURL := getTSURL(m3u8URL, f.filename)
 			nazalog.Debug(tsURL)
-			content, err := nazahttp.GetHttpFile(tsURL, 3000)
+			content, err := nazahttp.GetHTTPFile(tsURL, 3000)
 			nazalog.Assert(nil, err)
 			nazalog.Debugf("TS len=%d", len(content))
 		}

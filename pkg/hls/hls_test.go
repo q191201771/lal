@@ -11,6 +11,8 @@ package hls_test
 import (
 	"testing"
 
+	"github.com/q191201771/lal/pkg/innertest"
+
 	"github.com/q191201771/lal/pkg/hls"
 	"github.com/q191201771/naza/pkg/nazalog"
 )
@@ -25,4 +27,8 @@ func TestParseFixedTSPacket(t *testing.T) {
 	nazalog.Debugf("%+v", h)
 	pmt := hls.ParsePMT(hls.FixedFragmentHeader[188+5:])
 	nazalog.Debugf("%+v", pmt)
+}
+
+func TestHls(t *testing.T) {
+	innertest.InnerTestEntry(t)
 }

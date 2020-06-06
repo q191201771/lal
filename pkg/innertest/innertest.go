@@ -1,4 +1,4 @@
-// Copyright 2019, Chef.  All rights reserved.
+// Copyright 2020, Chef.  All rights reserved.
 // https://github.com/q191201771/lal
 //
 // Use of this source code is governed by a MIT-style license
@@ -6,7 +6,7 @@
 //
 // Author: Chef (191201771@qq.com)
 
-package logic_test
+package innertest
 
 import (
 	"bytes"
@@ -14,29 +14,29 @@ import (
 	"io"
 	"io/ioutil"
 	"os"
+	"syscall"
 	"testing"
 	"time"
 
-	"github.com/q191201771/lal/pkg/hls"
-
-	"github.com/q191201771/lal/pkg/logic"
-
 	"github.com/q191201771/lal/pkg/httpflv"
+	"github.com/q191201771/lal/pkg/logic"
 	"github.com/q191201771/lal/pkg/rtmp"
 	"github.com/q191201771/naza/pkg/assert"
 	"github.com/q191201771/naza/pkg/nazaatomic"
 	"github.com/q191201771/naza/pkg/nazalog"
 )
 
-// 读取 flv 文件，使用 rtmp 协议推送至服务端，之后分别用 rtmp 协议以及 httpflv 协议从服务端拉流，再将拉取的流保存为flv文件，
-// 最后用三份 flv 文件做对比，看是否完全一致。
+// 开启了一个lalserver
+// 读取flv文件，使用rtmp协议推送至服务端
+// 分别用rtmp协议以及httpflv协议从服务端拉流，再将拉取的流保存为flv文件
+// 对比三份flv文件，看是否完全一致
+
+// TODO chef: 加上hls的检查
 
 var (
 	tt *testing.T
 
-	rtmpAddr    = ":19350"
-	httpflvAddr = ":8080"
-	hlsAddr     = ":10001"
+	confFile = "testdata/lalserver.default.conf.json"
 
 	rFLVFileName      = "testdata/test.flv"
 	wFLVPullFileName  = "testdata/flvpull.flv"
@@ -47,8 +47,8 @@ var (
 	rtmpPullURL    string
 
 	fileReader    httpflv.FLVFileReader
-	HTTPFLVWriter httpflv.FLVFileWriter
-	RTMPWriter    httpflv.FLVFileWriter
+	httpFLVWriter httpflv.FLVFileWriter
+	rtmpWriter    httpflv.FLVFileWriter
 
 	pushSession        *rtmp.PushSession
 	httpflvPullSession *httpflv.PullSession
@@ -59,44 +59,32 @@ var (
 	rtmpPullTagCount    nazaatomic.Uint32
 )
 
-func TestExample(t *testing.T) {
+func InnerTestEntry(t *testing.T) {
 	tt = t
 
 	var err error
 
+	go logic.Entry(confFile)
+	time.Sleep(200 * time.Millisecond)
+
+	config, err := logic.LoadConf(confFile)
+	assert.Equal(t, nil, err)
+
+	pushURL = fmt.Sprintf("rtmp://127.0.0.1%s/live/11111", config.RTMPConfig.Addr)
+	httpflvPullURL = fmt.Sprintf("http://127.0.0.1%s/live/11111.flv", config.HTTPFLVConfig.SubListenAddr)
+	rtmpPullURL = fmt.Sprintf("rtmp://127.0.0.1%s/live/11111", config.RTMPConfig.Addr)
+
 	err = fileReader.Open(rFLVFileName)
 	assert.Equal(t, nil, err)
 
-	config := logic.Config{
-		RTMP:    logic.RTMP{Addr: rtmpAddr},
-		HTTPFLV: logic.HTTPFLV{SubListenAddr: httpflvAddr},
-		HLS: logic.HLS{
-			SubListenAddr: hlsAddr,
-			MuxerConfig: &hls.MuxerConfig{
-				OutPath:            "/tmp/lal/hls/",
-				FragmentDurationMS: 3000,
-				FragmentNum:        6,
-			},
-		},
-	}
-
-	pushURL = fmt.Sprintf("rtmp://127.0.0.1%s/live/11111", config.RTMP.Addr)
-	httpflvPullURL = fmt.Sprintf("http://127.0.0.1%s/live/11111.flv", config.HTTPFLV.SubListenAddr)
-	rtmpPullURL = fmt.Sprintf("rtmp://127.0.0.1%s/live/11111", config.RTMP.Addr)
-
-	sm := logic.NewServerManager(&config)
-	go sm.RunLoop()
-
-	time.Sleep(200 * time.Millisecond)
-
-	err = HTTPFLVWriter.Open(wFLVPullFileName)
+	err = httpFLVWriter.Open(wFLVPullFileName)
 	assert.Equal(t, nil, err)
-	err = HTTPFLVWriter.WriteRaw(httpflv.FLVHeader)
+	err = httpFLVWriter.WriteRaw(httpflv.FLVHeader)
 	assert.Equal(t, nil, err)
 
-	err = RTMPWriter.Open(wRTMPPullFileName)
+	err = rtmpWriter.Open(wRTMPPullFileName)
 	assert.Equal(t, nil, err)
-	err = RTMPWriter.WriteRaw(httpflv.FLVHeader)
+	err = rtmpWriter.WriteRaw(httpflv.FLVHeader)
 	assert.Equal(t, nil, err)
 
 	go func() {
@@ -105,7 +93,7 @@ func TestExample(t *testing.T) {
 		})
 		err := rtmpPullSession.Pull(rtmpPullURL, func(msg rtmp.AVMsg) {
 			tag := logic.Trans.RTMPMsg2FLVTag(msg)
-			err := RTMPWriter.WriteTag(*tag)
+			err := rtmpWriter.WriteTag(*tag)
 			assert.Equal(tt, nil, err)
 			rtmpPullTagCount.Increment()
 		})
@@ -117,7 +105,7 @@ func TestExample(t *testing.T) {
 			option.ReadTimeoutMS = 500
 		})
 		err := httpflvPullSession.Pull(httpflvPullURL, func(tag httpflv.Tag) {
-			err := HTTPFLVWriter.WriteTag(tag)
+			err := httpFLVWriter.WriteTag(tag)
 			assert.Equal(t, nil, err)
 			httpflvPullTagCount.Increment()
 		})
@@ -151,9 +139,9 @@ func TestExample(t *testing.T) {
 	pushSession.Dispose()
 	httpflvPullSession.Dispose()
 	rtmpPullSession.Dispose()
-	HTTPFLVWriter.Dispose()
-	RTMPWriter.Dispose()
-	sm.Dispose()
+	httpFLVWriter.Dispose()
+	rtmpWriter.Dispose()
+	_ = syscall.Kill(syscall.Getpid(), syscall.SIGUSR1)
 
 	nazalog.Debugf("count. %d %d %d", fileTagCount.Load(), httpflvPullTagCount.Load(), rtmpPullTagCount.Load())
 	compareFile()
@@ -162,12 +150,14 @@ func TestExample(t *testing.T) {
 func compareFile() {
 	r, err := ioutil.ReadFile(rFLVFileName)
 	assert.Equal(tt, nil, err)
+
 	w, err := ioutil.ReadFile(wFLVPullFileName)
 	assert.Equal(tt, nil, err)
 	res := bytes.Compare(r, w)
 	assert.Equal(tt, 0, res)
 	err = os.Remove(wFLVPullFileName)
 	assert.Equal(tt, nil, err)
+
 	w2, err := ioutil.ReadFile(wRTMPPullFileName)
 	assert.Equal(tt, nil, err)
 	res = bytes.Compare(r, w2)

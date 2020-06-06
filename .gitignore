@@ -2,6 +2,9 @@ profile.out
 coverage.html
 *.aac
 *.h264
+*.flv
+logs
+testdata
 
 /pre-commit.sh
 /coverage.txt
@@ -14,9 +17,4 @@ coverage.html
 /release
 /.idea
 /.trash
-/logs
 /playground
-/testdata
-/pkg/rtmp/testdata
-/pkg/httpflv/testdata
-/pkg/logic/testdata

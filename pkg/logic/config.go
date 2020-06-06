@@ -8,25 +8,86 @@
 
 package logic
 
-import "github.com/q191201771/lal/pkg/hls"
+import (
+	"encoding/json"
+	"errors"
+	"io/ioutil"
+
+	"github.com/q191201771/lal/pkg/hls"
+	"github.com/q191201771/naza/pkg/nazajson"
+	"github.com/q191201771/naza/pkg/nazalog"
+)
 
 type Config struct {
-	RTMP    RTMP    `json:"rtmp"`
-	HTTPFLV HTTPFLV `json:"httpflv"`
-	HLS     HLS     `json:"hls"`
+	RTMPConfig    RTMPConfig    `json:"rtmp"`
+	HTTPFLVConfig HTTPFLVConfig `json:"httpflv"`
+	HLSConfig     HLSConfig     `json:"hls"`
+
+	PProfConfig PProfConfig    `json:"pprof"`
+	LogConfig   nazalog.Option `json:"log"`
 }
 
-type RTMP struct {
+type RTMPConfig struct {
+	Enable bool   `json:"enable"`
 	Addr   string `json:"addr"`
 	GOPNum int    `json:"gop_num"`
 }
 
-type HTTPFLV struct {
+type HTTPFLVConfig struct {
+	Enable        bool   `json:"enable"`
 	SubListenAddr string `json:"sub_listen_addr"`
 	GOPNum        int    `json:"gop_num"`
 }
 
-type HLS struct {
+type HLSConfig struct {
 	SubListenAddr string `json:"sub_listen_addr"`
 	*hls.MuxerConfig
+}
+
+type PProfConfig struct {
+	Enable bool   `json:"enable"`
+	Addr   string `json:"addr"`
+}
+
+func LoadConf(confFile string) (*Config, error) {
+	var config Config
+	rawContent, err := ioutil.ReadFile(confFile)
+	if err != nil {
+		return nil, err
+	}
+	if err = json.Unmarshal(rawContent, &config); err != nil {
+		return nil, err
+	}
+
+	j, err := nazajson.New(rawContent)
+	if err != nil {
+		return nil, err
+	}
+
+	// 检查配置必须项
+	if !j.Exist("rtmp") || !j.Exist("httpflv") || !j.Exist("hls") || !j.Exist("log") || !j.Exist("pprof") {
+		return &config, errors.New("missing key field in config file")
+	}
+
+	// 配置不存在时，设置默认值
+	if !j.Exist("log.level") {
+		config.LogConfig.Level = nazalog.LevelDebug
+	}
+	if !j.Exist("log.filename") {
+		config.LogConfig.Filename = "./logs/lalserver.log"
+	}
+	if !j.Exist("log.is_to_stdout") {
+		config.LogConfig.IsToStdout = true
+	}
+	if !j.Exist("log.is_rotate_daily") {
+		config.LogConfig.IsRotateDaily = true
+	}
+	if !j.Exist("log.short_file_flag") {
+		config.LogConfig.ShortFileFlag = true
+	}
+	if !j.Exist("log.assert_behavior") {
+		config.LogConfig.AssertBehavior = nazalog.AssertError
+	}
+
+	return &config, nil
 }

@@ -8,16 +8,15 @@
 
 package hls
 
-// TODO
+// 声明，本package参考了c语言实现的开源项目nginx-rtmp-module
+
+// TODO chef:
 // - 支持HEVC
 // - 检查所有的容错处理，是否会出现
 // - 补充单元测试
 // - 配置项
 // - Server
-//     - Dispose
 //     - 超时时间
-// - 测试windows平台
-// - safari直接播放不了，vlc和ffplay是可以的
 
 // https://developer.apple.com/documentation/http_live_streaming/example_playlists_for_http_live_streaming/incorporating_ads_into_a_playlist
 // https://developer.apple.com/documentation/http_live_streaming/example_playlists_for_http_live_streaming/event_playlist_construction

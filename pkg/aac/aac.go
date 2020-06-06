@@ -10,17 +10,14 @@ package aac
 
 import (
 	"encoding/hex"
-	"io"
+	"errors"
 
 	"github.com/q191201771/naza/pkg/nazabits"
 
-	log "github.com/q191201771/naza/pkg/nazalog"
+	"github.com/q191201771/naza/pkg/nazalog"
 )
 
-// TODO chef: 把Seq Header头两字节的解析和ADTS的内容分离开
-
-// TODO chef: 这个全局变量没有并发保证，删除掉
-var adts ADTS
+var ErrAAC = errors.New("lal.aac: fxxk")
 
 // Audio Data Transport Stream
 type ADTS struct {
@@ -33,7 +30,13 @@ type ADTS struct {
 
 // 传入AAC Sequence Header，调用GetADTS时需要使用
 // @param <payload> rtmp message payload，包含前面2个字节
-func (obj *ADTS) PutAACSequenceHeader(payload []byte) {
+func (a *ADTS) PutAACSequenceHeader(payload []byte) error {
+	if len(payload) < 4 {
+		nazalog.Warnf("aac seq header length invalid. len=%d", len(payload))
+		return ErrAAC
+	}
+
+	// TODO chef: 把Seq Header头两字节的解析和ADTS的内容分离开
 	// <spec-video_file_format_spec_v10.pdf>, <Audio tags, AUDIODATA>, <page 10/48>
 	// ----------------------------------------------------------------------------
 	// soundFormat    [4b] 10=AAC
@@ -42,12 +45,12 @@ func (obj *ADTS) PutAACSequenceHeader(payload []byte) {
 	// soundType      [1b] 0=sndMono, 1=sndStereo. AAC always 1
 	// aacPackageType [8b] 0=seq header, 1=AAC raw
 	br := nazabits.NewBitReader(payload)
-	soundFormat := br.ReadBits8(4)
-	soundRate := br.ReadBits8(2)
-	soundSize := br.ReadBits8(1)
-	soundType := br.ReadBits8(1)
-	aacPacketType := br.ReadBits8(8)
-	log.Debugf("%s %d %d %d %d %d", hex.Dump(payload[:4]), soundFormat, soundRate, soundSize, soundType, aacPacketType)
+	soundFormat, _ := br.ReadBits8(4)
+	soundRate, _ := br.ReadBits8(2)
+	soundSize, _ := br.ReadBits8(1)
+	soundType, _ := br.ReadBits8(1)
+	aacPacketType, _ := br.ReadBits8(8)
+	nazalog.Debugf("%s %d %d %d %d %d", hex.Dump(payload[:4]), soundFormat, soundRate, soundSize, soundType, aacPacketType)
 
 	// <ISO_IEC_14496-3.pdf>
 	// <1.6.2.1 AudioSpecificConfig>, <page 33/110>
@@ -58,17 +61,21 @@ func (obj *ADTS) PutAACSequenceHeader(payload []byte) {
 	// audio object type      [5b] 2=AAC LC
 	// samplingFrequencyIndex [4b] 3=48000 4=44100
 	// channelConfiguration   [4b] 2=left, right front speakers
-	obj.audioObjectType = br.ReadBits8(5)
-	obj.samplingFrequencyIndex = br.ReadBits8(4)
-	obj.channelConfiguration = br.ReadBits8(4)
-	log.Debugf("%+v", obj)
+	a.audioObjectType, _ = br.ReadBits8(5)
+	a.samplingFrequencyIndex, _ = br.ReadBits8(4)
+	a.channelConfiguration, _ = br.ReadBits8(4)
+	nazalog.Debugf("%+v", a)
 
-	obj.adtsHeader = make([]byte, 7)
+	if a.adtsHeader == nil {
+		a.adtsHeader = make([]byte, 7)
+	}
+
+	return nil
 }
 
-// 获取 ADTS 头，注意，由于ADTS头依赖包的长度，而每个包的长度不同，所以生成的每个包的 ADTS 头也不同
+// 获取ADTS头，注意，由于ADTS头依赖包的长度，而每个包的长度不同，所以生成的每个包的ADTS头也不同
 // @param <length> rtmp message payload长度，包含前面2个字节
-func (obj *ADTS) GetADTS(length uint16) []byte {
+func (a *ADTS) GetADTS(length uint16) []byte {
 	// <ISO_IEC_14496-3.pdf>
 	// <1.A.2.2.1 Fixed Header of ADTS>, <page 75/110>
 	// <1.A.2.2.2 Variable Header of ADTS>, <page 76/110>
@@ -95,33 +102,21 @@ func (obj *ADTS) GetADTS(length uint16) []byte {
 	// 减去头两字节，再加上自身adts头的7个字节
 	length += 5
 
-	bw := nazabits.NewBitWriter(obj.adtsHeader)
-	bw.WriteBits16(12, 0xFFF)                    // Syncword 0(8) 1(4)
-	bw.WriteBits8(4, 0x1)                        // ID, Layer, protection_absent 1(4)
-	bw.WriteBits8(2, obj.audioObjectType-1)      // 2(2)
-	bw.WriteBits8(4, obj.samplingFrequencyIndex) // 2(4)
-	bw.WriteBits8(1, 0)                          // private_bit 2(1)
-	bw.WriteBits8(3, obj.channelConfiguration)   // 2(1) 3(2)
-	bw.WriteBits8(4, 0)                          // origin/copy, home, copyright_identification_bit, copyright_identification_start 3(4)
-	bw.WriteBits16(13, length)                   // 3(2) 4(8) 5(3)
-	bw.WriteBits16(11, 0x7FF)                    // adts_buffer_fullness 5(5) 6(6)
-	bw.WriteBits8(2, 0)                          // no_raw_data_blocks_in_frame 6(2)
+	bw := nazabits.NewBitWriter(a.adtsHeader)
+	bw.WriteBits16(12, 0xFFF)                  // Syncword 0(8) 1(4)
+	bw.WriteBits8(4, 0x1)                      // ID, Layer, protection_absent 1(4)
+	bw.WriteBits8(2, a.audioObjectType-1)      // 2(2)
+	bw.WriteBits8(4, a.samplingFrequencyIndex) // 2(4)
+	bw.WriteBits8(1, 0)                        // private_bit 2(1)
+	bw.WriteBits8(3, a.channelConfiguration)   // 2(1) 3(2)
+	bw.WriteBits8(4, 0)                        // origin/copy, home, copyright_identification_bit, copyright_identification_start 3(4)
+	bw.WriteBits16(13, length)                 // 3(2) 4(8) 5(3)
+	bw.WriteBits16(11, 0x7FF)                  // adts_buffer_fullness 5(5) 6(6)
+	bw.WriteBits8(2, 0)                        // no_raw_data_blocks_in_frame 6(2)
 
-	return obj.adtsHeader
+	return a.adtsHeader
 }
 
-func (obj *ADTS) IsNil() bool {
-	return obj.adtsHeader == nil
-}
-
-// 将 rtmp AAC 传入，输出带 ADTS 头的 AAC ES流
-// @param <payload> rtmp message payload部分
-func CaptureAAC(w io.Writer, payload []byte) {
-	if payload[1] == 0 {
-		adts.PutAACSequenceHeader(payload)
-		return
-	}
-
-	_, _ = w.Write(adts.GetADTS(uint16(len(payload))))
-	_, _ = w.Write(payload[2:])
+func (a *ADTS) IsNil() bool {
+	return a.adtsHeader == nil
 }

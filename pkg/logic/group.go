@@ -87,8 +87,10 @@ func (group *Group) AddRTMPPubSession(session *rtmp.ServerSession) bool {
 	}
 
 	group.pubSession = session
-	group.hlsMuxer = hls.NewMuxer(group.streamName, group.hlsConfig)
-	group.hlsMuxer.Start()
+	if group.hlsConfig.Enable {
+		group.hlsMuxer = hls.NewMuxer(group.streamName, group.hlsConfig)
+		group.hlsMuxer.Start()
+	}
 	group.mutex.Unlock()
 
 	session.SetPubSessionObserver(group)
@@ -100,7 +102,9 @@ func (group *Group) DelRTMPPubSession(session *rtmp.ServerSession) {
 	group.mutex.Lock()
 	defer group.mutex.Unlock()
 	group.pubSession = nil
-	group.hlsMuxer.Stop()
+	if group.hlsConfig.Enable {
+		group.hlsMuxer.Stop()
+	}
 
 	group.gopCache.Clear()
 	group.httpflvGopCache.Clear()
@@ -159,7 +163,9 @@ func (group *Group) OnReadRTMPAVMsg(msg rtmp.AVMsg) {
 
 	//log.Debugf("%+v, %02x, %02x", msg.Header, msg.Payload[0], msg.Payload[1])
 	group.broadcastRTMP(msg)
-	group.hlsMuxer.FeedRTMPMessage(msg)
+	if group.hlsConfig.Enable {
+		group.hlsMuxer.FeedRTMPMessage(msg)
+	}
 }
 
 func (group *Group) broadcastRTMP(msg rtmp.AVMsg) {

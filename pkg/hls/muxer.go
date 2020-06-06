@@ -28,6 +28,7 @@ type fragmentInfo struct {
 }
 
 type MuxerConfig struct {
+	Enable             bool   `json:"enable"`
 	OutPath            string `json:"out_path"`
 	FragmentDurationMS int    `json:"fragment_duration_ms"`
 	FragmentNum        int    `json:"fragment_num"`

@@ -63,36 +63,36 @@ type PMTProgramElement struct {
 
 func ParsePMT(b []byte) (pmt PMT) {
 	br := nazabits.NewBitReader(b)
-	pmt.tid = br.ReadBits8(8)
-	pmt.ssi = br.ReadBits8(1)
-	br.ReadBits8(3)
-	pmt.sl = br.ReadBits16(12)
+	pmt.tid, _ = br.ReadBits8(8)
+	pmt.ssi, _ = br.ReadBits8(1)
+	_, _ = br.ReadBits8(3)
+	pmt.sl, _ = br.ReadBits16(12)
 	len := pmt.sl - 13
-	pmt.pn = br.ReadBits16(16)
-	br.ReadBits8(2)
-	pmt.vn = br.ReadBits8(5)
-	pmt.cni = br.ReadBits8(1)
-	pmt.sn = br.ReadBits8(8)
-	pmt.lsn = br.ReadBits8(8)
-	br.ReadBits8(3)
-	pmt.pp = br.ReadBits16(13)
-	br.ReadBits8(4)
-	pmt.pil = br.ReadBits16(12)
+	pmt.pn, _ = br.ReadBits16(16)
+	_, _ = br.ReadBits8(2)
+	pmt.vn, _ = br.ReadBits8(5)
+	pmt.cni, _ = br.ReadBits8(1)
+	pmt.sn, _ = br.ReadBits8(8)
+	pmt.lsn, _ = br.ReadBits8(8)
+	_, _ = br.ReadBits8(3)
+	pmt.pp, _ = br.ReadBits16(13)
+	_, _ = br.ReadBits8(4)
+	pmt.pil, _ = br.ReadBits16(12)
 	if pmt.pil != 0 {
 		nazalog.Warn(pmt.pil)
-		br.ReadBytes(uint(pmt.pil))
+		_, _ = br.ReadBytes(uint(pmt.pil))
 	}
 
 	for i := uint16(0); i < len; i += 5 {
 		var ppe PMTProgramElement
-		ppe.StreamType = br.ReadBits8(8)
-		br.ReadBits8(3)
-		ppe.Pid = br.ReadBits16(13)
-		br.ReadBits8(4)
-		ppe.Length = br.ReadBits16(12)
+		ppe.StreamType, _ = br.ReadBits8(8)
+		_, _ = br.ReadBits8(3)
+		ppe.Pid, _ = br.ReadBits16(13)
+		_, _ = br.ReadBits8(4)
+		ppe.Length, _ = br.ReadBits16(12)
 		if ppe.Length != 0 {
 			nazalog.Warn(ppe.Length)
-			br.ReadBits32(uint(ppe.Length))
+			_, _ = br.ReadBits32(uint(ppe.Length))
 		}
 		pmt.ProgramElements = append(pmt.ProgramElements, ppe)
 	}

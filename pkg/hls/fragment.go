@@ -10,8 +10,6 @@ package hls
 
 import (
 	"os"
-
-	"github.com/q191201771/naza/pkg/nazalog"
 )
 
 type FragmentOP struct {
@@ -136,7 +134,6 @@ func (f *FragmentOP) WriteFrame(frame *mpegTSFrame, b []byte) {
 
 			pesSize := rpos + int(headerSize) + 3 // PES Header剩余3字节 + PTS/PTS长度 + 整个帧的长度
 			if pesSize > 0xFFFF {
-				nazalog.Warnf("pes size too large. pesSize=%d", pesSize)
 				pesSize = 0
 			}
 

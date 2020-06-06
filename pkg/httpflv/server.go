@@ -10,7 +10,6 @@ package httpflv
 
 import (
 	"net"
-	"sync"
 
 	log "github.com/q191201771/naza/pkg/nazalog"
 )
@@ -26,9 +25,7 @@ type ServerObserver interface {
 type Server struct {
 	obs  ServerObserver
 	addr string
-
-	m  sync.Mutex
-	ln net.Listener
+	ln   net.Listener
 }
 
 func NewServer(obs ServerObserver, addr string) *Server {
@@ -38,18 +35,15 @@ func NewServer(obs ServerObserver, addr string) *Server {
 	}
 }
 
-func (server *Server) RunLoop() error {
-	var err error
-
-	server.m.Lock()
-	server.ln, err = net.Listen("tcp", server.addr)
-	server.m.Unlock()
-
-	if err != nil {
-		return err
+func (server *Server) Listen() (err error) {
+	if server.ln, err = net.Listen("tcp", server.addr); err != nil {
+		return
 	}
+	log.Infof("start httpflv server listen. addr=%s", server.addr)
+	return
+}
 
-	log.Infof("start httpflv listen. addr=%s", server.addr)
+func (server *Server) RunLoop() error {
 	for {
 		conn, err := server.ln.Accept()
 		if err != nil {
@@ -60,8 +54,6 @@ func (server *Server) RunLoop() error {
 }
 
 func (server *Server) Dispose() {
-	server.m.Lock()
-	defer server.m.Unlock()
 	if server.ln == nil {
 		return
 	}
