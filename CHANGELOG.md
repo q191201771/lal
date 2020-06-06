@@ -1,3 +1,18 @@
+#### v0.10.0
+
+- [refactor] app/lals重命名为app/lalserver，避免描述时容易和lal造成混淆
+- [refactor] 将app/lalserver的大部分逻辑代码移入pkg/logic中
+- [test] 将所有package的Server、Session等内容的实例测试收缩至package innertest中，多个package都可以共用它做单元测试
+- [refactor] lalserver配置中增加显式enable字段，用于开启关闭特定协议
+- [refactor] 各package的Server对象增加独立的Listen函数，使得绑定监听端口失败时上层可以第一时间感知
+- [feat] demo/analyseflv，增加I帧间隔检查，增加metadata分析
+- [fix] package avc: 修复函数CalcSliceType解析I、P、B帧类型的bug
+- [fix] package hls: 检查输入的rtmp message是否完整，避免非法数据造成崩溃
+- [perf] gop缓存使用环形队列替换FIFO动态切片队列
+- [refactor] package aac: 函数ADTS::PutAACSequenceHeader检查输入切片长度
+- [refactor] package aac: 删除函数CaptureAAC
+- [feat] 增加demo/learnrtsp，pkg/rtsp，开始学习rtsp
+
 #### v0.9.0
 
 - [feat] 新增HLS直播功能
