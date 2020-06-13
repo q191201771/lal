@@ -95,7 +95,7 @@ $./bin/lalserver -c conf/lalserver.conf.json
   },
   "relay_push": {
     "enable": false, // 是否开启中继转推功能，开启后，自身接收到的所有流都会转推出去
-    "addr_list":[    // 中继转推的对端地址，支持填写多个地址，做1对n的转推
+    "addr_list":[    // 中继转推的对端地址，支持填写多个地址，做1对n的转推。格式举例 "127.0.0.1:19351"
     ]
   },
   "pprof": {
