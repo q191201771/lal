@@ -9,23 +9,24 @@
 package logic
 
 import (
+	"fmt"
 	"sync"
 
 	"github.com/q191201771/lal/pkg/hls"
 
 	"github.com/q191201771/lal/pkg/httpflv"
 	"github.com/q191201771/lal/pkg/rtmp"
-	log "github.com/q191201771/naza/pkg/nazalog"
+	"github.com/q191201771/naza/pkg/nazalog"
 	"github.com/q191201771/naza/pkg/unique"
 )
+
+// TODO chef: group可以考虑搞个协程
 
 type Group struct {
 	UniqueKey string
 
 	appName    string
 	streamName string
-
-	hlsConfig *hls.MuxerConfig
 
 	exitChan chan struct{}
 
@@ -35,25 +36,32 @@ type Group struct {
 	httpflvSubSessionSet map[*httpflv.SubSession]struct{}
 	hlsMuxer             *hls.Muxer
 	gopCache             *GOPCache
-	// TODO chef: 如果没有开启httpflv监听，可以不做格式转换，节约CPU资源
-	httpflvGopCache *GOPCache
+	httpflvGopCache      *GOPCache
+
+	relayPushList []*RelayPush
 }
 
-var _ rtmp.PubSessionObserver = &Group{}
-
-func NewGroup(appName string, streamName string, rtmpGOPNum int, httpflvGOPNum int, hlsConfig *hls.MuxerConfig) *Group {
+func NewGroup(appName string, streamName string) *Group {
 	uk := unique.GenUniqueKey("GROUP")
-	log.Infof("lifecycle new group. [%s] appName=%s, streamName=%s", uk, appName, streamName)
+	nazalog.Infof("lifecycle new group. [%s] appName=%s, streamName=%s", uk, appName, streamName)
+	var relayPushList []*RelayPush
+	if config.RelayPushConfig.Enable {
+		for _, addr := range config.RelayPushConfig.AddrList {
+			url := fmt.Sprintf("rtmp://%s/%s/%s", addr, appName, streamName)
+			relayPush := NewRelayPush(url)
+			relayPushList = append(relayPushList, relayPush)
+		}
+	}
 	return &Group{
 		UniqueKey:            uk,
 		appName:              appName,
 		streamName:           streamName,
-		hlsConfig:            hlsConfig,
 		exitChan:             make(chan struct{}, 1),
 		rtmpSubSessionSet:    make(map[*rtmp.ServerSession]struct{}),
 		httpflvSubSessionSet: make(map[*httpflv.SubSession]struct{}),
-		gopCache:             NewGOPCache("rtmp", uk, rtmpGOPNum),
-		httpflvGopCache:      NewGOPCache("httpflv", uk, rtmpGOPNum),
+		gopCache:             NewGOPCache("rtmp", uk, config.RTMPConfig.GOPNum),
+		httpflvGopCache:      NewGOPCache("httpflv", uk, config.HTTPFLVConfig.GOPNum),
+		relayPushList:        relayPushList,
 	}
 }
 
@@ -62,48 +70,84 @@ func (group *Group) RunLoop() {
 }
 
 func (group *Group) Dispose() {
-	log.Infof("lifecycle dispose group. [%s]", group.UniqueKey)
+	nazalog.Infof("lifecycle dispose group. [%s]", group.UniqueKey)
 	group.exitChan <- struct{}{}
 
 	group.mutex.Lock()
 	defer group.mutex.Unlock()
+
 	if group.pubSession != nil {
 		group.pubSession.Dispose()
+		group.pubSession = nil
 	}
+
 	for session := range group.rtmpSubSessionSet {
 		session.Dispose()
 	}
+	group.rtmpSubSessionSet = nil
+
 	for session := range group.httpflvSubSessionSet {
 		session.Dispose()
+	}
+	group.httpflvSubSessionSet = nil
+
+	if group.hlsMuxer != nil {
+		group.hlsMuxer.Dispose()
+		group.hlsMuxer = nil
+	}
+
+	if config.RelayPushConfig.Enable {
+		for _, rp := range group.relayPushList {
+			rp.Dispose()
+		}
 	}
 }
 
 func (group *Group) AddRTMPPubSession(session *rtmp.ServerSession) bool {
-	log.Debugf("add PubSession into group. [%s] [%s]", group.UniqueKey, session.UniqueKey)
+	nazalog.Debugf("add PubSession into group. [%s] [%s]", group.UniqueKey, session.UniqueKey)
+
 	group.mutex.Lock()
+	defer group.mutex.Unlock()
+
 	if group.pubSession != nil {
-		log.Errorf("PubSession already exist in group. [%s] old=%s, new=%s", group.UniqueKey, group.pubSession.UniqueKey, session.UniqueKey)
+		nazalog.Errorf("PubSession already exist in group. [%s] old=%s, new=%s", group.UniqueKey, group.pubSession.UniqueKey, session.UniqueKey)
 		return false
 	}
-
 	group.pubSession = session
-	if group.hlsConfig.Enable {
-		group.hlsMuxer = hls.NewMuxer(group.streamName, group.hlsConfig)
+
+	if config.HLSConfig.Enable {
+		group.hlsMuxer = hls.NewMuxer(group.streamName, &config.HLSConfig.MuxerConfig)
 		group.hlsMuxer.Start()
 	}
-	group.mutex.Unlock()
+
+	if config.RelayPushConfig.Enable {
+		for _, rp := range group.relayPushList {
+			rp.Start()
+		}
+	}
 
 	session.SetPubSessionObserver(group)
+
 	return true
 }
 
 func (group *Group) DelRTMPPubSession(session *rtmp.ServerSession) {
-	log.Debugf("del PubSession from group. [%s] [%s]", group.UniqueKey, session.UniqueKey)
+	nazalog.Debugf("del PubSession from group. [%s] [%s]", group.UniqueKey, session.UniqueKey)
+
 	group.mutex.Lock()
 	defer group.mutex.Unlock()
+
 	group.pubSession = nil
-	if group.hlsConfig.Enable {
-		group.hlsMuxer.Stop()
+
+	if config.HLSConfig.Enable && group.hlsMuxer != nil {
+		group.hlsMuxer.Dispose()
+		group.hlsMuxer = nil
+	}
+
+	if config.RelayPushConfig.Enable {
+		for _, rp := range group.relayPushList {
+			rp.Stop()
+		}
 	}
 
 	group.gopCache.Clear()
@@ -111,7 +155,7 @@ func (group *Group) DelRTMPPubSession(session *rtmp.ServerSession) {
 }
 
 func (group *Group) AddRTMPSubSession(session *rtmp.ServerSession) {
-	log.Debugf("add SubSession into group. [%s] [%s]", group.UniqueKey, session.UniqueKey)
+	nazalog.Debugf("add SubSession into group. [%s] [%s]", group.UniqueKey, session.UniqueKey)
 	group.mutex.Lock()
 	defer group.mutex.Unlock()
 	group.rtmpSubSessionSet[session] = struct{}{}
@@ -121,14 +165,14 @@ func (group *Group) AddRTMPSubSession(session *rtmp.ServerSession) {
 }
 
 func (group *Group) DelRTMPSubSession(session *rtmp.ServerSession) {
-	log.Debugf("del SubSession from group. [%s] [%s]", group.UniqueKey, session.UniqueKey)
+	nazalog.Debugf("del SubSession from group. [%s] [%s]", group.UniqueKey, session.UniqueKey)
 	group.mutex.Lock()
 	defer group.mutex.Unlock()
 	delete(group.rtmpSubSessionSet, session)
 }
 
 func (group *Group) AddHTTPFLVSubSession(session *httpflv.SubSession) {
-	log.Debugf("add httpflv SubSession into group. [%s] [%s]", group.UniqueKey, session.UniqueKey)
+	nazalog.Debugf("add httpflv SubSession into group. [%s] [%s]", group.UniqueKey, session.UniqueKey)
 	session.WriteHTTPResponseHeader()
 	session.WriteFLVHeader()
 
@@ -138,7 +182,7 @@ func (group *Group) AddHTTPFLVSubSession(session *httpflv.SubSession) {
 }
 
 func (group *Group) DelHTTPFLVSubSession(session *httpflv.SubSession) {
-	log.Debugf("del httpflv SubSession from group. [%s] [%s]", group.UniqueKey, session.UniqueKey)
+	nazalog.Debugf("del httpflv SubSession from group. [%s] [%s]", group.UniqueKey, session.UniqueKey)
 	group.mutex.Lock()
 	defer group.mutex.Unlock()
 	delete(group.httpflvSubSessionSet, session)
@@ -161,16 +205,19 @@ func (group *Group) OnReadRTMPAVMsg(msg rtmp.AVMsg) {
 	group.mutex.Lock()
 	defer group.mutex.Unlock()
 
-	//log.Debugf("%+v, %02x, %02x", msg.Header, msg.Payload[0], msg.Payload[1])
+	p := make([]byte, len(msg.Payload))
+	copy(p, msg.Payload)
+	msg.Payload = p
+
+	//nazalog.Debugf("%+v, %02x, %02x", msg.Header, msg.Payload[0], msg.Payload[1])
 	group.broadcastRTMP(msg)
-	if group.hlsConfig.Enable {
+
+	if config.HLSConfig.Enable && group.hlsMuxer != nil {
 		group.hlsMuxer.FeedRTMPMessage(msg)
 	}
 }
 
 func (group *Group) broadcastRTMP(msg rtmp.AVMsg) {
-	//log.Infof("%+v", msg.Header)
-
 	var (
 		lcd    LazyChunkDivider
 		lrm2ft LazyRTMPMsg2FLVTag
@@ -212,6 +259,35 @@ func (group *Group) broadcastRTMP(msg rtmp.AVMsg) {
 		_ = session.AsyncWrite(lcd.Get())
 	}
 
+	// TODO chef: rtmp sub, rtmp push, httpflv sub 的发送逻辑都差不多，可以考虑封装一下
+	if config.RelayPushConfig.Enable {
+		for _, rp := range group.relayPushList {
+			if !rp.Connected() {
+				continue
+			}
+			if rp.IsFresh {
+				if group.gopCache.Metadata != nil {
+					_ = rp.AsyncWrite(group.gopCache.Metadata)
+				}
+				if group.gopCache.VideoSeqHeader != nil {
+					_ = rp.AsyncWrite(group.gopCache.VideoSeqHeader)
+				}
+				if group.gopCache.AACSeqHeader != nil {
+					_ = rp.AsyncWrite(group.gopCache.AACSeqHeader)
+				}
+				for i := 0; i < group.gopCache.GetGOPCount(); i++ {
+					for _, item := range group.gopCache.GetGOPDataAt(i) {
+						_ = rp.AsyncWrite(item)
+					}
+				}
+
+				rp.IsFresh = false
+			}
+
+			_ = rp.AsyncWrite(lcd.Get())
+		}
+	}
+
 	// # 4. 广播。遍历所有 httpflv sub session，转发数据
 	for session := range group.httpflvSubSessionSet {
 		if session.IsFresh {
@@ -236,7 +312,12 @@ func (group *Group) broadcastRTMP(msg rtmp.AVMsg) {
 		session.WriteRawPacket(lrm2ft.Get())
 	}
 
-	// # 4. 缓存关键信息，以及gop
-	group.gopCache.Feed(msg, lcd.Get)
-	group.httpflvGopCache.Feed(msg, lrm2ft.Get)
+	// # 5. 缓存关键信息，以及gop
+	if config.RTMPConfig.Enable {
+		group.gopCache.Feed(msg, lcd.Get)
+	}
+
+	if config.HTTPFLVConfig.Enable {
+		group.httpflvGopCache.Feed(msg, lrm2ft.Get)
+	}
 }

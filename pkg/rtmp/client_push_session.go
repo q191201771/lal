@@ -8,8 +8,20 @@
 
 package rtmp
 
+import "sync/atomic"
+
+type PushSessionStatus uint32
+
+const (
+	PushSessionStatusInit PushSessionStatus = iota
+	PushSessionStatusConnecting
+	PushSessionStatusConnected
+	PushSessionStatusError
+)
+
 type PushSession struct {
-	core *ClientSession
+	core   *ClientSession
+	status uint32
 }
 
 type PushSessionOption struct {
@@ -37,24 +49,57 @@ func NewPushSession(modOptions ...ModPushSessionOption) *PushSession {
 			option.DoTimeoutMS = opt.PushTimeoutMS
 			option.WriteAVTimeoutMS = opt.WriteAVTimeoutMS
 		}),
+		status: 0,
 	}
 }
 
 // 阻塞直到收到服务端返回的 rtmp publish 对应结果的信令或发生错误
 func (s *PushSession) Push(rawURL string) error {
-	return s.core.doWithTimeout(rawURL)
+	s.setStatus(PushSessionStatusConnecting)
+	err := s.core.doWithTimeout(rawURL)
+	if err == nil {
+		s.setStatus(PushSessionStatusConnected)
+	} else {
+		s.setStatus(PushSessionStatusError)
+	}
+	return err
 }
 
 func (s *PushSession) AsyncWrite(msg []byte) error {
-	return s.core.AsyncWrite(msg)
+	err := s.core.AsyncWrite(msg)
+	if err != nil {
+		s.setStatus(PushSessionStatusError)
+	}
+	return err
 }
 
 func (s *PushSession) Flush() error {
-	return s.core.Flush()
+	err := s.core.Flush()
+	if err != nil {
+		s.setStatus(PushSessionStatusError)
+	}
+	return err
 }
 
 func (s *PushSession) Dispose() {
+	s.setStatus(PushSessionStatusError)
 	s.core.Dispose()
 }
 
-// TODO chef: 建议 ClientSession WaitLoop 接口也可以暴露出来
+func (s *PushSession) Status() PushSessionStatus {
+	v := atomic.LoadUint32(&s.status)
+	return PushSessionStatus(v)
+}
+
+func (s *PushSession) Done() <-chan error {
+	return s.core.Done()
+}
+
+func (s *PushSession) UniqueKey() string {
+	return s.core.UniqueKey
+}
+
+func (s *PushSession) setStatus(status PushSessionStatus) {
+	i := uint32(status)
+	atomic.StoreUint32(&s.status, i)
+}

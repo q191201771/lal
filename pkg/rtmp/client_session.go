@@ -156,9 +156,8 @@ func (s *ClientSession) do(rawURL string) <-chan error {
 	return ch
 }
 
-func (s *ClientSession) WaitLoop() error {
-	err := <-s.conn.Done()
-	return err
+func (s *ClientSession) Done() <-chan error {
+	return s.conn.Done()
 }
 
 func (s *ClientSession) AsyncWrite(msg []byte) error {
@@ -353,7 +352,8 @@ func (s *ClientSession) doProtocolControlMessage(stream *Stream) error {
 		s.peerWinAckSize = val
 		log.Infof("-----> Window Acknowledgement Size: %d. [%s]", s.peerWinAckSize, s.UniqueKey)
 	case typeidBandwidth:
-		log.Warnf("-----> Set Peer Bandwidth. ignore. [%s]", s.UniqueKey)
+		// TODO chef: 是否需要关注这个信令
+		log.Debugf("-----> Set Peer Bandwidth. ignore. [%s]", s.UniqueKey)
 	case typeidSetChunkSize:
 		// composer内部会自动更新peer chunk size.
 		log.Infof("-----> Set Chunk Size %d. [%s]", val, s.UniqueKey)
@@ -428,6 +428,7 @@ func (s *ClientSession) tcpConnect() error {
 
 	s.conn = connection.New(conn, func(option *connection.Option) {
 		option.ReadBufSize = readBufSize
+		option.WriteChanFullBehavior = connection.WriteChanFullBehaviorBlock
 	})
 	return nil
 }

@@ -17,6 +17,7 @@ package hls
 // - 配置项
 // - Server
 //     - 超时时间
+// - 考虑删除过期的TS文件，并考虑做一个全量TS的m3u8作为点播用
 
 // https://developer.apple.com/documentation/http_live_streaming/example_playlists_for_http_live_streaming/incorporating_ads_into_a_playlist
 // https://developer.apple.com/documentation/http_live_streaming/example_playlists_for_http_live_streaming/event_playlist_construction

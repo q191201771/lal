@@ -16,6 +16,11 @@
     "fragment_duration_ms": 3000,
     "fragment_num": 6
   },
+  "relay_push": {
+    "enable": false,
+    "addr_list":[
+    ]
+  },
   "pprof": {
     "enable": true,
     "addr": ":10001"

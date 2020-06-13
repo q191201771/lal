@@ -117,7 +117,6 @@ func (msg AVMsg) IsAACSeqHeader() bool {
 }
 
 type AVMsgObserver interface {
-	OnReadRTMPAVMsg(msg AVMsg)
 }
 
 type OnReadRTMPAVMsg func(msg AVMsg)

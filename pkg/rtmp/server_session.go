@@ -28,7 +28,8 @@ type ServerSessionObserver interface {
 var _ ServerSessionObserver = &Server{}
 
 type PubSessionObserver interface {
-	AVMsgObserver
+	// 注意，回调结束后，内部会复用Payload内存块
+	OnReadRTMPAVMsg(msg AVMsg)
 }
 
 func (s *ServerSession) SetPubSessionObserver(obs PubSessionObserver) {
@@ -223,7 +224,9 @@ func (s *ServerSession) doCommandMessage(stream *Stream) error {
 	case "FCUnpublish":
 		fallthrough
 	case "getStreamLength":
-		log.Warnf("read command message, ignore it. [%s] cmd=%s, %s", s.UniqueKey, cmd, stream.toDebugString())
+		fallthrough
+	case "deleteStream":
+		log.Debugf("read command message, ignore it. [%s] cmd=%s, %s", s.UniqueKey, cmd, stream.toDebugString())
 	default:
 		log.Errorf("read unknown command message. [%s] cmd=%s, %s", s.UniqueKey, cmd, stream.toDebugString())
 	}

@@ -18,7 +18,7 @@ import (
 	"io"
 
 	"github.com/q191201771/naza/pkg/bele"
-	log "github.com/q191201771/naza/pkg/nazalog"
+	"github.com/q191201771/naza/pkg/nazalog"
 )
 
 var (
@@ -32,6 +32,7 @@ const (
 	AMF0TypeMarkerString     = uint8(0x02)
 	AMF0TypeMarkerObject     = uint8(0x03)
 	AMF0TypeMarkerNull       = uint8(0x05)
+	AMF0TypeMarkerEcmaArray  = uint8(0x08)
 	AMF0TypeMarkerObjectEnd  = uint8(0x09)
 	AMF0TypeMarkerLongString = uint8(0x0c)
 
@@ -39,7 +40,6 @@ const (
 	//AMF0TypeMarkerMovieclip   = uint8(0x04)
 	//AMF0TypeMarkerUndefined   = uint8(0x06)
 	//AMF0TypeMarkerReference   = uint8(0x07)
-	//AMF0TypeMarkerEcmaArray   = uint8(0x08)
 	//AMF0TypeMarkerStrictArray = uint8(0x0a)
 	//AMF0TypeMarkerData        = uint8(0x0b)
 	//AMF0TypeMarkerUnsupported = uint8(0x0d)
@@ -128,7 +128,7 @@ func (amf0) WriteObject(writer io.Writer, objs []ObjectPair) error {
 				return err
 			}
 		default:
-			log.Panicf("unknown value type. i=%d, v=%v", i, objs[i].Value)
+			nazalog.Panicf("unknown value type. i=%d, v=%+v", i, objs[i].Value)
 		}
 	}
 	_, err := writer.Write(AMF0TypeMarkerObjectEndBytes)
@@ -265,10 +265,68 @@ func (amf0) ReadObject(b []byte) (map[string]interface{}, int, error) {
 			obj[k] = v
 			index += l
 		default:
-			log.Panicf("unknown type. vt=%d", vt)
+			nazalog.Panicf("unknown type. vt=%d", vt)
+		}
+	}
+}
+
+// TODO chef:
+// - 实现WriteArray
+// - ReadArray和ReadObject有些代码重复
+
+func (amf0) ReadArray(b []byte) ([]ObjectPair, int, error) {
+	if len(b) < 5 {
+		return nil, 0, ErrAMFTooShort
+	}
+	if b[0] != AMF0TypeMarkerEcmaArray {
+		return nil, 0, ErrAMFInvalidType
+	}
+	count := int(bele.BEUint32(b[1:]))
+
+	index := 5
+	var ops []ObjectPair
+	for i := 0; i < count; i++ {
+		k, l, err := AMF0.ReadStringWithoutType(b[index:])
+		if err != nil {
+			return nil, 0, err
+		}
+		index += l
+		if len(b)-index < 1 {
+			return nil, 0, ErrAMFTooShort
+		}
+		vt := b[index]
+		switch vt {
+		case AMF0TypeMarkerString:
+			v, l, err := AMF0.ReadString(b[index:])
+			if err != nil {
+				return nil, 0, err
+			}
+			ops = append(ops, ObjectPair{k, v})
+			index += l
+		case AMF0TypeMarkerBoolean:
+			v, l, err := AMF0.ReadBoolean(b[index:])
+			if err != nil {
+				return nil, 0, err
+			}
+			ops = append(ops, ObjectPair{k, v})
+			index += l
+		case AMF0TypeMarkerNumber:
+			v, l, err := AMF0.ReadNumber(b[index:])
+			if err != nil {
+				return nil, 0, err
+			}
+			ops = append(ops, ObjectPair{k, v})
+			index += l
+		default:
+			nazalog.Panicf("unknown type. vt=%d", vt)
 		}
 	}
 
-	//panic("should not reach here.")
-	//return nil, 0, nil
+	if len(b)-index >= 3 && bytes.Equal(b[index:index+3], AMF0TypeMarkerObjectEndBytes) {
+		index += 3
+	} else {
+		// 测试时发现Array最后也是以00 00 09结束，不确定是否是标准规定的，加个日志在这
+		nazalog.Warn("amf ReadArray without suffix AMF0TypeMarkerObjectEndBytes.")
+	}
+	return ops, index, nil
 }

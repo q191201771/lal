@@ -150,9 +150,11 @@ func InnerTestEntry(t *testing.T) {
 func compareFile() {
 	r, err := ioutil.ReadFile(rFLVFileName)
 	assert.Equal(tt, nil, err)
+	nazalog.Debugf("%s filesize:%d", rFLVFileName, len(r))
 
 	w, err := ioutil.ReadFile(wFLVPullFileName)
 	assert.Equal(tt, nil, err)
+	nazalog.Debugf("%s filesize:%d", wFLVPullFileName, len(w))
 	res := bytes.Compare(r, w)
 	assert.Equal(tt, 0, res)
 	err = os.Remove(wFLVPullFileName)
@@ -160,6 +162,7 @@ func compareFile() {
 
 	w2, err := ioutil.ReadFile(wRTMPPullFileName)
 	assert.Equal(tt, nil, err)
+	nazalog.Debugf("%s filesize:%d", wRTMPPullFileName, len(w2))
 	res = bytes.Compare(r, w2)
 	assert.Equal(tt, 0, res)
 	err = os.Remove(wRTMPPullFileName)

@@ -99,17 +99,18 @@ func main() {
 
 		switch tag.Header.Type {
 		case httpflv.TagTypeMetadata:
-			//nazalog.Debugf("----------\n", hex.Dump(tag.Raw))
 			if printMetaData {
+				nazalog.Debugf("----------\n%s", hex.Dump(tag.Raw[11:]))
+
 				// TODO chef: 这部分可以移入到rtmp package中
 				_, l, err := rtmp.AMF0.ReadString(tag.Raw[11:])
 				nazalog.Assert(nil, err)
-				kv, _, err := rtmp.AMF0.ReadObject(tag.Raw[11+l:])
+				ops, _, err := rtmp.AMF0.ReadArray(tag.Raw[11+l : len(tag.Raw)-4])
 				nazalog.Assert(nil, err)
 				var buf bytes.Buffer
-				buf.WriteString(fmt.Sprintf("-----\ncount:%d\n", len(kv)))
-				for k, v := range kv {
-					buf.WriteString(fmt.Sprintf("  %s: %v\n", k, v))
+				buf.WriteString(fmt.Sprintf("-----\ncount:%d\n", len(ops)))
+				for _, op := range ops {
+					buf.WriteString(fmt.Sprintf("  %s: %+v\n", op.Key, op.Value))
 				}
 				nazalog.Debugf("%+v", buf.String())
 			}
@@ -172,8 +173,17 @@ func analysisVideoTag(tag httpflv.Tag) {
 	} else {
 		body := tag.Raw[11:]
 
-		for i := 5; i != int(tag.Header.DataSize); {
+		i := 5
+		for i != int(tag.Header.DataSize) {
+			if i+4 > int(tag.Header.DataSize) {
+				nazalog.Errorf("invalid nalu size. i=%d, tag size=%d", i, int(tag.Header.DataSize))
+				break
+			}
 			naluLen := bele.BEUint32(body[i:])
+			if i+int(naluLen) > int(tag.Header.DataSize) {
+				nazalog.Errorf("invalid nalu size. i=%d, naluLen=%d, tag size=%d", i, naluLen, int(tag.Header.DataSize))
+				break
+			}
 			switch t {
 			case typeAVC:
 				if avc.CalcNaluType(body[i+4:]) == avc.NaluUnitTypeIDRSlice {

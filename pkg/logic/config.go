@@ -19,9 +19,10 @@ import (
 )
 
 type Config struct {
-	RTMPConfig    RTMPConfig    `json:"rtmp"`
-	HTTPFLVConfig HTTPFLVConfig `json:"httpflv"`
-	HLSConfig     HLSConfig     `json:"hls"`
+	RTMPConfig      RTMPConfig      `json:"rtmp"`
+	HTTPFLVConfig   HTTPFLVConfig   `json:"httpflv"`
+	HLSConfig       HLSConfig       `json:"hls"`
+	RelayPushConfig RelayPushConfig `json:"relay_push"`
 
 	PProfConfig PProfConfig    `json:"pprof"`
 	LogConfig   nazalog.Option `json:"log"`
@@ -40,8 +41,14 @@ type HTTPFLVConfig struct {
 }
 
 type HLSConfig struct {
+	Enable        bool   `json:"enable"`
 	SubListenAddr string `json:"sub_listen_addr"`
-	*hls.MuxerConfig
+	hls.MuxerConfig
+}
+
+type RelayPushConfig struct {
+	Enable   bool     `json:"enable"`
+	AddrList []string `json:"addr_list"`
 }
 
 type PProfConfig struct {
@@ -65,7 +72,8 @@ func LoadConf(confFile string) (*Config, error) {
 	}
 
 	// 检查配置必须项
-	if !j.Exist("rtmp") || !j.Exist("httpflv") || !j.Exist("hls") || !j.Exist("log") || !j.Exist("pprof") {
+	if !j.Exist("rtmp") || !j.Exist("httpflv") || !j.Exist("hls") || !j.Exist("relay_push") ||
+		!j.Exist("pprof") || !j.Exist("log") {
 		return &config, errors.New("missing key field in config file")
 	}
 

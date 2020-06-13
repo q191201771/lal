@@ -21,8 +21,6 @@ import (
 )
 
 type ServerManager struct {
-	config *Config
-
 	rtmpServer    *rtmp.Server
 	httpflvServer *httpflv.Server
 	hlsServer     *hls.Server
@@ -32,9 +30,8 @@ type ServerManager struct {
 	groupMap map[string]*Group // TODO chef: with appName
 }
 
-func NewServerManager(config *Config) *ServerManager {
+func NewServerManager() *ServerManager {
 	m := &ServerManager{
-		config:   config,
 		groupMap: make(map[string]*Group),
 		exitChan: make(chan struct{}),
 	}
@@ -198,7 +195,7 @@ func (sm *ServerManager) check() {
 func (sm *ServerManager) getOrCreateGroup(appName string, streamName string) *Group {
 	group, exist := sm.groupMap[streamName]
 	if !exist {
-		group = NewGroup(appName, streamName, sm.config.RTMPConfig.GOPNum, sm.config.HTTPFLVConfig.GOPNum, sm.config.HLSConfig.MuxerConfig)
+		group = NewGroup(appName, streamName)
 		sm.groupMap[streamName] = group
 	}
 	go group.RunLoop()

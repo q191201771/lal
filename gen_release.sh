@@ -5,7 +5,7 @@
 ROOT_DIR=`pwd`
 OUT_DIR=release
 
-v=`git tag | tail -n 1`
+v=`git tag --sort=version:refname | tail -n 1`
 prefix=lal_${v}_
 
 rm -rf ${ROOT_DIR}/${OUT_DIR}

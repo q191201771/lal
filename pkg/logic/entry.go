@@ -27,7 +27,7 @@ func Entry(confFile string) {
 	initLog(config.LogConfig)
 	nazalog.Infof("bininfo: %s", bininfo.StringifySingleLine())
 
-	sm := NewServerManager(config)
+	sm := NewServerManager()
 
 	if config.PProfConfig.Enable {
 		go runWebPProf(config.PProfConfig.Addr)

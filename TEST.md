@@ -19,7 +19,7 @@
 | 1000 | 1000 | 125% | 464MB |
 
 * 测试机：32核16G（lalserver服务器和压测工具同时跑在这一个机器上）
-* 压测工具：lal中的 `/demo/flvfile2rtmppush` 以及 `/demo/rtmppull`
+* 压测工具：lal中的 `/app/demo/flvfile2rtmppush` 以及 `/app/demo/rtmppull`
 * 推流码率：使用`srs-bench`中的FLV文件，大概200kbps
 * lalserver版本：基于 git commit: xxx
 

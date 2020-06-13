@@ -3,7 +3,7 @@
 <img alt="Wide" src="https://pengrl.com/images/other/lallogo.png">
 </a>
 <br>
-Go语言编写的直播流媒体网络传输服务器
+Go live stream lib/client/server and much more.
 <br><br>
 <a title="TravisCI" target="_blank" href="https://www.travis-ci.org/q191201771/lal"><img src="https://www.travis-ci.org/q191201771/lal.svg?branch=master"></a>
 <a title="codecov" target="_blank" href="https://codecov.io/gh/q191201771/lal"><img src="https://codecov.io/gh/q191201771/lal/branch/master/graph/badge.svg?style=flat-square"></a>
@@ -27,7 +27,7 @@ Go语言编写的直播流媒体网络传输服务器
 
 ---
 
-已支持RTMP，HTTP-FLV，HLS(m3u8 + ts)，H264/AVC，H265/HEVC，AAC，GOP缓存。
+Go直播流媒体网络传输服务器，已支持RTMP，HTTP-FLV，HLS(m3u8+ts)，H264/AVC，H265/HEVC，AAC，GOP缓存，中继转推。更多功能持续迭代中。
 
 ### README 目录
 
@@ -56,7 +56,7 @@ $cd $GOPATH/src/github.com/q191201771/lal
 $./build.sh
 
 # 使用 Go module
-$export GOPROXY=https://goproxy.cn
+$export GOPROXY=https://goproxy.io
 $git clone https://github.com/q191201771/lal.git
 $cd lal
 $./build.sh
@@ -93,6 +93,11 @@ $./bin/lalserver -c conf/lalserver.conf.json
     "fragment_duration_ms": 3000, // 单个TS文件切片时长，单位毫秒
     "fragment_num": 6             // M3U8文件列表中TS文件的数量
   },
+  "relay_push": {
+    "enable": false, // 是否开启中继转推功能，开启后，自身接收到的所有流都会转推出去
+    "addr_list":[    // 中继转推的对端地址，支持填写多个地址，做1对n的转推
+    ]
+  },
   "pprof": {
     "enable": true,  // 是否开启Go pprof web服务的监听
     "addr": ":10001" // Go pprof web地址
@@ -110,39 +115,39 @@ $./bin/lalserver -c conf/lalserver.conf.json
 
 ### 三. 仓库目录框架
 
-简单来说，源码在`pkg/`，`app/`，`demo/`三个目录下。
+简单来说，源码在`pkg/`，`app/lalserver/`，`app/demo/`三个目录下。
 
 - `pkg/`：存放各package包，供本repo的程序以及其他业务方使用
-- `app/`：重要程序的入口（目前仅包含lalserver——基于lal编写的一个通用流媒体服务器程序）
-- `demo/`：存放各种基于`lal/pkg`开发的小程序（小工具），一个子目录是一个程序，详情见各源码文件中头部的说明
+- `app/lalserver`：基于lal编写的一个通用流媒体服务器程序入口
+- `app/demo/`：存放各种基于`lal/pkg`开发的小程序（小工具），一个子目录是一个程序，详情见各源码文件中头部的说明
 
 ```
-pkg/                  ......
-|-- rtmp/             ......RTMP协议
-|-- httpflv/          ......HTTP-FLV协议
-|-- hls/              ......HLS协议
-|-- logic/            ......lalserver服务器程序的上层业务逻辑
-|-- aac/              ......音频AAC编码格式相关
-|-- avc/              ......视频H264/AVC编码格式相关
-|-- hevc/             ......视频H265/HEVC编码格式相关
-|-- innertest/        ......测试代码
+pkg/                     ......
+|-- rtmp/                ......RTMP协议
+|-- httpflv/             ......HTTP-FLV协议
+|-- hls/                 ......HLS协议
+|-- logic/               ......lalserver服务器程序的上层业务逻辑
+|-- aac/                 ......音频AAC编码格式相关
+|-- avc/                 ......视频H264/AVC编码格式相关
+|-- hevc/                ......视频H265/HEVC编码格式相关
+|-- innertest/           ......测试代码
 
-app/                  ......
-|-- lalserver/             ......流媒体服务器lalserver的main函数入口
+app/                     ......
+|-- lalserver/           ......流媒体服务器lalserver的main函数入口
 
-demo/                 ......
-|-- analyseflv        ......
-|-- analysehls        ......
-|-- flvfile2rtmppush  ......
-|-- rtmppull          ......
-|-- httpflvpull       ......
-|-- modflvfile        ......
-|-- flvfile2es        ......
-|-- learnts           ......
-|-- tscmp             ......
+|-- demo/                ......
+    |-- analyseflv       ......
+    |-- analysehls       ......
+    |-- flvfile2rtmppush ......
+    |-- rtmppull         ......
+    |-- httpflvpull      ......
+    |-- modflvfile       ......
+    |-- flvfile2es       ......
+    |-- learnts          ......
+    |-- tscmp            ......
 
-conf/                 ......配置文件目录
-bin/                  ......可执行文件编译输出目录
+conf/                    ......配置文件目录
+bin/                     ......可执行文件编译输出目录
 ```
 
 后续我再画些源码架构图。
@@ -152,24 +157,14 @@ bin/                  ......可执行文件编译输出目录
 
 ### 四. Roadmap
 
-#### 项目原则：
-
-* 代码可读可维护
-* 框架清晰，模块化。业务与协议隔离。协议、网络传输等基础功能都是功能纯粹，可独立使用的库。
-* 高性能
-* 提供各种client代码，即使你使用其他流媒体服务器，这些client也是非常好用的
-* 依托Go语言，提供所有平台下最简单的编译、调试、发布方式
-* 不依赖第三方代码
-* 后续可快速集成各种网络传输协议，流媒体封装协议
-
 #### lalserver服务器功能
 
-- [x] **pub 接收推流：** RTMP
-- [x] **sub 接收拉流：** RTMP，HTTP-FLV，HLS(m3u8+ts)
+- [x] **pub接收推流：** RTMP
+- [x] **sub接收拉流：** RTMP，HTTP-FLV，HLS(m3u8+ts)
 - [x] **音频编码格式：** AAC
 - [x] **视频编码格式：** H264/AVC，H265/HEVC
 - [x] **GOP缓存：** 用于秒开
-- [ ] RTMP转推
+- [x] **relay push中继转推：** RTMP
 - [ ] RTMP回源
 - [ ] HTTP-FLV回源
 - [ ] 静态转推、回源
@@ -203,4 +198,10 @@ bin/                  ......可执行文件编译输出目录
 ### 七. 性能测试，测试过的第三方客户端
 
 见[TEST.md](https://github.com/q191201771/lal/blob/master/TEST.md)
+
+### 八. 项目star趋势图
+
+觉得这个repo还不错，就点个star支持一下吧 :)
+
+[![Stargazers over time](https://starchart.cc/q191201771/lal.svg)](https://starchart.cc/q191201771/lal)
 

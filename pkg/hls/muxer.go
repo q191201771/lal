@@ -13,6 +13,8 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/q191201771/naza/pkg/unique"
+
 	"github.com/q191201771/lal/pkg/aac"
 
 	"github.com/q191201771/lal/pkg/rtmp"
@@ -28,13 +30,14 @@ type fragmentInfo struct {
 }
 
 type MuxerConfig struct {
-	Enable             bool   `json:"enable"`
 	OutPath            string `json:"out_path"`
 	FragmentDurationMS int    `json:"fragment_duration_ms"`
 	FragmentNum        int    `json:"fragment_num"`
 }
 
 type Muxer struct {
+	UniqueKey string
+
 	streamName          string
 	outPath             string
 	playlistFilename    string
@@ -61,6 +64,9 @@ type Muxer struct {
 }
 
 func NewMuxer(streamName string, config *MuxerConfig) *Muxer {
+	uk := unique.GenUniqueKey("HLSMUXER")
+	nazalog.Infof("lifecycle new hls muxer. [%s] streamName=%s", uk, streamName)
+
 	op := getMuxerOutPath(config.OutPath, streamName)
 	playlistFilename := getM3U8Filename(op, streamName)
 	playlistFilenameBak := fmt.Sprintf("%s.bak", playlistFilename)
@@ -68,6 +74,7 @@ func NewMuxer(streamName string, config *MuxerConfig) *Muxer {
 	videoOut = videoOut[0:0]
 	frags := make([]fragmentInfo, 2*config.FragmentNum+1) // TODO chef: 为什么是 * 2 + 1
 	return &Muxer{
+		UniqueKey:           uk,
 		streamName:          streamName,
 		outPath:             op,
 		playlistFilename:    playlistFilename,
@@ -80,12 +87,12 @@ func NewMuxer(streamName string, config *MuxerConfig) *Muxer {
 }
 
 func (m *Muxer) Start() {
-	nazalog.Infof("start hls muxer. streamName=%s", m.streamName)
+	nazalog.Infof("start hls muxer. [%s]", m.UniqueKey)
 	m.ensureDir()
 }
 
-func (m *Muxer) Stop() {
-	nazalog.Infof("stop hls muxer. streamName=%s", m.streamName)
+func (m *Muxer) Dispose() {
+	nazalog.Infof("lifecycle dispose hls muxer. [%s]", m.UniqueKey)
 	m.flushAudio()
 	m.closeFragment()
 }
@@ -102,7 +109,7 @@ func (m *Muxer) FeedRTMPMessage(msg rtmp.AVMsg) {
 // TODO chef: 可以考虑数据有问题时，返回给上层，直接主动关闭输入流的连接
 func (m *Muxer) feedVideo(msg rtmp.AVMsg) {
 	if len(msg.Payload) < 5 {
-		nazalog.Errorf("invalid video message length. len=%d", len(msg.Payload))
+		nazalog.Errorf("invalid video message length. [%s] len=%d", m.UniqueKey, len(msg.Payload))
 		return
 	}
 	if msg.Payload[0]&0xF != 7 {
@@ -126,13 +133,13 @@ func (m *Muxer) feedVideo(msg rtmp.AVMsg) {
 	out := m.videoOut[0:0]
 	for i := 5; i != len(msg.Payload); {
 		if i+4 > len(msg.Payload) {
-			nazalog.Errorf("slice len not enough. i=%d, len=%d", i, len(msg.Payload))
+			nazalog.Errorf("slice len not enough. [%s] i=%d, len=%d", m.UniqueKey, i, len(msg.Payload))
 			return
 		}
 		nalBytes := int(bele.BEUint32(msg.Payload[i:]))
 		i += 4
 		if i+nalBytes > len(msg.Payload) {
-			nazalog.Errorf("slice len not enough. i=%d, payload len=%d, nalBytes=%d", i, len(msg.Payload), nalBytes)
+			nazalog.Errorf("slice len not enough. [%s] i=%d, payload len=%d, nalBytes=%d", m.UniqueKey, i, len(msg.Payload), nalBytes)
 			return
 		}
 		srcNalType := msg.Payload[i]
@@ -141,7 +148,7 @@ func (m *Muxer) feedVideo(msg rtmp.AVMsg) {
 		//nazalog.Debugf("hls: h264 NAL type=%d, len=%d(%d) cts=%d.", nalType, nalBytes, len(msg.Payload), cts)
 
 		if nalType >= 7 && nalType <= 9 {
-			nazalog.Warn("should not reach here.")
+			//nazalog.Warn("should not reach here.")
 			i += nalBytes
 			continue
 		}
@@ -190,7 +197,7 @@ func (m *Muxer) feedVideo(msg rtmp.AVMsg) {
 	m.updateFragment(frame.dts, boundary, 1)
 
 	if !m.opened {
-		nazalog.Warn("not opened.")
+		nazalog.Warnf("not opened. [%s]", m.UniqueKey)
 		return
 	}
 
@@ -200,15 +207,19 @@ func (m *Muxer) feedVideo(msg rtmp.AVMsg) {
 
 func (m *Muxer) feedAudio(msg rtmp.AVMsg) {
 	if len(msg.Payload) < 3 {
-		nazalog.Errorf("invalid audio message length. len=%d", len(msg.Payload))
+		nazalog.Errorf("invalid audio message length. [%s] len=%d", m.UniqueKey, len(msg.Payload))
 	}
 	if msg.Payload[0]>>4 != 10 {
-		// TODO chef: HLS音频现在只做了h264的支持
 		return
 	}
 
 	if msg.Payload[1] == 0 {
 		m.cacheAACSeqHeader(msg)
+		return
+	}
+
+	if m.adts.IsNil() {
+		nazalog.Warnf("feed audio message but aac seq header not exist. [%s]", m.UniqueKey)
 		return
 	}
 
@@ -226,7 +237,7 @@ func (m *Muxer) feedAudio(msg rtmp.AVMsg) {
 }
 
 func (m *Muxer) cacheAACSeqHeader(msg rtmp.AVMsg) {
-	m.adts.PutAACSequenceHeader(msg.Payload)
+	_ = m.adts.PutAACSequenceHeader(msg.Payload)
 }
 
 func (m *Muxer) cacheSPSPPS(msg rtmp.AVMsg) {
@@ -234,6 +245,7 @@ func (m *Muxer) cacheSPSPPS(msg rtmp.AVMsg) {
 }
 
 func (m *Muxer) appendSPSPPS(out []byte) []byte {
+	// TODO chef: 检查spspps是否存在
 	index := 10
 	nnals := m.spspps[index] & 0x1f
 	index++
@@ -266,7 +278,7 @@ func (m *Muxer) updateFragment(ts uint64, boundary bool, flushRate int) {
 		// 当前时间戳跳跃很大，或者是往回跳跃超过了阈值，强制开启新的fragment
 		maxfraglen := uint64(m.config.FragmentDurationMS * 90 * 10)
 		if (ts > m.fragTS && ts-m.fragTS > maxfraglen) || (m.fragTS > ts && m.fragTS-ts > negMaxfraglen) {
-			nazalog.Warnf("hls: force fragment split: fragTS=%d, ts=%d", m.fragTS, ts)
+			nazalog.Warnf("force fragment split. [%s] fragTS=%d, ts=%d", m.UniqueKey, m.fragTS, ts)
 			force = true
 		} else {
 			// TODO chef: 考虑ts比fragTS小的情况
@@ -300,7 +312,7 @@ func (m *Muxer) openFragment(ts uint64, discont bool) {
 	id := m.getFragmentID()
 
 	filename := getTSFilename(m.outPath, m.streamName, id)
-	m.fragmentOP.OpenFile(filename)
+	_ = m.fragmentOP.OpenFile(filename)
 	m.opened = true
 
 	frag := m.getFrag(m.nfrags)
@@ -396,12 +408,11 @@ func (m *Muxer) nextFrag() {
 // 4. 流关闭时
 func (m *Muxer) flushAudio() {
 	if !m.opened {
-		nazalog.Warn("flushAudio by not opened.")
+		nazalog.Warnf("flushAudio by not opened. [%s]", m.UniqueKey)
 		return
 	}
 
 	if m.aaframe == nil {
-		nazalog.Warn("flushAudio by aframe is nil.")
 		return
 	}
 

@@ -49,7 +49,8 @@ func (s *PullSession) Pull(rawURL string, onReadRTMPAVMsg OnReadRTMPAVMsg) error
 	if err := s.core.doWithTimeout(rawURL); err != nil {
 		return err
 	}
-	return s.core.WaitLoop()
+
+	return <-s.core.Done()
 }
 
 func (s *PullSession) Dispose() {

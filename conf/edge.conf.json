@@ -1,33 +1,34 @@
 {
   "rtmp": {
     "enable": true,
-    "addr": ":19350",
+    "addr": ":19351",
     "gop_num": 2
   },
   "httpflv": {
-    "enable": true,
+    "enable": false,
     "sub_listen_addr": ":8080",
     "gop_num": 2
   },
   "hls": {
-    "enable": true,
+    "enable": false,
     "sub_listen_addr": ":8081",
     "out_path": "/tmp/lal/hls/",
     "fragment_duration_ms": 3000,
     "fragment_num": 6
   },
   "relay_push": {
-    "enable": false,
+    "enable": true,
     "addr_list":[
+      "127.0.0.1:19350"
     ]
   },
   "pprof": {
-    "enable": true,
+    "enable": false,
     "addr": ":10001"
   },
   "log": {
     "level": 1,
-    "filename": "./logs/lalserver.log",
+    "filename": "./logs/edge.log",
     "is_to_stdout": true,
     "is_rotate_daily": true,
     "short_file_flag": true,
