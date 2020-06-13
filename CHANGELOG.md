@@ -1,3 +1,14 @@
+#### v0.11.0
+
+- [feat] lalserver增加中继转推(relay push)功能，可将接收到的推流(pub)转推(push)到其他rtmp类型的服务器，支持1对n的转推
+- [feat] package rtmp: 新增函数amf0::ReadArray，用于解析amf array数据
+- [refactor] `rtmp/client_push_session`增加当前会话连接状态
+- [fix] demo/analyseflv: 修复解析metadata的bug
+- [perf] httpflv协议关闭时，不做httpflv的GOP缓存
+- [refactor] logic中的配置变更为全局变量
+- [refactor] lal/demo移动到lal/app/demo
+- [refactor] 日志整理
+
 #### v0.10.0
 
 - [refactor] app/lals重命名为app/lalserver，避免描述时容易和lal造成混淆
