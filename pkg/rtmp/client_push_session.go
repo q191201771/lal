@@ -8,20 +8,11 @@
 
 package rtmp
 
-import "sync/atomic"
-
-type PushSessionStatus uint32
-
-const (
-	PushSessionStatusInit PushSessionStatus = iota
-	PushSessionStatusConnecting
-	PushSessionStatusConnected
-	PushSessionStatusError
-)
-
 type PushSession struct {
-	core   *ClientSession
-	status uint32
+	IsFresh bool
+
+	core *ClientSession
+	//status uint32
 }
 
 type PushSessionOption struct {
@@ -44,51 +35,31 @@ func NewPushSession(modOptions ...ModPushSessionOption) *PushSession {
 		fn(&opt)
 	}
 	return &PushSession{
+		IsFresh: true,
 		core: NewClientSession(CSTPushSession, func(option *ClientSessionOption) {
 			option.ConnectTimeoutMS = opt.ConnectTimeoutMS
 			option.DoTimeoutMS = opt.PushTimeoutMS
 			option.WriteAVTimeoutMS = opt.WriteAVTimeoutMS
 		}),
-		status: 0,
 	}
 }
 
-// 阻塞直到收到服务端返回的 rtmp publish 对应结果的信令或发生错误
+// 建立rtmp publish连接
+// 阻塞直到收到服务端返回的rtmp publish对应结果的信令，或发生错误
 func (s *PushSession) Push(rawURL string) error {
-	s.setStatus(PushSessionStatusConnecting)
-	err := s.core.doWithTimeout(rawURL)
-	if err == nil {
-		s.setStatus(PushSessionStatusConnected)
-	} else {
-		s.setStatus(PushSessionStatusError)
-	}
-	return err
+	return s.core.doWithTimeout(rawURL)
 }
 
 func (s *PushSession) AsyncWrite(msg []byte) error {
-	err := s.core.AsyncWrite(msg)
-	if err != nil {
-		s.setStatus(PushSessionStatusError)
-	}
-	return err
+	return s.core.AsyncWrite(msg)
 }
 
 func (s *PushSession) Flush() error {
-	err := s.core.Flush()
-	if err != nil {
-		s.setStatus(PushSessionStatusError)
-	}
-	return err
+	return s.core.Flush()
 }
 
 func (s *PushSession) Dispose() {
-	s.setStatus(PushSessionStatusError)
 	s.core.Dispose()
-}
-
-func (s *PushSession) Status() PushSessionStatus {
-	v := atomic.LoadUint32(&s.status)
-	return PushSessionStatus(v)
 }
 
 func (s *PushSession) Done() <-chan error {
@@ -97,9 +68,4 @@ func (s *PushSession) Done() <-chan error {
 
 func (s *PushSession) UniqueKey() string {
 	return s.core.UniqueKey
-}
-
-func (s *PushSession) setStatus(status PushSessionStatus) {
-	i := uint32(status)
-	atomic.StoreUint32(&s.status, i)
 }

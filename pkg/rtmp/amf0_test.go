@@ -78,9 +78,9 @@ func TestAmf0_WriteObject_ReadObject(t *testing.T) {
 	v, _, err := AMF0.ReadObject(out.Bytes())
 	assert.Equal(t, nil, err)
 	assert.Equal(t, 3, len(v))
-	assert.Equal(t, float64(3), v["air"])
-	assert.Equal(t, "cat", v["ban"])
-	assert.Equal(t, true, v["dog"])
+	assert.Equal(t, float64(3), v.Find("air"))
+	assert.Equal(t, "cat", v.Find("ban"))
+	assert.Equal(t, true, v.Find("dog"))
 }
 
 func TestAmf0_WriteNull_readNull(t *testing.T) {
@@ -119,15 +119,14 @@ func TestAmf0_ReadArray(t *testing.T) {
 
 func TestAMF0Corner(t *testing.T) {
 	var (
-		mw     *fake.Writer
-		err    error
-		b      []byte
-		str    string
-		l      int
-		num    float64
-		flag   bool
-		objs   []ObjectPair
-		objMap map[string]interface{}
+		mw   *fake.Writer
+		err  error
+		b    []byte
+		str  string
+		l    int
+		num  float64
+		flag bool
+		objs []ObjectPair
 	)
 
 	mw = fake.NewWriter(fake.WriterTypeReturnError)
@@ -243,13 +242,13 @@ func TestAMF0Corner(t *testing.T) {
 	assert.Equal(t, ErrAMFInvalidType, err)
 
 	b = nil
-	objMap, l, err = AMF0.ReadObject(b)
-	assert.Equal(t, nil, objMap)
+	objs, l, err = AMF0.ReadObject(b)
+	assert.Equal(t, nil, objs)
 	assert.Equal(t, 0, l)
 	assert.Equal(t, ErrAMFTooShort, err)
 	b = []byte{0}
-	objMap, l, err = AMF0.ReadObject(b)
-	assert.Equal(t, nil, objMap)
+	objs, l, err = AMF0.ReadObject(b)
+	assert.Equal(t, nil, objs)
 	assert.Equal(t, 0, l)
 	assert.Equal(t, ErrAMFInvalidType, err)
 

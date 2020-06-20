@@ -8,7 +8,9 @@
 
 package rtmp
 
-import "errors"
+import (
+	"errors"
+)
 
 var ErrRTMP = errors.New("lal.rtmp: fxxk")
 
@@ -88,6 +90,8 @@ const (
 	AACPacketTypeRaw       uint8 = 1
 )
 
+type OnReadRTMPAVMsg func(msg AVMsg)
+
 func (msg AVMsg) IsAVCKeySeqHeader() bool {
 	return msg.Header.MsgTypeID == TypeidVideo && msg.Payload[0] == AVCKeyFrame && msg.Payload[1] == AVCPacketTypeSeqHeader
 }
@@ -116,7 +120,11 @@ func (msg AVMsg) IsAACSeqHeader() bool {
 	return msg.Header.MsgTypeID == TypeidAudio && (msg.Payload[0]>>4) == SoundFormatAAC && msg.Payload[1] == AACPacketTypeSeqHeader
 }
 
-type AVMsgObserver interface {
+func ParseMetadata(b []byte) (ObjectPairArray, error) {
+	_, l, err := AMF0.ReadString(b)
+	if err != nil {
+		return nil, err
+	}
+	opa, _, err := AMF0.ReadObjectOrArray(b[l:])
+	return opa, err
 }
-
-type OnReadRTMPAVMsg func(msg AVMsg)

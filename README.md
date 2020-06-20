@@ -98,6 +98,10 @@ $./bin/lalserver -c conf/lalserver.conf.json
     "addr_list":[    // 中继转推的对端地址，支持填写多个地址，做1对n的转推。格式举例 "127.0.0.1:19351"
     ]
   },
+  "relay_pull": {
+    "enable": false, // 是否开启回源拉流功能，开启后，当自身接收到拉流请求，而流不存在时，会从其他服务器拉取这个流到本地
+    "addr": ""       // 回源拉流的地址。格式举例 "127.0.0.1:19351"
+  },
   "pprof": {
     "enable": true,  // 是否开启Go pprof web服务的监听
     "addr": ":10001" // Go pprof web地址

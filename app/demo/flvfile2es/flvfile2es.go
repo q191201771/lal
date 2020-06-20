@@ -64,7 +64,9 @@ func main() {
 				return
 			}
 
-			_, _ = afp.Write(adts.GetADTS(uint16(len(payload))))
+			d, err := adts.GetADTS(uint16(len(payload)))
+			log.Assert(nil, err)
+			_, _ = afp.Write(d)
 			_, _ = afp.Write(payload[2:])
 		case httpflv.TagTypeVideo:
 			_ = avc.CaptureAVC(vfp, payload)

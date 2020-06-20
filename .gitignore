@@ -11,6 +11,8 @@ testdata
 /TODO.md
 /SECRET.md
 /conf/self.conf.json
+/conf/self.center.conf.json
+/conf/self.edge.conf.json
 /tmp
 
 /bin

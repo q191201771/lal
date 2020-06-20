@@ -92,11 +92,14 @@ func (sm *ServerManager) RunLoop() {
 		case <-sm.exitChan:
 			return
 		case <-t.C:
-			sm.check()
+			sm.iterateGroup()
 			count++
 			if (count % 10) == 0 {
 				sm.mutex.Lock()
-				nazalog.Debugf("group size:%d", len(sm.groupMap))
+				nazalog.Debugf("group size=%d", len(sm.groupMap))
+				for _, g := range sm.groupMap {
+					nazalog.Debugf("%s", g.StringifyStats())
+				}
 				sm.mutex.Unlock()
 			}
 		}
@@ -180,7 +183,7 @@ func (sm *ServerManager) DelHTTPFLVSubSessionCB(session *httpflv.SubSession) {
 	}
 }
 
-func (sm *ServerManager) check() {
+func (sm *ServerManager) iterateGroup() {
 	sm.mutex.Lock()
 	defer sm.mutex.Unlock()
 	for k, group := range sm.groupMap {
@@ -188,7 +191,10 @@ func (sm *ServerManager) check() {
 			nazalog.Infof("erase empty group manager. [%s]", group.UniqueKey)
 			group.Dispose()
 			delete(sm.groupMap, k)
+			continue
 		}
+
+		group.Tick()
 	}
 }
 

@@ -72,10 +72,10 @@ if [ ! -f "./pkg/hls/testdata/test.flv" ]; then
 fi
 
 # 将配置文件分别拷贝到logic，rtmp，httpflv，hls的testdata目录下
-cp ./conf/lalserver.default.conf.json ./pkg/logic/testdata/lalserver.default.conf.json
-cp ./conf/lalserver.default.conf.json ./pkg/rtmp/testdata/lalserver.default.conf.json
-cp ./conf/lalserver.default.conf.json ./pkg/httpflv/testdata/lalserver.default.conf.json
-cp ./conf/lalserver.default.conf.json ./pkg/hls/testdata/lalserver.default.conf.json
+cp ./conf/lalserver.conf.json.tmpl ./pkg/logic/testdata/lalserver.conf.json
+cp ./conf/lalserver.conf.json.tmpl ./pkg/rtmp/testdata/lalserver.conf.json
+cp ./conf/lalserver.conf.json.tmpl ./pkg/httpflv/testdata/lalserver.conf.json
+cp ./conf/lalserver.conf.json.tmpl ./pkg/hls/testdata/lalserver.conf.json
 
 echo "" > coverage.txt
 for d in $(go list ./... | grep -v vendor | grep pkg | grep -v innertest); do

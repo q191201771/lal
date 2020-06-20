@@ -9,11 +9,9 @@
 package aac
 
 import (
-	"encoding/hex"
 	"errors"
 
 	"github.com/q191201771/naza/pkg/nazabits"
-
 	"github.com/q191201771/naza/pkg/nazalog"
 )
 
@@ -28,7 +26,16 @@ type ADTS struct {
 	adtsHeader []byte
 }
 
+type sequenceHeader struct {
+	soundFormat   uint8
+	soundRate     uint8
+	soundSize     uint8
+	soundType     uint8
+	aacPacketType uint8
+}
+
 // 传入AAC Sequence Header，调用GetADTS时需要使用
+//
 // @param <payload> rtmp message payload，包含前面2个字节
 func (a *ADTS) PutAACSequenceHeader(payload []byte) error {
 	if len(payload) < 4 {
@@ -36,7 +43,6 @@ func (a *ADTS) PutAACSequenceHeader(payload []byte) error {
 		return ErrAAC
 	}
 
-	// TODO chef: 把Seq Header头两字节的解析和ADTS的内容分离开
 	// <spec-video_file_format_spec_v10.pdf>, <Audio tags, AUDIODATA>, <page 10/48>
 	// ----------------------------------------------------------------------------
 	// soundFormat    [4b] 10=AAC
@@ -45,12 +51,14 @@ func (a *ADTS) PutAACSequenceHeader(payload []byte) error {
 	// soundType      [1b] 0=sndMono, 1=sndStereo. AAC always 1
 	// aacPackageType [8b] 0=seq header, 1=AAC raw
 	br := nazabits.NewBitReader(payload)
-	soundFormat, _ := br.ReadBits8(4)
-	soundRate, _ := br.ReadBits8(2)
-	soundSize, _ := br.ReadBits8(1)
-	soundType, _ := br.ReadBits8(1)
-	aacPacketType, _ := br.ReadBits8(8)
-	nazalog.Debugf("%s %d %d %d %d %d", hex.Dump(payload[:4]), soundFormat, soundRate, soundSize, soundType, aacPacketType)
+	var sh sequenceHeader
+	sh.soundFormat, _ = br.ReadBits8(4)
+	sh.soundRate, _ = br.ReadBits8(2)
+	sh.soundSize, _ = br.ReadBits8(1)
+	sh.soundType, _ = br.ReadBits8(1)
+	sh.aacPacketType, _ = br.ReadBits8(8)
+	_ = sh
+	//nazalog.Debugf("%s %+v", hex.Dump(payload[:4]), sh)
 
 	// <ISO_IEC_14496-3.pdf>
 	// <1.6.2.1 AudioSpecificConfig>, <page 33/110>
@@ -64,7 +72,7 @@ func (a *ADTS) PutAACSequenceHeader(payload []byte) error {
 	a.audioObjectType, _ = br.ReadBits8(5)
 	a.samplingFrequencyIndex, _ = br.ReadBits8(4)
 	a.channelConfiguration, _ = br.ReadBits8(4)
-	nazalog.Debugf("%+v", a)
+	//nazalog.Debugf("%+v", a)
 
 	if a.adtsHeader == nil {
 		a.adtsHeader = make([]byte, 7)
@@ -74,8 +82,12 @@ func (a *ADTS) PutAACSequenceHeader(payload []byte) error {
 }
 
 // 获取ADTS头，注意，由于ADTS头依赖包的长度，而每个包的长度不同，所以生成的每个包的ADTS头也不同
+//
 // @param <length> rtmp message payload长度，包含前面2个字节
-func (a *ADTS) GetADTS(length uint16) []byte {
+func (a *ADTS) GetADTS(length uint16) ([]byte, error) {
+	if a.IsNil() {
+		return nil, ErrAAC
+	}
 	// <ISO_IEC_14496-3.pdf>
 	// <1.A.2.2.1 Fixed Header of ADTS>, <page 75/110>
 	// <1.A.2.2.2 Variable Header of ADTS>, <page 76/110>
@@ -99,24 +111,35 @@ func (a *ADTS) GetADTS(length uint16) []byte {
 	// adts_buffer_fullness           [11b]
 	// no_raw_data_blocks_in_frame    [2b]
 
-	// 减去头两字节，再加上自身adts头的7个字节
+	// 减去头2字节，再加上自身adts头的7个字节
 	length += 5
 
 	bw := nazabits.NewBitWriter(a.adtsHeader)
-	bw.WriteBits16(12, 0xFFF)                  // Syncword 0(8) 1(4)
-	bw.WriteBits8(4, 0x1)                      // ID, Layer, protection_absent 1(4)
-	bw.WriteBits8(2, a.audioObjectType-1)      // 2(2)
-	bw.WriteBits8(4, a.samplingFrequencyIndex) // 2(4)
-	bw.WriteBits8(1, 0)                        // private_bit 2(1)
-	bw.WriteBits8(3, a.channelConfiguration)   // 2(1) 3(2)
-	bw.WriteBits8(4, 0)                        // origin/copy, home, copyright_identification_bit, copyright_identification_start 3(4)
-	bw.WriteBits16(13, length)                 // 3(2) 4(8) 5(3)
-	bw.WriteBits16(11, 0x7FF)                  // adts_buffer_fullness 5(5) 6(6)
-	bw.WriteBits8(2, 0)                        // no_raw_data_blocks_in_frame 6(2)
+	// Syncword 0(8) 1(4)
+	bw.WriteBits16(12, 0xFFF)
+	// ID, Layer, protection_absent 1(4)
+	bw.WriteBits8(4, 0x1)
+	// 2(2)
+	bw.WriteBits8(2, a.audioObjectType-1)
+	// 2(4)
+	bw.WriteBits8(4, a.samplingFrequencyIndex)
+	// private_bit 2(1)
+	bw.WriteBits8(1, 0)
+	// 2(1) 3(2)
+	bw.WriteBits8(3, a.channelConfiguration)
+	// origin/copy, home, copyright_identification_bit, copyright_identification_start 3(4)
+	bw.WriteBits8(4, 0)
+	// 3(2) 4(8) 5(3)
+	bw.WriteBits16(13, length)
+	// adts_buffer_fullness 5(5) 6(6)
+	bw.WriteBits16(11, 0x7FF)
+	// no_raw_data_blocks_in_frame 6(2)
+	bw.WriteBits8(2, 0)
 
-	return a.adtsHeader
+	return a.adtsHeader, nil
 }
 
+// 可用于判断，是否调用过ADTS.PutAACSequenceHeader
 func (a *ADTS) IsNil() bool {
 	return a.adtsHeader == nil
 }

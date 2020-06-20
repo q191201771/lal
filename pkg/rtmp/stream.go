@@ -119,12 +119,12 @@ func (msg *StreamMsg) readNumberWithType() (int, error) {
 	return int(val), err
 }
 
-func (msg *StreamMsg) readObjectWithType() (map[string]interface{}, error) {
-	obj, l, err := AMF0.ReadObject(msg.buf[msg.b:msg.e])
+func (msg *StreamMsg) readObjectWithType() (ObjectPairArray, error) {
+	opa, l, err := AMF0.ReadObject(msg.buf[msg.b:msg.e])
 	if err == nil {
 		msg.consumed(uint32(l))
 	}
-	return obj, err
+	return opa, err
 }
 
 func (msg *StreamMsg) readNull() error {

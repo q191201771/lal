@@ -262,9 +262,9 @@ func (s *ClientSession) doOnStatusMessage(stream *Stream, tid int) error {
 	if err != nil {
 		return err
 	}
-	code, ok := infos["code"]
-	if !ok {
-		return ErrRTMP
+	code, err := infos.FindString("code")
+	if err != nil {
+		return err
 	}
 	switch s.t {
 	case CSTPushSession:
@@ -299,9 +299,9 @@ func (s *ClientSession) doResultMessage(stream *Stream, tid int) error {
 		if err != nil {
 			return err
 		}
-		code, ok := infos["code"].(string)
-		if !ok {
-			return ErrRTMP
+		code, err := infos.FindString("code")
+		if err != nil {
+			return err
 		}
 		switch code {
 		case "NetConnection.Connect.Success":
@@ -311,7 +311,7 @@ func (s *ClientSession) doResultMessage(stream *Stream, tid int) error {
 				return err
 			}
 		default:
-			log.Errorf("unknown code. [%s] code=%s", s.UniqueKey, code)
+			log.Errorf("unknown code. [%s] code=%v", s.UniqueKey, code)
 		}
 	case tidClientCreateStream:
 		err := stream.msg.readNull()

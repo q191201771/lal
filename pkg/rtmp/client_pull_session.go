@@ -41,18 +41,23 @@ func NewPullSession(modOptions ...ModPullSessionOption) *PullSession {
 	}
 }
 
-// 阻塞直到连接断开或发生错误
+// 建立rtmp play连接
+// 阻塞直到收到服务端返回的rtmp publish对应结果的信令，或发生错误
 //
-// @param onReadRTMPAVMsg: 回调结束后，内存块会被 PullSession 重复使用
+// @param onReadRTMPAVMsg: 注意，回调结束后，内存块会被PullSession重复使用
 func (s *PullSession) Pull(rawURL string, onReadRTMPAVMsg OnReadRTMPAVMsg) error {
 	s.core.onReadRTMPAVMsg = onReadRTMPAVMsg
-	if err := s.core.doWithTimeout(rawURL); err != nil {
-		return err
-	}
+	return s.core.doWithTimeout(rawURL)
+}
 
-	return <-s.core.Done()
+func (s *PullSession) Done() <-chan error {
+	return s.core.Done()
 }
 
 func (s *PullSession) Dispose() {
 	s.core.Dispose()
+}
+
+func (s *PullSession) UniqueKey() string {
+	return s.core.UniqueKey
 }

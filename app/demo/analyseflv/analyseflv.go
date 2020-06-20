@@ -55,7 +55,7 @@ var (
 	printStatFlag        = true
 	printEveryTagFlag    = false
 	printMetaData        = true
-	analysisVideoTagFlag = false
+	analysisVideoTagFlag = true
 )
 
 var (
@@ -102,14 +102,11 @@ func main() {
 			if printMetaData {
 				nazalog.Debugf("----------\n%s", hex.Dump(tag.Raw[11:]))
 
-				// TODO chef: 这部分可以移入到rtmp package中
-				_, l, err := rtmp.AMF0.ReadString(tag.Raw[11:])
-				nazalog.Assert(nil, err)
-				ops, _, err := rtmp.AMF0.ReadArray(tag.Raw[11+l : len(tag.Raw)-4])
+				opa, err := rtmp.ParseMetadata(tag.Raw[11 : len(tag.Raw)-4])
 				nazalog.Assert(nil, err)
 				var buf bytes.Buffer
-				buf.WriteString(fmt.Sprintf("-----\ncount:%d\n", len(ops)))
-				for _, op := range ops {
+				buf.WriteString(fmt.Sprintf("-----\ncount:%d\n", len(opa)))
+				for _, op := range opa {
 					buf.WriteString(fmt.Sprintf("  %s: %+v\n", op.Key, op.Value))
 				}
 				nazalog.Debugf("%+v", buf.String())

@@ -231,7 +231,7 @@ func (m *Muxer) feedAudio(msg rtmp.AVMsg) {
 		m.aframePTS = pts
 	}
 
-	adtsHeader := m.adts.GetADTS(uint16(msg.Header.MsgLen))
+	adtsHeader, _ := m.adts.GetADTS(uint16(msg.Header.MsgLen))
 	m.aaframe = append(m.aaframe, adtsHeader...)
 	m.aaframe = append(m.aaframe, msg.Payload[2:]...)
 }

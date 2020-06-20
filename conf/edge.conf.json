@@ -5,8 +5,8 @@
     "gop_num": 2
   },
   "httpflv": {
-    "enable": false,
-    "sub_listen_addr": ":8080",
+    "enable": true,
+    "sub_listen_addr": ":8082",
     "gop_num": 2
   },
   "hls": {
@@ -21,6 +21,10 @@
     "addr_list":[
       "127.0.0.1:19350"
     ]
+  },
+  "relay_pull": {
+    "enable": true,
+    "addr": "127.0.0.1:19350"
   },
   "pprof": {
     "enable": false,

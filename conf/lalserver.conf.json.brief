@@ -1,0 +1,40 @@
+{
+  "rtmp": {
+    "enable": true,   // 是否开启rtmp服务的监听
+    "addr": ":19350", // RTMP服务监听的端口，客户端向lalserver推拉流都是这个地址
+    "gop_num": 2      // RTMP拉流的GOP缓存数量，加速秒开
+  },
+  "httpflv": {
+    "enable": true,             // 是否开启HTTP-FLV服务的监听
+    "sub_listen_addr": ":8080", // HTTP-FLV拉流地址
+    "gop_num": 2
+  },
+  "hls": {
+    "enable": true,               // 是否开启HLS服务的监听
+    "sub_listen_addr": ":8081",   // HLS监听地址
+    "out_path": "/tmp/lal/hls/",  // HLS文件保存根目录
+    "fragment_duration_ms": 3000, // 单个TS文件切片时长，单位毫秒
+    "fragment_num": 6             // M3U8文件列表中TS文件的数量
+  },
+  "relay_push": {
+    "enable": false, // 是否开启中继转推功能，开启后，自身接收到的所有流都会转推出去
+    "addr_list":[    // 中继转推的对端地址，支持填写多个地址，做1对n的转推。格式举例 "127.0.0.1:19351"
+    ]
+  },
+  "relay_pull": {
+    "enable": false, // 是否开启回源拉流功能，开启后，当自身接收到拉流请求，而流不存在时，会从其他服务器拉取这个流到本地
+    "addr": ""       // 回源拉流的地址。格式举例 "127.0.0.1:19351"
+  },
+  "pprof": {
+    "enable": true,  // 是否开启Go pprof web服务的监听
+    "addr": ":10001" // Go pprof web地址
+  },
+  "log": {
+    "level": 1,                         // 日志级别，1 debug, 2 info, 3 warn, 4 error, 5 fatal
+    "filename": "./logs/lalserver.log", // 日志输出文件
+    "is_to_stdout": true,               // 是否打印至标志控制台输出
+    "is_rotate_daily": true,            // 日志按天翻滚
+    "short_file_flag": true,            // 日志末尾是否携带源码文件名以及行号的信息
+    "assert_behavior": 1                // 日志断言的行为，1 只打印错误日志 2 打印并退出程序 3 打印并panic
+  }
+}

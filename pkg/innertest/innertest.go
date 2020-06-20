@@ -31,12 +31,15 @@ import (
 // 分别用rtmp协议以及httpflv协议从服务端拉流，再将拉取的流保存为flv文件
 // 对比三份flv文件，看是否完全一致
 
-// TODO chef: 加上hls的检查
+// TODO chef:
+// - 加上hls的检查
+// - 加上relay push
+// - 加上relay pull
 
 var (
 	tt *testing.T
 
-	confFile = "testdata/lalserver.default.conf.json"
+	confFile = "testdata/lalserver.conf.json"
 
 	rFLVFileName      = "testdata/test.flv"
 	wFLVPullFileName  = "testdata/flvpull.flv"
@@ -91,13 +94,17 @@ func InnerTestEntry(t *testing.T) {
 		rtmpPullSession = rtmp.NewPullSession(func(option *rtmp.PullSessionOption) {
 			option.ReadAVTimeoutMS = 500
 		})
-		err := rtmpPullSession.Pull(rtmpPullURL, func(msg rtmp.AVMsg) {
-			tag := logic.Trans.RTMPMsg2FLVTag(msg)
-			err := rtmpWriter.WriteTag(*tag)
-			assert.Equal(tt, nil, err)
-			rtmpPullTagCount.Increment()
-		})
+		err := rtmpPullSession.Pull(
+			rtmpPullURL,
+			func(msg rtmp.AVMsg) {
+				tag := logic.Trans.RTMPMsg2FLVTag(msg)
+				err := rtmpWriter.WriteTag(*tag)
+				assert.Equal(tt, nil, err)
+				rtmpPullTagCount.Increment()
+			})
 		nazalog.Error(err)
+		err = <-rtmpPullSession.Done()
+		nazalog.Debug(err)
 	}()
 
 	go func() {

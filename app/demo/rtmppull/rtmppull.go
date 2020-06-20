@@ -16,12 +16,10 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/q191201771/lal/pkg/aac"
-
 	"github.com/q191201771/lal/pkg/httpflv"
 	"github.com/q191201771/lal/pkg/logic"
 	"github.com/q191201771/lal/pkg/rtmp"
-	log "github.com/q191201771/naza/pkg/nazalog"
+	"github.com/q191201771/naza/pkg/nazalog"
 )
 
 // RTMP拉流客户端，从远端服务器拉取RTMP流，存储为本地FLV文件
@@ -65,10 +63,10 @@ func pull(url string, filename string) {
 
 	if filename != "" {
 		err = w.Open(filename)
-		log.Assert(nil, err)
+		nazalog.Assert(nil, err)
 		defer w.Dispose()
 		err = w.WriteRaw(httpflv.FLVHeader)
-		log.Assert(nil, err)
+		nazalog.Assert(nil, err)
 	}
 
 	session := rtmp.NewPullSession(func(option *rtmp.PullSessionOption) {
@@ -77,22 +75,19 @@ func pull(url string, filename string) {
 		option.ReadAVTimeoutMS = 10000
 	})
 
-	err = session.Pull(url, func(msg rtmp.AVMsg) {
-		log.Debugf("header=%+v", msg.Header)
-		if msg.IsAACSeqHeader() {
-			log.Infof("header=%+v, abs ts=%d, msg.body=%+v", msg.Header, msg.Header.TimestampAbs, msg.Payload)
-			var adts aac.ADTS
-			adts.PutAACSequenceHeader(msg.Payload)
-			adtsBuf := adts.GetADTS(10)
-			log.Infof("adts=%+v", adtsBuf)
-		}
-		if filename != "" {
-			tag := logic.Trans.RTMPMsg2FLVTag(msg)
-			err := w.WriteTag(*tag)
-			log.Assert(nil, err)
-		}
-	})
-	log.Assert(nil, err)
+	err = session.Pull(
+		url,
+		func(msg rtmp.AVMsg) {
+			nazalog.Debugf("header=%+v", msg.Header)
+			if filename != "" {
+				tag := logic.Trans.RTMPMsg2FLVTag(msg)
+				err := w.WriteTag(*tag)
+				nazalog.Assert(nil, err)
+			}
+		})
+	nazalog.Assert(nil, err)
+	err = <-session.Done()
+	nazalog.Debug(err)
 }
 
 func connect(urlTmpl string, fileNameTmpl string, num int) (urls []string, filenames []string) {

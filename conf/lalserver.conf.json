@@ -21,6 +21,10 @@
     "addr_list":[
     ]
   },
+  "relay_pull": {
+    "enable": false,
+    "addr": ""
+  },
   "pprof": {
     "enable": true,
     "addr": ":10001"
