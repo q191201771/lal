@@ -20,9 +20,9 @@ echo ${v} >> ${ROOT_DIR}/${OUT_DIR}/${prefix}linux/VERSION.txt
 echo ${v} >> ${ROOT_DIR}/${OUT_DIR}/${prefix}macos/VERSION.txt
 echo ${v} >> ${ROOT_DIR}/${OUT_DIR}/${prefix}windows/VERSION.txt
 
-cp conf/lalserver.conf.json ${ROOT_DIR}/${OUT_DIR}/${prefix}linux/conf
-cp conf/lalserver.conf.json ${ROOT_DIR}/${OUT_DIR}/${prefix}macos/conf
-cp conf/lalserver.conf.json ${ROOT_DIR}/${OUT_DIR}/${prefix}windows/conf
+cp conf/lalserver.conf.json conf/edge.conf.json ${ROOT_DIR}/${OUT_DIR}/${prefix}linux/conf
+cp conf/lalserver.conf.json conf/edge.conf.json ${ROOT_DIR}/${OUT_DIR}/${prefix}macos/conf
+cp conf/lalserver.conf.json conf/edge.conf.json ${ROOT_DIR}/${OUT_DIR}/${prefix}windows/conf
 
 GitCommitLog=`git log --pretty=oneline -n 1`
 # 将 log 原始字符串中的单引号替换成双引号

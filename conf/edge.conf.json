@@ -11,7 +11,7 @@
   },
   "hls": {
     "enable": false,
-    "sub_listen_addr": ":8081",
+    "sub_listen_addr": ":8083",
     "out_path": "/tmp/lal/hls/",
     "fragment_duration_ms": 3000,
     "fragment_num": 6
