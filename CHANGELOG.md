@@ -1,3 +1,10 @@
+#### v0.12.0
+
+- [feat] lalserver增加回源功能
+- [fix] rtmp.AMF0.ReadObject函数内部，增加解析子类型EcmaArray。避免向某些rtmp服务器推流时，触发断言错误
+- [fix] 解析rtmp metadata时，兼容Object和Array两种外层格式
+- [refactor] 重写了lalserver的中继转推的代码
+
 #### v0.11.0
 
 - [feat] lalserver增加中继转推(relay push)功能，可将接收到的推流(pub)转推(push)到其他rtmp类型的服务器，支持1对n的转推
