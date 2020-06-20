@@ -27,15 +27,15 @@ Go live stream lib/client/server and much more.
 
 ---
 
-### README 目录
+**README 目录导航：**
 
-- 一、编译，运行，体验功能
-- 二、配置文件说明
-- 三、仓库目录框架
-- 四、已完成，待完成，未来规划
-- 五、文档
-- 六、联系我
-- 七、性能测试，测试过的第三方客户端
+- [一、编译，运行，体验功能](https://github.com/q191201771/lal#%E4%B8%80-%E7%BC%96%E8%AF%91%E8%BF%90%E8%A1%8C%E4%BD%93%E9%AA%8C%E5%8A%9F%E8%83%BD)
+- [二、配置文件说明](https://github.com/q191201771/lal#%E4%BA%8C-%E9%85%8D%E7%BD%AE%E6%96%87%E4%BB%B6%E8%AF%B4%E6%98%8E)
+- [三、仓库目录框架](https://github.com/q191201771/lal#%E4%B8%89-%E4%BB%93%E5%BA%93%E7%9B%AE%E5%BD%95%E6%A1%86%E6%9E%B6)
+- [四、已完成，待完成，未来规划](https://github.com/q191201771/lal#%E5%9B%9B-%E5%B7%B2%E5%AE%8C%E6%88%90%E5%BE%85%E5%AE%8C%E6%88%90%E6%9C%AA%E6%9D%A5%E8%A7%84%E5%88%92)
+- [五、文档](https://github.com/q191201771/lal#%E4%BA%94-%E6%96%87%E6%A1%A3)
+- [六、联系我](https://github.com/q191201771/lal#%E5%85%AD-%E8%81%94%E7%B3%BB%E6%88%91)
+- [七、性能测试，测试过的第三方客户端](https://github.com/q191201771/lal#%E4%B8%83-%E6%80%A7%E8%83%BD%E6%B5%8B%E8%AF%95%E6%B5%8B%E8%AF%95%E8%BF%87%E7%9A%84%E7%AC%AC%E4%B8%89%E6%96%B9%E5%AE%A2%E6%88%B7%E7%AB%AF)
 
 ### 一. 编译，运行，体验功能
 
