@@ -13,11 +13,19 @@ package rtsp
 // rfc2326
 
 const (
-	MethodOptions = "OPTIONS"
-	MethodSetup   = "SETUP"
+	MethodOptions  = "OPTIONS"
+	MethodDescribe = "DESCRIBE"
+	MethodSetup    = "SETUP"
+	MethodPlay     = "PLAY"
+
+	MethodAnnounce = "ANNOUNCE"
 )
 
 const (
 	HeaderFieldCSeq      = "CSeq"
 	HeaderFieldTransport = "Transport"
 )
+
+// TODO chef:
+// 收集lal中其他可以hack服务名的地方，统一到一处，并增加版本号信息
+const serverName = "lalserver"

@@ -10,7 +10,9 @@ package rtsp
 
 import (
 	"bufio"
+	"io"
 	"net"
+	"strconv"
 
 	"github.com/q191201771/naza/pkg/nazahttp"
 	"github.com/q191201771/naza/pkg/nazalog"
@@ -63,13 +65,36 @@ func (s *Server) handleTCPConnect(conn net.Conn) {
 			break
 		}
 
+		var body []byte
+		if contentLength, ok := headers["Content-Length"]; ok {
+			if cl, err := strconv.Atoi(contentLength); err == nil {
+				body := make([]byte, cl)
+				l, err := io.ReadAtLeast(r, body, cl)
+				if l != cl || err != nil {
+					nazalog.Errorf("read rtsp cmd fail. content-length=%d, read length=%d, err=%+v", cl, l, err)
+				} else {
+					nazalog.Debugf("body=%s", string(body))
+				}
+			}
+		}
+		_ = body
+
 		// TODO chef: header field not exist?
 		switch method {
 		case MethodOptions:
 			resp := PackResponseOptions(headers[HeaderFieldCSeq])
 			_, _ = conn.Write([]byte(resp))
+		case MethodDescribe:
+			resp := PackResponseDescribe(headers[HeaderFieldCSeq])
+			_, _ = conn.Write([]byte(resp))
 		case MethodSetup:
 			resp := PackResponseSetup(headers[HeaderFieldCSeq], headers[HeaderFieldTransport])
+			_, _ = conn.Write([]byte(resp))
+		case MethodPlay:
+			resp := PackResponsePlay(headers[HeaderFieldCSeq])
+			_, _ = conn.Write([]byte(resp))
+		case MethodAnnounce:
+			resp := PackResponseAnnounce(headers[HeaderFieldCSeq])
 			_, _ = conn.Write([]byte(resp))
 		default:
 			nazalog.Error(method)
