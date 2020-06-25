@@ -69,7 +69,7 @@ func (server *Server) handleConnect(conn net.Conn) {
 		log.Errorf("read httpflv SubSession request error. [%s]", session.UniqueKey)
 		return
 	}
-	log.Infof("-----> http request. [%s] uri=%s", session.UniqueKey, session.URI)
+	log.Debugf("< read http request. [%s] uri=%s", session.UniqueKey, session.URI)
 
 	if !server.obs.NewHTTPFLVSubSessionCB(session) {
 		session.Dispose()

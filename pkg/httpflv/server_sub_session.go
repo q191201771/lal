@@ -14,6 +14,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/q191201771/naza/pkg/nazahttp"
+
 	"github.com/q191201771/naza/pkg/connection"
 
 	"github.com/q191201771/naza/pkg/nazalog"
@@ -72,10 +74,10 @@ func (session *SubSession) ReadRequest() (err error) {
 		requestLine string
 		method      string
 	)
-	if requestLine, session.Headers, err = parseHTTPHeader(session.conn); err != nil {
+	if requestLine, session.Headers, err = nazahttp.ReadHTTPHeader(session.conn); err != nil {
 		return
 	}
-	if method, session.URI, _, err = parseRequestLine(requestLine); err != nil {
+	if method, session.URI, _, err = nazahttp.ParseHTTPRequestLine(requestLine); err != nil {
 		return
 	}
 	if method != "GET" {
@@ -115,12 +117,12 @@ func (session *SubSession) RunLoop() error {
 }
 
 func (session *SubSession) WriteHTTPResponseHeader() {
-	nazalog.Infof("<----- http response header. [%s]", session.UniqueKey)
+	nazalog.Debugf("> send http response header. [%s]", session.UniqueKey)
 	session.WriteRawPacket(flvHTTPResponseHeader)
 }
 
 func (session *SubSession) WriteFLVHeader() {
-	nazalog.Infof("<----- http flv header. [%s]", session.UniqueKey)
+	nazalog.Debugf("> send http flv header. [%s]", session.UniqueKey)
 	session.WriteRawPacket(FLVHeader)
 }
 

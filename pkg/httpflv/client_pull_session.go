@@ -15,8 +15,10 @@ import (
 	"strings"
 	"time"
 
+	"github.com/q191201771/naza/pkg/nazahttp"
+
 	"github.com/q191201771/naza/pkg/connection"
-	log "github.com/q191201771/naza/pkg/nazalog"
+	"github.com/q191201771/naza/pkg/nazalog"
 	"github.com/q191201771/naza/pkg/unique"
 )
 
@@ -37,9 +39,9 @@ type PullSession struct {
 
 	option PullSessionOption
 
-	host string
-	uri  string
-	addr string
+	host          string
+	pathWithQuery string
+	addr          string
 }
 
 type ModPullSessionOption func(option *PullSessionOption)
@@ -51,7 +53,7 @@ func NewPullSession(modOptions ...ModPullSessionOption) *PullSession {
 	}
 
 	uk := unique.GenUniqueKey("FLVPULL")
-	log.Infof("lifecycle new PullSession. [%s]", uk)
+	nazalog.Infof("lifecycle new PullSession. [%s]", uk)
 	return &PullSession{
 		option:    option,
 		UniqueKey: uk,
@@ -79,29 +81,34 @@ func (session *PullSession) Pull(rawURL string, onReadFLVTag OnReadFLVTag) error
 }
 
 func (session *PullSession) Dispose() {
-	log.Infof("lifecycle dispose PullSession. [%s]", session.UniqueKey)
+	nazalog.Infof("lifecycle dispose PullSession. [%s]", session.UniqueKey)
 	_ = session.Conn.Close()
 }
 
 func (session *PullSession) Connect(rawURL string) error {
 	// # 从 url 中解析 host uri addr
-	url, err := url.Parse(rawURL)
+	u, err := url.Parse(rawURL)
 	if err != nil {
 		return err
 	}
-	if url.Scheme != "http" || !strings.HasSuffix(url.Path, ".flv") {
+	if u.Scheme != "http" || !strings.HasSuffix(u.Path, ".flv") {
 		return ErrHTTPFLV
 	}
 
-	session.host = url.Host
-	// TODO chef: uri with url.RawQuery?
-	session.uri = url.Path
+	session.host = u.Host
+	if u.RawQuery == "" {
+		session.pathWithQuery = u.Path
+	} else {
+		session.pathWithQuery = fmt.Sprintf("%s?%s", u.Path, u.RawQuery)
+	}
 
 	if strings.Contains(session.host, ":") {
 		session.addr = session.host
 	} else {
 		session.addr = session.host + ":80"
 	}
+
+	nazalog.Debugf("> tcp connect. [%s]", session.UniqueKey)
 
 	// # 建立连接
 	conn, err := net.DialTimeout("tcp", session.addr, time.Duration(session.option.ConnectTimeoutMS)*time.Millisecond)
@@ -118,22 +125,24 @@ func (session *PullSession) Connect(rawURL string) error {
 
 func (session *PullSession) WriteHTTPRequest() error {
 	// # 发送 http GET 请求
+	nazalog.Debugf("> send http request. [%s] GET %s", session.UniqueKey, session.pathWithQuery)
 	req := fmt.Sprintf("GET %s HTTP/1.0\r\nAccept: */*\r\nRange: byte=0-\r\nConnection: close\r\nHost: %s\r\nIcy-MetaData: 1\r\n\r\n",
-		session.uri, session.host)
+		session.pathWithQuery, session.host)
 	_, err := session.Conn.Write([]byte(req))
 	return err
 }
 
 func (session *PullSession) ReadHTTPRespHeader() (statusLine string, headers map[string]string, err error) {
 	// TODO chef: timeout
-	if statusLine, headers, err = parseHTTPHeader(session.Conn); err != nil {
+	if statusLine, headers, err = nazahttp.ReadHTTPHeader(session.Conn); err != nil {
 		return
 	}
-	if _, _, _, err = parseStatusLine(statusLine); err != nil {
+	_, code, _, err := nazahttp.ParseHTTPStatusLine(statusLine)
+	if err != nil {
 		return
 	}
 
-	log.Infof("-----> http response header. [%s]", session.UniqueKey)
+	nazalog.Debugf("< read http response header. [%s] code=%s", session.UniqueKey, code)
 	return
 }
 
@@ -143,7 +152,7 @@ func (session *PullSession) ReadFLVHeader() ([]byte, error) {
 	if err != nil {
 		return flvHeader, err
 	}
-	log.Infof("-----> httpflv header. [%s]", session.UniqueKey)
+	nazalog.Debugf("< read http flv header. [%s]", session.UniqueKey)
 
 	// TODO chef: check flv header's value
 	return flvHeader, nil
