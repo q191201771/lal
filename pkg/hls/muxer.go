@@ -245,7 +245,11 @@ func (m *Muxer) cacheSPSPPS(msg rtmp.AVMsg) {
 }
 
 func (m *Muxer) appendSPSPPS(out []byte) []byte {
-	// TODO chef: 检查spspps是否存在
+	if m.spspps == nil {
+		nazalog.Warnf("append spspps by not exist. [%s]", m.UniqueKey)
+		return out
+	}
+
 	index := 10
 	nnals := m.spspps[index] & 0x1f
 	index++
