@@ -41,11 +41,7 @@ Go live stream lib/client/server and much more.
 
 #### 编译
 
-方式1，直接下载编译好的二进制可执行文件
-
-上[最新发布版本页面](https://github.com/q191201771/lal/releases/latest)，下载对应平台编译好的二进制可执行文件的zip压缩包。
-
-方式2，自己编译
+方式1，从源码自行编译
 
 ```shell
 # 不使用 Go module
@@ -59,6 +55,10 @@ $git clone https://github.com/q191201771/lal.git
 $cd lal
 $./build.sh
 ```
+
+方式2，直接下载编译好的二进制可执行文件
+
+上[最新发布版本页面](https://github.com/q191201771/lal/releases/latest)，下载对应平台编译好的二进制可执行文件的zip压缩包。
 
 #### 运行
 
@@ -129,9 +129,9 @@ pkg/                     ......
 |-- httpflv/             ......HTTP-FLV协议
 |-- hls/                 ......HLS协议
 |-- logic/               ......lalserver服务器程序的上层业务逻辑
-|-- aac/                 ......音频AAC编码格式相关
-|-- avc/                 ......视频H264/AVC编码格式相关
-|-- hevc/                ......视频H265/HEVC编码格式相关
+|-- aac/                 ......音频AAC格式相关
+|-- avc/                 ......视频H264/AVC格式相关
+|-- hevc/                ......视频H265/HEVC格式相关
 |-- innertest/           ......测试代码
 
 app/                     ......
