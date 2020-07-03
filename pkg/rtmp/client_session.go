@@ -81,7 +81,7 @@ func NewClientSession(t ClientSessionType, modOptions ...ModClientSessionOption)
 	case CSTPushSession:
 		uk = unique.GenUniqueKey("RTMPPUSH")
 	}
-	log.Infof("lifecycle new rtmp client session. [%s]", uk)
+	log.Infof("[%s] lifecycle new rtmp client session.", uk)
 
 	option := defaultClientSessOption
 	for _, fn := range modOptions {
@@ -131,13 +131,13 @@ func (s *ClientSession) do(rawURL string) <-chan error {
 		return ch
 	}
 
-	log.Infof("<----- SetChunkSize %d. [%s]", LocalChunkSize, s.UniqueKey)
+	log.Infof("[%s] > W SetChunkSize %d.", s.UniqueKey, LocalChunkSize)
 	if err := s.packer.writeChunkSize(s.conn, LocalChunkSize); err != nil {
 		ch <- err
 		return ch
 	}
 
-	log.Infof("<----- connect('%s'). [%s]", s.appName, s.UniqueKey)
+	log.Infof("[%s] > W connect('%s').", s.UniqueKey, s.appName)
 	if err := s.packer.writeConnect(s.conn, s.appName, s.tcURL); err != nil {
 		ch <- err
 		return ch
@@ -170,7 +170,7 @@ func (s *ClientSession) Flush() error {
 }
 
 func (s *ClientSession) Dispose() {
-	log.Infof("lifecycle dispose rtmp client session. [%s]", s.UniqueKey)
+	log.Infof("[%s] lifecycle dispose rtmp client session.", s.UniqueKey)
 	_ = s.conn.Close()
 }
 
@@ -193,13 +193,13 @@ func (s *ClientSession) doMsg(stream *Stream) error {
 	case typeidAck:
 		return s.doAck(stream)
 	case typeidUserControl:
-		log.Warnf("read user control message, ignore. [%s]", s.UniqueKey)
+		log.Warnf("[%s] read user control message, ignore.", s.UniqueKey)
 	case TypeidAudio:
 		fallthrough
 	case TypeidVideo:
 		s.onReadRTMPAVMsg(stream.toAVMsg())
 	default:
-		log.Errorf("read unknown message. [%s] typeid=%d, %s", s.UniqueKey, stream.header.MsgTypeID, stream.toDebugString())
+		log.Errorf("[%s] read unknown message. typeid=%d, %s", s.UniqueKey, stream.header.MsgTypeID, stream.toDebugString())
 		panic(0)
 	}
 	return nil
@@ -207,7 +207,7 @@ func (s *ClientSession) doMsg(stream *Stream) error {
 
 func (s *ClientSession) doAck(stream *Stream) error {
 	seqNum := bele.BEUint32(stream.msg.buf[stream.msg.b:stream.msg.e])
-	log.Infof("-----> Acknowledgement. [%s] ignore. sequence number=%d.", s.UniqueKey, seqNum)
+	log.Infof("[%s] < R Acknowledgement. ignore. sequence number=%d.", s.UniqueKey, seqNum)
 	return nil
 }
 
@@ -242,13 +242,13 @@ func (s *ClientSession) doCommandMessage(stream *Stream) error {
 
 	switch cmd {
 	case "onBWDone":
-		log.Warnf("-----> onBWDone. ignore. [%s]", s.UniqueKey)
+		log.Warnf("[%s] < R onBWDone. ignore.", s.UniqueKey)
 	case "_result":
 		return s.doResultMessage(stream, tid)
 	case "onStatus":
 		return s.doOnStatusMessage(stream, tid)
 	default:
-		log.Errorf("read unknown command message. [%s] cmd=%s, %s", s.UniqueKey, cmd, stream.toDebugString())
+		log.Errorf("[%s] read unknown command message. cmd=%s, %s", s.UniqueKey, cmd, stream.toDebugString())
 	}
 
 	return nil
@@ -270,18 +270,18 @@ func (s *ClientSession) doOnStatusMessage(stream *Stream, tid int) error {
 	case CSTPushSession:
 		switch code {
 		case "NetStream.Publish.Start":
-			log.Infof("-----> onStatus('NetStream.Publish.Start'). [%s]", s.UniqueKey)
+			log.Infof("[%s] < R onStatus('NetStream.Publish.Start').", s.UniqueKey)
 			s.notifyDoResultSucc()
 		default:
-			log.Errorf("read on status message but code field unknown. [%s] code=%s", s.UniqueKey, code)
+			log.Errorf("[%s] read on status message but code field unknown. code=%s", s.UniqueKey, code)
 		}
 	case CSTPullSession:
 		switch code {
 		case "NetStream.Play.Start":
-			log.Infof("-----> onStatus('NetStream.Play.Start'). [%s]", s.UniqueKey)
+			log.Infof("[%s] < R onStatus('NetStream.Play.Start').", s.UniqueKey)
 			s.notifyDoResultSucc()
 		default:
-			log.Errorf("read on status message but code field unknown. [%s] code=%s", s.UniqueKey, code)
+			log.Errorf("[%s] read on status message but code field unknown. code=%s", s.UniqueKey, code)
 		}
 	}
 
@@ -305,13 +305,13 @@ func (s *ClientSession) doResultMessage(stream *Stream, tid int) error {
 		}
 		switch code {
 		case "NetConnection.Connect.Success":
-			log.Infof("-----> _result(\"NetConnection.Connect.Success\"). [%s]", s.UniqueKey)
-			log.Infof("<----- createStream(). [%s]", s.UniqueKey)
+			log.Infof("[%s] < R _result(\"NetConnection.Connect.Success\").", s.UniqueKey)
+			log.Infof("[%s] > W createStream().", s.UniqueKey)
 			if err := s.packer.writeCreateStream(s.conn); err != nil {
 				return err
 			}
 		default:
-			log.Errorf("unknown code. [%s] code=%v", s.UniqueKey, code)
+			log.Errorf("[%s] unknown code. code=%v", s.UniqueKey, code)
 		}
 	case tidClientCreateStream:
 		err := stream.msg.readNull()
@@ -322,21 +322,21 @@ func (s *ClientSession) doResultMessage(stream *Stream, tid int) error {
 		if err != nil {
 			return err
 		}
-		log.Infof("-----> _result(). [%s]", s.UniqueKey)
+		log.Infof("[%s] < R _result().", s.UniqueKey)
 		switch s.t {
 		case CSTPullSession:
-			log.Infof("<----- play('%s'). [%s]", s.streamNameWithRawQuery, s.UniqueKey)
+			log.Infof("[%s] > W play('%s').", s.UniqueKey, s.streamNameWithRawQuery)
 			if err := s.packer.writePlay(s.conn, s.streamNameWithRawQuery, sid); err != nil {
 				return err
 			}
 		case CSTPushSession:
-			log.Infof("<----- publish('%s'). [%s]", s.streamNameWithRawQuery, s.UniqueKey)
+			log.Infof("[%s] > W publish('%s').", s.UniqueKey, s.streamNameWithRawQuery)
 			if err := s.packer.writePublish(s.conn, s.appName, s.streamNameWithRawQuery, sid); err != nil {
 				return err
 			}
 		}
 	default:
-		log.Errorf("unknown tid. [%s] tid=%d", s.UniqueKey, tid)
+		log.Errorf("[%s] unknown tid. tid=%d", s.UniqueKey, tid)
 	}
 	return nil
 }
@@ -350,15 +350,15 @@ func (s *ClientSession) doProtocolControlMessage(stream *Stream) error {
 	switch stream.header.MsgTypeID {
 	case typeidWinAckSize:
 		s.peerWinAckSize = val
-		log.Infof("-----> Window Acknowledgement Size: %d. [%s]", s.peerWinAckSize, s.UniqueKey)
+		log.Infof("[%s] < R Window Acknowledgement Size: %d", s.UniqueKey, s.peerWinAckSize)
 	case typeidBandwidth:
 		// TODO chef: 是否需要关注这个信令
-		log.Debugf("-----> Set Peer Bandwidth. ignore. [%s]", s.UniqueKey)
+		log.Debugf("[%s] < R Set Peer Bandwidth. ignore.", s.UniqueKey)
 	case typeidSetChunkSize:
 		// composer内部会自动更新peer chunk size.
-		log.Infof("-----> Set Chunk Size %d. [%s]", val, s.UniqueKey)
+		log.Infof("[%s] < R Set Chunk Size %d.", s.UniqueKey, val)
 	default:
-		log.Errorf("read unknown protocol control message. [%s] typeid=%d, %s", s.UniqueKey, stream.header.MsgTypeID, stream.toDebugString())
+		log.Errorf("[%s] read unknown protocol control message. typeid=%d, %s", s.UniqueKey, stream.header.MsgTypeID, stream.toDebugString())
 	}
 	return nil
 }
@@ -389,13 +389,13 @@ func (s *ClientSession) parseURL(rawURL string) error {
 	} else {
 		s.streamNameWithRawQuery = s.streamName + "?" + s.url.RawQuery
 	}
-	log.Debugf("parseURL. [%s] %s %s %s %+v", s.UniqueKey, s.tcURL, s.appName, s.streamNameWithRawQuery, *s.url)
+	log.Debugf("[%s] parseURL. %s %s %s %+v", s.UniqueKey, s.tcURL, s.appName, s.streamNameWithRawQuery, *s.url)
 
 	return nil
 }
 
 func (s *ClientSession) handshake() error {
-	log.Infof("<----- Handshake C0+C1. [%s]", s.UniqueKey)
+	log.Infof("[%s] > W Handshake C0+C1.", s.UniqueKey)
 	if err := s.hc.WriteC0C1(s.conn); err != nil {
 		return err
 	}
@@ -403,9 +403,9 @@ func (s *ClientSession) handshake() error {
 	if err := s.hc.ReadS0S1S2(s.conn); err != nil {
 		return err
 	}
-	log.Infof("-----> Handshake S0+S1+S2. [%s]", s.UniqueKey)
+	log.Infof("[%s] < R Handshake S0+S1+S2.", s.UniqueKey)
 
-	log.Infof("<----- Handshake C2. [%s]", s.UniqueKey)
+	log.Infof("[%s] > W Handshake C2.", s.UniqueKey)
 	if err := s.hc.WriteC2(s.conn); err != nil {
 		return err
 	}

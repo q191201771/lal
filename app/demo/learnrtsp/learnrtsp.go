@@ -14,6 +14,22 @@ import (
 )
 
 func main() {
+	go func() {
+		r := rtsp.NewRTPServer(":8000")
+		err := r.Listen()
+		nazalog.Assert(nil, err)
+		err = r.RunLoop()
+		nazalog.Error(err)
+	}()
+
+	go func() {
+		r := rtsp.NewRTCPServer(":8001")
+		err := r.Listen()
+		nazalog.Assert(nil, err)
+		err = r.RunLoop()
+		nazalog.Error(err)
+	}()
+
 	s := rtsp.NewServer(":5544")
 	err := s.Listen()
 	nazalog.Assert(nil, err)
