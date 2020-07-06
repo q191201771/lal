@@ -336,12 +336,11 @@ func (m *Muxer) closeFragment() {
 	m.fragmentOP.CloseFile()
 
 	m.opened = false
-
+	//更新序号，为下个分片准备好
 	m.nextFrag()
 
 	m.writePlaylist()
 }
-
 func (m *Muxer) writePlaylist() {
 	fp, err := os.Create(m.playlistFilenameBak)
 	nazalog.Assert(nil, err)
