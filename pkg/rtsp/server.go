@@ -18,6 +18,8 @@ import (
 	"github.com/q191201771/naza/pkg/nazalog"
 )
 
+// TODO chef:
+// 重命名为CmdServer或者其他名字
 type Server struct {
 	addr string
 	ln   net.Listener
@@ -82,19 +84,28 @@ func (s *Server) handleTCPConnect(conn net.Conn) {
 		// TODO chef: header field not exist?
 		switch method {
 		case MethodOptions:
+			nazalog.Info("< R OPTIONS")
 			resp := PackResponseOptions(headers[HeaderFieldCSeq])
 			_, _ = conn.Write([]byte(resp))
-		case MethodDescribe:
-			resp := PackResponseDescribe(headers[HeaderFieldCSeq])
+		case MethodAnnounce:
+			nazalog.Info("< R ANNOUNCE")
+			resp := PackResponseAnnounce(headers[HeaderFieldCSeq])
 			_, _ = conn.Write([]byte(resp))
 		case MethodSetup:
+			nazalog.Info("< R SETUP")
 			resp := PackResponseSetup(headers[HeaderFieldCSeq], headers[HeaderFieldTransport])
 			_, _ = conn.Write([]byte(resp))
-		case MethodPlay:
-			resp := PackResponsePlay(headers[HeaderFieldCSeq])
+		case MethodRecord:
+			nazalog.Info("< R RECORD")
+			resp := PackResponseRecord(headers[HeaderFieldCSeq])
 			_, _ = conn.Write([]byte(resp))
-		case MethodAnnounce:
-			resp := PackResponseAnnounce(headers[HeaderFieldCSeq])
+		case MethodDescribe:
+			nazalog.Info("< R DESCRIBE")
+			resp := PackResponseDescribe(headers[HeaderFieldCSeq])
+			_, _ = conn.Write([]byte(resp))
+		case MethodPlay:
+			nazalog.Info("< R PLAY")
+			resp := PackResponsePlay(headers[HeaderFieldCSeq])
 			_, _ = conn.Write([]byte(resp))
 		default:
 			nazalog.Error(method)

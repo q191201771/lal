@@ -20,8 +20,8 @@ type FragmentOP struct {
 type mpegTSFrame struct {
 	pts uint64
 	dts uint64
-	pid uint16	//13-bits
-	sid uint8	//stream_id 8-bit
+	pid uint16
+	sid uint8
 	cc  uint8
 	key bool // 关键帧
 }
@@ -44,15 +44,11 @@ func (f *FragmentOP) WriteFrame(frame *mpegTSFrame, b []byte) {
 	lpos := 0      // 当前帧的处理位置
 	rpos := len(b) // 当前帧大小
 
-	first := true // 是否为PES段的第1个packet
+	first := true // 是否为帧的首个packet的标准
 
 	for lpos != rpos {
 		wpos = 0
 		frame.cc++
-		//使用前清空
-		//for i := 0;i < len(f.packet); i++ {
-		//	f.packet[i] = 0;
-		//}
 
 		// 每个packet都需要添加TS Header
 		// -----TS Header----------------
@@ -79,7 +75,6 @@ func (f *FragmentOP) WriteFrame(frame *mpegTSFrame, b []byte) {
 		wpos += 4
 
 		if first {
-			//每个I帧插入PCR,PCR在视频数据中时是放在视频的调整字段中
 			if frame.key {
 				// 关键帧的首个packet需要添加Adaptation
 				// -----Adaptation-----------------------
@@ -103,10 +98,6 @@ func (f *FragmentOP) WriteFrame(frame *mpegTSFrame, b []byte) {
 				wpos += 8
 			}
 
-			/*
-			 * the PES payload of ts packet.
-			 * 2.4.3.6 PES packet, hls-mpeg-ts-iso13818-1.pdf, page 49
-			 */
 			// 帧的首个packet需要添加PES Header
 			// -----PES Header------------
 			// packet_start_code_prefix
@@ -133,19 +124,17 @@ func (f *FragmentOP) WriteFrame(frame *mpegTSFrame, b []byte) {
 			f.packet[wpos+3] = frame.sid // stream_id
 			wpos += 4
 
-			// 计算 PES_header_data_length
-			// PES段中有PTS
+			// 计算PES Header中一些字段的值
+			// PTS相关
 			headerSize := uint8(5)
-			flags := uint8(0x80) //PTS_DTS_flags有PTS
-			// B帧时PTS!=DTS,需要在PES段中添加DTS
+			flags := uint8(0x80)
+			// DTS相关
 			if frame.dts != frame.pts {
 				headerSize += 5
-				flags |= 0x40 //PTS_DTS_flags有DTS
+				flags |= 0x40
 			}
 
-			//PES_packet_length = ES数据长度(有效载荷) + 'PES_scrambling_control~PES_header_data_length'(3字节) + PES_header_data_length(PTS/PTS长度)
-			pesSize := rpos + 3 + int(headerSize)
-			//如果一个PES段长度大于2字节时设置为0,视频的PES段长度可以为0,终端解复用时通过下个段的首包来判定当前段结束
+			pesSize := rpos + int(headerSize) + 3 // PES Header剩余3字节 + PTS/PTS长度 + 整个帧的长度
 			if pesSize > 0xFFFF {
 				pesSize = 0
 			}
@@ -170,7 +159,7 @@ func (f *FragmentOP) WriteFrame(frame *mpegTSFrame, b []byte) {
 		}
 
 		// 把帧的内容切割放入packet中
-		bodySize := 188 - wpos // 当前TS packet，可写入大小,剩余可以存放ES数据的大小
+		bodySize := 188 - wpos // 当前TS packet，可写入大小
 		inSize := rpos - lpos  // 整个帧剩余待打包大小
 
 		if bodySize <= inSize {
@@ -184,51 +173,38 @@ func (f *FragmentOP) WriteFrame(frame *mpegTSFrame, b []byte) {
 			// 1. 原本有Adaptation
 			// 2. 原本没有Adaptation
 
-			//填充数据大小 = 当前TS packet的剩余空闲空间 - PES最后一块数据
-			stuffSize := bodySize - inSize
+			stuffSize := bodySize - inSize // 当前TS packet的剩余空闲空间
 
 			if f.packet[3]&0x20 != 0 {
-				/*
-				has Adaptation
-				这种情况应该不会出现,因为调整字段只会出现在I帧的第1个包中
-				I帧数据大小不可能<188
-				*/
+				// has Adaptation
+
 				base := int(4 + f.packet[4]) // TS Header + Adaptation
 				if wpos > base {
 					// 比如有PES Header
+
 					copy(f.packet[base+stuffSize:], f.packet[base:wpos])
 				}
 				wpos = base + stuffSize
+
 				f.packet[4] += uint8(stuffSize) // adaptation_field_length
 				for i := 0; i < stuffSize; i++ {
 					f.packet[base+i] = 0xFF
 				}
 			} else {
 				// no Adaptation
-				//填充数据是放在调整字段里的,设置调整字段标志
+
 				f.packet[3] |= 0x20
 
-				/*
-				正常情况wpos在这里是4
-				如果WriteFrame的调用者传入的数据大小<188时就会出现PES段只有一个包且不足一个包,这时首包也需要填充
-				*/
+
 				base := 4
 				if wpos > base {
-					//把TS包数据复制到调整字段后面去
 					copy(f.packet[base+stuffSize:], f.packet[base:wpos])
 				}
-
-				//跳过调整字段
 				wpos += stuffSize
 
-				//设置调整字段长度,如果adaptation_field_length == 0表示调整字段数据里面只有adaptation_field_length这1个字节
-				f.packet[4] = uint8(stuffSize - 1)
+				f.packet[4] = uint8(stuffSize - 1) // adaptation_field_length
 				if stuffSize >= 2 {
 					// TODO chef 这里是参考nginx rtmp module的实现，为什么这个字节写0而不是0xFF
-					/*
-					f.packet[5] = 0: 调整字段语法中的discontinuity_indicator ~ adaptation_field_extension_flag(共8bits的标志位)
-					stuffSize == 2: 表示无填充数据0xFF
-					*/
 					f.packet[5] = 0
 					for i := 0; i < stuffSize-2; i++ {
 						f.packet[6+i] = 0xFF
@@ -236,7 +212,7 @@ func (f *FragmentOP) WriteFrame(frame *mpegTSFrame, b []byte) {
 				}
 			}
 
-			// 真实数据放在调整字段后
+			// 真实数据放在packet尾部
 			copy(f.packet[wpos:], b[lpos:lpos+inSize])
 			lpos = rpos
 		}

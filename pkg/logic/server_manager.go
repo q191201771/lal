@@ -128,7 +128,7 @@ func (sm *ServerManager) Dispose() {
 }
 
 // ServerObserver of rtmp.Server
-func (sm *ServerManager) NewRTMPPubSessionCB(session *rtmp.ServerSession) bool {
+func (sm *ServerManager) OnNewRTMPPubSession(session *rtmp.ServerSession) bool {
 	sm.mutex.Lock()
 	defer sm.mutex.Unlock()
 	group := sm.getOrCreateGroup(session.AppName, session.StreamName)
@@ -136,7 +136,7 @@ func (sm *ServerManager) NewRTMPPubSessionCB(session *rtmp.ServerSession) bool {
 }
 
 // ServerObserver of rtmp.Server
-func (sm *ServerManager) DelRTMPPubSessionCB(session *rtmp.ServerSession) {
+func (sm *ServerManager) OnDelRTMPPubSession(session *rtmp.ServerSession) {
 	sm.mutex.Lock()
 	defer sm.mutex.Unlock()
 	group := sm.getGroup(session.AppName, session.StreamName)
@@ -146,7 +146,7 @@ func (sm *ServerManager) DelRTMPPubSessionCB(session *rtmp.ServerSession) {
 }
 
 // ServerObserver of rtmp.Server
-func (sm *ServerManager) NewRTMPSubSessionCB(session *rtmp.ServerSession) bool {
+func (sm *ServerManager) OnNewRTMPSubSession(session *rtmp.ServerSession) bool {
 	sm.mutex.Lock()
 	defer sm.mutex.Unlock()
 	group := sm.getOrCreateGroup(session.AppName, session.StreamName)
@@ -155,7 +155,7 @@ func (sm *ServerManager) NewRTMPSubSessionCB(session *rtmp.ServerSession) bool {
 }
 
 // ServerObserver of rtmp.Server
-func (sm *ServerManager) DelRTMPSubSessionCB(session *rtmp.ServerSession) {
+func (sm *ServerManager) OnDelRTMPSubSession(session *rtmp.ServerSession) {
 	sm.mutex.Lock()
 	defer sm.mutex.Unlock()
 	group := sm.getGroup(session.AppName, session.StreamName)
@@ -165,7 +165,7 @@ func (sm *ServerManager) DelRTMPSubSessionCB(session *rtmp.ServerSession) {
 }
 
 // ServerObserver of httpflv.Server
-func (sm *ServerManager) NewHTTPFLVSubSessionCB(session *httpflv.SubSession) bool {
+func (sm *ServerManager) OnNewHTTPFLVSubSession(session *httpflv.SubSession) bool {
 	sm.mutex.Lock()
 	defer sm.mutex.Unlock()
 	group := sm.getOrCreateGroup(session.AppName, session.StreamName)
@@ -174,7 +174,7 @@ func (sm *ServerManager) NewHTTPFLVSubSessionCB(session *httpflv.SubSession) boo
 }
 
 // ServerObserver of httpflv.Server
-func (sm *ServerManager) DelHTTPFLVSubSessionCB(session *httpflv.SubSession) {
+func (sm *ServerManager) OnDelHTTPFLVSubSession(session *httpflv.SubSession) {
 	sm.mutex.Lock()
 	defer sm.mutex.Unlock()
 	group := sm.getGroup(session.AppName, session.StreamName)
@@ -203,12 +203,8 @@ func (sm *ServerManager) getOrCreateGroup(appName string, streamName string) *Gr
 	if !exist {
 		group = NewGroup(appName, streamName)
 		sm.groupMap[streamName] = group
-		/*
-		只在第1个ServerSession产生时启动这个group协程
-		注：创建的group协程暂时做结构设计预留，现在并没有实际动作，以后可以用协程执行OnReadRTMPAVMsg中数据转发
-		 */
-		go group.RunLoop()
 	}
+	go group.RunLoop()
 	return group
 }
 

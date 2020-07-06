@@ -53,7 +53,7 @@ type pushProxy struct {
 
 func NewGroup(appName string, streamName string) *Group {
 	uk := unique.GenUniqueKey("GROUP")
-	nazalog.Infof("lifecycle new group. [%s] appName=%s, streamName=%s", uk, appName, streamName)
+	nazalog.Infof("[%s] lifecycle new group. appName=%s, streamName=%s", uk, appName, streamName)
 
 	url2PushProxy := make(map[string]*pushProxy)
 	if config.RelayPushConfig.Enable {
@@ -93,7 +93,7 @@ func (group *Group) Tick() {
 }
 
 func (group *Group) Dispose() {
-	nazalog.Infof("lifecycle dispose group. [%s]", group.UniqueKey)
+	nazalog.Infof("[%s] lifecycle dispose group.", group.UniqueKey)
 	group.exitChan <- struct{}{}
 
 	group.mutex.Lock()
@@ -130,13 +130,13 @@ func (group *Group) Dispose() {
 }
 
 func (group *Group) AddRTMPPubSession(session *rtmp.ServerSession) bool {
-	nazalog.Debugf("add PubSession into group. [%s] [%s]", group.UniqueKey, session.UniqueKey)
+	nazalog.Debugf("[%s] [%s] add PubSession into group.", group.UniqueKey, session.UniqueKey)
 
 	group.mutex.Lock()
 	defer group.mutex.Unlock()
 
 	if group.pubSession != nil {
-		nazalog.Errorf("PubSession already exist in group. [%s] old=%s, new=%s", group.UniqueKey, group.pubSession.UniqueKey, session.UniqueKey)
+		nazalog.Errorf("[%s] PubSession already exist in group. old=%s, new=%s", group.UniqueKey, group.pubSession.UniqueKey, session.UniqueKey)
 		return false
 	}
 	group.pubSession = session
@@ -156,7 +156,7 @@ func (group *Group) AddRTMPPubSession(session *rtmp.ServerSession) bool {
 }
 
 func (group *Group) DelRTMPPubSession(session *rtmp.ServerSession) {
-	nazalog.Debugf("del PubSession from group. [%s] [%s]", group.UniqueKey, session.UniqueKey)
+	nazalog.Debugf("[%s] [%s] del PubSession from group.", group.UniqueKey, session.UniqueKey)
 
 	group.mutex.Lock()
 	defer group.mutex.Unlock()
@@ -182,7 +182,7 @@ func (group *Group) DelRTMPPubSession(session *rtmp.ServerSession) {
 }
 
 func (group *Group) AddRTMPPullSession(session *rtmp.PullSession) {
-	nazalog.Debugf("add PullSession into group. [%s] [%s]", group.UniqueKey, session.UniqueKey())
+	nazalog.Debugf("[%s] [%s] add PullSession into group.", group.UniqueKey, session.UniqueKey())
 
 	group.mutex.Lock()
 	group.mutex.Unlock()
@@ -196,7 +196,7 @@ func (group *Group) AddRTMPPullSession(session *rtmp.PullSession) {
 }
 
 func (group *Group) DelRTMPPullSession(session *rtmp.PullSession) {
-	nazalog.Debugf("del PullSession from group. [%s] [%s]", group.UniqueKey, session.UniqueKey())
+	nazalog.Debugf("[%s] [%s] del PullSession from group.", group.UniqueKey, session.UniqueKey())
 
 	group.mutex.Lock()
 	group.mutex.Unlock()
@@ -214,7 +214,7 @@ func (group *Group) DelRTMPPullSession(session *rtmp.PullSession) {
 }
 
 func (group *Group) AddRTMPSubSession(session *rtmp.ServerSession) {
-	nazalog.Debugf("add SubSession into group. [%s] [%s]", group.UniqueKey, session.UniqueKey)
+	nazalog.Debugf("[%s] [%s] add SubSession into group.", group.UniqueKey, session.UniqueKey)
 	group.mutex.Lock()
 	defer group.mutex.Unlock()
 	group.rtmpSubSessionSet[session] = struct{}{}
@@ -223,14 +223,14 @@ func (group *Group) AddRTMPSubSession(session *rtmp.ServerSession) {
 }
 
 func (group *Group) DelRTMPSubSession(session *rtmp.ServerSession) {
-	nazalog.Debugf("del SubSession from group. [%s] [%s]", group.UniqueKey, session.UniqueKey)
+	nazalog.Debugf("[%s] [%s] del SubSession from group.", group.UniqueKey, session.UniqueKey)
 	group.mutex.Lock()
 	defer group.mutex.Unlock()
 	delete(group.rtmpSubSessionSet, session)
 }
 
 func (group *Group) AddHTTPFLVSubSession(session *httpflv.SubSession) {
-	nazalog.Debugf("add httpflv SubSession into group. [%s] [%s]", group.UniqueKey, session.UniqueKey)
+	nazalog.Debugf("[%s] [%s] add httpflv SubSession into group.", group.UniqueKey, session.UniqueKey)
 	session.WriteHTTPResponseHeader()
 	session.WriteFLVHeader()
 
@@ -242,21 +242,21 @@ func (group *Group) AddHTTPFLVSubSession(session *httpflv.SubSession) {
 }
 
 func (group *Group) DelHTTPFLVSubSession(session *httpflv.SubSession) {
-	nazalog.Debugf("del httpflv SubSession from group. [%s] [%s]", group.UniqueKey, session.UniqueKey)
+	nazalog.Debugf("[%s] [%s] del httpflv SubSession from group.", group.UniqueKey, session.UniqueKey)
 	group.mutex.Lock()
 	defer group.mutex.Unlock()
 	delete(group.httpflvSubSessionSet, session)
 }
 
 func (group *Group) AddRTMPPushSession(url string, session *rtmp.PushSession) {
-	nazalog.Debugf("add rtmp PushSession into group. [%s] [%s]", group.UniqueKey, session.UniqueKey())
+	nazalog.Debugf("[%s] [%s] add rtmp PushSession into group.", group.UniqueKey, session.UniqueKey())
 	group.mutex.Lock()
 	defer group.mutex.Unlock()
 	group.url2PushProxy[url].pushSession = session
 }
 
 func (group *Group) DelRTMPPushSession(url string, session *rtmp.PushSession) {
-	nazalog.Debugf("del rtmp PushSession into group. [%s] [%s]", group.UniqueKey, session.UniqueKey())
+	nazalog.Debugf("[%s] [%s] del rtmp PushSession into group.", group.UniqueKey, session.UniqueKey())
 	group.mutex.Lock()
 	defer group.mutex.Unlock()
 	group.url2PushProxy[url].pushSession = nil
@@ -445,13 +445,13 @@ func (group *Group) pullIfNeeded() {
 		pullSesion := rtmp.NewPullSession()
 		err := pullSesion.Pull(url, group.OnReadRTMPAVMsg)
 		if err != nil {
-			nazalog.Errorf("relay pull fail. [%s] err=%v", pullSesion.UniqueKey(), err)
+			nazalog.Errorf("[%s] relay pull fail. err=%v", pullSesion.UniqueKey(), err)
 			group.DelRTMPPullSession(pullSesion)
 			return
 		}
 		group.AddRTMPPullSession(pullSesion)
 		err = <-pullSesion.Done()
-		nazalog.Infof("relay pull done. [%s] err=%v", pullSesion.UniqueKey(), err)
+		nazalog.Infof("[%s] relay pull done. err=%v", pullSesion.UniqueKey(), err)
 		group.DelRTMPPullSession(pullSesion)
 	}()
 }
@@ -472,7 +472,7 @@ func (group *Group) pushIfNeeded() {
 		}
 		v.isPushing = true
 
-		nazalog.Infof("start relay push. [%s] url=%s", group.UniqueKey, url)
+		nazalog.Infof("[%s] start relay push. url=%s", group.UniqueKey, url)
 
 		go func(url string) {
 			pushSession := rtmp.NewPushSession(func(option *rtmp.PushSessionOption) {
@@ -482,13 +482,13 @@ func (group *Group) pushIfNeeded() {
 			})
 			err := pushSession.Push(url)
 			if err != nil {
-				nazalog.Errorf("relay push done. [%s] err=%v", pushSession.UniqueKey(), err)
+				nazalog.Errorf("[%s] relay push done. err=%v", pushSession.UniqueKey(), err)
 				group.DelRTMPPushSession(url, pushSession)
 				return
 			}
 			group.AddRTMPPushSession(url, pushSession)
 			err = <-pushSession.Done()
-			nazalog.Infof("relay push done. [%s] err=%v", pushSession.UniqueKey(), err)
+			nazalog.Infof("[%s] relay push done. err=%v", pushSession.UniqueKey(), err)
 			group.DelRTMPPushSession(url, pushSession)
 		}(url)
 	}

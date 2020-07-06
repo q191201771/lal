@@ -191,6 +191,8 @@ bin/                     ......可执行文件编译输出目录
 
 扫码加我微信（微信号： q191201771），进行技术交流或扯淡。微信群已开放，加我好友后可拉进群。
 
+也欢迎大家通过github issue交流，提PR贡献代码。提PR前请先阅读：[yoko版本PR规范](https://pengrl.com/p/20070/)
+
 <img src="https://pengrl.com/images/yoko_vx.jpeg" width="180" height="180" />
 
 ### 七. 性能测试，测试过的第三方客户端

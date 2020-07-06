@@ -48,7 +48,7 @@ type SubSession struct {
 
 func NewSubSession(conn net.Conn) *SubSession {
 	uk := unique.GenUniqueKey("FLVSUB")
-	nazalog.Infof("lifecycle new SubSession. [%s] remoteAddr=%s", uk, conn.RemoteAddr().String())
+	nazalog.Infof("[%s] lifecycle new SubSession. addr=%s", uk, conn.RemoteAddr().String())
 	return &SubSession{
 		UniqueKey: uk,
 		IsFresh:   true,
@@ -117,12 +117,12 @@ func (session *SubSession) RunLoop() error {
 }
 
 func (session *SubSession) WriteHTTPResponseHeader() {
-	nazalog.Debugf("> send http response header. [%s]", session.UniqueKey)
+	nazalog.Debugf("[%s] > W http response header.", session.UniqueKey)
 	session.WriteRawPacket(flvHTTPResponseHeader)
 }
 
 func (session *SubSession) WriteFLVHeader() {
-	nazalog.Debugf("> send http flv header. [%s]", session.UniqueKey)
+	nazalog.Debugf("[%s] > W http flv header.", session.UniqueKey)
 	session.WriteRawPacket(FLVHeader)
 }
 
