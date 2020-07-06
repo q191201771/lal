@@ -35,10 +35,10 @@ func (c *ChunkComposer) SetPeerChunkSize(val uint32) {
 	c.peerChunkSize = val
 }
 
-type CompleteMessageCB func(stream *Stream) error
+type OnCompleteMessage func(stream *Stream) error
 
 // @param cb 回调结束后，内存块会被 ChunkComposer 再次使用
-func (c *ChunkComposer) RunLoop(reader io.Reader, cb CompleteMessageCB) error {
+func (c *ChunkComposer) RunLoop(reader io.Reader, cb OnCompleteMessage) error {
 	bootstrap := make([]byte, 11)
 	absTsFlag := false
 

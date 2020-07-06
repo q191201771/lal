@@ -17,9 +17,9 @@ import (
 type ServerObserver interface {
 	// 通知上层有新的拉流者
 	// 返回值： true则允许拉流，false则关闭连接
-	NewHTTPFLVSubSessionCB(session *SubSession) bool
+	OnNewHTTPFLVSubSession(session *SubSession) bool
 
-	DelHTTPFLVSubSessionCB(session *SubSession)
+	OnDelHTTPFLVSubSession(session *SubSession)
 }
 
 type Server struct {
@@ -63,19 +63,19 @@ func (server *Server) Dispose() {
 }
 
 func (server *Server) handleConnect(conn net.Conn) {
-	log.Infof("accept a httpflv connection. remoteAddr=%v", conn.RemoteAddr())
+	log.Infof("accept a httpflv connection. remoteAddr=%s", conn.RemoteAddr().String())
 	session := NewSubSession(conn)
 	if err := session.ReadRequest(); err != nil {
-		log.Errorf("read httpflv SubSession request error. [%s]", session.UniqueKey)
+		log.Errorf("[%s] read httpflv SubSession request error. err=%v", session.UniqueKey, err)
 		return
 	}
-	log.Debugf("< read http request. [%s] uri=%s", session.UniqueKey, session.URI)
+	log.Debugf("[%s] < read http request. uri=%s", session.UniqueKey, session.URI)
 
-	if !server.obs.NewHTTPFLVSubSessionCB(session) {
+	if !server.obs.OnNewHTTPFLVSubSession(session) {
 		session.Dispose()
 	}
 
 	err := session.RunLoop()
-	log.Debugf("httpflv sub session loop done. err=%v", err)
-	server.obs.DelHTTPFLVSubSessionCB(session)
+	log.Debugf("[%s] httpflv sub session loop done. err=%v", session.UniqueKey, err)
+	server.obs.OnDelHTTPFLVSubSession(session)
 }

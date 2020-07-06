@@ -81,18 +81,18 @@ func (gc *GOPCache) Feed(msg rtmp.AVMsg, lg LazyGet) {
 	switch msg.Header.MsgTypeID {
 	case rtmp.TypeidDataMessageAMF0:
 		gc.Metadata = lg()
-		nazalog.Debugf("cache %s metadata. [%s] size:%d", gc.t, gc.uniqueKey, len(gc.Metadata))
+		nazalog.Debugf("[%s] cache %s metadata. size:%d", gc.uniqueKey, gc.t, len(gc.Metadata))
 		return
 	case rtmp.TypeidAudio:
 		if msg.IsAACSeqHeader() {
 			gc.AACSeqHeader = lg()
-			nazalog.Debugf("cache %s aac seq header. [%s] size:%d", gc.t, gc.uniqueKey, len(gc.AACSeqHeader))
+			nazalog.Debugf("[%s] cache %s aac seq header. size:%d", gc.uniqueKey, gc.t, len(gc.AACSeqHeader))
 			return
 		}
 	case rtmp.TypeidVideo:
 		if msg.IsVideoKeySeqHeader() {
 			gc.VideoSeqHeader = lg()
-			nazalog.Debugf("cache %s video seq header. [%s] size:%d", gc.t, gc.uniqueKey, len(gc.VideoSeqHeader))
+			nazalog.Debugf("[%s] cache %s video seq header. size:%d", gc.uniqueKey, gc.t, len(gc.VideoSeqHeader))
 			return
 		}
 	}

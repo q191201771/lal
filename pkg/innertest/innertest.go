@@ -18,6 +18,9 @@ import (
 	"testing"
 	"time"
 
+	"github.com/q191201771/naza/pkg/filebatch"
+	"github.com/q191201771/naza/pkg/nazamd5"
+
 	"github.com/q191201771/lal/pkg/httpflv"
 	"github.com/q191201771/lal/pkg/logic"
 	"github.com/q191201771/lal/pkg/rtmp"
@@ -30,9 +33,9 @@ import (
 // 读取flv文件，使用rtmp协议推送至服务端
 // 分别用rtmp协议以及httpflv协议从服务端拉流，再将拉取的流保存为flv文件
 // 对比三份flv文件，看是否完全一致
+// 并检查hls生成的m3u8和ts文件，是否和之前的完全一致
 
 // TODO chef:
-// - 加上hls的检查
 // - 加上relay push
 // - 加上relay pull
 
@@ -73,9 +76,9 @@ func InnerTestEntry(t *testing.T) {
 	config, err := logic.LoadConf(confFile)
 	assert.Equal(t, nil, err)
 
-	pushURL = fmt.Sprintf("rtmp://127.0.0.1%s/live/11111", config.RTMPConfig.Addr)
-	httpflvPullURL = fmt.Sprintf("http://127.0.0.1%s/live/11111.flv", config.HTTPFLVConfig.SubListenAddr)
-	rtmpPullURL = fmt.Sprintf("rtmp://127.0.0.1%s/live/11111", config.RTMPConfig.Addr)
+	pushURL = fmt.Sprintf("rtmp://127.0.0.1%s/live/innertest", config.RTMPConfig.Addr)
+	httpflvPullURL = fmt.Sprintf("http://127.0.0.1%s/live/innertest.flv", config.HTTPFLVConfig.SubListenAddr)
+	rtmpPullURL = fmt.Sprintf("rtmp://127.0.0.1%s/live/innertest", config.RTMPConfig.Addr)
 
 	err = fileReader.Open(rFLVFileName)
 	assert.Equal(t, nil, err)
@@ -102,7 +105,9 @@ func InnerTestEntry(t *testing.T) {
 				assert.Equal(tt, nil, err)
 				rtmpPullTagCount.Increment()
 			})
-		nazalog.Error(err)
+		if err != nil {
+			nazalog.Error(err)
+		}
 		err = <-rtmpPullSession.Done()
 		nazalog.Debug(err)
 	}()
@@ -152,6 +157,23 @@ func InnerTestEntry(t *testing.T) {
 
 	nazalog.Debugf("count. %d %d %d", fileTagCount.Load(), httpflvPullTagCount.Load(), rtmpPullTagCount.Load())
 	compareFile()
+
+	var allContent []byte
+	var fileNum int
+	err = filebatch.Walk(
+		fmt.Sprintf("%sinnertest", config.HLSConfig.OutPath),
+		false,
+		"",
+		func(path string, info os.FileInfo, content []byte, err error) []byte {
+			allContent = append(allContent, content...)
+			fileNum++
+			return nil
+		})
+	assert.Equal(t, nil, err)
+	allContentMD5 := nazamd5.MD5(allContent)
+	assert.Equal(t, 52, fileNum)
+	assert.Equal(t, 7350143, len(allContent))
+	assert.Equal(t, "a4f74cdb0ad64a5e4a3f94e681e92c3b", allContentMD5)
 }
 
 func compareFile() {

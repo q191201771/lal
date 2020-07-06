@@ -14,11 +14,11 @@ package rtsp
 
 const (
 	MethodOptions  = "OPTIONS"
-	MethodDescribe = "DESCRIBE"
-	MethodSetup    = "SETUP"
-	MethodPlay     = "PLAY"
-
 	MethodAnnounce = "ANNOUNCE"
+	MethodSetup    = "SETUP"
+	MethodRecord   = "RECORD"
+	MethodDescribe = "DESCRIBE"
+	MethodPlay     = "PLAY"
 )
 
 const (
@@ -26,6 +26,15 @@ const (
 	HeaderFieldTransport = "Transport"
 )
 
-// TODO chef:
-// 收集lal中其他可以hack服务名的地方，统一到一处，并增加版本号信息
-const serverName = "lalserver"
+var (
+	// TODO chef:
+	// 收集lal中其他可以hack服务名的地方，统一到一处，并增加版本号信息
+	serverName = "lalserver"
+	sessionID  = "191201771"
+
+	// TODO chef: to be continued
+	// read RTP/RTCP data from port
+	serverPort = "8000-8001"
+
+	udpMaxPacketLength = 1500
+)

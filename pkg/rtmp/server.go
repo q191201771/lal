@@ -15,10 +15,10 @@ import (
 )
 
 type ServerObserver interface {
-	NewRTMPPubSessionCB(session *ServerSession) bool // 返回true则允许推流，返回false则强制关闭这个连接
-	DelRTMPPubSessionCB(session *ServerSession)
-	NewRTMPSubSessionCB(session *ServerSession) bool // 返回true则允许拉流，返回false则强制关闭这个连接
-	DelRTMPSubSessionCB(session *ServerSession)
+	OnNewRTMPPubSession(session *ServerSession) bool // 返回true则允许推流，返回false则强制关闭这个连接
+	OnDelRTMPPubSession(session *ServerSession)
+	OnNewRTMPSubSession(session *ServerSession) bool // 返回true则允许拉流，返回false则强制关闭这个连接
+	OnDelRTMPSubSession(session *ServerSession)
 }
 
 type Server struct {
@@ -62,23 +62,23 @@ func (server *Server) Dispose() {
 }
 
 func (server *Server) handleTCPConnect(conn net.Conn) {
-	log.Infof("accept a rtmp connection. remoteAddr=%v", conn.RemoteAddr())
+	log.Infof("accept a rtmp connection. remoteAddr=%s", conn.RemoteAddr().String())
 	session := NewServerSession(server, conn)
 	err := session.RunLoop()
-	log.Infof("rtmp loop done. [%s] err=%v", session.UniqueKey, err)
+	log.Infof("[%s] rtmp loop done. err=%v", session.UniqueKey, err)
 	switch session.t {
 	case ServerSessionTypeUnknown:
 	// noop
 	case ServerSessionTypePub:
-		server.obs.DelRTMPPubSessionCB(session)
+		server.obs.OnDelRTMPPubSession(session)
 	case ServerSessionTypeSub:
-		server.obs.DelRTMPSubSessionCB(session)
+		server.obs.OnDelRTMPSubSession(session)
 	}
 }
 
 // ServerSessionObserver
-func (server *Server) NewRTMPPubSessionCB(session *ServerSession) {
-	if !server.obs.NewRTMPPubSessionCB(session) {
+func (server *Server) OnNewRTMPPubSession(session *ServerSession) {
+	if !server.obs.OnNewRTMPPubSession(session) {
 		log.Warnf("dispose PubSession since pub exist.")
 		session.Dispose()
 		return
@@ -86,8 +86,8 @@ func (server *Server) NewRTMPPubSessionCB(session *ServerSession) {
 }
 
 // ServerSessionObserver
-func (server *Server) NewRTMPSubSessionCB(session *ServerSession) {
-	if !server.obs.NewRTMPSubSessionCB(session) {
+func (server *Server) OnNewRTMPSubSession(session *ServerSession) {
+	if !server.obs.OnNewRTMPSubSession(session) {
 		session.Dispose()
 		return
 	}

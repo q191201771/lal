@@ -53,7 +53,7 @@ func NewPullSession(modOptions ...ModPullSessionOption) *PullSession {
 	}
 
 	uk := unique.GenUniqueKey("FLVPULL")
-	nazalog.Infof("lifecycle new PullSession. [%s]", uk)
+	nazalog.Infof("[%s] lifecycle new PullSession.", uk)
 	return &PullSession{
 		option:    option,
 		UniqueKey: uk,
@@ -68,7 +68,7 @@ type OnReadFLVTag func(tag Tag)
 // http://{domain}/{app_name}/{stream_name}.flv
 // http://{ip}/{domain}/{app_name}/{stream_name}.flv
 //
-// @param readFLVTagCB 读取到 flv tag 数据时回调。回调结束后，PullSession 不会再使用这块 <tag> 数据。
+// @param onReadFLVTag 读取到 flv tag 数据时回调。回调结束后，PullSession 不会再使用这块 <tag> 数据。
 func (session *PullSession) Pull(rawURL string, onReadFLVTag OnReadFLVTag) error {
 	if err := session.Connect(rawURL); err != nil {
 		return err
@@ -81,7 +81,7 @@ func (session *PullSession) Pull(rawURL string, onReadFLVTag OnReadFLVTag) error
 }
 
 func (session *PullSession) Dispose() {
-	nazalog.Infof("lifecycle dispose PullSession. [%s]", session.UniqueKey)
+	nazalog.Infof("[%s] lifecycle dispose PullSession.", session.UniqueKey)
 	_ = session.Conn.Close()
 }
 
@@ -108,7 +108,7 @@ func (session *PullSession) Connect(rawURL string) error {
 		session.addr = session.host + ":80"
 	}
 
-	nazalog.Debugf("> tcp connect. [%s]", session.UniqueKey)
+	nazalog.Debugf("[%s] > tcp connect.", session.UniqueKey)
 
 	// # 建立连接
 	conn, err := net.DialTimeout("tcp", session.addr, time.Duration(session.option.ConnectTimeoutMS)*time.Millisecond)
@@ -125,7 +125,7 @@ func (session *PullSession) Connect(rawURL string) error {
 
 func (session *PullSession) WriteHTTPRequest() error {
 	// # 发送 http GET 请求
-	nazalog.Debugf("> send http request. [%s] GET %s", session.UniqueKey, session.pathWithQuery)
+	nazalog.Debugf("[%s] > W http request. GET %s", session.UniqueKey, session.pathWithQuery)
 	req := fmt.Sprintf("GET %s HTTP/1.0\r\nAccept: */*\r\nRange: byte=0-\r\nConnection: close\r\nHost: %s\r\nIcy-MetaData: 1\r\n\r\n",
 		session.pathWithQuery, session.host)
 	_, err := session.Conn.Write([]byte(req))
@@ -142,7 +142,7 @@ func (session *PullSession) ReadHTTPRespHeader() (statusLine string, headers map
 		return
 	}
 
-	nazalog.Debugf("< read http response header. [%s] code=%s", session.UniqueKey, code)
+	nazalog.Debugf("[%s] < R http response header. code=%s", session.UniqueKey, code)
 	return
 }
 
@@ -152,7 +152,7 @@ func (session *PullSession) ReadFLVHeader() ([]byte, error) {
 	if err != nil {
 		return flvHeader, err
 	}
-	nazalog.Debugf("< read http flv header. [%s]", session.UniqueKey)
+	nazalog.Debugf("[%s] < R http flv header.", session.UniqueKey)
 
 	// TODO chef: check flv header's value
 	return flvHeader, nil
