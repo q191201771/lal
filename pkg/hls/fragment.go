@@ -66,9 +66,9 @@ func (f *FragmentOP) WriteFrame(frame *mpegTSFrame, b []byte) {
 		// continuity_counter
 		// ------------------------------
 		f.packet[0] = syncByte // sync_byte
-
+		f.packet[1] = 0x0;
 		if first {
-			f.packet[1] |= 0x40 // payload_unit_start_indicator
+			f.packet[1] = 0x40 // payload_unit_start_indicator
 		}
 		f.packet[1] |= uint8((frame.pid >> 8) & 0x1F) 	//PID高5位
 		f.packet[2] = uint8(frame.pid & 0xFF) 			//PID低8位
@@ -133,7 +133,7 @@ func (f *FragmentOP) WriteFrame(frame *mpegTSFrame, b []byte) {
 			f.packet[wpos+3] = frame.sid // stream_id
 			wpos += 4
 
-			// 计算PES Header中一些字段的值
+			// 计算 PES_header_data_length
 			// PES段中有PTS
 			headerSize := uint8(5)
 			flags := uint8(0x80) //PTS_DTS_flags有PTS
@@ -143,7 +143,7 @@ func (f *FragmentOP) WriteFrame(frame *mpegTSFrame, b []byte) {
 				flags |= 0x40 //PTS_DTS_flags有DTS
 			}
 
-			//PES_packet_length = ES数据长度(有效载荷) + 'PES_scrambling_control~PES_header_data_length'(3字节) + PTS/PTS长度
+			//PES_packet_length = ES数据长度(有效载荷) + 'PES_scrambling_control~PES_header_data_length'(3字节) + PES_header_data_length(PTS/PTS长度)
 			pesSize := rpos + 3 + int(headerSize)
 			//如果一个PES段长度大于2字节时设置为0,视频的PES段长度可以为0,终端解复用时通过下个段的首包来判定当前段结束
 			if pesSize > 0xFFFF {
@@ -220,13 +220,14 @@ func (f *FragmentOP) WriteFrame(frame *mpegTSFrame, b []byte) {
 
 				//跳过调整字段
 				wpos += stuffSize
-				// adaptation_field_length == 0 无实际填充数据
+
+				//设置调整字段长度,如果adaptation_field_length == 0表示调整字段数据里面只有adaptation_field_length这1个字节
 				f.packet[4] = uint8(stuffSize - 1)
 				if stuffSize >= 2 {
 					// TODO chef 这里是参考nginx rtmp module的实现，为什么这个字节写0而不是0xFF
 					/*
-					adaptation_field_length > 0时调整字段语法中有discontinuity_indicator ~ adaptation_field_extension_flag(8bits的标志位)
-					这个字节==0表示只有纯填充数据0xFF
+					f.packet[5] = 0: 调整字段语法中的discontinuity_indicator ~ adaptation_field_extension_flag(共8bits的标志位)
+					stuffSize == 2: 表示无填充数据0xFF
 					*/
 					f.packet[5] = 0
 					for i := 0; i < stuffSize-2; i++ {
