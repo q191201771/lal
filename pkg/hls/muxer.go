@@ -241,7 +241,10 @@ func (m *Muxer) cacheAACSeqHeader(msg rtmp.AVMsg) {
 }
 
 func (m *Muxer) cacheSPSPPS(msg rtmp.AVMsg) {
-	m.spspps = msg.Payload
+	// 分配新内存来缓存SPS_PPS的msg
+	// 这样就可以不依赖func (group *Group) OnReadRTMPAVMsg中的msg变量
+	m.spspps = make([]byte,len(msg.Payload))
+	copy(m.spspps,msg.Payload)
 }
 
 func (m *Muxer) appendSPSPPS(out []byte) []byte {
