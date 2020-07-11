@@ -13,8 +13,8 @@ import (
 )
 
 type FragmentOP struct {
-	fp *os.File
-	packet []byte	//WriteFrame中缓存每个TS包数据
+	fp     *os.File
+	packet []byte //WriteFrame中缓存每个TS包数据
 }
 
 type mpegTSFrame struct {
@@ -62,12 +62,12 @@ func (f *FragmentOP) WriteFrame(frame *mpegTSFrame, b []byte) {
 		// continuity_counter
 		// ------------------------------
 		f.packet[0] = syncByte // sync_byte
-		f.packet[1] = 0x0;
+		f.packet[1] = 0x0
 		if first {
 			f.packet[1] = 0x40 // payload_unit_start_indicator
 		}
-		f.packet[1] |= uint8((frame.pid >> 8) & 0x1F) 	//PID高5位
-		f.packet[2] = uint8(frame.pid & 0xFF) 			//PID低8位
+		f.packet[1] |= uint8((frame.pid >> 8) & 0x1F) //PID高5位
+		f.packet[2] = uint8(frame.pid & 0xFF)         //PID低8位
 
 		// adaptation_field_control 先设置成无Adaptation
 		// continuity_counter
@@ -194,7 +194,6 @@ func (f *FragmentOP) WriteFrame(frame *mpegTSFrame, b []byte) {
 				// no Adaptation
 
 				f.packet[3] |= 0x20
-
 
 				base := 4
 				if wpos > base {

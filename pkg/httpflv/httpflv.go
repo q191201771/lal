@@ -47,10 +47,10 @@ const (
 
 const (
 	AVCPacketTypeSeqHeader uint8 = 0
-	AVCPacketTypeNalu      uint8 = 1
+	AVCPacketTypeNALU      uint8 = 1
 
 	HEVCPacketTypeSeqHeader uint8 = 0
-	HEVCPacketTypeNalu      uint8 = 1
+	HEVCPacketTypeNALU      uint8 = 1
 
 	AACPacketTypeSeqHeader uint8 = 0
 	AACPacketTypeRaw       uint8 = 1

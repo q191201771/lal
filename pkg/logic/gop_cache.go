@@ -99,7 +99,7 @@ func (gc *GOPCache) Feed(msg rtmp.AVMsg, lg LazyGet) {
 
 	// 这个size的判断去掉也行
 	if gc.gopSize > 1 {
-		if msg.IsVideoKeyNalu() {
+		if msg.IsVideoKeyNALU() {
 			gc.feedNewGOP(msg, lg())
 		} else {
 			gc.feedLastGOP(msg, lg())

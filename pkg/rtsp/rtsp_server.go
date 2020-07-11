@@ -70,7 +70,7 @@ func (s *Server) handleTCPConnect(conn net.Conn) {
 		var body []byte
 		if contentLength, ok := headers["Content-Length"]; ok {
 			if cl, err := strconv.Atoi(contentLength); err == nil {
-				body := make([]byte, cl)
+				body = make([]byte, cl)
 				l, err := io.ReadAtLeast(r, body, cl)
 				if l != cl || err != nil {
 					nazalog.Errorf("read rtsp cmd fail. content-length=%d, read length=%d, err=%+v", cl, l, err)
@@ -89,6 +89,7 @@ func (s *Server) handleTCPConnect(conn net.Conn) {
 			_, _ = conn.Write([]byte(resp))
 		case MethodAnnounce:
 			nazalog.Info("< R ANNOUNCE")
+			parseSDP(body)
 			resp := PackResponseAnnounce(headers[HeaderFieldCSeq])
 			_, _ = conn.Write([]byte(resp))
 		case MethodSetup:

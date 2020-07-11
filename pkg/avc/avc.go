@@ -18,9 +18,9 @@ import (
 
 var ErrAVC = errors.New("lal.avc: fxxk")
 
-var NaluStartCode = []byte{0x0, 0x0, 0x0, 0x1}
+var NALUStartCode = []byte{0x0, 0x0, 0x0, 0x1}
 
-var NaluUintTypeMapping = map[uint8]string{
+var NALUTypeMapping = map[uint8]string{
 	1: "SLICE",
 	5: "IDR",
 	6: "SEI",
@@ -43,12 +43,12 @@ var SliceTypeMapping = map[uint8]string{
 }
 
 const (
-	NaluUnitTypeSlice    uint8 = 1
-	NaluUnitTypeIDRSlice uint8 = 5
-	NaluUnitTypeSEI      uint8 = 6
-	NaluUintTypeSPS      uint8 = 7
-	NaluUintTypePPS      uint8 = 8
-	NaluUintTypeAUD      uint8 = 9
+	NALUTypeSlice    uint8 = 1
+	NALUTypeIDRSlice uint8 = 5
+	NALUTypeSEI      uint8 = 6
+	NALUTypeSPS      uint8 = 7
+	NALUTypePPS      uint8 = 8
+	NALUTypeAUD      uint8 = 9
 )
 
 const (
@@ -59,7 +59,7 @@ const (
 	SliceTypeSI uint8 = 4 // TODO chef
 )
 
-func CalcNaluType(nalu []byte) uint8 {
+func CalcNALUType(nalu []byte) uint8 {
 	return nalu[0] & 0x1f
 }
 
@@ -82,9 +82,9 @@ func CalcSliceType(nalu []byte) uint8 {
 	return uint8(sliceType)
 }
 
-func CalcNaluTypeReadable(nalu []byte) string {
+func CalcNALUTypeReadable(nalu []byte) string {
 	t := nalu[0] & 0x1f
-	ret, ok := NaluUintTypeMapping[t]
+	ret, ok := NALUTypeMapping[t]
 	if !ok {
 		return "unknown"
 	}
@@ -92,13 +92,13 @@ func CalcNaluTypeReadable(nalu []byte) string {
 }
 
 func CalcSliceTypeReadable(nalu []byte) string {
-	naluType := CalcNaluType(nalu)
+	naluType := CalcNALUType(nalu)
 	switch naluType {
-	case NaluUnitTypeSEI:
+	case NALUTypeSEI:
 		fallthrough
-	case NaluUintTypeSPS:
+	case NALUTypeSPS:
 		fallthrough
-	case NaluUintTypePPS:
+	case NALUTypePPS:
 		return ""
 	}
 
@@ -167,9 +167,9 @@ func CaptureAVC(w io.Writer, payload []byte) error {
 			return err
 		}
 		//utilErrors.PanicIfErrorOccur(err)
-		_, _ = w.Write(NaluStartCode)
+		_, _ = w.Write(NALUStartCode)
 		_, _ = w.Write(sps)
-		_, _ = w.Write(NaluStartCode)
+		_, _ = w.Write(NALUStartCode)
 		_, _ = w.Write(pps)
 		return nil
 	}
@@ -179,9 +179,9 @@ func CaptureAVC(w io.Writer, payload []byte) error {
 	for i := 5; i != len(payload); {
 		naluLen := int(bele.BEUint32(payload[i:]))
 		i += 4
-		//naluUintType := payload[i] & 0x1f
-		//log.Debugf("naluLen:%d t:%d %s\n", naluLen, naluUintType, avc.NaluUintTypeMapping[naluUintType])
-		_, _ = w.Write(NaluStartCode)
+		//naluType := payload[i] & 0x1f
+		//log.Debugf("naluLen:%d t:%d %s\n", naluLen, naluType, avc.NALUTypeMapping[naluUintType])
+		_, _ = w.Write(NALUStartCode)
 		_, _ = w.Write(payload[i : i+naluLen])
 		i += naluLen
 		break

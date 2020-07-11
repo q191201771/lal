@@ -8,32 +8,35 @@
 
 package hevc
 
-var NaluUintTypeMapping = map[uint8]string{
-	NaluUnitTypeSliceTrailR: "SLICE",
-	NaluUnitTypeSliceIDR:    "I",
-	NaluUintTypeSliceIDRNLP: "IDR",
-	NaluUnitTypeSEI:         "SEI",
-	NaluUnitTypeSEISuffix:   "SEI",
+var NALUTypeMapping = map[uint8]string{
+	NALUTypeSliceTrailR: "SLICE",
+	NALUTypeSliceIDR:    "I",
+	NALUTypeSliceIDRNLP: "IDR",
+	NALUTypeSEI:         "SEI",
+	NALUTypeSEISuffix:   "SEI",
 }
 var (
-	NaluUnitTypeSliceTrailR uint8 = 1  // 0x01
-	NaluUnitTypeSliceIDR    uint8 = 19 // 0x13
-	NaluUintTypeSliceIDRNLP uint8 = 20 // 0x14
-	NaluUnitTypeVPS         uint8 = 32 // 0x20
-	NaluUnitTypeSPS         uint8 = 33 // 0x21
-	NaluUnitTypePPS         uint8 = 34 // 0x22
-	NaluUnitTypeSEI         uint8 = 39 // 0x27
-	NaluUnitTypeSEISuffix   uint8 = 40 // 0x28
+	NALUTypeSliceTrailR uint8 = 1  // 0x01
+	NALUTypeSliceIDR    uint8 = 19 // 0x13
+	NALUTypeSliceIDRNLP uint8 = 20 // 0x14
+	NALUTypeVPS         uint8 = 32 // 0x20
+	NALUTypeSPS         uint8 = 33 // 0x21
+	NALUTypePPS         uint8 = 34 // 0x22
+	NALUTypeSEI         uint8 = 39 // 0x27
+	NALUTypeSEISuffix   uint8 = 40 // 0x28
 )
 
-func CalcNaluTypeReadable(nalu []byte) string {
-	b, ok := NaluUintTypeMapping[CalcNaluType(nalu)]
+func CalcNALUTypeReadable(nalu []byte) string {
+	b, ok := NALUTypeMapping[CalcNALUType(nalu)]
 	if !ok {
 		return "unknown"
 	}
 	return b
 }
 
-func CalcNaluType(nalu []byte) uint8 {
+func CalcNALUType(nalu []byte) uint8 {
+	// 6 bit in middle
+	// 0*** ***0
+	// or return (nalu[0] >> 1) & 0x3F
 	return (nalu[0] & 0x7E) >> 1
 }

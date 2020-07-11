@@ -9,28 +9,57 @@
 package rtsp
 
 import (
+	"sync"
+
 	"github.com/q191201771/naza/pkg/nazalog"
 )
 
 type RTPServer struct {
 	udpServer *UDPServer
+
+	m            sync.Mutex
+	ssrc2Session map[uint32]*Session
 }
 
 func NewRTPServer(addr string) *RTPServer {
 	var s RTPServer
 	s.udpServer = NewUDPServer(addr, s.OnReadUDPPacket)
+	s.ssrc2Session = make(map[uint32]*Session)
 	return &s
 }
 
 func (r *RTPServer) OnReadUDPPacket(b []byte, addr string, err error) {
-	nazalog.Debugf("< R length=%d, remote=%s, err=%v", len(b), addr, err)
-	parseRTPPacket(b)
+	//nazalog.Debugf("< R length=%d, remote=%s, err=%v", len(b), addr, err)
+	h, err := parseRTPPacket(b)
+	if err != nil {
+		nazalog.Errorf("read invalid rtp packet. err=%+v", err)
+	}
+	switch h.packetType {
+	case RTPPacketTypeAAC:
+		s := r.getOrCreateSession(h)
+		s.FeedAACPacket(b, h)
+	case RTPPacketTypeAVC:
+		nazalog.Debugf("header=%+v, length=%d", h, len(b))
+		s := r.getOrCreateSession(h)
+		s.FeedAVCPacket(b, h)
+	}
 }
 
-func (s *RTPServer) Listen() (err error) {
-	return s.udpServer.Listen()
+func (r *RTPServer) Listen() (err error) {
+	nazalog.Infof("start rtp server listen. addr=%s", r.udpServer.addr)
+	return r.udpServer.Listen()
 }
 
-func (s *RTPServer) RunLoop() error {
-	return s.udpServer.RunLoop()
+func (r *RTPServer) RunLoop() error {
+	return r.udpServer.RunLoop()
+}
+
+func (r *RTPServer) getOrCreateSession(h RTPHeader) *Session {
+	r.m.Lock()
+	defer r.m.Unlock()
+	s, ok := r.ssrc2Session[h.ssrc]
+	if ok {
+		return s
+	}
+	return NewSession(h.ssrc, isAudio(h.packetType))
 }

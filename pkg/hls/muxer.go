@@ -97,6 +97,7 @@ func (m *Muxer) Dispose() {
 	m.closeFragment()
 }
 
+// 函数调用结束后，内部不持有msg中的内存块
 func (m *Muxer) FeedRTMPMessage(msg rtmp.AVMsg) {
 	switch msg.Header.MsgTypeID {
 	case rtmp.TypeidAudio:
@@ -241,10 +242,8 @@ func (m *Muxer) cacheAACSeqHeader(msg rtmp.AVMsg) {
 }
 
 func (m *Muxer) cacheSPSPPS(msg rtmp.AVMsg) {
-	// 分配新内存来缓存SPS_PPS的msg
-	// 这样就可以不依赖func (group *Group) OnReadRTMPAVMsg中的msg变量
-	m.spspps = make([]byte,len(msg.Payload))
-	copy(m.spspps,msg.Payload)
+	m.spspps = make([]byte, len(msg.Payload))
+	copy(m.spspps, msg.Payload)
 }
 
 func (m *Muxer) appendSPSPPS(out []byte) []byte {
