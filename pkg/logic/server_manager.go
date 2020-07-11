@@ -203,8 +203,11 @@ func (sm *ServerManager) getOrCreateGroup(appName string, streamName string) *Gr
 	if !exist {
 		group = NewGroup(appName, streamName)
 		sm.groupMap[streamName] = group
+
+		// 只在第1个ServerSession产生时启动这个group协程
+		// 注: 创建的group协程暂时做结构设计预留，现在并没有实际动作，以后可以用协程执行OnReadRTMPAVMsg中数据转发
+		go group.RunLoop()
 	}
-	go group.RunLoop()
 	return group
 }
 

@@ -275,9 +275,10 @@ func (group *Group) OnReadRTMPAVMsg(msg rtmp.AVMsg) {
 	group.mutex.Lock()
 	defer group.mutex.Unlock()
 
-	p := make([]byte, len(msg.Payload))
-	copy(p, msg.Payload)
-	msg.Payload = p
+	//因为group.broadcastRTMP和group.hlsMuxer.FeedRTMPMessage都不引用msg了,所以不需要复制数据了
+	//p := make([]byte, len(msg.Payload))
+	//copy(p, msg.Payload)
+	//msg.Payload = p
 
 	//nazalog.Debugf("%+v, %02x, %02x", msg.Header, msg.Payload[0], msg.Payload[1])
 	group.broadcastRTMP(msg)
