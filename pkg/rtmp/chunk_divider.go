@@ -52,7 +52,13 @@ func calcHeader(header *Header, prevHeader *Header, out []byte) int {
 					fmt++
 				}
 			}
-			timestamp = header.TimestampAbs - prevHeader.TimestampAbs
+			if header.TimestampAbs > maxTimestampInMessageHeader {
+				// 将数据打包成rtmp chunk发送给vlc，时间戳超过3字节最大范围时，
+				// vlc认为fmt0和fmt3两种格式，都需要携带扩展时间戳字段，并且该时间戳字段必须使用绝对时间戳。
+				timestamp = header.TimestampAbs
+			} else {
+				timestamp = header.TimestampAbs - prevHeader.TimestampAbs
+			}
 		} else {
 			timestamp = header.TimestampAbs
 		}
