@@ -97,6 +97,7 @@ func (m *Muxer) Dispose() {
 	m.closeFragment()
 }
 
+// 函数调用结束后，内部不持有msg中的内存块
 func (m *Muxer) FeedRTMPMessage(msg rtmp.AVMsg) {
 	switch msg.Header.MsgTypeID {
 	case rtmp.TypeidAudio:
@@ -241,7 +242,8 @@ func (m *Muxer) cacheAACSeqHeader(msg rtmp.AVMsg) {
 }
 
 func (m *Muxer) cacheSPSPPS(msg rtmp.AVMsg) {
-	m.spspps = msg.Payload
+	m.spspps = make([]byte, len(msg.Payload))
+	copy(m.spspps, msg.Payload)
 }
 
 func (m *Muxer) appendSPSPPS(out []byte) []byte {
@@ -336,12 +338,11 @@ func (m *Muxer) closeFragment() {
 	m.fragmentOP.CloseFile()
 
 	m.opened = false
-
+	//更新序号，为下个分片准备好
 	m.nextFrag()
 
 	m.writePlaylist()
 }
-
 func (m *Muxer) writePlaylist() {
 	fp, err := os.Create(m.playlistFilenameBak)
 	nazalog.Assert(nil, err)

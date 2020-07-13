@@ -203,8 +203,9 @@ func (sm *ServerManager) getOrCreateGroup(appName string, streamName string) *Gr
 	if !exist {
 		group = NewGroup(appName, streamName)
 		sm.groupMap[streamName] = group
+
+		go group.RunLoop()
 	}
-	go group.RunLoop()
 	return group
 }
 

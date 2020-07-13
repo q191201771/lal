@@ -78,7 +78,7 @@ func readAllTag(filename string) (ret []httpflv.Tag) {
 			log.Debugf("M %d", tag.Header.Timestamp)
 		} else if tag.IsVideoKeySeqHeader() {
 			log.Debugf("V SH %d", tag.Header.Timestamp)
-		} else if tag.IsVideoKeyNalu() {
+		} else if tag.IsVideoKeyNALU() {
 			log.Debugf("V K %d", tag.Header.Timestamp)
 		} else if tag.IsAACSeqHeader() {
 			log.Debugf("A SH %d", tag.Header.Timestamp)

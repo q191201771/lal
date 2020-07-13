@@ -13,7 +13,8 @@ import (
 )
 
 type FragmentOP struct {
-	fp *os.File
+	fp     *os.File
+	packet []byte //WriteFrame中缓存每个TS包数据
 }
 
 type mpegTSFrame struct {
@@ -31,6 +32,8 @@ func (f *FragmentOP) OpenFile(filename string) (err error) {
 		return
 	}
 	f.writeFile(FixedFragmentHeader)
+	//TS包固定188-byte
+	f.packet = make([]byte, 188)
 	return nil
 }
 
@@ -44,7 +47,6 @@ func (f *FragmentOP) WriteFrame(frame *mpegTSFrame, b []byte) {
 	first := true // 是否为帧的首个packet的标准
 
 	for lpos != rpos {
-		packet := make([]byte, 188)
 		wpos = 0
 		frame.cc++
 
@@ -59,17 +61,17 @@ func (f *FragmentOP) WriteFrame(frame *mpegTSFrame, b []byte) {
 		// adaptation_field_control
 		// continuity_counter
 		// ------------------------------
-		packet[0] = syncByte // sync_byte
-
+		f.packet[0] = syncByte // sync_byte
+		f.packet[1] = 0x0
 		if first {
-			packet[1] |= 0x40 // payload_unit_start_indicator
+			f.packet[1] = 0x40 // payload_unit_start_indicator
 		}
-		packet[1] |= uint8(frame.pid >> 8)  // PID
-		packet[2] = uint8(frame.pid & 0xFF) //
+		f.packet[1] |= uint8((frame.pid >> 8) & 0x1F) //PID高5位
+		f.packet[2] = uint8(frame.pid & 0xFF)         //PID低8位
 
 		// adaptation_field_control 先设置成无Adaptation
 		// continuity_counter
-		packet[3] = 0x10 | (frame.cc & 0x0f)
+		f.packet[3] = 0x10 | (frame.cc & 0x0f)
 		wpos += 4
 
 		if first {
@@ -89,10 +91,10 @@ func (f *FragmentOP) WriteFrame(frame *mpegTSFrame, b []byte) {
 				// reserved
 				// program_clock_reference_extension
 				// --------------------------------------
-				packet[3] |= 0x20                            // adaptation_field_control 设置Adaptation
-				packet[4] = 7                                // adaptation_field_length
-				packet[5] = 0x50                             // random_access_indicator + PCR_flag
-				mpegtsdWritePCR(packet[6:], frame.dts-delay) // using 6 byte
+				f.packet[3] |= 0x20                            // adaptation_field_control 设置Adaptation
+				f.packet[4] = 7                                // adaptation_field_length
+				f.packet[5] = 0x50                             // random_access_indicator + PCR_flag
+				mpegtsdWritePCR(f.packet[6:], frame.dts-delay) // using 6 byte
 				wpos += 8
 			}
 
@@ -116,10 +118,10 @@ func (f *FragmentOP) WriteFrame(frame *mpegTSFrame, b []byte) {
 			// PES_extension_flag        0
 			// PES_header_data_length
 			// ---------------------------
-			packet[wpos] = 0x00        // packet_start_code_prefix
-			packet[wpos+1] = 0x00      //
-			packet[wpos+2] = 0x01      //
-			packet[wpos+3] = frame.sid // stream_id
+			f.packet[wpos] = 0x00        // packet_start_code_prefix 24-bits
+			f.packet[wpos+1] = 0x00      //
+			f.packet[wpos+2] = 0x01      //
+			f.packet[wpos+3] = frame.sid // stream_id
 			wpos += 4
 
 			// 计算PES Header中一些字段的值
@@ -137,19 +139,19 @@ func (f *FragmentOP) WriteFrame(frame *mpegTSFrame, b []byte) {
 				pesSize = 0
 			}
 
-			packet[wpos] = uint8(pesSize >> 8)     // PES_packet_length
-			packet[wpos+1] = uint8(pesSize & 0xFF) //
-			packet[wpos+2] = 0x80                  // 除了reserve的'10'，其他字段都是0
-			packet[wpos+3] = flags                 // PTS/DTS flag
-			packet[wpos+4] = headerSize            // PES_header_data_length
+			f.packet[wpos] = uint8(pesSize >> 8)     // PES_packet_length
+			f.packet[wpos+1] = uint8(pesSize & 0xFF) //
+			f.packet[wpos+2] = 0x80                  // 除了reserve的'10'，其他字段都是0
+			f.packet[wpos+3] = flags                 // PTS/DTS flag
+			f.packet[wpos+4] = headerSize            // PES_header_data_length: PTS+DTS数据长度
 			wpos += 5
 
 			// 写入PTS的值
-			mpegtsWritePTS(packet[wpos:], flags>>6, frame.pts+delay)
+			mpegtsWritePTS(f.packet[wpos:], flags>>6, frame.pts+delay)
 			wpos += 5
 			// 写入DTS的值
 			if frame.pts != frame.dts {
-				mpegtsWritePTS(packet[wpos:], 1, frame.dts+delay)
+				mpegtsWritePTS(f.packet[wpos:], 1, frame.dts+delay)
 				wpos += 5
 			}
 
@@ -162,8 +164,7 @@ func (f *FragmentOP) WriteFrame(frame *mpegTSFrame, b []byte) {
 
 		if bodySize <= inSize {
 			// 当前packet写不完这个帧，或者刚好够写完
-
-			copy(packet[wpos:], b[lpos:lpos+inSize])
+			copy(f.packet[wpos:], b[lpos:lpos+inSize])
 			lpos += bodySize
 		} else {
 			// 当前packet可以写完这个帧，并且还有空闲空间
@@ -174,48 +175,48 @@ func (f *FragmentOP) WriteFrame(frame *mpegTSFrame, b []byte) {
 
 			stuffSize := bodySize - inSize // 当前TS packet的剩余空闲空间
 
-			if packet[3]&0x20 != 0 {
+			if f.packet[3]&0x20 != 0 {
 				// has Adaptation
 
-				base := int(4 + packet[4]) // TS Header + Adaptation
+				base := int(4 + f.packet[4]) // TS Header + Adaptation
 				if wpos > base {
 					// 比如有PES Header
 
-					copy(packet[base+stuffSize:], packet[base:wpos])
+					copy(f.packet[base+stuffSize:], f.packet[base:wpos])
 				}
 				wpos = base + stuffSize
 
-				packet[4] += uint8(stuffSize) // adaptation_field_length
+				f.packet[4] += uint8(stuffSize) // adaptation_field_length
 				for i := 0; i < stuffSize; i++ {
-					packet[base+i] = 0xFF
+					f.packet[base+i] = 0xFF
 				}
 			} else {
 				// no Adaptation
 
-				packet[3] |= 0x20 // 设置Adaptation
+				f.packet[3] |= 0x20
 
 				base := 4
 				if wpos > base {
-					copy(packet[base+stuffSize:], packet[base:wpos])
+					copy(f.packet[base+stuffSize:], f.packet[base:wpos])
 				}
 				wpos += stuffSize
 
-				packet[4] = uint8(stuffSize - 1) // adaptation_field_length
+				f.packet[4] = uint8(stuffSize - 1) // adaptation_field_length
 				if stuffSize >= 2 {
 					// TODO chef 这里是参考nginx rtmp module的实现，为什么这个字节写0而不是0xFF
-					packet[5] = 0
+					f.packet[5] = 0
 					for i := 0; i < stuffSize-2; i++ {
-						packet[6+i] = 0xFF
+						f.packet[6+i] = 0xFF
 					}
 				}
 			}
 
 			// 真实数据放在packet尾部
-			copy(packet[wpos:], b[lpos:lpos+inSize])
+			copy(f.packet[wpos:], b[lpos:lpos+inSize])
 			lpos = rpos
 		}
 
-		f.writeFile(packet)
+		f.writeFile(f.packet)
 	}
 }
 

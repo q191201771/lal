@@ -275,10 +275,6 @@ func (group *Group) OnReadRTMPAVMsg(msg rtmp.AVMsg) {
 	group.mutex.Lock()
 	defer group.mutex.Unlock()
 
-	p := make([]byte, len(msg.Payload))
-	copy(p, msg.Payload)
-	msg.Payload = p
-
 	//nazalog.Debugf("%+v, %02x, %02x", msg.Header, msg.Payload[0], msg.Payload[1])
 	group.broadcastRTMP(msg)
 

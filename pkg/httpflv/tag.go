@@ -55,17 +55,17 @@ func (tag *Tag) IsVideoKeySeqHeader() bool {
 	return tag.IsAVCKeySeqHeader() || tag.IsHEVCKeySeqHeader()
 }
 
-func (tag *Tag) IsAVCKeyNalu() bool {
-	return tag.Header.Type == TagTypeVideo && tag.Raw[TagHeaderSize] == AVCKeyFrame && tag.Raw[TagHeaderSize+1] == AVCPacketTypeNalu
+func (tag *Tag) IsAVCKeyNALU() bool {
+	return tag.Header.Type == TagTypeVideo && tag.Raw[TagHeaderSize] == AVCKeyFrame && tag.Raw[TagHeaderSize+1] == AVCPacketTypeNALU
 }
 
-func (tag *Tag) IsHEVCKeyNalu() bool {
-	return tag.Header.Type == TagTypeVideo && tag.Raw[TagHeaderSize] == HEVCKeyFrame && tag.Raw[TagHeaderSize+1] == HEVCPacketTypeNalu
+func (tag *Tag) IsHEVCKeyNALU() bool {
+	return tag.Header.Type == TagTypeVideo && tag.Raw[TagHeaderSize] == HEVCKeyFrame && tag.Raw[TagHeaderSize+1] == HEVCPacketTypeNALU
 }
 
 // AVC或HEVC的关键帧
-func (tag *Tag) IsVideoKeyNalu() bool {
-	return tag.IsAVCKeyNalu() || tag.IsHEVCKeyNalu()
+func (tag *Tag) IsVideoKeyNALU() bool {
+	return tag.IsAVCKeyNALU() || tag.IsHEVCKeyNALU()
 }
 
 func (tag *Tag) IsAACSeqHeader() bool {

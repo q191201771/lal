@@ -40,7 +40,6 @@ func (s *UDPServer) Listen() (err error) {
 	if err != nil {
 		return
 	}
-	nazalog.Infof("start rtcp server listen. addr=%s", s.addr)
 	return
 }
 

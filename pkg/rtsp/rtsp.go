@@ -10,6 +10,9 @@ package rtsp
 
 // 注意，正在学习以及实现rtsp，请不要使用这个package
 
+// TODO chef
+// - rtp和rtcp作为独立package
+
 // rfc2326
 
 const (
@@ -32,7 +35,6 @@ var (
 	serverName = "lalserver"
 	sessionID  = "191201771"
 
-	// TODO chef: to be continued
 	// read RTP/RTCP data from port
 	serverPort = "8000-8001"
 

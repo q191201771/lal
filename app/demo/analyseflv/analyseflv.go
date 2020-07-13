@@ -183,15 +183,15 @@ func analysisVideoTag(tag httpflv.Tag) {
 			}
 			switch t {
 			case typeAVC:
-				if avc.CalcNaluType(body[i+4:]) == avc.NaluUnitTypeIDRSlice {
+				if avc.CalcNALUType(body[i+4:]) == avc.NALUTypeIDRSlice {
 					if prevIDRTS != int64(-1) {
 						diffIDRTS = int64(tag.Header.Timestamp) - prevIDRTS
 					}
 					prevIDRTS = int64(tag.Header.Timestamp)
 				}
-				buf.WriteString(fmt.Sprintf(" [%s(%s)] ", avc.CalcNaluTypeReadable(body[i+4:]), avc.CalcSliceTypeReadable(body[i+4:])))
+				buf.WriteString(fmt.Sprintf(" [%s(%s)] ", avc.CalcNALUTypeReadable(body[i+4:]), avc.CalcSliceTypeReadable(body[i+4:])))
 			case typeHEVC:
-				buf.WriteString(fmt.Sprintf(" [%s] ", hevc.CalcNaluTypeReadable(body[i+4:])))
+				buf.WriteString(fmt.Sprintf(" [%s] ", hevc.CalcNALUTypeReadable(body[i+4:])))
 			}
 			i = i + 4 + int(naluLen)
 		}

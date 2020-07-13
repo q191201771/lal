@@ -81,10 +81,10 @@ const (
 	HEVCInterFrame = frameTypeInter<<4 | codecIDHEVC
 
 	AVCPacketTypeSeqHeader uint8 = 0
-	AVCPacketTypeNalu      uint8 = 1
+	AVCPacketTypeNALU      uint8 = 1
 
 	HEVCPacketTypeSeqHeader uint8 = 0
-	HEVCPacketTypeNalu      uint8 = 1
+	HEVCPacketTypeNALU      uint8 = 1
 
 	AACPacketTypeSeqHeader uint8 = 0
 	AACPacketTypeRaw       uint8 = 1
@@ -104,16 +104,16 @@ func (msg AVMsg) IsVideoKeySeqHeader() bool {
 	return msg.IsAVCKeySeqHeader() || msg.IsHEVCKeySeqHeader()
 }
 
-func (msg AVMsg) IsAVCKeyNalu() bool {
-	return msg.Header.MsgTypeID == TypeidVideo && msg.Payload[0] == AVCKeyFrame && msg.Payload[1] == AVCPacketTypeNalu
+func (msg AVMsg) IsAVCKeyNALU() bool {
+	return msg.Header.MsgTypeID == TypeidVideo && msg.Payload[0] == AVCKeyFrame && msg.Payload[1] == AVCPacketTypeNALU
 }
 
-func (msg AVMsg) IsHEVCKeyNalu() bool {
-	return msg.Header.MsgTypeID == TypeidVideo && msg.Payload[0] == HEVCKeyFrame && msg.Payload[1] == HEVCPacketTypeNalu
+func (msg AVMsg) IsHEVCKeyNALU() bool {
+	return msg.Header.MsgTypeID == TypeidVideo && msg.Payload[0] == HEVCKeyFrame && msg.Payload[1] == HEVCPacketTypeNALU
 }
 
-func (msg AVMsg) IsVideoKeyNalu() bool {
-	return msg.IsAVCKeyNalu() || msg.IsHEVCKeyNalu()
+func (msg AVMsg) IsVideoKeyNALU() bool {
+	return msg.IsAVCKeyNALU() || msg.IsHEVCKeyNALU()
 }
 
 func (msg AVMsg) IsAACSeqHeader() bool {
