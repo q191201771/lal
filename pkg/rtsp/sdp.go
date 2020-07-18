@@ -9,6 +9,7 @@
 package rtsp
 
 import (
+	"encoding/base64"
 	"errors"
 	"strconv"
 	"strings"
@@ -36,43 +37,46 @@ type SDP struct {
 type ARTPMap struct {
 	PayloadType        int
 	EncodingName       string
-	ClockRate          string
+	ClockRate          int
 	EncodingParameters string
 }
 
-type FmtP struct {
-	Mode string
+type FmtPBase struct {
+	Format     int               // same as PayloadType
+	Parameters map[string]string // name -> value
 }
 
-func parseSDP(b []byte) SDP {
+func ParseSDP(b []byte) SDP {
 	s := string(b)
 	lines := strings.Split(s, "\r\n")
 	for _, line := range lines {
 		if strings.HasPrefix(line, "a=rtpmap") {
-			aRTPMap, err := parseARTPMap(line)
+			aRTPMap, err := ParseARTPMap(line)
 			nazalog.Debugf("%+v, %v", aRTPMap, err)
+		}
+		if strings.HasPrefix(line, "a=fmtp") {
+			fmtPBase, err := ParseFmtPBase(line)
+			nazalog.Debugf("%+v, %v", fmtPBase, err)
 		}
 	}
 
 	return SDP{}
 }
 
-func parseARTPMap(s string) (ret ARTPMap, err error) {
+func ParseARTPMap(s string) (ret ARTPMap, err error) {
 	// rfc 3640 3.3.1.  General
 	// rfc 3640 3.3.6.  High Bit-rate AAC
 	//
 	// a=rtpmap:<payload type> <encoding name>/<clock rate>[/<encoding parameters>]
 	//
-	// example：
-	// a=rtpmap:96 H264/90000
-	// a=rtpmap:97 MPEG4-GENERIC/44100/2
+	// example see unit test
 
-	items := strings.Split(s, ":")
+	items := strings.SplitN(s, ":", 2)
 	if len(items) != 2 {
 		err = ErrSDP
 		return
 	}
-	items = strings.Split(items[1], " ")
+	items = strings.SplitN(items[1], " ", 2)
 	if len(items) != 2 {
 		err = ErrSDP
 		return
@@ -81,28 +85,87 @@ func parseARTPMap(s string) (ret ARTPMap, err error) {
 	if err != nil {
 		return
 	}
-	items = strings.Split(items[1], "/")
+	items = strings.SplitN(items[1], "/", 3)
 	switch len(items) {
 	case 3:
 		ret.EncodingParameters = items[2]
 		fallthrough
 	case 2:
 		ret.EncodingName = items[0]
-		ret.ClockRate = items[1]
+		ret.ClockRate, err = strconv.Atoi(items[1])
+		if err != nil {
+			return
+		}
 	default:
 		err = ErrSDP
 	}
 	return
 }
 
-func parseFmtP(s string) (ret ARTPMap, err error) {
+func ParseFmtPBase(s string) (ret FmtPBase, err error) {
 	// rfc 3640 4.4.1.  The a=fmtp Keyword
 	//
 	// a=fmtp:<format> <parameter name>=<value>[; <parameter name>=<value>]
 	//
-	// example:
-	// a=fmtp:96 packetization-mode=1; sprop-parameter-sets=Z2QAIKzZQMApsBEAAAMAAQAAAwAyDxgxlg==,aOvssiw=; profile-level-id=640020
-	// a=fmtp:97 profile-level-id=1;mode=AAC-hbr;sizelength=13;indexlength=3;indexdeltalength=3; config=1210
+	// example see unit test
+
+	ret.Parameters = make(map[string]string)
+
+	items := strings.SplitN(s, ":", 2)
+	if len(items) != 2 {
+		err = ErrSDP
+		return
+	}
+
+	items = strings.SplitN(items[1], " ", 2)
+	if len(items) != 2 {
+		err = ErrSDP
+		return
+	}
+
+	ret.Format, err = strconv.Atoi(items[0])
+	if err != nil {
+		return
+	}
+
+	items = strings.Split(items[1], ";")
+	for _, pp := range items {
+		pp = strings.TrimSpace(pp)
+		kv := strings.SplitN(pp, "=", 2)
+		if len(kv) != 2 {
+			err = ErrSDP
+			return
+		}
+		ret.Parameters[kv[0]] = kv[1]
+	}
+
+	return
+}
+
+func ParseSPSPPS(f FmtPBase) (sps, pps []byte, err error) {
+	if f.Format != RTPPacketTypeAVC {
+		err = ErrSDP
+		return
+	}
+
+	v, ok := f.Parameters["sprop-parameter-sets"]
+	if !ok {
+		err = ErrSDP
+		return
+	}
+
+	items := strings.SplitN(v, ",", 2)
+	if len(items) != 2 {
+		err = ErrSDP
+		return
+	}
+
+	sps, err = base64.StdEncoding.DecodeString(items[0])
+	if err != nil {
+		return
+	}
+
+	pps, err = base64.StdEncoding.DecodeString(items[1])
 
 	return
 }

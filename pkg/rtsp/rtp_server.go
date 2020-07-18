@@ -34,14 +34,17 @@ func (r *RTPServer) OnReadUDPPacket(b []byte, addr string, err error) {
 	if err != nil {
 		nazalog.Errorf("read invalid rtp packet. err=%+v", err)
 	}
+	var rtpPacket RTPPacket
+	rtpPacket.header = h
+	rtpPacket.raw = b
 	switch h.packetType {
 	case RTPPacketTypeAAC:
 		s := r.getOrCreateSession(h)
-		s.FeedAACPacket(b, h)
+		s.FeedAACPacket(rtpPacket)
 	case RTPPacketTypeAVC:
 		nazalog.Debugf("header=%+v, length=%d", h, len(b))
 		s := r.getOrCreateSession(h)
-		s.FeedAVCPacket(b, h)
+		s.FeedAVCPacket(rtpPacket)
 	}
 }
 

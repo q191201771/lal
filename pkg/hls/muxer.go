@@ -13,6 +13,8 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/q191201771/lal/pkg/avc"
+
 	"github.com/q191201771/naza/pkg/unique"
 
 	"github.com/q191201771/lal/pkg/aac"
@@ -48,7 +50,7 @@ type Muxer struct {
 	fragmentOP FragmentOP
 	opened     bool
 	adts       aac.ADTS
-	spspps     []byte
+	spspps     []byte // AnnexB
 	videoCC    uint8
 	audioCC    uint8
 	videoOut   []byte // 帧
@@ -122,7 +124,9 @@ func (m *Muxer) feedVideo(msg rtmp.AVMsg) {
 	htype := msg.Payload[1]
 
 	if ftype == 1 && htype == 0 {
-		m.cacheSPSPPS(msg)
+		if err := m.cacheSPSPPS(msg); err != nil {
+			nazalog.Errorf("[%s] cache spspps failed. err=%+v", m.UniqueKey, err)
+		}
 		return
 	}
 
@@ -143,31 +147,30 @@ func (m *Muxer) feedVideo(msg rtmp.AVMsg) {
 			nazalog.Errorf("[%s] slice len not enough. i=%d, payload len=%d, nalBytes=%d", m.UniqueKey, i, len(msg.Payload), nalBytes)
 			return
 		}
-		srcNalType := msg.Payload[i]
-		nalType := srcNalType & 0x1F
+
+		nalType := avc.ParseNALUType(msg.Payload[i])
 
 		//nazalog.Debugf("hls: h264 NAL type=%d, len=%d(%d) cts=%d.", nalType, nalBytes, len(msg.Payload), cts)
 
-		if nalType >= 7 && nalType <= 9 {
-			//nazalog.Warn("should not reach here.")
+		if nalType == avc.NALUTypeSPS || nalType == avc.NALUTypePPS || nalType == avc.NALUTypeAUD {
 			i += nalBytes
 			continue
 		}
 
 		if !audSent {
 			switch nalType {
-			case 1, 5, 6:
+			case avc.NALUTypeSlice, avc.NALUTypeIDRSlice, avc.NALUTypeSEI:
 				out = append(out, audNal...)
 				audSent = true
-			case 9:
+			case avc.NALUTypeAUD:
 				audSent = true
 			}
 		}
 
 		switch nalType {
-		case 1:
+		case avc.NALUTypeSlice:
 			spsppsSent = false
-		case 5:
+		case avc.NALUTypeIDRSlice:
 			if !spsppsSent {
 				out = m.appendSPSPPS(out)
 			}
@@ -176,9 +179,9 @@ func (m *Muxer) feedVideo(msg rtmp.AVMsg) {
 		}
 
 		if len(out) == 0 {
-			out = append(out, nalStartCode...)
+			out = append(out, avc.NALUStartCode4...)
 		} else {
-			out = append(out, nalStartCode3...)
+			out = append(out, avc.NALUStartCode3...)
 		}
 		out = append(out, msg.Payload[i:i+nalBytes]...)
 
@@ -241,9 +244,10 @@ func (m *Muxer) cacheAACSeqHeader(msg rtmp.AVMsg) {
 	_ = m.adts.PutAACSequenceHeader(msg.Payload)
 }
 
-func (m *Muxer) cacheSPSPPS(msg rtmp.AVMsg) {
-	m.spspps = make([]byte, len(msg.Payload))
-	copy(m.spspps, msg.Payload)
+func (m *Muxer) cacheSPSPPS(msg rtmp.AVMsg) error {
+	var err error
+	m.spspps, err = avc.SPSPPSSeqHeader2AnnexB(msg.Payload)
+	return err
 }
 
 func (m *Muxer) appendSPSPPS(out []byte) []byte {
@@ -252,24 +256,7 @@ func (m *Muxer) appendSPSPPS(out []byte) []byte {
 		return out
 	}
 
-	index := 10
-	nnals := m.spspps[index] & 0x1f
-	index++
-	for n := 0; ; n++ {
-		for ; nnals != 0; nnals-- {
-			length := int(bele.BEUint16(m.spspps[index:]))
-			index += 2
-			out = append(out, nalStartCode...)
-			out = append(out, m.spspps[index:index+length]...)
-			index += length
-		}
-
-		if n == 1 {
-			break
-		}
-		nnals = m.spspps[index]
-		index++
-	}
+	out = append(out, m.spspps...)
 	return out
 }
 

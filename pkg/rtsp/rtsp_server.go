@@ -89,7 +89,7 @@ func (s *Server) handleTCPConnect(conn net.Conn) {
 			_, _ = conn.Write([]byte(resp))
 		case MethodAnnounce:
 			nazalog.Info("< R ANNOUNCE")
-			parseSDP(body)
+			ParseSDP(body)
 			resp := PackResponseAnnounce(headers[HeaderFieldCSeq])
 			_, _ = conn.Write([]byte(resp))
 		case MethodSetup:

@@ -95,16 +95,6 @@ var audNal = []byte{
 	0x00, 0x00, 0x00, 0x01, 0x09, 0xf0,
 }
 
-// AnnexB prefix
-var nalStartCode = []byte{
-	0x00, 0x00, 0x00, 0x01,
-}
-
-// TODO chef:
-var nalStartCode3 = []byte{
-	0x00, 0x00, 0x01,
-}
-
 // TS Packet Header
 const (
 	syncByte uint8 = 0x47

@@ -26,17 +26,17 @@ var (
 	NALUTypeSEISuffix   uint8 = 40 // 0x28
 )
 
-func CalcNALUTypeReadable(nalu []byte) string {
-	b, ok := NALUTypeMapping[CalcNALUType(nalu)]
+func ParseNALUTypeReadable(v uint8) string {
+	b, ok := NALUTypeMapping[ParseNALUType(v)]
 	if !ok {
 		return "unknown"
 	}
 	return b
 }
 
-func CalcNALUType(nalu []byte) uint8 {
+func ParseNALUType(v uint8) uint8 {
 	// 6 bit in middle
 	// 0*** ***0
 	// or return (nalu[0] >> 1) & 0x3F
-	return (nalu[0] & 0x7E) >> 1
+	return (v & 0x7E) >> 1
 }

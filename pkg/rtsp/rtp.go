@@ -62,18 +62,33 @@ const (
 	NALUTypeFUA       = 28
 )
 
+const (
+	//PositionUnknown uint8 = 0
+	PositionTypeSingle      uint8 = 1
+	PositionTypeMultiStart  uint8 = 2
+	PositionTypeMultiMiddle uint8 = 3
+	PositionTypeMultiEnd    uint8 = 4
+)
+
 type RTPHeader struct {
-	version    uint8  // 2b
+	version    uint8  // 2b  *
 	padding    uint8  // 1b
 	extension  uint8  // 1
 	csrcCount  uint8  // 4b
-	mark       uint8  // 1b
+	mark       uint8  // 1b  *
 	packetType uint8  // 7b
-	seq        uint16 // 16b
-	timestamp  uint32 // 32b
-	ssrc       uint32 // 32b
+	seq        uint16 // 16b **
+	timestamp  uint32 // 32b ****
+	ssrc       uint32 // 32b ****
 
 	payloadOffset uint32
+}
+
+type RTPPacket struct {
+	header RTPHeader
+	raw    []byte // 包含header内存
+
+	positionType uint8
 }
 
 func isAudio(packetType uint8) bool {
@@ -101,4 +116,23 @@ func parseRTPPacket(b []byte) (h RTPHeader, err error) {
 
 	h.payloadOffset = RTPFixedHeaderLength
 	return
+}
+
+func compareSeq(a, b uint16) int {
+	if a == b {
+		return 0
+	}
+	if a > b {
+		if a-b < 16384 {
+			return 1
+		}
+
+		return -1
+	}
+	// a < b
+	if b-a < 16384 {
+		return -1
+	}
+
+	return 1
 }

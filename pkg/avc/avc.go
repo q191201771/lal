@@ -12,13 +12,28 @@ import (
 	"errors"
 	"io"
 
+	"github.com/q191201771/naza/pkg/nazalog"
+
 	"github.com/q191201771/naza/pkg/bele"
 	"github.com/q191201771/naza/pkg/nazabits"
 )
 
+// Annex B:
+//   keywords: MPEG-2 transport stream, ElementaryStream(ES),
+//   nalu with start code.
+//   e.g. ts
+//
+// AVCC:
+//   keywords: AVC1, MPEG-4, extradata, sequence header, AVCDecoderConfigurationRecord
+//   nalu with length prefix.
+//   e.g. rtmp, flv
+
 var ErrAVC = errors.New("lal.avc: fxxk")
 
-var NALUStartCode = []byte{0x0, 0x0, 0x0, 0x1}
+var (
+	NALUStartCode3 = []byte{0x0, 0x0, 0x1}
+	NALUStartCode4 = []byte{0x0, 0x0, 0x0, 0x1}
+)
 
 var NALUTypeMapping = map[uint8]string{
 	1: "SLICE",
@@ -55,35 +70,95 @@ const (
 	SliceTypeP  uint8 = 0
 	SliceTypeB  uint8 = 1
 	SliceTypeI  uint8 = 2
-	SliceTypeSP uint8 = 3 // TODO chef
-	SliceTypeSI uint8 = 4 // TODO chef
+	SliceTypeSP uint8 = 3
+	SliceTypeSI uint8 = 4
 )
 
-func CalcNALUType(nalu []byte) uint8 {
-	return nalu[0] & 0x1f
+type Context struct {
+	width  uint32
+	height uint32
 }
 
-// TODO chef: 考虑将error返回给上层
-func CalcSliceType(nalu []byte) uint8 {
-	br := nazabits.NewBitReader(nalu[1:])
-	// first_mb_in_slice
-	_, err := br.ReadGolomb()
-	if err != nil {
-		return 0
+// H.264-AVC-ISO_IEC_14496-15.pdf
+// 5.2.4 Decoder configuration information
+type DecoderConfigurationRecord struct {
+	ConfigurationVersion uint8
+	AVCProfileIndication uint8
+	ProfileCompatibility uint8
+	AVCLevelIndication   uint8
+	LengthSizeMinusOne   uint8
+	NumOfSPS             uint8
+	SPSLength            uint16
+	NumOfPPS             uint8
+	PPSLength            uint16
+}
+
+// ISO-14496-10.pdf
+// 7.3.2.1 Sequence parameter set RBSP syntax
+// 7.4.2.1 Sequence parameter set RBSP semantics
+type SPS struct {
+	ProfileIdc                     uint8
+	ConstraintSet0Flag             uint8
+	ConstraintSet1Flag             uint8
+	ConstraintSet2Flag             uint8
+	LevelIdc                       uint8
+	SPSId                          uint32
+	ChromaFormatIdc                uint32
+	ResidualColorTransformFlag     uint8
+	BitDepthLuma                   uint32
+	BitDepthChroma                 uint32
+	TransFormBypass                uint8
+	Log2MaxFrameNumMinus4          uint32
+	PicOrderCntType                uint32
+	Log2MaxPicOrderCntLsb          uint32
+	NumRefFrames                   uint32 // num_ref_frames
+	GapsInFrameNumValueAllowedFlag uint8  // gaps_in_frame_num_value_allowed_flag
+	PicWidthInMbsMinusOne          uint32 // pic_width_in_mbs_minus1
+	PicHeightInMapUnitsMinusOne    uint32 // pic_height_in_map_units_minus1
+	FrameMbsOnlyFlag               uint8  // frame_mbs_only_flag
+	MbAdaptiveFrameFieldFlag       uint8  // mb_adaptive_frame_field_flag
+	Direct8X8InferenceFlag         uint8  // direct_8x8_inference_flag
+	FrameCroppingFlag              uint8  // frame_cropping_flag
+	FrameCropLeftOffset            uint32 // frame_crop_left_offset
+	FrameCropRightOffset           uint32 // frame_crop_right_offset
+	FrameCropTopOffset             uint32 // frame_crop_top_offset
+	FrameCropBottomOffset          uint32 // frame_crop_bottom_offset
+}
+
+func ParseNALUType(v uint8) uint8 {
+	return v & 0x1f
+}
+
+func ParseSliceType(nalu []byte) (uint8, error) {
+	if len(nalu) < 2 {
+		return 0, ErrAVC
 	}
+
+	br := nazabits.NewBitReader(nalu[1:])
+
+	// skip first_mb_in_slice
+	if _, err := br.ReadGolomb(); err != nil {
+		return 0, err
+	}
+
 	sliceType, err := br.ReadGolomb()
 	if err != nil {
-		return 0
+		return 0, err
 	}
-	// TODO chef: 检查非法数据，slice type范围 [0, 9]
+
+	// range: [0, 9]
+	if sliceType > 9 {
+		return 0, ErrAVC
+	}
+
 	if sliceType > 4 {
 		sliceType -= 5
 	}
-	return uint8(sliceType)
+	return uint8(sliceType), nil
 }
 
-func CalcNALUTypeReadable(nalu []byte) string {
-	t := nalu[0] & 0x1f
+func ParseNALUTypeReadable(v uint8) string {
+	t := ParseNALUType(v)
 	ret, ok := NALUTypeMapping[t]
 	if !ok {
 		return "unknown"
@@ -91,100 +166,281 @@ func CalcNALUTypeReadable(nalu []byte) string {
 	return ret
 }
 
-func CalcSliceTypeReadable(nalu []byte) string {
-	naluType := CalcNALUType(nalu)
+func ParseSliceTypeReadable(nalu []byte) (string, error) {
+	naluType := ParseNALUType(nalu[0])
+
+	// 这些类型不属于视频帧数据类型，没有slice type
 	switch naluType {
 	case NALUTypeSEI:
 		fallthrough
 	case NALUTypeSPS:
 		fallthrough
 	case NALUTypePPS:
-		return ""
+		return "", nil
 	}
 
-	t := CalcSliceType(nalu)
+	t, err := ParseSliceType(nalu)
+	if err != nil {
+		return "unknown", err
+	}
 	ret, ok := SliceTypeMapping[t]
 	if !ok {
-		return "unknown"
+		return "unknown", ErrAVC
 	}
-	return ret
+	return ret, nil
 }
 
-// TODO chef: 参考 hls session的代码，重构这个函数
-// 从 rtmp avc sequence header 中解析 sps 和 pps
-// @param <payload> rtmp message的payload部分 或者 flv tag的payload部分
-func ParseAVCSeqHeader(payload []byte) (sps, pps []byte, err error) {
-	// TODO chef: check if read out of <payload> range
+// AVCC Seq Header -> AnnexB
+// 注意，返回的内存块为独立的内存块，不依赖指向传输参数<payload>内存块
+//
+func SPSPPSSeqHeader2AnnexB(payload []byte) ([]byte, error) {
+	sps, pps, err := ParseSPSPPSFromSeqHeader(payload)
+	if err != nil {
+		return nil, ErrAVC
+	}
+	var ret []byte
+	ret = append(ret, NALUStartCode4...)
+	ret = append(ret, sps...)
+	ret = append(ret, NALUStartCode4...)
+	ret = append(ret, pps...)
+	return ret, nil
+}
 
+// 从AVCC格式的Seq Header中得到SPS和PPS内存块
+//
+// @param <payload> rtmp message的payload部分或者flv tag的payload部分
+//                  注意，包含了头部2字节类型以及3字节的cts
+//
+// @return 注意，返回的sps，pps内存块指向的是传入参数<payload>内存块的内存
+//
+func ParseSPSPPSFromSeqHeader(payload []byte) (sps, pps []byte, err error) {
+	if len(payload) < 5 {
+		return nil, nil, ErrAVC
+	}
 	if payload[0] != 0x17 || payload[1] != 0x00 || payload[2] != 0 || payload[3] != 0 || payload[4] != 0 {
-		err = ErrAVC
-		return
+		return nil, nil, ErrAVC
 	}
 
-	// H.264-AVC-ISO_IEC_14496-15.pdf
-	// 5.2.4 Decoder configuration information
-
-	//configurationVersion := payload[5]
-	//avcProfileIndication := payload[6]
-	//profileCompatibility := payload[7]
-	//avcLevelIndication := payload[8]
-	//lengthSizeMinusOne := payload[9] & 0x03
+	if len(payload) < 13 {
+		return nil, nil, ErrAVC
+	}
 
 	index := 10
-
 	numOfSPS := int(payload[index] & 0x1F)
 	index++
-	// TODO chef: if the situation of multi sps exist?
-	// only take the last one.
-	for i := 0; i < numOfSPS; i++ {
-		lenOfSPS := int(bele.BEUint16(payload[index:]))
-		index += 2
-		sps = append(sps, payload[index:index+lenOfSPS]...)
-		index += lenOfSPS
+	if numOfSPS != 1 {
+		return nil, nil, ErrAVC
+	}
+	spsLength := int(bele.BEUint16(payload[index:]))
+	index += 2
+
+	if len(payload) < 13+spsLength {
+		return nil, nil, ErrAVC
+	}
+
+	sps = payload[index : index+spsLength]
+	index += spsLength
+
+	if len(payload) < 16+spsLength {
+		return nil, nil, ErrAVC
 	}
 
 	numOfPPS := int(payload[index] & 0x1F)
 	index++
-	for i := 0; i < numOfPPS; i++ {
-		lenOfPPS := int(bele.BEUint16(payload[index:]))
-		index += 2
-		pps = append(pps, payload[index:index+lenOfPPS]...)
-		index += lenOfPPS
+	if numOfPPS != 1 {
+		return nil, nil, ErrAVC
+	}
+	ppsLength := int(bele.BEUint16(payload[index:]))
+	index += 2
+
+	if len(payload) < 16+spsLength+ppsLength {
+		return nil, nil, ErrAVC
 	}
 
+	pps = payload[index : index+ppsLength]
 	return
 }
 
-// TODO chef: 和HLS中的代码有重复，合并一下
-
-// 将rtmp avc数据转换成avc裸流
-// @param <payload> rtmp message的payload部分 或者 flv tag的payload部分
-func CaptureAVC(w io.Writer, payload []byte) error {
+// AVCC -> AnnexB
+//
+// @param <payload> rtmp message的payload部分或者flv tag的payload部分
+//                  注意，包含了头部2字节类型以及3字节的cts
+//
+func CaptureAVCC2AnnexB(w io.Writer, payload []byte) error {
 	// sps pps
 	if payload[0] == 0x17 && payload[1] == 0x00 {
-		sps, pps, err := ParseAVCSeqHeader(payload)
+		spspps, err := SPSPPSSeqHeader2AnnexB(payload)
 		if err != nil {
 			return err
 		}
-		//utilErrors.PanicIfErrorOccur(err)
-		_, _ = w.Write(NALUStartCode)
-		_, _ = w.Write(sps)
-		_, _ = w.Write(NALUStartCode)
-		_, _ = w.Write(pps)
+		_, _ = w.Write(spspps)
 		return nil
 	}
 
 	// payload中可能存在多个nalu
-	// 先跳过前面type的2字节，以及composition time的3字节
 	for i := 5; i != len(payload); {
 		naluLen := int(bele.BEUint32(payload[i:]))
 		i += 4
-		//naluType := payload[i] & 0x1f
-		//log.Debugf("naluLen:%d t:%d %s\n", naluLen, naluType, avc.NALUTypeMapping[naluUintType])
-		_, _ = w.Write(NALUStartCode)
+		_, _ = w.Write(NALUStartCode4)
 		_, _ = w.Write(payload[i : i+naluLen])
 		i += naluLen
 		break
 	}
 	return nil
+}
+
+func TryParseSPS(payload []byte) error {
+	var sps SPS
+	var err error
+	br := nazabits.NewBitReader(payload)
+
+	t, err := br.ReadBits8(8) //nalType SPS should be 0x67
+	if t != 0x67 {
+		nazalog.Errorf("invalid SPS type. expected=%d, actual=%d", 0x67, t)
+		return ErrAVC
+	}
+
+	sps.ProfileIdc, err = br.ReadBits8(8)
+	sps.ConstraintSet0Flag, err = br.ReadBits8(1)
+	sps.ConstraintSet1Flag, err = br.ReadBits8(1)
+	sps.ConstraintSet2Flag, err = br.ReadBits8(1)
+	_, err = br.ReadBits8(5)
+	sps.LevelIdc, err = br.ReadBits8(8)
+	sps.SPSId, err = br.ReadGolomb()
+	if sps.SPSId >= 32 {
+		return ErrAVC
+	}
+
+	// 100 High profile
+	if sps.ProfileIdc == 100 {
+		sps.ChromaFormatIdc, err = br.ReadGolomb()
+		if sps.ChromaFormatIdc > 3 {
+			return ErrAVC
+		}
+
+		if sps.ChromaFormatIdc == 3 {
+			sps.ResidualColorTransformFlag, err = br.ReadBits8(1)
+		}
+
+		sps.BitDepthLuma, err = br.ReadGolomb()
+		sps.BitDepthLuma += 8
+
+		sps.BitDepthChroma, err = br.ReadGolomb()
+		sps.BitDepthChroma += 8
+
+		if sps.BitDepthChroma != sps.BitDepthLuma || sps.BitDepthChroma < 8 || sps.BitDepthChroma > 14 {
+			return ErrAVC
+		}
+
+		sps.TransFormBypass, err = br.ReadBits8(1)
+
+		// seq scaling matrix present
+		flag, _ := br.ReadBits8(1)
+		if flag == 1 {
+			nazalog.Debugf("scaling matrix present, not impl yet.")
+			return ErrAVC
+		}
+	} else {
+		sps.ChromaFormatIdc = 1
+		sps.BitDepthLuma = 8
+		sps.BitDepthChroma = 8
+	}
+
+	sps.Log2MaxFrameNumMinus4, err = br.ReadGolomb()
+	sps.PicOrderCntType, err = br.ReadGolomb()
+	if sps.PicOrderCntType == 0 {
+		sps.Log2MaxPicOrderCntLsb, err = br.ReadGolomb()
+		sps.Log2MaxPicOrderCntLsb += 4
+	} else {
+		nazalog.Debugf("not impl yet. sps.PicOrderCntType=%d", sps.PicOrderCntType)
+		return ErrAVC
+	}
+
+	sps.NumRefFrames, err = br.ReadGolomb()
+	sps.GapsInFrameNumValueAllowedFlag, err = br.ReadBits8(1)
+	sps.PicWidthInMbsMinusOne, err = br.ReadGolomb()
+	sps.PicHeightInMapUnitsMinusOne, err = br.ReadGolomb()
+	sps.FrameMbsOnlyFlag, err = br.ReadBits8(1)
+
+	if sps.FrameMbsOnlyFlag == 0 {
+		sps.MbAdaptiveFrameFieldFlag, err = br.ReadBits8(1)
+	}
+
+	sps.Direct8X8InferenceFlag, err = br.ReadBits8(1)
+
+	sps.FrameCroppingFlag, err = br.ReadBits8(1)
+	if sps.FrameCroppingFlag == 1 {
+		sps.FrameCropLeftOffset, err = br.ReadGolomb()
+		sps.FrameCropRightOffset, err = br.ReadGolomb()
+		sps.FrameCropTopOffset, err = br.ReadGolomb()
+		sps.FrameCropBottomOffset, err = br.ReadGolomb()
+	}
+
+	// TODO parse sps vui parameters
+
+	nazalog.Debugf("%+v", sps)
+
+	var ctx Context
+	ctx.width = (sps.PicWidthInMbsMinusOne+1)*16 - (sps.FrameCropLeftOffset+sps.FrameCropRightOffset)*2
+	ctx.height = (2-uint32(sps.FrameMbsOnlyFlag))*(sps.PicHeightInMapUnitsMinusOne+1)*16 - (sps.FrameCropTopOffset+sps.FrameCropBottomOffset)*2
+	nazalog.Debugf("%+v", ctx)
+
+	return err
+}
+
+func TryParsePPS(payload []byte) error {
+	// ISO-14496-10.pdf
+	// 7.3.2.2 Picture parameter set RBSP syntax
+
+	// TODO impl me
+	return nil
+}
+
+// 这个函数是我用来学习解析SPS PPS用的，暂时没有实际调用使用
+//
+// @param <payload> rtmp message的payload部分或者flv tag的payload部分
+//                  注意，包含了头部2字节类型以及3字节的cts
+//
+func TryParseSeqHeader(payload []byte) error {
+	if len(payload) < 5 {
+		return ErrAVC
+	}
+	if payload[0] != 0x17 || payload[1] != 0x00 || payload[2] != 0 || payload[3] != 0 || payload[4] != 0 {
+		return ErrAVC
+	}
+
+	// H.264-AVC-ISO_IEC_14496-15.pdf
+	// 5.2.4 Decoder configuration information
+	var dcr DecoderConfigurationRecord
+	var err error
+	br := nazabits.NewBitReader(payload[5:])
+
+	// TODO check error
+	dcr.ConfigurationVersion, err = br.ReadBits8(8)
+	dcr.AVCProfileIndication, err = br.ReadBits8(8)
+	dcr.ProfileCompatibility, err = br.ReadBits8(8)
+	dcr.AVCLevelIndication, err = br.ReadBits8(8)
+	_, err = br.ReadBits8(6) // reserved = '111111'b
+	dcr.LengthSizeMinusOne, err = br.ReadBits8(2)
+
+	_, err = br.ReadBits8(3) // reserved = '111'b
+	dcr.NumOfSPS, err = br.ReadBits8(5)
+	b, err := br.ReadBytes(2)
+	dcr.SPSLength = bele.BEUint16(b)
+
+	_, _ = br.ReadBytes(uint(dcr.SPSLength))
+
+	_, err = br.ReadBits8(3) // reserved = '111'b
+	dcr.NumOfPPS, err = br.ReadBits8(5)
+	b, err = br.ReadBytes(2)
+	dcr.PPSLength = bele.BEUint16(b)
+
+	nazalog.Debugf("%+v", dcr)
+
+	// 5 + 5 + 1 + 2
+	_ = TryParseSPS(payload[13 : 13+dcr.SPSLength])
+	// 13 + 1 + 2
+	_ = TryParsePPS(payload[16 : 16+dcr.PPSLength])
+
+	return err
 }

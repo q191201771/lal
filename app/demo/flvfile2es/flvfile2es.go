@@ -69,7 +69,7 @@ func main() {
 			_, _ = afp.Write(d)
 			_, _ = afp.Write(payload[2:])
 		case httpflv.TagTypeVideo:
-			_ = avc.CaptureAVC(vfp, payload)
+			_ = avc.CaptureAVCC2AnnexB(vfp, payload)
 		}
 	}
 }
