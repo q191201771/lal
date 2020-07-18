@@ -1,3 +1,20 @@
+#### v0.13.0
+
+- [feat] package httpflv: pull拉流时，携带url参数
+- [feat] package avc: 提供一些AVCC转AnnexB相关的代码。学习解析SPS、PPS内部的字段
+- [fix] package rtmp: 打包rtmp chunk时扩展时间戳的格式。避免时间戳过大后，发送给vlc的数据无法播放。
+- [fix] package hls: 写ts视频数据时，流中没有spspps导致崩溃
+- [fix] package logic: 修复重复创建group.RunLoop协程的bug
+- [perf] package logic: 广播数据时，内存块不做拷贝
+- [perf] package hls: 切片188字节buffer复用一块内存
+- [refactor] package hls: 使用package avc
+- [refactor] 所有回调函数的命名格式，从CB后缀改为On前缀
+- [refactor] 整理日志
+- [style] Nalu更改为NALU
+- [doc] 增加PR规范
+- [test] innertest中对hls生成的m3u8和ts文件做md5验证
+- [chore] 下载单元测试用的test.flv失败，本地文件大小为0时，去备用地址下载
+
 #### v0.12.0
 
 - [feat] lalserver增加回源功能
