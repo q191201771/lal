@@ -92,6 +92,7 @@ func (group *Group) Tick() {
 	group.pushIfNeeded()
 }
 
+// 主动释放所有资源。注意，Dispose后，不应再使用这个对象
 func (group *Group) Dispose() {
 	nazalog.Infof("[%s] lifecycle dispose group.", group.UniqueKey)
 	group.exitChan <- struct{}{}
@@ -252,22 +253,38 @@ func (group *Group) AddRTMPPushSession(url string, session *rtmp.PushSession) {
 	nazalog.Debugf("[%s] [%s] add rtmp PushSession into group.", group.UniqueKey, session.UniqueKey())
 	group.mutex.Lock()
 	defer group.mutex.Unlock()
-	group.url2PushProxy[url].pushSession = session
+	if group.url2PushProxy != nil {
+		group.url2PushProxy[url].pushSession = session
+	}
 }
 
 func (group *Group) DelRTMPPushSession(url string, session *rtmp.PushSession) {
 	nazalog.Debugf("[%s] [%s] del rtmp PushSession into group.", group.UniqueKey, session.UniqueKey())
 	group.mutex.Lock()
 	defer group.mutex.Unlock()
-	group.url2PushProxy[url].pushSession = nil
-	group.url2PushProxy[url].isPushing = false
+	if group.url2PushProxy != nil {
+		group.url2PushProxy[url].pushSession = nil
+		group.url2PushProxy[url].isPushing = false
+	}
 }
 
 func (group *Group) IsTotalEmpty() bool {
 	group.mutex.Lock()
 	defer group.mutex.Unlock()
-	// TODO chef: 增加pullSession
-	return group.pubSession == nil && len(group.rtmpSubSessionSet) == 0 && len(group.httpflvSubSessionSet) == 0
+
+	hasPushSession := false
+	for _, item := range group.url2PushProxy {
+		if item.isPushing || item.pushSession != nil {
+			hasPushSession = true
+			break
+		}
+	}
+
+	return group.pubSession == nil && len(group.rtmpSubSessionSet) == 0 &&
+		len(group.httpflvSubSessionSet) == 0 &&
+		group.hlsMuxer == nil &&
+		!hasPushSession &&
+		group.pullSession == nil
 }
 
 // PubSession or PullSession
