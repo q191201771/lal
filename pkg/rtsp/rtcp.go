@@ -131,5 +131,5 @@ func parseSR(b []byte) {
 	s.ts = bele.BEUint32(b[16:])
 	s.pktCnt = bele.BEUint32(b[20:])
 	s.octetCnt = bele.BEUint32(b[24:])
-	//nazalog.Debugf("%+v", s)
+	nazalog.Debugf("%+v", s)
 }

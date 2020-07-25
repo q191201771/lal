@@ -70,6 +70,8 @@ const (
 	PositionTypeMultiEnd    uint8 = 4
 )
 
+var composerItemMaxSize = 1024
+
 type RTPHeader struct {
 	version    uint8  // 2b  *
 	padding    uint8  // 1b
@@ -118,7 +120,8 @@ func parseRTPPacket(b []byte) (h RTPHeader, err error) {
 	return
 }
 
-func compareSeq(a, b uint16) int {
+// 比较序号的值，内部处理序号翻转问题，见单元测试中的例子
+func CompareSeq(a, b uint16) int {
 	if a == b {
 		return 0
 	}
@@ -129,10 +132,34 @@ func compareSeq(a, b uint16) int {
 
 		return -1
 	}
-	// a < b
+
+	// must be a < b
 	if b-a < 16384 {
 		return -1
 	}
 
 	return 1
+}
+
+// a减b的值，内部处理序号翻转问题，如果a小于b，则返回负值，见单元测试中的例子
+func SubSeq(a, b uint16) int {
+	if a == b {
+		return 0
+	}
+
+	if a > b {
+		d := a - b
+		if d < 16384 {
+			return int(d)
+		}
+		return int(d) - 65536
+	}
+
+	// must be a < b
+	d := b - a
+	if d < 16384 {
+		return -int(d)
+	}
+
+	return 65536 - int(d)
 }

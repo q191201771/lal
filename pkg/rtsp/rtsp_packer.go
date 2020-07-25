@@ -74,12 +74,12 @@ var AnnounceTmpl = "RTSP/1.0 200 OK\r\n" +
 	"\r\n"
 
 // rfc2326 10.4 SETUP
-// CSeq, Date, Session, Transport(client_port, server_port)
+// CSeq, Date, Session, Transport(client_port, server_rtp_port, server_rtcp_port)
 var ResponseSetupTmpl = "RTSP/1.0 200 OK\r\n" +
 	"CSeq: %s\r\n" +
 	"Date: %s\r\n" +
 	"Session: %s\r\n" +
-	"Transport:RTP/AVP/UDP;unicast;client_port=%s;server_port=%s\r\n" +
+	"Transport:RTP/AVP/UDP;unicast;client_port=%s;server_port=%d-%d\r\n" +
 	"\r\n"
 
 // rfc2326 10.11 RECORD
@@ -150,7 +150,7 @@ func PackResponseAnnounce(cseq string) string {
 //   server pub example:
 //   RTP/AVP/UDP;unicast;client_port=24254-24255;mode=record
 //   RTP/AVP/UDP;unicast;client_port=24256-24257;mode=record
-func PackResponseSetup(cseq string, transportC string) string {
+func PackResponseSetup(cseq string, transportC string, serverRTPPort uint16, serverRTCPPort uint16) string {
 	date := time.Now().Format(time.RFC1123)
 	nazalog.Debug(transportC)
 
@@ -166,7 +166,7 @@ func PackResponseSetup(cseq string, transportC string) string {
 		}
 	}
 
-	return fmt.Sprintf(ResponseSetupTmpl, cseq, date, sessionID, clientPort, serverPort)
+	return fmt.Sprintf(ResponseSetupTmpl, cseq, date, sessionID, clientPort, serverRTPPort, serverRTCPPort)
 }
 
 func PackResponseRecord(cseq string) string {

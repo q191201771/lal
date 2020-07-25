@@ -28,7 +28,7 @@ import (
 // 1. 对一路流拉取n份
 // 2. 拉取n路流
 //
-// Usage of ./bin/rtmppull:
+// Usage of ./bin/pullrtmp:
 //   -i string
 //     	specify pull rtmp url
 //   -n int
@@ -36,9 +36,9 @@ import (
 //   -o string
 //     	specify ouput flv file
 // Example:
-//   ./bin/rtmppull -i rtmp://127.0.0.1:19350/live/test -o out.flv
-//   ./bin/rtmppull -i rtmp://127.0.0.1:19350/live/test -n 1000
-//   ./bin/rtmppull -i rtmp://127.0.0.1:19350/live/test_{i} -n 1000
+//   ./bin/pullrtmp -i rtmp://127.0.0.1:19350/live/test -o out.flv
+//   ./bin/pullrtmp -i rtmp://127.0.0.1:19350/live/test -n 1000
+//   ./bin/pullrtmp -i rtmp://127.0.0.1:19350/live/test_{i} -n 1000
 
 func main() {
 	urlTmpl, fileNameTmpl, num := parseFlag()
@@ -108,9 +108,9 @@ func parseFlag() (urlTmpl string, fileNameTmpl string, num int) {
 	if *i == "" {
 		flag.Usage()
 		_, _ = fmt.Fprintf(os.Stderr, `Example:
-  ./bin/rtmppull -i rtmp://127.0.0.1:19350/live/test -o out.flv
-  ./bin/rtmppull -i rtmp://127.0.0.1:19350/live/test -n 1000
-  ./bin/rtmppull -i rtmp://127.0.0.1:19350/live/test_{i} -n 1000
+  ./bin/pullrtmp -i rtmp://127.0.0.1:19350/live/test -o out.flv
+  ./bin/pullrtmp -i rtmp://127.0.0.1:19350/live/test -n 1000
+  ./bin/pullrtmp -i rtmp://127.0.0.1:19350/live/test_{i} -n 1000
 `)
 		os.Exit(1)
 	}

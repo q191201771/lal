@@ -196,7 +196,7 @@ func (m *Muxer) feedVideo(msg rtmp.AVMsg) {
 	frame.sid = streamIDVideo
 	frame.key = ftype == 1
 
-	boundary := frame.key && (!m.opened || m.adts.IsNil() || m.aaframe != nil)
+	boundary := frame.key && (!m.opened || !m.adts.HasInited() || m.aaframe != nil)
 
 	m.updateFragment(frame.dts, boundary, 1)
 
@@ -222,7 +222,7 @@ func (m *Muxer) feedAudio(msg rtmp.AVMsg) {
 		return
 	}
 
-	if m.adts.IsNil() {
+	if !m.adts.HasInited() {
 		nazalog.Warnf("[%s] feed audio message but aac seq header not exist.", m.UniqueKey)
 		return
 	}
@@ -235,13 +235,13 @@ func (m *Muxer) feedAudio(msg rtmp.AVMsg) {
 		m.aframePTS = pts
 	}
 
-	adtsHeader, _ := m.adts.GetADTS(uint16(msg.Header.MsgLen))
+	adtsHeader, _ := m.adts.CalcADTSHeader(uint16(msg.Header.MsgLen - 2))
 	m.aaframe = append(m.aaframe, adtsHeader...)
 	m.aaframe = append(m.aaframe, msg.Payload[2:]...)
 }
 
 func (m *Muxer) cacheAACSeqHeader(msg rtmp.AVMsg) {
-	_ = m.adts.PutAACSequenceHeader(msg.Payload)
+	_ = m.adts.InitWithAACAudioSpecificConfig(msg.Payload[2:])
 }
 
 func (m *Muxer) cacheSPSPPS(msg rtmp.AVMsg) error {

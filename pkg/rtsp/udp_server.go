@@ -24,7 +24,14 @@ type UDPServer struct {
 	conn            *net.UDPConn
 }
 
-func NewUDPServer(addr string, onReadUDPPacket OnReadUDPPacket) *UDPServer {
+func NewUDPServerWithConn(conn *net.UDPConn, onReadUDPPacket OnReadUDPPacket) *UDPServer {
+	return &UDPServer{
+		conn:            conn,
+		onReadUDPPacket: onReadUDPPacket,
+	}
+}
+
+func NewUDPServerWithAddr(addr string, onReadUDPPacket OnReadUDPPacket) *UDPServer {
 	return &UDPServer{
 		addr:            addr,
 		onReadUDPPacket: onReadUDPPacket,
@@ -44,8 +51,8 @@ func (s *UDPServer) Listen() (err error) {
 }
 
 func (s *UDPServer) RunLoop() error {
-	b := make([]byte, udpMaxPacketLength)
 	for {
+		b := make([]byte, udpMaxPacketLength)
 		l, a, e := s.conn.ReadFromUDP(b)
 		if e != nil && (l < 0 || l > udpMaxPacketLength) {
 			nazalog.Errorf("ReadFromUDP length invalid. length=%d", l)

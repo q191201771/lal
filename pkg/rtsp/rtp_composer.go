@@ -8,10 +8,22 @@
 
 package rtsp
 
+import "github.com/q191201771/naza/pkg/nazalog"
+
+// 传入RTP包，合成帧数据，并回调
+// 一路音频或一路视频对应一个对象
+// 目前支持AVC和AAC
+
+// to be continued
+// 把composer改成unpacker。把stream去掉。解决时间戳问题。
+
+// TODO chef: 由于音频数据，存在多个帧放一个RTP包的情况，叫composer不一定合适了，可以改名为unpacker
+
 // TODO chef: move to package base
 type AVPacket struct {
-	timestamp uint32
-	payload   []byte
+	Timestamp   uint32
+	Payload     []byte
+	PayloadType int
 }
 
 type RTPPacketListItem struct {
@@ -20,13 +32,15 @@ type RTPPacketListItem struct {
 }
 
 type RTPPacketList struct {
-	head RTPPacketListItem // 哨兵，自身不存放rtp包
+	head RTPPacketListItem // 哨兵，自身不存放rtp包，第一个rtp包存在在head.next中
 	size int               // 实际元素个数
 }
 
 type RTPComposer struct {
-	maxSize int
-	cb      OnAVPacketComposed
+	payloadType        int
+	clockRate          int
+	maxSize            int
+	onAVPacketComposed OnAVPacketComposed
 
 	list         RTPPacketList
 	composedFlag bool
@@ -35,10 +49,12 @@ type RTPComposer struct {
 
 type OnAVPacketComposed func(pkt AVPacket)
 
-func NewRTPComposer(maxSize int, cb OnAVPacketComposed) *RTPComposer {
+func NewRTPComposer(payloadType int, clockRate int, maxSize int, onAVPacketComposed OnAVPacketComposed) *RTPComposer {
 	return &RTPComposer{
-		maxSize: maxSize,
-		cb:      cb,
+		payloadType:        payloadType,
+		clockRate:          clockRate,
+		maxSize:            maxSize,
+		onAVPacketComposed: onAVPacketComposed,
 	}
 }
 
@@ -46,21 +62,60 @@ func (r *RTPComposer) Feed(pkt RTPPacket) {
 	if r.isStale(pkt.header.seq) {
 		return
 	}
-	calcPosition(pkt)
+	calcPositionIfNeeded(&pkt)
 	r.insert(pkt)
+
+	// 尽可能多的合成顺序的帧
+	count := 0
+	for {
+		if !r.composeOneSequential() {
+			break
+		}
+		count++
+	}
+
+	// 合成顺序的帧成功了，直接返回
+	if count > 0 {
+		return
+	}
+
+	// 缓存达到最大值
+	if r.list.size > r.maxSize {
+		// 尝试合成一帧发生跳跃的帧
+		if !r.composeOne() {
+
+			// 合成失败了，丢弃过期数据
+			r.list.head.next = r.list.head.next.next
+			r.list.size--
+		}
+
+		// 再次尝试，尽可能多的合成顺序的帧
+
+		for {
+			if !r.composeOneSequential() {
+				break
+			}
+		}
+	}
 }
 
 // 检查rtp包是否已经过期
+//
+// @return true  表示过期
+//         false 没过期
+//
 func (r *RTPComposer) isStale(seq uint16) bool {
 	if !r.composedFlag {
 		return false
 	}
-	return compareSeq(seq, r.composedSeq) <= 0
+	return CompareSeq(seq, r.composedSeq) <= 0
 }
 
 // 计算rtp包处于帧中的位置
-func calcPosition(pkt RTPPacket) {
-	// TODO chef: 目前只写了264部分
+func calcPositionIfNeeded(pkt *RTPPacket) {
+	if pkt.header.packetType != RTPPacketTypeAVC {
+		return
+	}
 
 	b := pkt.raw[pkt.header.payloadOffset:]
 
@@ -129,12 +184,12 @@ func calcPosition(pkt RTPPacket) {
 
 // 将rtp包插入队列中的合适位置
 func (r *RTPComposer) insert(pkt RTPPacket) {
-	l := r.list
-	l.size++
+	//l := r.list
+	r.list.size++
 
-	p := &l.head
+	p := &r.list.head
 	for ; p.next != nil; p = p.next {
-		res := compareSeq(pkt.header.seq, p.next.packet.header.seq)
+		res := CompareSeq(pkt.header.seq, p.next.packet.header.seq)
 		switch res {
 		case 0:
 			return
@@ -157,19 +212,108 @@ func (r *RTPComposer) insert(pkt RTPPacket) {
 	p.next = item
 }
 
-// 从头部检查，尽可能多的合成连续的完整的帧
-func (r *RTPComposer) tryCompose() {
-	for p := r.list.head.next; p != nil; p = p.next {
-		switch p.packet.positionType {
-		case PositionTypeSingle:
-
+// 从头部检查，是否可以合成一个完成的帧。并且，需保证这次合成的帧的首个seq和上次处理的seq是连续的
+func (r *RTPComposer) composeOneSequential() bool {
+	if r.composedFlag {
+		first := r.list.head.next
+		if first == nil {
+			return false
+		}
+		if SubSeq(first.packet.header.seq, r.composedSeq) != 1 {
+			return false
 		}
 	}
+
+	return r.composeOne()
+}
+
+func (r *RTPComposer) composeOne() bool {
+	switch r.payloadType {
+	case RTPPacketTypeAVC:
+		return r.composeOneAVC()
+	case RTPPacketTypeAAC:
+		return r.composeOneAAC()
+	}
+
+	return false
+}
+
+func (r *RTPComposer) composeOneAAC() bool {
+	first := r.list.head.next
+	if first == nil {
+		return false
+	}
+
+	// TODO chef:
+	// 目前只实现了AAC MPEG4-GENERIC/44100/2
+	//
+	// 只处理了一个RTP包含多个音频包的情况
+	// 没有处理一个音频包跨越多个RTP包的情况
+
+	// rfc3640 2.11.  Global Structure of Payload Format
+	//
+	// +---------+-----------+-----------+---------------+
+	// | RTP     | AU Header | Auxiliary | Access Unit   |
+	// | Header  | Section   | Section   | Data Section  |
+	// +---------+-----------+-----------+---------------+
+	//
+	//           <----------RTP Packet Payload----------->
+	//
+	// rfc3640 3.2.1.  The AU Header Section
+	//
+	// +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+- .. -+-+-+-+-+-+-+-+-+-+
+	// |AU-headers-length|AU-header|AU-header|      |AU-header|padding|
+	// |                 |   (1)   |   (2)   |      |   (n)   | bits  |
+	// +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+- .. -+-+-+-+-+-+-+-+-+-+
+	//
+	// rfc3640 3.3.6.  High Bit-rate AAC
+	//
+
+	b := first.packet.raw[first.packet.header.payloadOffset:]
+	//nazalog.Debugf("%d, %d, %s", len(pkt.raw), pkt.header.timestamp, hex.Dump(b))
+
+	// AU Header Section
+	var auHeaderLength uint32
+	auHeaderLength = uint32(b[0])<<8 + uint32(b[1])
+	auHeaderLength = (auHeaderLength + 7) / 8
+	//nazalog.Debugf("auHeaderLength=%d", auHeaderLength)
+
+	// no Auxiliary Section
+
+	pauh := uint32(2)                 // AU Header pos
+	pau := uint32(2) + auHeaderLength // AU pos
+	auNum := uint32(auHeaderLength) / 2
+	for i := uint32(0); i < auNum; i++ {
+		var auSize uint32
+		auSize = uint32(b[pauh])<<8 | uint32(b[pauh+1]&0xF8) // 13bit
+		auSize /= 8
+
+		//auIndex := b[pauh+1] & 0x7
+
+		// raw AAC frame
+		// pau, auSize
+		//nazalog.Debugf("%d %d %s", auSize, auIndex, hex.Dump(b[pau:pau+auSize]))
+		var outPkt AVPacket
+		outPkt.Timestamp = first.packet.header.timestamp / uint32(r.clockRate/1000)
+		outPkt.Timestamp += i * uint32((1024*1000)/r.clockRate)
+		outPkt.Payload = b[pau : pau+auSize]
+		outPkt.PayloadType = RTPPacketTypeAAC
+
+		r.onAVPacketComposed(outPkt)
+
+		pauh += 2
+		pau += auSize
+	}
+
+	r.composedFlag = true
+	r.composedSeq = first.packet.header.seq
+	r.list.head.next = first.next
+	r.list.size--
+	return true
 }
 
 // 从头部检查，是否可以合成一个完整的帧
-// TODO chef: 增加参数，用于区分两种逻辑，是连续的帧，还是跳跃的帧
-func (r *RTPComposer) tryComposeOne() bool {
+func (r *RTPComposer) composeOneAVC() bool {
 	first := r.list.head.next
 	if first == nil {
 		return false
@@ -177,19 +321,91 @@ func (r *RTPComposer) tryComposeOne() bool {
 
 	switch first.packet.positionType {
 	case PositionTypeSingle:
-		pkt := AVPacket{
-			timestamp: first.packet.header.timestamp,
-			payload:   first.packet.raw[first.packet.header.payloadOffset:],
-		}
+		var pkt AVPacket
+		pkt.Timestamp = first.packet.header.timestamp / uint32(r.clockRate/1000)
+		pkt.Payload = first.packet.raw[first.packet.header.payloadOffset:]
+		pkt.PayloadType = RTPPacketTypeAVC
+
 		r.composedFlag = true
 		r.composedSeq = first.packet.header.seq
-		r.cb(pkt)
+		r.list.head.next = first.next
+		r.list.size--
+		r.onAVPacketComposed(pkt)
 
 		return true
 	case PositionTypeMultiStart:
+		prev := first
+		p := first.next
+		for {
+			if prev == nil || p == nil {
+				return false
+			}
+			if SubSeq(p.packet.header.seq, prev.packet.header.seq) != 1 {
+				return false
+			}
 
-		// to be continued
+			if p.packet.positionType == PositionTypeMultiMiddle {
+				prev = p
+				p = p.next
+				continue
+			} else if p.packet.positionType == PositionTypeMultiEnd {
+				var pkt AVPacket
+				pkt.Timestamp = p.packet.header.timestamp / uint32(r.clockRate/1000)
+
+				fuIndicator := first.packet.raw[first.packet.header.payloadOffset]
+				fuHeader := first.packet.raw[first.packet.header.payloadOffset+1]
+				naluType := (fuIndicator & 0xE0) | (fuHeader & 0x1F)
+				pkt.Payload = append(pkt.Payload, naluType)
+				pkt.PayloadType = RTPPacketTypeAVC
+
+				pp := first
+				packetCount := 0
+				for {
+					pkt.Payload = append(pkt.Payload, pp.packet.raw[pp.packet.header.payloadOffset+2:]...)
+					packetCount++
+
+					if pp == p {
+						break
+					}
+					pp = pp.next
+				}
+
+				r.composedFlag = true
+				r.composedSeq = p.packet.header.seq
+				r.list.head.next = p.next
+				r.list.size -= packetCount
+				r.onAVPacketComposed(pkt)
+
+				return true
+			} else {
+				// 正常不应该出现single和start
+				nazalog.Errorf("invalid position type. position=%d", p.packet.positionType)
+				return false
+			}
+		}
+	case PositionTypeMultiMiddle:
+		// noop
+	case PositionTypeMultiEnd:
+		// noop
 	}
 
 	return false
 }
+
+// h265
+//{
+//	originNALUType := (b[h.payloadOffset] >> 1) & 0x3F
+//	if originNALUType == 49 {
+//		header2 := b[h.payloadOffset+2]
+//
+//		startCode := (header2 & 0x80) != 0
+//		endCode := (header2 & 0x40) != 0
+//
+//		naluType := header2 & 0x3F
+//
+//		nazalog.Debugf("FUA. originNALUType=%d, naluType=%d, startCode=%t, endCode=%t %s", originNALUType, naluType, startCode, endCode, hex.Dump(b[12:32]))
+//
+//	} else {
+//		nazalog.Debugf("SINGLE. naluType=%d %s", originNALUType, hex.Dump(b[12:32]))
+//	}
+//}

@@ -15,6 +15,16 @@ import (
 	"github.com/q191201771/naza/pkg/nazalog"
 )
 
+// AudioSpecificConfig(asc)
+// keywords: Seq Header,
+// e.g.  rtmp, flv
+//
+// ADTS
+// e.g. ts
+//
+// StreamMuxConfig
+//
+
 var ErrAAC = errors.New("lal.aac: fxxk")
 
 // Audio Data Transport Stream
@@ -26,7 +36,7 @@ type ADTS struct {
 	adtsHeader []byte
 }
 
-type sequenceHeader struct {
+type SequenceHeader struct {
 	soundFormat   uint8
 	soundRate     uint8
 	soundSize     uint8
@@ -34,31 +44,13 @@ type sequenceHeader struct {
 	aacPacketType uint8
 }
 
-// 传入AAC Sequence Header，调用GetADTS时需要使用
-//
-// @param <payload> rtmp message payload，包含前面2个字节
-func (a *ADTS) PutAACSequenceHeader(payload []byte) error {
-	if len(payload) < 4 {
+// 传入2字节的AAC Audio Specifc Config。
+// 注意，如果是rtmp/flv的message/tag，应去除Seq Header头部的2个字节
+func (a *ADTS) InitWithAACAudioSpecificConfig(payload []byte) error {
+	if len(payload) < 2 {
 		nazalog.Warnf("aac seq header length invalid. len=%d", len(payload))
 		return ErrAAC
 	}
-
-	// <spec-video_file_format_spec_v10.pdf>, <Audio tags, AUDIODATA>, <page 10/48>
-	// ----------------------------------------------------------------------------
-	// soundFormat    [4b] 10=AAC
-	// soundRate      [2b] 3=44kHz. AAC always 3
-	// soundSize      [1b] 0=snd8Bit, 1=snd16Bit
-	// soundType      [1b] 0=sndMono, 1=sndStereo. AAC always 1
-	// aacPackageType [8b] 0=seq header, 1=AAC raw
-	br := nazabits.NewBitReader(payload)
-	var sh sequenceHeader
-	sh.soundFormat, _ = br.ReadBits8(4)
-	sh.soundRate, _ = br.ReadBits8(2)
-	sh.soundSize, _ = br.ReadBits8(1)
-	sh.soundType, _ = br.ReadBits8(1)
-	sh.aacPacketType, _ = br.ReadBits8(8)
-	_ = sh
-	//nazalog.Debugf("%s %+v", hex.Dump(payload[:4]), sh)
 
 	// <ISO_IEC_14496-3.pdf>
 	// <1.6.2.1 AudioSpecificConfig>, <page 33/110>
@@ -69,6 +61,7 @@ func (a *ADTS) PutAACSequenceHeader(payload []byte) error {
 	// audio object type      [5b] 2=AAC LC
 	// samplingFrequencyIndex [4b] 3=48000 4=44100
 	// channelConfiguration   [4b] 2=left, right front speakers
+	br := nazabits.NewBitReader(payload)
 	a.audioObjectType, _ = br.ReadBits8(5)
 	a.samplingFrequencyIndex, _ = br.ReadBits8(4)
 	a.channelConfiguration, _ = br.ReadBits8(4)
@@ -81,11 +74,13 @@ func (a *ADTS) PutAACSequenceHeader(payload []byte) error {
 	return nil
 }
 
-// 获取ADTS头，注意，由于ADTS头依赖包的长度，而每个包的长度不同，所以生成的每个包的ADTS头也不同
+// 获取ADTS头，由于ADTS头中的字段依赖包的长度，而每个包的长度不同，所以生成的每个包的ADTS头也不同
 //
-// @param <length> rtmp message payload长度，包含前面2个字节
-func (a *ADTS) GetADTS(length uint16) ([]byte, error) {
-	if a.IsNil() {
+// @param <length> raw aac frame的大小
+//                 注意，如果是rtmp/flv的message/tag，应去除Seq Header头部的2个字节
+func (a *ADTS) CalcADTSHeader(length uint16) ([]byte, error) {
+	if !a.HasInited() {
+		nazalog.Warn("calc adts header but asc not inited.")
 		return nil, ErrAAC
 	}
 	// <ISO_IEC_14496-3.pdf>
@@ -111,8 +106,8 @@ func (a *ADTS) GetADTS(length uint16) ([]byte, error) {
 	// adts_buffer_fullness           [11b]
 	// no_raw_data_blocks_in_frame    [2b]
 
-	// 减去头2字节，再加上自身adts头的7个字节
-	length += 5
+	// 加上自身adts头的7个字节
+	length += 7
 
 	bw := nazabits.NewBitWriter(a.adtsHeader)
 	// Syncword 0(8) 1(4)
@@ -139,7 +134,34 @@ func (a *ADTS) GetADTS(length uint16) ([]byte, error) {
 	return a.adtsHeader, nil
 }
 
-// 可用于判断，是否调用过ADTS.PutAACSequenceHeader
-func (a *ADTS) IsNil() bool {
-	return a.adtsHeader == nil
+// 可用于判断，是否调用过ADTS.InitWithAACAudioSpecificConfig
+func (a *ADTS) HasInited() bool {
+	return a.adtsHeader != nil
+}
+
+// @param <b> rtmp/flv的message/tag的payload部分，包含前面2个字节
+func ParseAACSeqHeader(b []byte) (sh SequenceHeader, adts ADTS, err error) {
+	if len(b) < 4 {
+		nazalog.Warnf("aac seq header length invalid. len=%d", len(b))
+		err = ErrAAC
+		return
+	}
+
+	// <spec-video_file_format_spec_v10.pdf>, <Audio tags, AUDIODATA>, <page 10/48>
+	// ----------------------------------------------------------------------------
+	// soundFormat    [4b] 10=AAC
+	// soundRate      [2b] 3=44kHz. AAC always 3
+	// soundSize      [1b] 0=snd8Bit, 1=snd16Bit
+	// soundType      [1b] 0=sndMono, 1=sndStereo. AAC always 1
+	// aacPackageType [8b] 0=seq header, 1=AAC raw
+	br := nazabits.NewBitReader(b)
+	sh.soundFormat, _ = br.ReadBits8(4)
+	sh.soundRate, _ = br.ReadBits8(2)
+	sh.soundSize, _ = br.ReadBits8(1)
+	sh.soundType, _ = br.ReadBits8(1)
+	sh.aacPacketType, _ = br.ReadBits8(8)
+	//nazalog.Debugf("%s %+v", hex.Dump(payload[:4]), sh)
+
+	err = adts.InitWithAACAudioSpecificConfig(b[2:])
+	return
 }

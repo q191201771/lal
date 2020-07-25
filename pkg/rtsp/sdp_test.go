@@ -11,6 +11,8 @@ package rtsp
 import (
 	"testing"
 
+	"github.com/q191201771/naza/pkg/nazalog"
+
 	"github.com/q191201771/naza/pkg/assert"
 )
 
@@ -40,7 +42,9 @@ var goldenPPS = []byte{
 }
 
 func TestParseSDP(t *testing.T) {
-	ParseSDP([]byte(goldenSDP))
+	sdp, err := ParseSDP([]byte(goldenSDP))
+	assert.Equal(t, nil, err)
+	nazalog.Debugf("sdp=%+v", sdp)
 }
 
 func TestParseARTPMap(t *testing.T) {
@@ -66,7 +70,7 @@ func TestParseARTPMap(t *testing.T) {
 }
 
 func TestParseFmtPBase(t *testing.T) {
-	golden := map[string]FmtPBase{
+	golden := map[string]AFmtPBase{
 		"a=fmtp:96 packetization-mode=1; sprop-parameter-sets=Z2QAIKzZQMApsBEAAAMAAQAAAwAyDxgxlg==,aOvssiw=; profile-level-id=640020": {
 			Format: 96,
 			Parameters: map[string]string{
@@ -88,7 +92,7 @@ func TestParseFmtPBase(t *testing.T) {
 		},
 	}
 	for in, out := range golden {
-		actual, err := ParseFmtPBase(in)
+		actual, err := ParseAFmtPBase(in)
 		assert.Equal(t, nil, err)
 		assert.Equal(t, out, actual)
 	}
@@ -96,7 +100,7 @@ func TestParseFmtPBase(t *testing.T) {
 
 func TestParseSPSPPS(t *testing.T) {
 	s := "a=fmtp:96 packetization-mode=1; sprop-parameter-sets=Z2QAIKzZQMApsBEAAAMAAQAAAwAyDxgxlg==,aOvssiw=; profile-level-id=640020"
-	f, err := ParseFmtPBase(s)
+	f, err := ParseAFmtPBase(s)
 	assert.Equal(t, nil, err)
 	sps, pps, err := ParseSPSPPS(f)
 	assert.Equal(t, nil, err)

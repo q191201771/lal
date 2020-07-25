@@ -19,7 +19,7 @@
 | 1000 | 1000 | 125% | 464MB |
 
 * 测试机：32核16G（lalserver服务器和压测工具同时跑在这一个机器上）
-* 压测工具：lal中的 `/app/demo/flvfile2rtmppush` 以及 `/app/demo/rtmppull`
+* 压测工具：lal中的 `/app/demo/pushrtmp` 以及 `/app/demo/pullrtmp`
 * 推流码率：使用`srs-bench`中的FLV文件，大概200kbps
 * lalserver版本：基于 git commit: xxx
 
@@ -35,7 +35,7 @@ RTMP推流端：
 - OBS 24.0.3(win10 64 bit)
 - ffmpeg 3.4.2(macos)
 - srs-bench (macos srs项目配套的一个压测工具)
-- flvfile2rtmppush (macos lal demo中的RTMP推流客户端)
+- pushrtmp (macos lal demo中的RTMP推流客户端)
 
 RTMP / HTTP-FLV 拉流端：
 - VLC 3.0.8(macos 10.15.1)

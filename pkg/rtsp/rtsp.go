@@ -35,8 +35,8 @@ var (
 	serverName = "lalserver"
 	sessionID  = "191201771"
 
-	// read RTP/RTCP data from port
-	serverPort = "8000-8001"
+	minServerPort = uint16(8000)
+	maxServerPort = uint16(16000)
 
 	udpMaxPacketLength = 1500
 )

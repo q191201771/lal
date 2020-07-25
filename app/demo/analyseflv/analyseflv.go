@@ -49,6 +49,7 @@ import (
 // - 检查时间戳正向大的跳跃
 // - 打印GOP中帧数量？
 // - slice_num?
+// - 输入源可以是httpflv，也可以是flv文件
 
 var (
 	timestampCheckFlag   = true

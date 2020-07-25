@@ -13,26 +13,14 @@ import (
 	"errors"
 	"strconv"
 	"strings"
-
-	"github.com/q191201771/naza/pkg/nazalog"
 )
 
 var ErrSDP = errors.New("lal.sdp: fxxk")
 
 type SDP struct {
+	ARTPMapList   []ARTPMap
+	AFmtPBaseList []AFmtPBase
 }
-
-// rfc 4566 5.14.  Media Descriptions ("m=")
-// m=<media> <port> <proto> <fmt> ..
-//
-// example:
-// m=audio 0 RTP/AVP 97
-//type MediaDesc struct {
-//	Media string
-//	Port  string
-//	Proto string
-//	Fmt   string
-//}
 
 type ARTPMap struct {
 	PayloadType        int
@@ -41,35 +29,44 @@ type ARTPMap struct {
 	EncodingParameters string
 }
 
-type FmtPBase struct {
+type AFmtPBase struct {
 	Format     int               // same as PayloadType
 	Parameters map[string]string // name -> value
 }
 
-func ParseSDP(b []byte) SDP {
+// 例子见单元测试
+func ParseSDP(b []byte) (SDP, error) {
+	var sdp SDP
+
 	s := string(b)
 	lines := strings.Split(s, "\r\n")
 	for _, line := range lines {
 		if strings.HasPrefix(line, "a=rtpmap") {
 			aRTPMap, err := ParseARTPMap(line)
-			nazalog.Debugf("%+v, %v", aRTPMap, err)
+			if err != nil {
+				return sdp, err
+			}
+			sdp.ARTPMapList = append(sdp.ARTPMapList, aRTPMap)
 		}
 		if strings.HasPrefix(line, "a=fmtp") {
-			fmtPBase, err := ParseFmtPBase(line)
-			nazalog.Debugf("%+v, %v", fmtPBase, err)
+			aFmtPBase, err := ParseAFmtPBase(line)
+			if err != nil {
+				return sdp, err
+			}
+			sdp.AFmtPBaseList = append(sdp.AFmtPBaseList, aFmtPBase)
 		}
 	}
 
-	return SDP{}
+	return sdp, nil
 }
 
+// 例子见单元测试
 func ParseARTPMap(s string) (ret ARTPMap, err error) {
 	// rfc 3640 3.3.1.  General
 	// rfc 3640 3.3.6.  High Bit-rate AAC
 	//
 	// a=rtpmap:<payload type> <encoding name>/<clock rate>[/<encoding parameters>]
 	//
-	// example see unit test
 
 	items := strings.SplitN(s, ":", 2)
 	if len(items) != 2 {
@@ -102,12 +99,12 @@ func ParseARTPMap(s string) (ret ARTPMap, err error) {
 	return
 }
 
-func ParseFmtPBase(s string) (ret FmtPBase, err error) {
+// 例子见单元测试
+func ParseAFmtPBase(s string) (ret AFmtPBase, err error) {
 	// rfc 3640 4.4.1.  The a=fmtp Keyword
 	//
 	// a=fmtp:<format> <parameter name>=<value>[; <parameter name>=<value>]
 	//
-	// example see unit test
 
 	ret.Parameters = make(map[string]string)
 
@@ -142,13 +139,14 @@ func ParseFmtPBase(s string) (ret FmtPBase, err error) {
 	return
 }
 
-func ParseSPSPPS(f FmtPBase) (sps, pps []byte, err error) {
-	if f.Format != RTPPacketTypeAVC {
+// 例子见单元测试
+func ParseSPSPPS(a AFmtPBase) (sps, pps []byte, err error) {
+	if a.Format != RTPPacketTypeAVC {
 		err = ErrSDP
 		return
 	}
 
-	v, ok := f.Parameters["sprop-parameter-sets"]
+	v, ok := a.Parameters["sprop-parameter-sets"]
 	if !ok {
 		err = ErrSDP
 		return
