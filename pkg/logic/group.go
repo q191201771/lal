@@ -92,7 +92,13 @@ func (group *Group) Tick() {
 	group.pushIfNeeded()
 }
 
-// 主动释放所有资源。注意，Dispose后，不应再使用这个对象
+// 主动释放所有资源。保证所有资源的生命周期逻辑上都在我们的控制中。降低出bug的几率，降低心智负担。
+// 注意，Dispose后，不应再使用这个对象。
+// 值得一提，如果是从其他协程回调回来的消息，在使用Group中的资源前，要判断资源是否存在以及可用。
+//
+// TODO chef:
+//  后续弄个协程来替换掉目前锁的方式，来做消息同步。这样有个好处，就是不用写很多的资源有效判断。统一写一个就好了。
+//  目前Dispose在IsTotalEmpty时调用，暂时没有这个问题。
 func (group *Group) Dispose() {
 	nazalog.Infof("[%s] lifecycle dispose group.", group.UniqueKey)
 	group.exitChan <- struct{}{}
