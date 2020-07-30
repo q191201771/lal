@@ -96,7 +96,7 @@ func (m *Muxer) Start() {
 func (m *Muxer) Dispose() {
 	nazalog.Infof("[%s] lifecycle dispose hls muxer.", m.UniqueKey)
 	m.flushAudio()
-	m.closeFragment()
+	m.closeFragment(true)
 }
 
 // 函数调用结束后，内部不持有msg中的内存块
@@ -287,7 +287,7 @@ func (m *Muxer) updateFragment(ts uint64, boundary bool, flushRate int) {
 
 	// 开启新的fragment
 	if boundary || force {
-		m.closeFragment()
+		m.closeFragment(false)
 		m.openFragment(ts, discont)
 	}
 
@@ -317,7 +317,7 @@ func (m *Muxer) openFragment(ts uint64, discont bool) {
 	m.flushAudio()
 }
 
-func (m *Muxer) closeFragment() {
+func (m *Muxer) closeFragment(isLast bool) {
 	if !m.opened {
 		return
 	}
@@ -328,9 +328,10 @@ func (m *Muxer) closeFragment() {
 	//更新序号，为下个分片准备好
 	m.nextFrag()
 
-	m.writePlaylist()
+	m.writePlaylist(isLast)
 }
-func (m *Muxer) writePlaylist() {
+
+func (m *Muxer) writePlaylist(isLast bool) {
 	fp, err := os.Create(m.playlistFilenameBak)
 	nazalog.Assert(nil, err)
 
@@ -359,6 +360,10 @@ func (m *Muxer) writePlaylist() {
 		}
 
 		buf.WriteString(fmt.Sprintf("#EXTINF:%.3f,\n%s\n", frag.duration, getTSFilenameWithoutPath(m.streamName, frag.id)))
+	}
+
+	if isLast {
+		buf.WriteString("#EXT-X-ENDLIST\n")
 	}
 
 	_, err = fp.Write(buf.Bytes())
