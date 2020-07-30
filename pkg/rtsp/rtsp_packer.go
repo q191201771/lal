@@ -97,7 +97,7 @@ var ResponseDescribeTmpl = "RTSP/1.0 200 OK\r\n" +
 	"Content-Type: application/sdp\r\n" +
 	"Content-Length: %d\r\n" +
 	"\r\n" +
-	SDPTmpl
+	SDPTsTmpl
 
 // rfc4566
 // * v=0
@@ -131,6 +131,18 @@ var SDPTmpl = "v=0\r\n" +
 	//"m=video 2232 RTP/AVP 31\r\n" +
 	//"m=whiteboard 32416 UDP WB\r\n" +
 	//"a=orient:portrait\r\n"
+
+// ljy added. TS流的SDP
+var SDPTsTmpl = "v=0\r\n" +
+	"o=lal 2890844526 0 IN IP4 127.0.0.1\r\n" +
+	"s=ts_stream\r\n" +
+	"c=IN IP4 127.0.0.1\r\n" +
+	"t=0 0\r\n" +
+	"a=control:*\r\n" +
+	"a=range:ntp=0-\r\n" +
+	"m=video 0 RTP/AVP 33\r\n" +
+	"a=fmtp:33 MP2T/90000\r\n" +
+	"a=control:trackID=0\r\n"
 
 // rfc2326 10.5 PLAY
 var PlayTmpl = "RTSP/1.0 200 OK\r\n" +
@@ -175,7 +187,7 @@ func PackResponseRecord(cseq string) string {
 
 func PackResponseDescribe(cseq string) string {
 	date := time.Now().Format(time.RFC1123)
-	return fmt.Sprintf(ResponseDescribeTmpl, cseq, date, 376)
+	return fmt.Sprintf(ResponseDescribeTmpl, cseq, date, len(SDPTsTmpl))
 }
 
 func PackResponsePlay(cseq string) string {

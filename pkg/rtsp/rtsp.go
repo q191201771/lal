@@ -22,11 +22,13 @@ const (
 	MethodRecord   = "RECORD"
 	MethodDescribe = "DESCRIBE"
 	MethodPlay     = "PLAY"
+	MethodTeardown = "TEARDOWN"
 )
 
 const (
 	HeaderFieldCSeq      = "CSeq"
 	HeaderFieldTransport = "Transport"
+	HeaderFieldClientPort = "client_port"
 )
 
 var (
@@ -39,4 +41,9 @@ var (
 	maxServerPort = uint16(16000)
 
 	udpMaxPacketLength = 1500
+
+	// rtp_over_tcp用
+	readBufSize = 256
+	wChanSize = 1024  // SubSession 发送数据时 channel 的大小
+	subSessionWriteTimeoutMS = 10000
 )

@@ -69,6 +69,10 @@ func (p *PubSession) AddConn(conn *net.UDPConn) {
 	p.servers = append(p.servers, server)
 }
 func (p *PubSession) onReadUDPPacket(b []byte, addr string, err error) {
+	if len(b) <= 0 {
+		return
+	}
+
 	// try RTCP
 	switch b[1] {
 	case RTCPPacketTypeSR:
@@ -107,4 +111,13 @@ func (p *PubSession) onReadUDPPacket(b []byte, addr string, err error) {
 
 func (p *PubSession) onAVPacket(pkt AVPacket) {
 	p.onAVPacketFn(pkt)
+}
+// 资源释放
+func (p *PubSession) Dispose() {
+	// p.conn会在Server.handleTCPConnect中关闭,所以在这里不关闭
+	// 关闭关联的udp
+	for _, udp := range p.servers {
+		//客户端断开的时间第一时间释放本机占用的socket_point,避免在海量连接时资源不足
+		udp.conn.Close()
+	}
 }
