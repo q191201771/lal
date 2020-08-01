@@ -32,15 +32,15 @@ lalserver已支持：
 | 流连接类型 | rtmp | rtsp | hls | httpflv |
 | - | - | - | - | - |
 | pub推流   | ✔    | ✔ | - | - |
-| sub拉流   | ✔    | x | ✔ | ✔ |
-| relay转推 | ✔    | x | -  | - |
-| relay转拉 | ✔    | x | x | x |
+| sub拉流   | ✔    | - | ✔ | ✔ |
+| relay转推 | ✔    | - | -  | - |
+| relay转拉 | ✔    | - | - | - |
 
 | 编码类型 | rtmp | rtsp | hls | httpflv |
 | - | - | - | - | - |
 | aac | ✔ | ✔ | ✔ | ✔ |
 | avc/h264 | ✔ | ✔ | ✔ | ✔ |
-| hevc/h265 | ✔ | x | x | ✔ |
+| hevc/h265 | ✔ | - | - | ✔ |
 
 ### 编译，运行，体验功能
 
@@ -79,7 +79,7 @@ lalserver详细配置见： [配置注释文档](https://github.com/q191201771/l
 
 ### 仓库目录框架
 
-<img alt="Wide" src="https://pengrl.com/images/other/lalmodule.png">
+<img alt="Wide" src="https://pengrl.com/images/other/lalmodule.jpg">
 
 <br>
 
