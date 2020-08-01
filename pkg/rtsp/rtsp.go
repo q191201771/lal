@@ -12,6 +12,10 @@ package rtsp
 
 // TODO chef
 // - rtp和rtcp作为独立package
+// - session id使用随机值
+// - 支持tcp协议
+// - sub_session生命周期如何结束
+// - sub_session超时
 
 // rfc2326
 
@@ -39,4 +43,6 @@ var (
 	maxServerPort = uint16(16000)
 
 	udpMaxPacketLength = 1500
+
+	composerItemMaxSize = 1024
 )

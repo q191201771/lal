@@ -6,18 +6,20 @@
 //
 // Author: Chef (191201771@qq.com)
 
-package rtsp
+package sdp
 
 import (
 	"encoding/base64"
 	"errors"
 	"strconv"
 	"strings"
+
+	"github.com/q191201771/lal/pkg/base"
 )
 
 var ErrSDP = errors.New("lal.sdp: fxxk")
 
-type SDP struct {
+type SDPContext struct {
 	ARTPMapList   []ARTPMap
 	AFmtPBaseList []AFmtPBase
 }
@@ -35,8 +37,8 @@ type AFmtPBase struct {
 }
 
 // 例子见单元测试
-func ParseSDP(b []byte) (SDP, error) {
-	var sdp SDP
+func ParseSDP(b []byte) (SDPContext, error) {
+	var sdpCtx SDPContext
 
 	s := string(b)
 	lines := strings.Split(s, "\r\n")
@@ -44,20 +46,20 @@ func ParseSDP(b []byte) (SDP, error) {
 		if strings.HasPrefix(line, "a=rtpmap") {
 			aRTPMap, err := ParseARTPMap(line)
 			if err != nil {
-				return sdp, err
+				return sdpCtx, err
 			}
-			sdp.ARTPMapList = append(sdp.ARTPMapList, aRTPMap)
+			sdpCtx.ARTPMapList = append(sdpCtx.ARTPMapList, aRTPMap)
 		}
 		if strings.HasPrefix(line, "a=fmtp") {
 			aFmtPBase, err := ParseAFmtPBase(line)
 			if err != nil {
-				return sdp, err
+				return sdpCtx, err
 			}
-			sdp.AFmtPBaseList = append(sdp.AFmtPBaseList, aFmtPBase)
+			sdpCtx.AFmtPBaseList = append(sdpCtx.AFmtPBaseList, aFmtPBase)
 		}
 	}
 
-	return sdp, nil
+	return sdpCtx, nil
 }
 
 // 例子见单元测试
@@ -139,9 +141,36 @@ func ParseAFmtPBase(s string) (ret AFmtPBase, err error) {
 	return
 }
 
+func ParseASC(a AFmtPBase) ([]byte, error) {
+	if a.Format != base.RTPPacketTypeAAC {
+		return nil, ErrSDP
+	}
+
+	v, ok := a.Parameters["config"]
+	if !ok {
+		return nil, ErrSDP
+	}
+	if len(v) != 4 {
+		return nil, ErrSDP
+	}
+
+	f, err := strconv.ParseInt(v[0:2], 16, 0)
+	if err != nil {
+		return nil, ErrSDP
+	}
+	s, err := strconv.ParseInt(v[2:], 16, 0)
+	if err != nil {
+		return nil, ErrSDP
+	}
+	r := make([]byte, 2)
+	r[0] = uint8(f)
+	r[1] = uint8(s)
+	return r, nil
+}
+
 // 例子见单元测试
 func ParseSPSPPS(a AFmtPBase) (sps, pps []byte, err error) {
-	if a.Format != RTPPacketTypeAVC {
+	if a.Format != base.RTPPacketTypeAVC {
 		err = ErrSDP
 		return
 	}

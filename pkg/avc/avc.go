@@ -12,10 +12,9 @@ import (
 	"errors"
 	"io"
 
-	"github.com/q191201771/naza/pkg/nazalog"
-
 	"github.com/q191201771/naza/pkg/bele"
 	"github.com/q191201771/naza/pkg/nazabits"
+	"github.com/q191201771/naza/pkg/nazalog"
 )
 
 // Annex B:
@@ -75,8 +74,10 @@ const (
 )
 
 type Context struct {
-	width  uint32
-	height uint32
+	Profile uint8
+	Level   uint8
+	Width   uint32
+	Height  uint32
 }
 
 // H.264-AVC-ISO_IEC_14496-15.pdf
@@ -261,6 +262,49 @@ func ParseSPSPPSFromSeqHeader(payload []byte) (sps, pps []byte, err error) {
 	return
 }
 
+func BuildSeqHeaderFromSPSPPS(sps, pps []byte) ([]byte, error) {
+	var sh []byte
+	sh = make([]byte, 16+len(sps)+len(pps))
+	sh[0] = 0x17
+	sh[1] = 0x0
+	sh[2] = 0x0
+	sh[3] = 0x0
+	sh[4] = 0x0
+
+	// H.264-AVC-ISO_IEC_14496-15.pdf
+	// 5.2.4 Decoder configuration information
+	sh[5] = 0x1 // configurationVersion
+
+	ctx, err := ParseSPS(sps)
+	if err != nil {
+		return nil, err
+	}
+
+	sh[6] = ctx.Profile // AVCProfileIndication
+	sh[7] = 0           // profile_compatibility
+	sh[8] = ctx.Level   // AVCLevelIndication
+	sh[9] = 0xFF        // lengthSizeMinusOne '111111'b | (4-1)
+	sh[10] = 0xE1       // numOfSequenceParameterSets '111'b | 1
+
+	sh[11] = uint8((len(sps) >> 8) & 0xFF) // sequenceParameterSetLength
+	sh[12] = uint8(len(sps) & 0xFF)
+
+	i := 13
+	copy(sh[i:], sps)
+	i += len(sps)
+
+	sh[i] = 0x1 // numOfPictureParameterSets 1
+	i++
+
+	sh[i] = uint8((len(pps) >> 8) & 0xFF) // sequenceParameterSetLength
+	sh[i+1] = uint8(len(pps) & 0xFF)
+	i += 2
+
+	copy(sh[i:], pps)
+
+	return sh, nil
+}
+
 // AVCC -> AnnexB
 //
 // @param <payload> rtmp message的payload部分或者flv tag的payload部分
@@ -289,56 +333,97 @@ func CaptureAVCC2AnnexB(w io.Writer, payload []byte) error {
 	return nil
 }
 
-func TryParseSPS(payload []byte) error {
+// 尝试解析SPS所有字段，实验中，请勿直接使用该函数
+func ParseSPS(payload []byte) (Context, error) {
 	var sps SPS
-	var err error
 	br := nazabits.NewBitReader(payload)
 
 	t, err := br.ReadBits8(8) //nalType SPS should be 0x67
+	if err != nil {
+		return Context{}, err
+	}
 	if t != 0x67 {
-		nazalog.Errorf("invalid SPS type. expected=%d, actual=%d", 0x67, t)
-		return ErrAVC
+		return Context{}, ErrAVC
 	}
 
 	sps.ProfileIdc, err = br.ReadBits8(8)
+	if err != nil {
+		return Context{}, err
+	}
 	sps.ConstraintSet0Flag, err = br.ReadBits8(1)
+	if err != nil {
+		return Context{}, err
+	}
 	sps.ConstraintSet1Flag, err = br.ReadBits8(1)
+	if err != nil {
+		return Context{}, err
+	}
 	sps.ConstraintSet2Flag, err = br.ReadBits8(1)
+	if err != nil {
+		return Context{}, err
+	}
 	_, err = br.ReadBits8(5)
+	if err != nil {
+		return Context{}, err
+	}
 	sps.LevelIdc, err = br.ReadBits8(8)
+	if err != nil {
+		return Context{}, err
+	}
 	sps.SPSId, err = br.ReadGolomb()
+	if err != nil {
+		return Context{}, err
+	}
 	if sps.SPSId >= 32 {
-		return ErrAVC
+		return Context{}, ErrAVC
 	}
 
 	// 100 High profile
 	if sps.ProfileIdc == 100 {
 		sps.ChromaFormatIdc, err = br.ReadGolomb()
+		if err != nil {
+			return Context{}, err
+		}
 		if sps.ChromaFormatIdc > 3 {
-			return ErrAVC
+			return Context{}, ErrAVC
 		}
 
 		if sps.ChromaFormatIdc == 3 {
 			sps.ResidualColorTransformFlag, err = br.ReadBits8(1)
+			if err != nil {
+				return Context{}, err
+			}
 		}
 
 		sps.BitDepthLuma, err = br.ReadGolomb()
+		if err != nil {
+			return Context{}, err
+		}
 		sps.BitDepthLuma += 8
 
 		sps.BitDepthChroma, err = br.ReadGolomb()
+		if err != nil {
+			return Context{}, err
+		}
 		sps.BitDepthChroma += 8
 
 		if sps.BitDepthChroma != sps.BitDepthLuma || sps.BitDepthChroma < 8 || sps.BitDepthChroma > 14 {
-			return ErrAVC
+			return Context{}, ErrAVC
 		}
 
 		sps.TransFormBypass, err = br.ReadBits8(1)
+		if err != nil {
+			return Context{}, err
+		}
 
 		// seq scaling matrix present
-		flag, _ := br.ReadBits8(1)
+		flag, err := br.ReadBits8(1)
+		if err != nil {
+			return Context{}, err
+		}
 		if flag == 1 {
 			nazalog.Debugf("scaling matrix present, not impl yet.")
-			return ErrAVC
+			return Context{}, ErrAVC
 		}
 	} else {
 		sps.ChromaFormatIdc = 1
@@ -347,47 +432,92 @@ func TryParseSPS(payload []byte) error {
 	}
 
 	sps.Log2MaxFrameNumMinus4, err = br.ReadGolomb()
+	if err != nil {
+		return Context{}, err
+	}
 	sps.PicOrderCntType, err = br.ReadGolomb()
+	if err != nil {
+		return Context{}, err
+	}
 	if sps.PicOrderCntType == 0 {
 		sps.Log2MaxPicOrderCntLsb, err = br.ReadGolomb()
 		sps.Log2MaxPicOrderCntLsb += 4
 	} else {
 		nazalog.Debugf("not impl yet. sps.PicOrderCntType=%d", sps.PicOrderCntType)
-		return ErrAVC
+		return Context{}, ErrAVC
 	}
 
 	sps.NumRefFrames, err = br.ReadGolomb()
+	if err != nil {
+		return Context{}, err
+	}
 	sps.GapsInFrameNumValueAllowedFlag, err = br.ReadBits8(1)
+	if err != nil {
+		return Context{}, err
+	}
 	sps.PicWidthInMbsMinusOne, err = br.ReadGolomb()
+	if err != nil {
+		return Context{}, err
+	}
 	sps.PicHeightInMapUnitsMinusOne, err = br.ReadGolomb()
+	if err != nil {
+		return Context{}, err
+	}
 	sps.FrameMbsOnlyFlag, err = br.ReadBits8(1)
+	if err != nil {
+		return Context{}, err
+	}
 
 	if sps.FrameMbsOnlyFlag == 0 {
 		sps.MbAdaptiveFrameFieldFlag, err = br.ReadBits8(1)
+		if err != nil {
+			return Context{}, err
+		}
 	}
 
 	sps.Direct8X8InferenceFlag, err = br.ReadBits8(1)
+	if err != nil {
+		return Context{}, err
+	}
 
 	sps.FrameCroppingFlag, err = br.ReadBits8(1)
+	if err != nil {
+		return Context{}, err
+	}
 	if sps.FrameCroppingFlag == 1 {
 		sps.FrameCropLeftOffset, err = br.ReadGolomb()
+		if err != nil {
+			return Context{}, err
+		}
 		sps.FrameCropRightOffset, err = br.ReadGolomb()
+		if err != nil {
+			return Context{}, err
+		}
 		sps.FrameCropTopOffset, err = br.ReadGolomb()
+		if err != nil {
+			return Context{}, err
+		}
 		sps.FrameCropBottomOffset, err = br.ReadGolomb()
+		if err != nil {
+			return Context{}, err
+		}
 	}
 
 	// TODO parse sps vui parameters
 
-	nazalog.Debugf("%+v", sps)
+	//nazalog.Debugf("%+v", sps)
 
 	var ctx Context
-	ctx.width = (sps.PicWidthInMbsMinusOne+1)*16 - (sps.FrameCropLeftOffset+sps.FrameCropRightOffset)*2
-	ctx.height = (2-uint32(sps.FrameMbsOnlyFlag))*(sps.PicHeightInMapUnitsMinusOne+1)*16 - (sps.FrameCropTopOffset+sps.FrameCropBottomOffset)*2
-	nazalog.Debugf("%+v", ctx)
+	ctx.Width = (sps.PicWidthInMbsMinusOne+1)*16 - (sps.FrameCropLeftOffset+sps.FrameCropRightOffset)*2
+	ctx.Height = (2-uint32(sps.FrameMbsOnlyFlag))*(sps.PicHeightInMapUnitsMinusOne+1)*16 - (sps.FrameCropTopOffset+sps.FrameCropBottomOffset)*2
+	ctx.Profile = sps.ProfileIdc
+	ctx.Level = sps.LevelIdc
+	//nazalog.Debugf("%+v", ctx)
 
-	return err
+	return ctx, err
 }
 
+// 尝试解析PPS所有字段，实验中，请勿直接使用该函数
 func TryParsePPS(payload []byte) error {
 	// ISO-14496-10.pdf
 	// 7.3.2.2 Picture parameter set RBSP syntax
@@ -396,7 +526,7 @@ func TryParsePPS(payload []byte) error {
 	return nil
 }
 
-// 这个函数是我用来学习解析SPS PPS用的，暂时没有实际调用使用
+// 尝试解析SeqHeader所有字段，实验中，请勿直接使用该函数
 //
 // @param <payload> rtmp message的payload部分或者flv tag的payload部分
 //                  注意，包含了头部2字节类型以及3字节的cts
@@ -438,7 +568,7 @@ func TryParseSeqHeader(payload []byte) error {
 	nazalog.Debugf("%+v", dcr)
 
 	// 5 + 5 + 1 + 2
-	_ = TryParseSPS(payload[13 : 13+dcr.SPSLength])
+	_, _ = ParseSPS(payload[13 : 13+dcr.SPSLength])
 	// 13 + 1 + 2
 	_ = TryParsePPS(payload[16 : 16+dcr.PPSLength])
 

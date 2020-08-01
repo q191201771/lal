@@ -6,7 +6,7 @@
 //
 // Author: Chef (191201771@qq.com)
 
-package rtsp
+package rtprtcp
 
 import (
 	"errors"
@@ -37,11 +37,6 @@ const (
 	RTPFixedHeaderLength = 12
 )
 
-const (
-	RTPPacketTypeAVC = 96
-	RTPPacketTypeAAC = 97
-)
-
 // rfc3984 5.2.  Common Structure of the RTP Payload Format
 // Table 1.  Summary of NAL unit types and their payload structures
 //
@@ -70,8 +65,6 @@ const (
 	PositionTypeMultiEnd    uint8 = 4
 )
 
-var composerItemMaxSize = 1024
-
 type RTPHeader struct {
 	version    uint8  // 2b  *
 	padding    uint8  // 1b
@@ -87,20 +80,13 @@ type RTPHeader struct {
 }
 
 type RTPPacket struct {
-	header RTPHeader
-	raw    []byte // 包含header内存
+	Header RTPHeader
+	Raw    []byte // 包含header内存
 
 	positionType uint8
 }
 
-func isAudio(packetType uint8) bool {
-	if packetType == RTPPacketTypeAAC {
-		return true
-	}
-	return false
-}
-
-func parseRTPPacket(b []byte) (h RTPHeader, err error) {
+func ParseRTPPacket(b []byte) (h RTPHeader, err error) {
 	if len(b) < RTPFixedHeaderLength {
 		err = ErrRTP
 		return

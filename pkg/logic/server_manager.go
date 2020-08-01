@@ -13,6 +13,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/q191201771/lal/pkg/rtsp"
+
 	"github.com/q191201771/lal/pkg/hls"
 
 	"github.com/q191201771/lal/pkg/httpflv"
@@ -24,6 +26,7 @@ type ServerManager struct {
 	rtmpServer    *rtmp.Server
 	httpflvServer *httpflv.Server
 	hlsServer     *hls.Server
+	rtspServer    *rtsp.Server
 	exitChan      chan struct{}
 
 	mutex    sync.Mutex
@@ -43,6 +46,9 @@ func NewServerManager() *ServerManager {
 	}
 	if config.HLSConfig.Enable {
 		m.hlsServer = hls.NewServer(config.HLSConfig.SubListenAddr, config.HLSConfig.OutPath)
+	}
+	if config.RTSPConfig.Enable {
+		m.rtspServer = rtsp.NewServer(config.RTSPConfig.Addr, m)
 	}
 	return m
 }
@@ -79,6 +85,18 @@ func (sm *ServerManager) RunLoop() {
 		}
 		go func() {
 			if err := sm.hlsServer.RunLoop(); err != nil {
+				nazalog.Error(err)
+			}
+		}()
+	}
+
+	if sm.rtspServer != nil {
+		if err := sm.rtspServer.Listen(); err != nil {
+			nazalog.Error(err)
+			os.Exit(1)
+		}
+		go func() {
+			if err := sm.rtspServer.RunLoop(); err != nil {
 				nazalog.Error(err)
 			}
 		}()
@@ -181,6 +199,19 @@ func (sm *ServerManager) OnDelHTTPFLVSubSession(session *httpflv.SubSession) {
 	if group != nil {
 		group.DelHTTPFLVSubSession(session)
 	}
+}
+
+// ServerObserver of rtsp.Server
+func (sm *ServerManager) OnNewRTSPPubSession(session *rtsp.PubSession) {
+	sm.mutex.Lock()
+	defer sm.mutex.Unlock()
+	group := sm.getOrCreateGroup("", session.StreamName)
+	group.AddRTSPPubSession(session)
+}
+
+// ServerObserver of rtsp.Server
+func (sm *ServerManager) OnDelRTSPPubSession(session *rtsp.PubSession) {
+	// TODO chef: impl me
 }
 
 func (sm *ServerManager) iterateGroup() {

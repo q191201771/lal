@@ -27,17 +27,22 @@ Go live stream lib/client/server and much more.
 
 ---
 
-**README 目录导航：**
+lalserver已支持：
 
-- [一、编译，运行，体验功能](https://github.com/q191201771/lal#%E4%B8%80-%E7%BC%96%E8%AF%91%E8%BF%90%E8%A1%8C%E4%BD%93%E9%AA%8C%E5%8A%9F%E8%83%BD)
-- [二、配置文件说明](https://github.com/q191201771/lal#%E4%BA%8C-%E9%85%8D%E7%BD%AE%E6%96%87%E4%BB%B6%E8%AF%B4%E6%98%8E)
-- [三、仓库目录框架](https://github.com/q191201771/lal#%E4%B8%89-%E4%BB%93%E5%BA%93%E7%9B%AE%E5%BD%95%E6%A1%86%E6%9E%B6)
-- [四、已完成，待完成，未来规划](https://github.com/q191201771/lal#%E5%9B%9B-%E5%B7%B2%E5%AE%8C%E6%88%90%E5%BE%85%E5%AE%8C%E6%88%90%E6%9C%AA%E6%9D%A5%E8%A7%84%E5%88%92)
-- [五、文档](https://github.com/q191201771/lal#%E4%BA%94-%E6%96%87%E6%A1%A3)
-- [六、联系我](https://github.com/q191201771/lal#%E5%85%AD-%E8%81%94%E7%B3%BB%E6%88%91)
-- [七、性能测试，测试过的第三方客户端](https://github.com/q191201771/lal#%E4%B8%83-%E6%80%A7%E8%83%BD%E6%B5%8B%E8%AF%95%E6%B5%8B%E8%AF%95%E8%BF%87%E7%9A%84%E7%AC%AC%E4%B8%89%E6%96%B9%E5%AE%A2%E6%88%B7%E7%AB%AF)
+| 流连接类型 | rtmp | rtsp | hls | httpflv |
+| - | - | - | - | - |
+| pub推流   | ✔    | ✔ | - | - |
+| sub拉流   | ✔    | x | ✔ | ✔ |
+| relay转推 | ✔    | x | -  | - |
+| relay转拉 | ✔    | x | x | x |
 
-### 一. 编译，运行，体验功能
+| 编码类型 | rtmp | rtsp | hls | httpflv |
+| - | - | - | - | - |
+| aac | ✔ | ✔ | ✔ | ✔ |
+| avc/h264 | ✔ | ✔ | ✔ | ✔ |
+| hevc/h265 | ✔ | x | x | ✔ |
+
+### 编译，运行，体验功能
 
 #### 编译
 
@@ -68,54 +73,15 @@ $./bin/lalserver -c conf/lalserver.conf.json
 
 #### 体验功能
 
-快速体验lalserver服务器见：[常见推拉流客户端软件的使用方式](https://pengrl.com/p/20051/)
+快速体验lalserver服务器见： [常见推拉流客户端软件的使用方式](https://pengrl.com/p/20051/)
 
-### 二. 配置文件说明
+lalserver详细配置见： [配置注释文档](https://github.com/q191201771/lal/blob/master/conf/lalserver.conf.json.brief)
 
-```
-{
-  "rtmp": {
-    "enable": true,   // 是否开启rtmp服务的监听
-    "addr": ":19350", // RTMP服务监听的端口，客户端向lalserver推拉流都是这个地址
-    "gop_num": 2      // RTMP拉流的GOP缓存数量，加速秒开
-  },
-  "httpflv": {
-    "enable": true,             // 是否开启HTTP-FLV服务的监听
-    "sub_listen_addr": ":8080", // HTTP-FLV拉流地址
-    "gop_num": 2
-  },
-  "hls": {
-    "enable": true,               // 是否开启HLS服务的监听
-    "sub_listen_addr": ":8081",   // HLS监听地址
-    "out_path": "/tmp/lal/hls/",  // HLS文件保存根目录
-    "fragment_duration_ms": 3000, // 单个TS文件切片时长，单位毫秒
-    "fragment_num": 6             // M3U8文件列表中TS文件的数量
-  },
-  "relay_push": {
-    "enable": false, // 是否开启中继转推功能，开启后，自身接收到的所有流都会转推出去
-    "addr_list":[    // 中继转推的对端地址，支持填写多个地址，做1对n的转推。格式举例 "127.0.0.1:19351"
-    ]
-  },
-  "relay_pull": {
-    "enable": false, // 是否开启回源拉流功能，开启后，当自身接收到拉流请求，而流不存在时，会从其他服务器拉取这个流到本地
-    "addr": ""       // 回源拉流的地址。格式举例 "127.0.0.1:19351"
-  },
-  "pprof": {
-    "enable": true,  // 是否开启Go pprof web服务的监听
-    "addr": ":10001" // Go pprof web地址
-  },
-  "log": {
-    "level": 1,                         // 日志级别，1 debug, 2 info, 3 warn, 4 error, 5 fatal
-    "filename": "./logs/lalserver.log", // 日志输出文件
-    "is_to_stdout": true,               // 是否打印至标志控制台输出
-    "is_rotate_daily": true,            // 日志按天翻滚
-    "short_file_flag": true,            // 日志末尾是否携带源码文件名以及行号的信息
-    "assert_behavior": 1                // 日志断言的行为，1 只打印错误日志 2 打印并退出程序 3 打印并panic
-  }
-}
-```
+### 仓库目录框架
 
-### 三. 仓库目录框架
+<img alt="Wide" src="https://pengrl.com/images/other/lalmodule.png">
+
+<br>
 
 简单来说，源码在`pkg/`，`app/lalserver/`，`app/demo/`三个目录下。
 
@@ -123,71 +89,15 @@ $./bin/lalserver -c conf/lalserver.conf.json
 - `app/lalserver`：基于lal编写的一个通用流媒体服务器程序入口
 - `app/demo/`：存放各种基于`lal/pkg`开发的小程序（小工具），一个子目录是一个程序，详情见各源码文件中头部的说明
 
-```
-pkg/                     ......
-|-- rtmp/                ......RTMP协议
-|-- httpflv/             ......HTTP-FLV协议
-|-- hls/                 ......HLS协议
-|-- logic/               ......lalserver服务器程序的上层业务逻辑
-|-- aac/                 ......音频AAC格式相关
-|-- avc/                 ......视频H264/AVC格式相关
-|-- hevc/                ......视频H265/HEVC格式相关
-|-- innertest/           ......测试代码
-
-app/                     ......
-|-- lalserver/           ......流媒体服务器lalserver的main函数入口
-
-|-- demo/                ......
-    |-- analyseflv       ......
-    |-- analysehls       ......
-    |-- pushrtmp         ......rtmp推流客户端
-    |-- pullrtmp         ......rtmp拉流客户端
-    |-- pullhttpflv      ......httpflv拉流客户端
-    |-- modflvfile       ......
-    |-- flvfile2es       ......
-    |-- learnts          ......
-    |-- tscmp            ......
-
-conf/                    ......配置文件目录
-bin/                     ......可执行文件编译输出目录
-```
-
 目前唯一的第三方依赖（我自己写的Go基础库）： [github.com/q191201771/naza](https://github.com/q191201771/naza)
 
-### 四. 已完成、待完成，未来规划
-
-#### lalserver服务器功能
-
-- [x] **pub接收推流：** RTMP
-- [x] **sub接收拉流：** RTMP，HTTP-FLV，HLS(m3u8+ts)
-- [x] **音频编码格式：** AAC
-- [x] **视频编码格式：** H264/AVC，H265/HEVC
-- [x] **GOP缓存：** 用于秒开
-- [x] **relay push中继转推：** RTMP
-- [x] **relay pull中继回源：** RTMP
-- [ ] HTTP-FLV回源
-- [ ] 动态转推、回源
-- [ ] rtsp
-- [ ] rtp/rtcp
-- [ ] webrtc
-- [ ] udp quic
-- [ ] udp srt
-- [ ] udp kcp
-- [ ] mp4
-- [ ] 分布式。提供与外部调度系统交互的接口。应对多级分发场景，或平级源站类型场景
-- [ ] 调整框架代码
-- [ ] 各种推流、拉流客户端兼容性测试
-- [ ] 和其它主流服务器的性能对比测试
-- [ ] 整理日志
-- [ ] 稳定性测试
-
-### 五. 文档
+### 文档
 
 * [流媒体音视频相关的点我](https://pengrl.com/categories/%E6%B5%81%E5%AA%92%E4%BD%93%E9%9F%B3%E8%A7%86%E9%A2%91/)
 * [Go语言相关的点我](https://pengrl.com/categories/Go/)
 * [我写的其他文章](https://pengrl.com/all/)
 
-### 六. 联系我
+### 联系我
 
 扫码加我微信（微信号： q191201771），进行技术交流或扯淡。微信群已开放，加我好友后可拉进群。
 
@@ -195,11 +105,11 @@ bin/                     ......可执行文件编译输出目录
 
 <img src="https://pengrl.com/images/yoko_vx.jpeg" width="180" height="180" />
 
-### 七. 性能测试，测试过的第三方客户端
+### 性能测试，测试过的第三方客户端
 
 见[TEST.md](https://github.com/q191201771/lal/blob/master/TEST.md)
 
-### 八. 项目star趋势图
+### 项目star趋势图
 
 觉得这个repo还不错，就点个star支持一下吧 :)
 

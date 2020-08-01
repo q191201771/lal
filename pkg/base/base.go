@@ -6,9 +6,8 @@
 //
 // Author: Chef (191201771@qq.com)
 
-package rtsp
+package base
 
-func PackRR() []byte {
-	// TODO chef: impl me
-	return nil
-}
+// base包提供被其他多个package依赖的基础内容，自身不依赖任何package
+//
+// TODO chef: 考虑部分内容放入关联的协议package的子package中

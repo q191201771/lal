@@ -9,6 +9,7 @@
 package logic
 
 import (
+	"github.com/q191201771/lal/pkg/base"
 	"github.com/q191201771/lal/pkg/httpflv"
 	"github.com/q191201771/lal/pkg/rtmp"
 )
@@ -18,7 +19,7 @@ var Trans trans
 type trans struct {
 }
 
-func (t trans) FLVTagHeader2RTMPHeader(in httpflv.TagHeader) (out rtmp.Header) {
+func (t trans) FLVTagHeader2RTMPHeader(in httpflv.TagHeader) (out base.RTMPHeader) {
 	out.MsgLen = in.DataSize
 	out.MsgTypeID = in.Type
 	out.MsgStreamID = rtmp.MSID1
@@ -30,37 +31,35 @@ func (t trans) FLVTagHeader2RTMPHeader(in httpflv.TagHeader) (out rtmp.Header) {
 	case httpflv.TagTypeVideo:
 		out.CSID = rtmp.CSIDVideo
 	}
-	out.Timestamp = in.Timestamp
 	out.TimestampAbs = in.Timestamp
 	return
 }
 
-func (t trans) MakeDefaultRTMPHeader(in rtmp.Header) (out rtmp.Header) {
+func (t trans) MakeDefaultRTMPHeader(in base.RTMPHeader) (out base.RTMPHeader) {
 	out.MsgLen = in.MsgLen
-	out.Timestamp = in.Timestamp
 	out.TimestampAbs = in.TimestampAbs
 	out.MsgTypeID = in.MsgTypeID
 	out.MsgStreamID = rtmp.MSID1
 	switch in.MsgTypeID {
-	case rtmp.TypeidDataMessageAMF0:
+	case base.RTMPTypeIDMetadata:
 		out.CSID = rtmp.CSIDAMF
-	case rtmp.TypeidAudio:
+	case base.RTMPTypeIDAudio:
 		out.CSID = rtmp.CSIDAudio
-	case rtmp.TypeidVideo:
+	case base.RTMPTypeIDVideo:
 		out.CSID = rtmp.CSIDVideo
 	}
 	return
 }
 
 // 音视频内存块不发生拷贝
-func (t trans) FLVTag2RTMPMsg(tag httpflv.Tag) (msg rtmp.AVMsg) {
+func (t trans) FLVTag2RTMPMsg(tag httpflv.Tag) (msg base.RTMPMsg) {
 	msg.Header = t.FLVTagHeader2RTMPHeader(tag.Header)
 	msg.Payload = tag.Raw[11 : 11+msg.Header.MsgLen]
 	return
 }
 
 // 音视频内存块发生拷贝
-func (t trans) RTMPMsg2FLVTag(msg rtmp.AVMsg) *httpflv.Tag {
+func (t trans) RTMPMsg2FLVTag(msg base.RTMPMsg) *httpflv.Tag {
 	var tag httpflv.Tag
 	tag.Header.Type = msg.Header.MsgTypeID
 	tag.Header.DataSize = msg.Header.MsgLen

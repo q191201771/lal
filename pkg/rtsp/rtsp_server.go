@@ -17,6 +17,8 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/q191201771/lal/pkg/sdp"
+
 	"github.com/q191201771/naza/pkg/nazahttp"
 	"github.com/q191201771/naza/pkg/nazalog"
 )
@@ -124,7 +126,7 @@ func (s *Server) handleTCPConnect(conn net.Conn) {
 			}
 			presentation := items[len(items)-1]
 
-			sdp, err := ParseSDP(body)
+			sdp, err := sdp.ParseSDP(body)
 			if err != nil {
 				nazalog.Errorf("parse sdp failed. err=%v", err)
 				break
@@ -157,11 +159,11 @@ func (s *Server) handleTCPConnect(conn net.Conn) {
 
 			s.m.Lock()
 			session, ok := s.presentation2PubSession[presentation]
+			s.m.Unlock()
 			if !ok {
 				nazalog.Errorf("presentation invalid. presentation=%s", presentation)
 				break
 			}
-			s.m.Unlock()
 
 			udpConn, port, err := s.udpServerPool.Acquire()
 			nazalog.Debugf("acquire udp conn. port=%d", port)

@@ -9,6 +9,7 @@
 package logic
 
 import (
+	"github.com/q191201771/lal/pkg/base"
 	"github.com/q191201771/lal/pkg/rtmp"
 	"github.com/q191201771/naza/pkg/nazalog"
 )
@@ -19,11 +20,11 @@ import (
 // 所以这一步做了懒处理
 type LazyChunkDivider struct {
 	message []byte
-	header  *rtmp.Header
+	header  *base.RTMPHeader
 	chunks  []byte
 }
 
-func (lcd *LazyChunkDivider) Init(message []byte, header *rtmp.Header) {
+func (lcd *LazyChunkDivider) Init(message []byte, header *base.RTMPHeader) {
 	lcd.message = message
 	lcd.header = header
 }
@@ -37,11 +38,11 @@ func (lcd *LazyChunkDivider) Get() []byte {
 
 // 懒转换
 type LazyRTMPMsg2FLVTag struct {
-	msg rtmp.AVMsg
+	msg base.RTMPMsg
 	tag []byte
 }
 
-func (l *LazyRTMPMsg2FLVTag) Init(msg rtmp.AVMsg) {
+func (l *LazyRTMPMsg2FLVTag) Init(msg base.RTMPMsg) {
 	l.msg = msg
 }
 
@@ -77,19 +78,19 @@ func NewGOPCache(t string, uniqueKey string, gopNum int) *GOPCache {
 
 type LazyGet func() []byte
 
-func (gc *GOPCache) Feed(msg rtmp.AVMsg, lg LazyGet) {
+func (gc *GOPCache) Feed(msg base.RTMPMsg, lg LazyGet) {
 	switch msg.Header.MsgTypeID {
-	case rtmp.TypeidDataMessageAMF0:
+	case base.RTMPTypeIDMetadata:
 		gc.Metadata = lg()
 		nazalog.Debugf("[%s] cache %s metadata. size:%d", gc.uniqueKey, gc.t, len(gc.Metadata))
 		return
-	case rtmp.TypeidAudio:
+	case base.RTMPTypeIDAudio:
 		if msg.IsAACSeqHeader() {
 			gc.AACSeqHeader = lg()
 			nazalog.Debugf("[%s] cache %s aac seq header. size:%d", gc.uniqueKey, gc.t, len(gc.AACSeqHeader))
 			return
 		}
-	case rtmp.TypeidVideo:
+	case base.RTMPTypeIDVideo:
 		if msg.IsVideoKeySeqHeader() {
 			gc.VideoSeqHeader = lg()
 			nazalog.Debugf("[%s] cache %s video seq header. size:%d", gc.uniqueKey, gc.t, len(gc.VideoSeqHeader))
@@ -126,13 +127,13 @@ func (gc *GOPCache) Clear() {
 	gc.gopRingFirst = 0
 }
 
-func (gc *GOPCache) feedLastGOP(msg rtmp.AVMsg, b []byte) {
+func (gc *GOPCache) feedLastGOP(msg base.RTMPMsg, b []byte) {
 	if !gc.isGOPRingEmpty() {
 		gc.gopRing[(gc.gopRingLast-1+gc.gopSize)%gc.gopSize].Feed(msg, b)
 	}
 }
 
-func (gc *GOPCache) feedNewGOP(msg rtmp.AVMsg, b []byte) {
+func (gc *GOPCache) feedNewGOP(msg base.RTMPMsg, b []byte) {
 	if gc.isGOPRingFull() {
 		gc.gopRingFirst = (gc.gopRingFirst + 1) % gc.gopSize
 	}
@@ -153,7 +154,7 @@ type GOP struct {
 	data [][]byte
 }
 
-func (g *GOP) Feed(msg rtmp.AVMsg, b []byte) {
+func (g *GOP) Feed(msg base.RTMPMsg, b []byte) {
 	g.data = append(g.data, b)
 }
 

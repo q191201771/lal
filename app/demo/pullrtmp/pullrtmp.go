@@ -16,6 +16,8 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/q191201771/lal/pkg/base"
+
 	"github.com/q191201771/lal/pkg/httpflv"
 	"github.com/q191201771/lal/pkg/logic"
 	"github.com/q191201771/lal/pkg/rtmp"
@@ -77,7 +79,7 @@ func pull(url string, filename string) {
 
 	err = session.Pull(
 		url,
-		func(msg rtmp.AVMsg) {
+		func(msg base.RTMPMsg) {
 			nazalog.Debugf("header=%+v", msg.Header)
 			if filename != "" {
 				tag := logic.Trans.RTMPMsg2FLVTag(msg)

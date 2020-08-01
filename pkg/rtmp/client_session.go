@@ -16,6 +16,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/q191201771/lal/pkg/base"
+
 	"github.com/q191201771/naza/pkg/bele"
 	"github.com/q191201771/naza/pkg/connection"
 	log "github.com/q191201771/naza/pkg/nazalog"
@@ -32,8 +34,6 @@ type ClientSession struct {
 	t      ClientSessionType
 	option ClientSessionOption
 
-	onReadRTMPAVMsg OnReadRTMPAVMsg
-
 	packer                 *MessagePacker
 	chunkComposer          *ChunkComposer
 	url                    *url.URL
@@ -46,6 +46,9 @@ type ClientSession struct {
 
 	conn         connection.Connection
 	doResultChan chan struct{}
+
+	// 只有PullSession使用
+	onReadRTMPAVMsg OnReadRTMPAVMsg
 }
 
 type ClientSessionType int
@@ -180,23 +183,23 @@ func (s *ClientSession) runReadLoop() {
 
 func (s *ClientSession) doMsg(stream *Stream) error {
 	switch stream.header.MsgTypeID {
-	case typeidWinAckSize:
+	case base.RTMPTypeIDWinAckSize:
 		fallthrough
-	case typeidBandwidth:
+	case base.RTMPTypeIDBandwidth:
 		fallthrough
-	case typeidSetChunkSize:
+	case base.RTMPTypeIDSetChunkSize:
 		return s.doProtocolControlMessage(stream)
-	case typeidCommandMessageAMF0:
+	case base.RTMPTypeIDCommandMessageAMF0:
 		return s.doCommandMessage(stream)
-	case TypeidDataMessageAMF0:
+	case base.RTMPTypeIDMetadata:
 		return s.doDataMessageAMF0(stream)
-	case typeidAck:
+	case base.RTMPTypeIDAck:
 		return s.doAck(stream)
-	case typeidUserControl:
+	case base.RTMPTypeIDUserControl:
 		log.Warnf("[%s] read user control message, ignore.", s.UniqueKey)
-	case TypeidAudio:
+	case base.RTMPTypeIDAudio:
 		fallthrough
-	case TypeidVideo:
+	case base.RTMPTypeIDVideo:
 		s.onReadRTMPAVMsg(stream.toAVMsg())
 	default:
 		log.Errorf("[%s] read unknown message. typeid=%d, %s", s.UniqueKey, stream.header.MsgTypeID, stream.toDebugString())
@@ -348,13 +351,13 @@ func (s *ClientSession) doProtocolControlMessage(stream *Stream) error {
 	val := int(bele.BEUint32(stream.msg.buf))
 
 	switch stream.header.MsgTypeID {
-	case typeidWinAckSize:
+	case base.RTMPTypeIDWinAckSize:
 		s.peerWinAckSize = val
 		log.Infof("[%s] < R Window Acknowledgement Size: %d", s.UniqueKey, s.peerWinAckSize)
-	case typeidBandwidth:
+	case base.RTMPTypeIDBandwidth:
 		// TODO chef: 是否需要关注这个信令
 		log.Debugf("[%s] < R Set Peer Bandwidth. ignore.", s.UniqueKey)
-	case typeidSetChunkSize:
+	case base.RTMPTypeIDSetChunkSize:
 		// composer内部会自动更新peer chunk size.
 		log.Infof("[%s] < R Set Chunk Size %d.", s.UniqueKey, val)
 	default:

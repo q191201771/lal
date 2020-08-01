@@ -12,6 +12,14 @@ import (
 	"fmt"
 	"sync"
 
+	"github.com/q191201771/lal/pkg/base"
+	"github.com/q191201771/naza/pkg/bele"
+
+	"github.com/q191201771/lal/pkg/aac"
+
+	"github.com/q191201771/lal/pkg/avc"
+	"github.com/q191201771/lal/pkg/rtsp"
+
 	"github.com/q191201771/lal/pkg/hls"
 
 	"github.com/q191201771/lal/pkg/httpflv"
@@ -35,15 +43,21 @@ type Group struct {
 	exitChan chan struct{}
 
 	mutex                sync.Mutex
-	pubSession           *rtmp.ServerSession
+	rtmpPubSession       *rtmp.ServerSession
+	rtspPubSession       *rtsp.PubSession
+	pullSession          *rtmp.PullSession
+	isPulling            bool
 	rtmpSubSessionSet    map[*rtmp.ServerSession]struct{}
 	httpflvSubSessionSet map[*httpflv.SubSession]struct{}
 	hlsMuxer             *hls.Muxer
 	url2PushProxy        map[string]*pushProxy
-	pullSession          *rtmp.PullSession
-	isPulling            bool
 	gopCache             *GOPCache
 	httpflvGopCache      *GOPCache
+
+	adts aac.ADTS
+	asc  []byte
+	sps  []byte
+	pps  []byte
 }
 
 type pushProxy struct {
@@ -106,9 +120,9 @@ func (group *Group) Dispose() {
 	group.mutex.Lock()
 	defer group.mutex.Unlock()
 
-	if group.pubSession != nil {
-		group.pubSession.Dispose()
-		group.pubSession = nil
+	if group.rtmpPubSession != nil {
+		group.rtmpPubSession.Dispose()
+		group.rtmpPubSession = nil
 	}
 
 	for session := range group.rtmpSubSessionSet {
@@ -142,11 +156,11 @@ func (group *Group) AddRTMPPubSession(session *rtmp.ServerSession) bool {
 	group.mutex.Lock()
 	defer group.mutex.Unlock()
 
-	if group.pubSession != nil {
-		nazalog.Errorf("[%s] PubSession already exist in group. old=%s, new=%s", group.UniqueKey, group.pubSession.UniqueKey, session.UniqueKey)
+	if group.rtmpPubSession != nil {
+		nazalog.Errorf("[%s] PubSession already exist in group. old=%s, new=%s", group.UniqueKey, group.rtmpPubSession.UniqueKey, session.UniqueKey)
 		return false
 	}
-	group.pubSession = session
+	group.rtmpPubSession = session
 
 	if config.HLSConfig.Enable {
 		group.hlsMuxer = hls.NewMuxer(group.streamName, &config.HLSConfig.MuxerConfig)
@@ -168,7 +182,7 @@ func (group *Group) DelRTMPPubSession(session *rtmp.ServerSession) {
 	group.mutex.Lock()
 	defer group.mutex.Unlock()
 
-	group.pubSession = nil
+	group.rtmpPubSession = nil
 
 	if config.HLSConfig.Enable && group.hlsMuxer != nil {
 		group.hlsMuxer.Dispose()
@@ -188,11 +202,28 @@ func (group *Group) DelRTMPPubSession(session *rtmp.ServerSession) {
 	group.httpflvGopCache.Clear()
 }
 
+func (group *Group) AddRTSPPubSession(session *rtsp.PubSession) {
+	nazalog.Debugf("[%s] [%s] add RTSP PubSession into group.", group.UniqueKey, session.UniqueKey)
+
+	group.mutex.Lock()
+	defer group.mutex.Unlock()
+
+	group.rtspPubSession = session
+
+	// TODO chef: 有in创建时，将hls，relay push等操作集中到一个小函数中
+	if config.HLSConfig.Enable {
+		group.hlsMuxer = hls.NewMuxer(group.streamName, &config.HLSConfig.MuxerConfig)
+		group.hlsMuxer.Start()
+	}
+
+	session.SetObserver(group)
+}
+
 func (group *Group) AddRTMPPullSession(session *rtmp.PullSession) {
 	nazalog.Debugf("[%s] [%s] add PullSession into group.", group.UniqueKey, session.UniqueKey())
 
 	group.mutex.Lock()
-	group.mutex.Unlock()
+	defer group.mutex.Unlock()
 
 	group.pullSession = session
 
@@ -206,7 +237,7 @@ func (group *Group) DelRTMPPullSession(session *rtmp.PullSession) {
 	nazalog.Debugf("[%s] [%s] del PullSession from group.", group.UniqueKey, session.UniqueKey())
 
 	group.mutex.Lock()
-	group.mutex.Unlock()
+	defer group.mutex.Unlock()
 
 	group.pullSession = nil
 	group.isPulling = false
@@ -286,34 +317,103 @@ func (group *Group) IsTotalEmpty() bool {
 		}
 	}
 
-	return group.pubSession == nil && len(group.rtmpSubSessionSet) == 0 &&
+	return group.rtmpPubSession == nil && len(group.rtmpSubSessionSet) == 0 &&
 		len(group.httpflvSubSessionSet) == 0 &&
 		group.hlsMuxer == nil &&
 		!hasPushSession &&
 		group.pullSession == nil
 }
 
-// PubSession or PullSession
-func (group *Group) OnReadRTMPAVMsg(msg rtmp.AVMsg) {
+func (group *Group) IsInEmpty() bool {
+	// TODO chef: impl me
+	// 判断所有pub、pull类型是否为空
+	return false
+}
+
+// rtmp.PubSession or rtmp.PullSession
+func (group *Group) OnReadRTMPAVMsg(msg base.RTMPMsg) {
 	group.mutex.Lock()
 	defer group.mutex.Unlock()
 
 	//nazalog.Debugf("%+v, %02x, %02x", msg.Header, msg.Payload[0], msg.Payload[1])
 	group.broadcastRTMP(msg)
+}
 
-	if config.HLSConfig.Enable && group.hlsMuxer != nil {
-		group.hlsMuxer.FeedRTMPMessage(msg)
+func (group *Group) OnASC(asc []byte) {
+	if err := group.adts.InitWithAACAudioSpecificConfig(asc); err != nil {
+		nazalog.Errorf("init with aac asc failed. err=%+v", err)
+		return
 	}
+	group.asc = asc
+	group.broadcastMetadataAndSeqHeader()
+}
+
+func (group *Group) OnSPSPPS(sps, pps []byte) {
+	group.sps = sps
+	group.pps = pps
+	group.broadcastMetadataAndSeqHeader()
+}
+
+func (group *Group) OnAVPacket(pkt base.AVPacket) {
+	var h base.RTMPHeader
+	var msg base.RTMPMsg
+
+	switch pkt.PayloadType {
+	case base.AVPacketPTAVC:
+		h.TimestampAbs = pkt.Timestamp
+		h.MsgStreamID = rtmp.MSID1
+
+		h.MsgTypeID = base.RTMPTypeIDVideo
+		h.CSID = rtmp.CSIDVideo
+		h.MsgLen = uint32(len(pkt.Payload)) + 9
+
+		msg.Payload = make([]byte, h.MsgLen)
+		switch pkt.Payload[0] & 0x1F {
+		case avc.NALUTypeIDRSlice:
+			msg.Payload[0] = 0x17
+			msg.Payload[1] = 0x1
+			msg.Payload[2] = 0x0
+			msg.Payload[3] = 0x0
+			msg.Payload[4] = 0x0
+			bele.BEPutUint32(msg.Payload[5:], uint32(len(pkt.Payload)))
+			copy(msg.Payload[9:], pkt.Payload)
+		default:
+			msg.Payload[0] = 0x27
+			msg.Payload[1] = 0x1
+			msg.Payload[2] = 0x0
+			msg.Payload[3] = 0x0
+			msg.Payload[4] = 0x0
+			bele.BEPutUint32(msg.Payload[5:], uint32(len(pkt.Payload)))
+			copy(msg.Payload[9:], pkt.Payload)
+		}
+	case base.AVPacketPTAAC:
+		h.TimestampAbs = pkt.Timestamp
+		h.MsgStreamID = rtmp.MSID1
+
+		h.MsgTypeID = base.RTMPTypeIDAudio
+		h.CSID = rtmp.CSIDAudio
+		h.MsgLen = uint32(len(pkt.Payload)) + 2
+
+		msg.Payload = make([]byte, h.MsgLen)
+		msg.Payload[0] = 0xAF
+		msg.Payload[1] = 0x1
+		copy(msg.Payload[2:], pkt.Payload)
+	default:
+		nazalog.Errorf("unknown payload type. pt=%d", pkt.PayloadType)
+	}
+
+	msg.Header = h
+	group.broadcastRTMP(msg)
 }
 
 func (group *Group) StringifyStats() string {
 	group.mutex.Lock()
 	defer group.mutex.Unlock()
 	var pub string
-	if group.pubSession == nil {
+	if group.rtmpPubSession == nil {
 		pub = "none"
 	} else {
-		pub = group.pubSession.UniqueKey
+		pub = group.rtmpPubSession.UniqueKey
 	}
 	var pull string
 	if group.pullSession == nil {
@@ -332,11 +432,77 @@ func (group *Group) StringifyStats() string {
 		group.UniqueKey, group.streamName, pub, pull, len(group.rtmpSubSessionSet), len(group.httpflvSubSessionSet), pushSize)
 }
 
-func (group *Group) broadcastRTMP(msg rtmp.AVMsg) {
+func (group *Group) broadcastMetadataAndSeqHeader() {
+	if group.asc == nil || group.sps == nil || group.pps == nil {
+		return
+	}
+
+	ctx, err := avc.ParseSPS(group.sps)
+	if err != nil {
+		nazalog.Errorf("parse sps failed. err=%+v", err)
+		return
+	}
+
+	metadata, err := rtmp.BuildMetadata(int(ctx.Width), int(ctx.Height), int(base.RTMPSoundFormatACC), int(base.RTMPCodecIDAVC))
+	if err != nil {
+		nazalog.Errorf("build metadata failed. err=%+v", err)
+		return
+	}
+	vsh, err := avc.BuildSeqHeaderFromSPSPPS(group.sps, group.pps)
+	if err != nil {
+		nazalog.Errorf("build avc seq header failed. err=%+v", err)
+		return
+	}
+	ash, err := aac.BuildAACSeqHeader(group.asc)
+	if err != nil {
+		nazalog.Errorf("build aac seq header failed. err=%+v", err)
+		return
+	}
+
+	var h base.RTMPHeader
+	var msg base.RTMPMsg
+
+	h.MsgLen = uint32(len(metadata))
+	h.TimestampAbs = 0
+	h.MsgTypeID = base.RTMPTypeIDMetadata
+	h.MsgStreamID = rtmp.MSID1
+	h.CSID = rtmp.CSIDAMF
+	msg.Header = h
+	msg.Payload = metadata
+	group.broadcastRTMP(msg)
+
+	h.MsgLen = uint32(len(vsh))
+	h.TimestampAbs = 0
+	h.MsgTypeID = base.RTMPTypeIDVideo
+	h.MsgStreamID = rtmp.MSID1
+	h.CSID = rtmp.CSIDVideo
+	msg.Header = h
+	msg.Payload = vsh
+	group.broadcastRTMP(msg)
+
+	h.MsgLen = uint32(len(ash))
+	h.TimestampAbs = 0
+	h.MsgTypeID = base.RTMPTypeIDAudio
+	h.CSID = rtmp.CSIDAudio
+	msg.Header = h
+	msg.Payload = ash
+	msg.Header = h
+	msg.Payload = ash
+	group.broadcastRTMP(msg)
+}
+
+// TODO chef: 目前相当于其他类型往rtmp.AVMsg转了，考虑统一往一个通用类型转
+// @param msg 调用结束后，内部不持有msg.Payload内存块
+func (group *Group) broadcastRTMP(msg base.RTMPMsg) {
 	var (
 		lcd    LazyChunkDivider
 		lrm2ft LazyRTMPMsg2FLVTag
 	)
+
+	// # 0. hls
+	if config.HLSConfig.Enable && group.hlsMuxer != nil {
+		group.hlsMuxer.FeedRTMPMessage(msg)
+	}
 
 	// # 1. 设置好用于发送的 rtmp 头部信息
 	currHeader := Trans.MakeDefaultRTMPHeader(msg.Header)
@@ -447,8 +613,8 @@ func (group *Group) pullIfNeeded() {
 	if len(group.rtmpSubSessionSet) == 0 && len(group.httpflvSubSessionSet) == 0 {
 		return
 	}
-	// 已有pull推流或pull回源
-	if group.pubSession != nil || group.pullSession != nil {
+	// 已有pub推流或pull回源
+	if group.rtmpPubSession != nil || group.pullSession != nil {
 		return
 	}
 	// 正在回源中
@@ -481,7 +647,7 @@ func (group *Group) pushIfNeeded() {
 		return
 	}
 	// 没有pub发布者
-	if group.pubSession == nil {
+	if group.rtmpPubSession == nil {
 		return
 	}
 	for url, v := range group.url2PushProxy {

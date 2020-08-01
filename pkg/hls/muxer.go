@@ -13,13 +13,14 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/q191201771/lal/pkg/base"
+
 	"github.com/q191201771/lal/pkg/avc"
 
 	"github.com/q191201771/naza/pkg/unique"
 
 	"github.com/q191201771/lal/pkg/aac"
 
-	"github.com/q191201771/lal/pkg/rtmp"
 	"github.com/q191201771/naza/pkg/bele"
 	"github.com/q191201771/naza/pkg/nazalog"
 )
@@ -100,17 +101,17 @@ func (m *Muxer) Dispose() {
 }
 
 // 函数调用结束后，内部不持有msg中的内存块
-func (m *Muxer) FeedRTMPMessage(msg rtmp.AVMsg) {
+func (m *Muxer) FeedRTMPMessage(msg base.RTMPMsg) {
 	switch msg.Header.MsgTypeID {
-	case rtmp.TypeidAudio:
+	case base.RTMPTypeIDAudio:
 		m.feedAudio(msg)
-	case rtmp.TypeidVideo:
+	case base.RTMPTypeIDVideo:
 		m.feedVideo(msg)
 	}
 }
 
 // TODO chef: 可以考虑数据有问题时，返回给上层，直接主动关闭输入流的连接
-func (m *Muxer) feedVideo(msg rtmp.AVMsg) {
+func (m *Muxer) feedVideo(msg base.RTMPMsg) {
 	if len(msg.Payload) < 5 {
 		nazalog.Errorf("[%s] invalid video message length. len=%d", m.UniqueKey, len(msg.Payload))
 		return
@@ -209,7 +210,7 @@ func (m *Muxer) feedVideo(msg rtmp.AVMsg) {
 	m.videoCC = frame.cc
 }
 
-func (m *Muxer) feedAudio(msg rtmp.AVMsg) {
+func (m *Muxer) feedAudio(msg base.RTMPMsg) {
 	if len(msg.Payload) < 3 {
 		nazalog.Errorf("[%s] invalid audio message length. len=%d", m.UniqueKey, len(msg.Payload))
 	}
@@ -240,11 +241,11 @@ func (m *Muxer) feedAudio(msg rtmp.AVMsg) {
 	m.aaframe = append(m.aaframe, msg.Payload[2:]...)
 }
 
-func (m *Muxer) cacheAACSeqHeader(msg rtmp.AVMsg) {
+func (m *Muxer) cacheAACSeqHeader(msg base.RTMPMsg) {
 	_ = m.adts.InitWithAACAudioSpecificConfig(msg.Payload[2:])
 }
 
-func (m *Muxer) cacheSPSPPS(msg rtmp.AVMsg) error {
+func (m *Muxer) cacheSPSPPS(msg base.RTMPMsg) error {
 	var err error
 	m.spspps, err = avc.SPSPPSSeqHeader2AnnexB(msg.Payload)
 	return err

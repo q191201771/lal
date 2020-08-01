@@ -23,7 +23,6 @@ import (
 
 	"github.com/q191201771/lal/pkg/httpflv"
 	"github.com/q191201771/lal/pkg/rtmp"
-	"github.com/q191201771/naza/pkg/bininfo"
 	"github.com/q191201771/naza/pkg/nazalog"
 )
 
@@ -53,9 +52,15 @@ var pss []*rtmp.PushSession
 var br bitrate.Bitrate
 
 func main() {
-	nazalog.Info(bininfo.StringifySingleLine())
+	filename, urlTmpl, num, isRecursive, logfile := parseFlag()
+	if logfile != "" {
+		_ = nazalog.Init(func(option *nazalog.Option) {
+			option.IsRotateDaily = false
+			option.Filename = logfile
+			option.IsToStdout = false
+		})
+	}
 
-	filename, urlTmpl, num, isRecursive := parseFlag()
 	urls := collect(urlTmpl, num)
 	nazalog.Debug(urls, num)
 
@@ -259,17 +264,14 @@ func collect(urlTmpl string, num int) (urls []string) {
 	return
 }
 
-func parseFlag() (filename string, urlTmpl string, num int, isRecursive bool) {
-	v := flag.Bool("v", false, "show bin info")
+func parseFlag() (filename string, urlTmpl string, num int, isRecursive bool, logfile string) {
 	i := flag.String("i", "", "specify flv file")
 	o := flag.String("o", "", "specify rtmp push url")
 	r := flag.Bool("r", false, "recursive push if reach end of file")
 	n := flag.Int("n", 1, "num of push connection")
+	l := flag.String("l", "", "specify log file")
 	flag.Parse()
-	if *v {
-		_, _ = fmt.Fprint(os.Stderr, bininfo.StringifyMultiLine())
-		os.Exit(1)
-	}
+
 	if *i == "" || *o == "" {
 		flag.Usage()
 		_, _ = fmt.Fprintf(os.Stderr, `Example:
@@ -279,5 +281,5 @@ func parseFlag() (filename string, urlTmpl string, num int, isRecursive bool) {
 `)
 		os.Exit(1)
 	}
-	return *i, *o, *n, *r
+	return *i, *o, *n, *r, *l
 }

@@ -16,6 +16,10 @@
     "fragment_duration_ms": 3000,
     "fragment_num": 6
   },
+  "rtsp": {
+    "enable": true,
+    "addr": ":5544"
+  },
   "relay_push": {
     "enable": false,
     "addr_list":[

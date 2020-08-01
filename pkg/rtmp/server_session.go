@@ -12,6 +12,8 @@ import (
 	"net"
 	"strings"
 
+	"github.com/q191201771/lal/pkg/base"
+
 	"github.com/q191201771/naza/pkg/bele"
 	"github.com/q191201771/naza/pkg/connection"
 	"github.com/q191201771/naza/pkg/nazalog"
@@ -29,7 +31,7 @@ var _ ServerSessionObserver = &Server{}
 
 type PubSessionObserver interface {
 	// 注意，回调结束后，内部会复用Payload内存块
-	OnReadRTMPAVMsg(msg AVMsg)
+	OnReadRTMPAVMsg(msg base.RTMPMsg)
 }
 
 func (s *ServerSession) SetPubSessionObserver(obs PubSessionObserver) {
@@ -128,18 +130,18 @@ func (s *ServerSession) handshake() error {
 func (s *ServerSession) doMsg(stream *Stream) error {
 	//log.Debugf("%d %d %v", stream.header.msgTypeID, stream.msgLen, stream.header)
 	switch stream.header.MsgTypeID {
-	case typeidSetChunkSize:
+	case base.RTMPTypeIDSetChunkSize:
 		// noop
 		// 因为底层的 chunk composer 已经处理过了，这里就不用处理
-	case typeidCommandMessageAMF0:
+	case base.RTMPTypeIDCommandMessageAMF0:
 		return s.doCommandMessage(stream)
-	case TypeidDataMessageAMF0:
+	case base.RTMPTypeIDMetadata:
 		return s.doDataMessageAMF0(stream)
-	case typeidAck:
+	case base.RTMPTypeIDAck:
 		return s.doACK(stream)
-	case TypeidAudio:
+	case base.RTMPTypeIDAudio:
 		fallthrough
-	case TypeidVideo:
+	case base.RTMPTypeIDVideo:
 		if s.t != ServerSessionTypePub {
 			nazalog.Errorf("[%s] read audio/video message but server session not pub type.", s.UniqueKey)
 			return ErrRTMP

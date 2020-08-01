@@ -14,6 +14,8 @@ import (
 	_ "net/http/pprof"
 	"os"
 
+	"github.com/q191201771/lal/pkg/base"
+
 	"github.com/q191201771/naza/pkg/bininfo"
 	"github.com/q191201771/naza/pkg/nazalog"
 )
@@ -26,6 +28,7 @@ func Entry(confFile string) {
 	config = loadConf(confFile)
 	initLog(config.LogConfig)
 	nazalog.Infof("bininfo: %s", bininfo.StringifySingleLine())
+	nazalog.Infof("version: %s", base.LALFullInfo)
 
 	sm := NewServerManager()
 

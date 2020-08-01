@@ -18,6 +18,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/q191201771/lal/pkg/base"
+
 	"github.com/q191201771/naza/pkg/filebatch"
 	"github.com/q191201771/naza/pkg/nazamd5"
 
@@ -99,7 +101,7 @@ func InnerTestEntry(t *testing.T) {
 		})
 		err := rtmpPullSession.Pull(
 			rtmpPullURL,
-			func(msg rtmp.AVMsg) {
+			func(msg base.RTMPMsg) {
 				tag := logic.Trans.RTMPMsg2FLVTag(msg)
 				err := rtmpWriter.WriteTag(*tag)
 				assert.Equal(tt, nil, err)
@@ -172,8 +174,8 @@ func InnerTestEntry(t *testing.T) {
 	assert.Equal(t, nil, err)
 	allContentMD5 := nazamd5.MD5(allContent)
 	assert.Equal(t, 52, fileNum)
-	assert.Equal(t, 7350143, len(allContent))
-	assert.Equal(t, "a4f74cdb0ad64a5e4a3f94e681e92c3b", allContentMD5)
+	assert.Equal(t, 7350158, len(allContent))
+	assert.Equal(t, "27f95371ea1f747cece1db3854554c9f", allContentMD5)
 }
 
 func compareFile() {

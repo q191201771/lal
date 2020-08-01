@@ -44,11 +44,13 @@ type SequenceHeader struct {
 	aacPacketType uint8
 }
 
-// 传入2字节的AAC Audio Specifc Config。
-// 注意，如果是rtmp/flv的message/tag，应去除Seq Header头部的2个字节
-func (a *ADTS) InitWithAACAudioSpecificConfig(payload []byte) error {
-	if len(payload) < 2 {
-		nazalog.Warnf("aac seq header length invalid. len=%d", len(payload))
+// @param <asc> 2字节的AAC Audio Specifc Config
+//              函数调用结束后，内部不持有<asc>内存块
+//              注意，如果是rtmp/flv的message/tag，应去除Seq Header头部的2个字节
+//
+func (a *ADTS) InitWithAACAudioSpecificConfig(asc []byte) error {
+	if len(asc) < 2 {
+		nazalog.Warnf("aac seq header length invalid. len=%d", len(asc))
 		return ErrAAC
 	}
 
@@ -61,7 +63,7 @@ func (a *ADTS) InitWithAACAudioSpecificConfig(payload []byte) error {
 	// audio object type      [5b] 2=AAC LC
 	// samplingFrequencyIndex [4b] 3=48000 4=44100
 	// channelConfiguration   [4b] 2=left, right front speakers
-	br := nazabits.NewBitReader(payload)
+	br := nazabits.NewBitReader(asc)
 	a.audioObjectType, _ = br.ReadBits8(5)
 	a.samplingFrequencyIndex, _ = br.ReadBits8(4)
 	a.channelConfiguration, _ = br.ReadBits8(4)
@@ -78,6 +80,8 @@ func (a *ADTS) InitWithAACAudioSpecificConfig(payload []byte) error {
 //
 // @param <length> raw aac frame的大小
 //                 注意，如果是rtmp/flv的message/tag，应去除Seq Header头部的2个字节
+// @return 返回的内存块，内部会继续持有，重复使用
+//
 func (a *ADTS) CalcADTSHeader(length uint16) ([]byte, error) {
 	if !a.HasInited() {
 		nazalog.Warn("calc adts header but asc not inited.")
@@ -140,6 +144,7 @@ func (a *ADTS) HasInited() bool {
 }
 
 // @param <b> rtmp/flv的message/tag的payload部分，包含前面2个字节
+//            函数调用结束后，内部不持有<b>内存块
 func ParseAACSeqHeader(b []byte) (sh SequenceHeader, adts ADTS, err error) {
 	if len(b) < 4 {
 		nazalog.Warnf("aac seq header length invalid. len=%d", len(b))
@@ -164,4 +169,22 @@ func ParseAACSeqHeader(b []byte) (sh SequenceHeader, adts ADTS, err error) {
 
 	err = adts.InitWithAACAudioSpecificConfig(b[2:])
 	return
+}
+
+// @param <asc> 函数调用结束后，内部不继续持有<asc>内存块
+//
+// @return      返回的内存块为新申请的独立内存块
+//
+func BuildAACSeqHeader(asc []byte) ([]byte, error) {
+	if len(asc) < 2 {
+		return nil, ErrAAC
+	}
+
+	ret := make([]byte, 4)
+	// <spec-video_file_format_spec_v10.pdf>, <Audio tags, AUDIODATA>, <page 10/48>
+	ret[0] = 0xaf
+	ret[1] = 0
+	ret[2] = asc[0]
+	ret[3] = asc[1]
+	return ret, nil
 }

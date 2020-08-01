@@ -58,7 +58,7 @@ func TestParseSliceType(t *testing.T) {
 	}
 }
 
-var seqHeader = []byte{
+var goldenSeqHeader = []byte{
 	0x17, 0x00, 0x00, 0x00, 0x00,
 	0x01, 0x64, 0x00, 0x20, 0xFF,
 	0xE1, 0x00, 0x19,
@@ -67,23 +67,36 @@ var seqHeader = []byte{
 	0x68, 0xEB, 0xEC, 0xB2, 0x2C,
 }
 
-var sps = []byte{
+var goldenSPS = []byte{
 	0x67, 0x64, 0x00, 0x20, 0xAC, 0xD9, 0x40, 0xC0, 0x29, 0xB0, 0x11, 0x00, 0x00, 0x03, 0x00, 0x01, 0x00, 0x00, 0x03, 0x00, 0x32, 0x0F, 0x18, 0x31, 0x96,
 }
 
-var pps = []byte{
+var goldenPPS = []byte{
 	0x68, 0xEB, 0xEC, 0xB2, 0x2C,
 }
 
 func TestSPSPPSSeqHeader2AnnexB(t *testing.T) {
-	out, err := avc.SPSPPSSeqHeader2AnnexB(seqHeader)
+	out, err := avc.SPSPPSSeqHeader2AnnexB(goldenSeqHeader)
 	assert.Equal(t, nil, err)
 	var expected []byte
 	expected = append(expected, avc.NALUStartCode4...)
-	expected = append(expected, sps...)
+	expected = append(expected, goldenSPS...)
 	expected = append(expected, avc.NALUStartCode4...)
-	expected = append(expected, pps...)
+	expected = append(expected, goldenPPS...)
 	assert.Equal(t, expected, out)
+}
+
+func TestParseSPSPPSFromSeqHeader(t *testing.T) {
+	sps, pps, err := avc.ParseSPSPPSFromSeqHeader(goldenSeqHeader)
+	assert.Equal(t, nil, err)
+	assert.Equal(t, goldenSPS, sps)
+	assert.Equal(t, goldenPPS, pps)
+}
+
+func TestBuildSeqHeaderFromSPSPPS(t *testing.T) {
+	sh, err := avc.BuildSeqHeaderFromSPSPPS(goldenSPS, goldenPPS)
+	assert.Equal(t, nil, err)
+	assert.Equal(t, goldenSeqHeader, sh)
 }
 
 func TestCaptureAVC(t *testing.T) {
@@ -96,8 +109,17 @@ func TestCaptureAVC(t *testing.T) {
 	assert.Equal(t, expected, b.Bytes())
 }
 
+func TestParseSPS(t *testing.T) {
+	ctx, err := avc.ParseSPS(goldenSPS)
+	assert.Equal(t, nil, err)
+	assert.Equal(t, uint8(100), ctx.Profile)
+	assert.Equal(t, uint8(32), ctx.Level)
+	assert.Equal(t, uint32(768), ctx.Width)
+	assert.Equal(t, uint32(320), ctx.Height)
+}
+
 func TestTry(t *testing.T) {
-	err := avc.TryParseSeqHeader(seqHeader)
+	err := avc.TryParseSeqHeader(goldenSeqHeader)
 	assert.Equal(t, nil, err)
 }
 

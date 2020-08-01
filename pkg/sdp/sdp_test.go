@@ -6,10 +6,12 @@
 //
 // Author: Chef (191201771@qq.com)
 
-package rtsp
+package sdp_test
 
 import (
 	"testing"
+
+	"github.com/q191201771/lal/pkg/sdp"
 
 	"github.com/q191201771/naza/pkg/nazalog"
 
@@ -42,13 +44,13 @@ var goldenPPS = []byte{
 }
 
 func TestParseSDP(t *testing.T) {
-	sdp, err := ParseSDP([]byte(goldenSDP))
+	sdpCtx, err := sdp.ParseSDP([]byte(goldenSDP))
 	assert.Equal(t, nil, err)
-	nazalog.Debugf("sdp=%+v", sdp)
+	nazalog.Debugf("sdp=%+v", sdpCtx)
 }
 
 func TestParseARTPMap(t *testing.T) {
-	golden := map[string]ARTPMap{
+	golden := map[string]sdp.ARTPMap{
 		"rtpmap:96 H264/90000": {
 			PayloadType:        96,
 			EncodingName:       "H264",
@@ -63,14 +65,14 @@ func TestParseARTPMap(t *testing.T) {
 		},
 	}
 	for in, out := range golden {
-		actual, err := ParseARTPMap(in)
+		actual, err := sdp.ParseARTPMap(in)
 		assert.Equal(t, nil, err)
 		assert.Equal(t, out, actual)
 	}
 }
 
 func TestParseFmtPBase(t *testing.T) {
-	golden := map[string]AFmtPBase{
+	golden := map[string]sdp.AFmtPBase{
 		"a=fmtp:96 packetization-mode=1; sprop-parameter-sets=Z2QAIKzZQMApsBEAAAMAAQAAAwAyDxgxlg==,aOvssiw=; profile-level-id=640020": {
 			Format: 96,
 			Parameters: map[string]string{
@@ -92,7 +94,7 @@ func TestParseFmtPBase(t *testing.T) {
 		},
 	}
 	for in, out := range golden {
-		actual, err := ParseAFmtPBase(in)
+		actual, err := sdp.ParseAFmtPBase(in)
 		assert.Equal(t, nil, err)
 		assert.Equal(t, out, actual)
 	}
@@ -100,10 +102,19 @@ func TestParseFmtPBase(t *testing.T) {
 
 func TestParseSPSPPS(t *testing.T) {
 	s := "a=fmtp:96 packetization-mode=1; sprop-parameter-sets=Z2QAIKzZQMApsBEAAAMAAQAAAwAyDxgxlg==,aOvssiw=; profile-level-id=640020"
-	f, err := ParseAFmtPBase(s)
+	f, err := sdp.ParseAFmtPBase(s)
 	assert.Equal(t, nil, err)
-	sps, pps, err := ParseSPSPPS(f)
+	sps, pps, err := sdp.ParseSPSPPS(f)
 	assert.Equal(t, nil, err)
 	assert.Equal(t, goldenSPS, sps)
 	assert.Equal(t, goldenPPS, pps)
+}
+
+func TestParseASC(t *testing.T) {
+	s := "a=fmtp:97 profile-level-id=1;mode=AAC-hbr;sizelength=13;indexlength=3;indexdeltalength=3; config=1210"
+	f, err := sdp.ParseAFmtPBase(s)
+	assert.Equal(t, nil, err)
+	asc, err := sdp.ParseASC(f)
+	assert.Equal(t, nil, err)
+	assert.Equal(t, []byte{0x12, 0x10}, asc)
 }

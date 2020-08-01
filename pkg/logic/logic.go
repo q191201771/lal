@@ -11,6 +11,8 @@ package logic
 import (
 	"errors"
 
+	"github.com/q191201771/lal/pkg/rtsp"
+
 	"github.com/q191201771/lal/pkg/httpflv"
 	"github.com/q191201771/lal/pkg/rtmp"
 )
@@ -19,4 +21,6 @@ var ErrLogic = errors.New("lal.logic: fxxk")
 
 var _ rtmp.ServerObserver = &ServerManager{}
 var _ httpflv.ServerObserver = &ServerManager{}
+var _ rtsp.ServerObserver = &ServerManager{}
 var _ rtmp.PubSessionObserver = &Group{}
+var _ rtsp.PubSessionObserver = &Group{}

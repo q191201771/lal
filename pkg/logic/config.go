@@ -22,6 +22,7 @@ type Config struct {
 	RTMPConfig      RTMPConfig      `json:"rtmp"`
 	HTTPFLVConfig   HTTPFLVConfig   `json:"httpflv"`
 	HLSConfig       HLSConfig       `json:"hls"`
+	RTSPConfig      RTSPConfig      `json:"rtsp"`
 	RelayPushConfig RelayPushConfig `json:"relay_push"`
 	RelayPullConfig RelayPullConfig `json:"relay_pull"`
 
@@ -45,6 +46,11 @@ type HLSConfig struct {
 	Enable        bool   `json:"enable"`
 	SubListenAddr string `json:"sub_listen_addr"`
 	hls.MuxerConfig
+}
+
+type RTSPConfig struct {
+	Enable bool   `json:"enable"`
+	Addr   string `json:"addr"`
 }
 
 type RelayPushConfig struct {
@@ -78,7 +84,7 @@ func LoadConf(confFile string) (*Config, error) {
 	}
 
 	// 检查配置必须项
-	if !j.Exist("rtmp") || !j.Exist("httpflv") || !j.Exist("hls") ||
+	if !j.Exist("rtmp") || !j.Exist("httpflv") || !j.Exist("hls") || !j.Exist("rtsp") ||
 		!j.Exist("relay_push") || !j.Exist("relay_pull") ||
 		!j.Exist("pprof") || !j.Exist("log") {
 		return &config, errors.New("missing key field in config file")

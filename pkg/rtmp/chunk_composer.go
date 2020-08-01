@@ -16,6 +16,8 @@ import (
 	"io"
 	"log"
 
+	"github.com/q191201771/lal/pkg/base"
+
 	"github.com/q191201771/naza/pkg/bele"
 )
 
@@ -78,8 +80,8 @@ func (c *ChunkComposer) RunLoop(reader io.Reader, cb OnCompleteMessage) error {
 				return err
 			}
 			// 包头中为绝对时间戳
-			stream.header.Timestamp = bele.BEUint24(bootstrap)
-			stream.header.TimestampAbs = stream.header.Timestamp
+			stream.timestamp = bele.BEUint24(bootstrap)
+			stream.header.TimestampAbs = stream.timestamp
 			absTsFlag = true
 			stream.header.MsgLen = bele.BEUint24(bootstrap[3:])
 			stream.header.MsgTypeID = bootstrap[6]
@@ -91,7 +93,7 @@ func (c *ChunkComposer) RunLoop(reader io.Reader, cb OnCompleteMessage) error {
 				return err
 			}
 			// 包头中为相对时间戳
-			stream.header.Timestamp = bele.BEUint24(bootstrap)
+			stream.timestamp = bele.BEUint24(bootstrap)
 			//stream.header.TimestampAbs += stream.header.Timestamp
 			stream.header.MsgLen = bele.BEUint24(bootstrap[3:])
 			stream.header.MsgTypeID = bootstrap[6]
@@ -102,7 +104,7 @@ func (c *ChunkComposer) RunLoop(reader io.Reader, cb OnCompleteMessage) error {
 				return err
 			}
 			// 包头中为相对时间戳
-			stream.header.Timestamp = bele.BEUint24(bootstrap)
+			stream.timestamp = bele.BEUint24(bootstrap)
 			//stream.header.TimestampAbs += stream.header.Timestamp
 
 		case 3:
@@ -117,19 +119,19 @@ func (c *ChunkComposer) RunLoop(reader io.Reader, cb OnCompleteMessage) error {
 		// - 测试其他客户端和ext ts相关的表现
 		// - 这部分可能还有问题，需要根据具体的case调整
 		//if stream.header.Timestamp == maxTimestampInMessageHeader {
-		if stream.header.Timestamp >= maxTimestampInMessageHeader {
+		if stream.timestamp >= maxTimestampInMessageHeader {
 			if _, err := io.ReadAtLeast(reader, bootstrap[:4], 4); err != nil {
 				return err
 			}
-			stream.header.Timestamp = bele.BEUint32(bootstrap)
+			stream.timestamp = bele.BEUint32(bootstrap)
 			//nazalog.Debugf("RTMP_CHUNK_COMPOSER ext. extTs=%d", stream.header.Timestamp)
 			switch fmt {
 			case 0:
-				stream.header.TimestampAbs = stream.header.Timestamp
+				stream.header.TimestampAbs = stream.timestamp
 			case 1:
 				fallthrough
 			case 2:
-				stream.header.TimestampAbs = stream.header.TimestampAbs - maxTimestampInMessageHeader + stream.header.Timestamp
+				stream.header.TimestampAbs = stream.header.TimestampAbs - maxTimestampInMessageHeader + stream.timestamp
 			case 3:
 				// noop
 			}
@@ -153,7 +155,7 @@ func (c *ChunkComposer) RunLoop(reader io.Reader, cb OnCompleteMessage) error {
 
 		if stream.msg.len() == stream.header.MsgLen {
 			// 对端设置了chunk size
-			if stream.header.MsgTypeID == typeidSetChunkSize {
+			if stream.header.MsgTypeID == base.RTMPTypeIDSetChunkSize {
 				val := bele.BEUint32(stream.msg.buf)
 				c.SetPeerChunkSize(val)
 			}
@@ -161,7 +163,7 @@ func (c *ChunkComposer) RunLoop(reader io.Reader, cb OnCompleteMessage) error {
 			stream.header.CSID = csid
 			if !absTsFlag {
 				// 这么处理相当于取最后一个chunk的时间戳差值，有的协议栈是取的第一个，正常来说都可以
-				stream.header.TimestampAbs += stream.header.Timestamp
+				stream.header.TimestampAbs += stream.timestamp
 			}
 			absTsFlag = false
 			//nazalog.Debugf("RTMP_CHUNK_COMPOSER cb. fmt=%d, csid=%d, header=%+v", fmt, csid, stream.header)

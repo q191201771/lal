@@ -13,6 +13,8 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/q191201771/lal/pkg/base"
+
 	"github.com/q191201771/lal/pkg/logic"
 	"github.com/q191201771/naza/pkg/bininfo"
 )
@@ -30,6 +32,7 @@ func parseFlag() string {
 	flag.Parse()
 	if *binInfoFlag {
 		_, _ = fmt.Fprint(os.Stderr, bininfo.StringifyMultiLine())
+		_, _ = fmt.Fprintln(os.Stderr, base.LALFullInfo)
 		os.Exit(0)
 	}
 	if *cf == "" {

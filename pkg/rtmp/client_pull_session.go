@@ -8,6 +8,10 @@
 
 package rtmp
 
+import "github.com/q191201771/lal/pkg/base"
+
+type OnReadRTMPAVMsg func(msg base.RTMPMsg)
+
 type PullSession struct {
 	core *ClientSession
 }

@@ -11,42 +11,43 @@ package logic
 import (
 	"testing"
 
-	"github.com/q191201771/lal/pkg/rtmp"
+	"github.com/q191201771/lal/pkg/base"
+
 	"github.com/q191201771/naza/pkg/assert"
 )
 
 func TestGOPCache_Feed(t *testing.T) {
 
-	i1 := rtmp.AVMsg{
-		Header:  rtmp.Header{CSID: 0, MsgLen: 0, Timestamp: 1, MsgTypeID: 9, MsgStreamID: 10, TimestampAbs: 0},
+	i1 := base.RTMPMsg{
+		Header:  base.RTMPHeader{CSID: 0, MsgLen: 0, MsgTypeID: 9, MsgStreamID: 10, TimestampAbs: 0},
 		Payload: []byte{23, 1},
 	}
-	p1 := rtmp.AVMsg{
-		Header:  rtmp.Header{CSID: 0, MsgLen: 0, Timestamp: 1, MsgTypeID: 9, MsgStreamID: 10, TimestampAbs: 0},
+	p1 := base.RTMPMsg{
+		Header:  base.RTMPHeader{CSID: 0, MsgLen: 0, MsgTypeID: 9, MsgStreamID: 10, TimestampAbs: 0},
 		Payload: []byte{6, 0, 1},
 	}
-	i2 := rtmp.AVMsg{
-		Header:  rtmp.Header{CSID: 0, MsgLen: 0, Timestamp: 1, MsgTypeID: 9, MsgStreamID: 10, TimestampAbs: 0},
+	i2 := base.RTMPMsg{
+		Header:  base.RTMPHeader{CSID: 0, MsgLen: 0, MsgTypeID: 9, MsgStreamID: 10, TimestampAbs: 0},
 		Payload: []byte{23, 1},
 	}
-	p2 := rtmp.AVMsg{
-		Header:  rtmp.Header{CSID: 0, MsgLen: 0, Timestamp: 1, MsgTypeID: 9, MsgStreamID: 10, TimestampAbs: 0},
+	p2 := base.RTMPMsg{
+		Header:  base.RTMPHeader{CSID: 0, MsgLen: 0, MsgTypeID: 9, MsgStreamID: 10, TimestampAbs: 0},
 		Payload: []byte{6, 0, 2},
 	}
-	i3 := rtmp.AVMsg{
-		Header:  rtmp.Header{CSID: 0, MsgLen: 0, Timestamp: 1, MsgTypeID: 9, MsgStreamID: 10, TimestampAbs: 0},
+	i3 := base.RTMPMsg{
+		Header:  base.RTMPHeader{CSID: 0, MsgLen: 0, MsgTypeID: 9, MsgStreamID: 10, TimestampAbs: 0},
 		Payload: []byte{23, 1},
 	}
-	p3 := rtmp.AVMsg{
-		Header:  rtmp.Header{CSID: 0, MsgLen: 0, Timestamp: 1, MsgTypeID: 9, MsgStreamID: 10, TimestampAbs: 0},
+	p3 := base.RTMPMsg{
+		Header:  base.RTMPHeader{CSID: 0, MsgLen: 0, MsgTypeID: 9, MsgStreamID: 10, TimestampAbs: 0},
 		Payload: []byte{6, 0, 3},
 	}
-	i4 := rtmp.AVMsg{
-		Header:  rtmp.Header{CSID: 0, MsgLen: 0, Timestamp: 1, MsgTypeID: 9, MsgStreamID: 10, TimestampAbs: 0},
+	i4 := base.RTMPMsg{
+		Header:  base.RTMPHeader{CSID: 0, MsgLen: 0, MsgTypeID: 9, MsgStreamID: 10, TimestampAbs: 0},
 		Payload: []byte{23, 1},
 	}
-	p4 := rtmp.AVMsg{
-		Header:  rtmp.Header{CSID: 0, MsgLen: 0, Timestamp: 1, MsgTypeID: 9, MsgStreamID: 10, TimestampAbs: 0},
+	p4 := base.RTMPMsg{
+		Header:  base.RTMPHeader{CSID: 0, MsgLen: 0, MsgTypeID: 9, MsgStreamID: 10, TimestampAbs: 0},
 		Payload: []byte{6, 0, 4},
 	}
 	i1f := func() []byte { return []byte{1, 1} }

@@ -11,56 +11,95 @@ package rtsp
 import (
 	"net"
 
+	"github.com/q191201771/lal/pkg/base"
+	"github.com/q191201771/lal/pkg/rtprtcp"
+	"github.com/q191201771/lal/pkg/sdp"
+
+	"github.com/q191201771/naza/pkg/unique"
+
 	"github.com/q191201771/naza/pkg/nazalog"
 )
 
-type PubSession struct {
-	StreamName   string // presentation
-	onAVPacketFn OnAVPacket
+type PubSessionObserver interface {
+	OnASC(asc []byte)
+	OnSPSPPS(sps, pps []byte)
+	OnAVPacket(pkt base.AVPacket)
+}
 
-	servers     []*UDPServer
-	audioStream *Stream
-	videoStream *Stream
+type PubSession struct {
+	UniqueKey  string
+	StreamName string // presentation
+	observer   PubSessionObserver
+
+	servers       []*UDPServer
+	audioComposer *rtprtcp.RTPComposer
+	videoComposer *rtprtcp.RTPComposer
+
+	sps []byte
+	pps []byte
+	asc []byte
 }
 
 func NewPubSession(streamName string) *PubSession {
+	uk := unique.GenUniqueKey("RTSP")
 	return &PubSession{
+		UniqueKey:  uk,
 		StreamName: streamName,
 	}
 }
 
-func (p *PubSession) SetOnAVPacket(onAVPacket OnAVPacket) {
-	p.onAVPacketFn = onAVPacket
+func (p *PubSession) SetObserver(obs PubSessionObserver) {
+	p.observer = obs
+
+	if p.sps != nil && p.pps != nil {
+		p.observer.OnSPSPPS(p.sps, p.pps)
+	}
+	if p.asc != nil {
+		p.observer.OnASC(p.asc)
+	}
 }
 
-func (p *PubSession) InitWithSDP(sdp SDP) {
+func (p *PubSession) InitWithSDP(sdpCtx sdp.SDPContext) {
+	var err error
+
 	var audioPayloadType int
 	var videoPayloadType int
 	var audioClockRate int
 	var videoClockRate int
-	for _, item := range sdp.AFmtPBaseList {
+	for _, item := range sdpCtx.AFmtPBaseList {
 		switch item.Format {
-		case RTPPacketTypeAVC:
+		case base.RTPPacketTypeAVC:
 			videoPayloadType = item.Format
-		case RTPPacketTypeAAC:
+
+			p.sps, p.pps, err = sdp.ParseSPSPPS(item)
+			if err != nil {
+				nazalog.Errorf("parse sps pps from sdp failed.")
+			}
+		case base.RTPPacketTypeAAC:
 			audioPayloadType = item.Format
+
+			p.asc, err = sdp.ParseASC(item)
+			if err != nil {
+				nazalog.Errorf("parse asc from sdp failed.")
+			}
 		default:
 			nazalog.Errorf("unknown format. fmt=%d", item.Format)
 		}
 	}
 
-	for _, item := range sdp.ARTPMapList {
+	for _, item := range sdpCtx.ARTPMapList {
 		switch item.PayloadType {
-		case RTPPacketTypeAVC:
+		case base.RTPPacketTypeAVC:
 			videoClockRate = item.ClockRate
-		case RTPPacketTypeAAC:
+		case base.RTPPacketTypeAAC:
 			audioClockRate = item.ClockRate
 		default:
 			nazalog.Errorf("unknown payloadType. type=%d", item.PayloadType)
 		}
 	}
-	p.audioStream = NewStream(audioPayloadType, audioClockRate, p.onAVPacket)
-	p.videoStream = NewStream(videoPayloadType, videoClockRate, p.onAVPacket)
+
+	p.audioComposer = rtprtcp.NewRTPComposer(audioPayloadType, audioClockRate, composerItemMaxSize, p.onAVPacket)
+	p.videoComposer = rtprtcp.NewRTPComposer(videoPayloadType, videoClockRate, composerItemMaxSize, p.onAVPacket)
 }
 
 func (p *PubSession) AddConn(conn *net.UDPConn) {
@@ -71,40 +110,35 @@ func (p *PubSession) AddConn(conn *net.UDPConn) {
 func (p *PubSession) onReadUDPPacket(b []byte, addr string, err error) {
 	// try RTCP
 	switch b[1] {
-	case RTCPPacketTypeSR:
-		parseRTCPPacket(b)
+	case rtprtcp.RTCPPacketTypeSR:
+		rtprtcp.ParseRTCPPacket(b)
 		return
 	}
 
 	// try RTP
 	packetType := b[1] & 0x7F
-	switch packetType {
-	case RTPPacketTypeAVC:
-		h, err := parseRTPPacket(b)
+	if packetType == base.RTPPacketTypeAVC || packetType == base.RTPPacketTypeAAC {
+		h, err := rtprtcp.ParseRTPPacket(b)
 		if err != nil {
 			nazalog.Errorf("read invalid rtp packet. err=%+v", err)
 		}
-		nazalog.Debugf("%+v", h)
-		var pkt RTPPacket
-		pkt.header = h
-		pkt.raw = b
-		p.videoStream.FeedAVCPacket(pkt)
-	case RTPPacketTypeAAC:
-		h, err := parseRTPPacket(b)
-		if err != nil {
-			nazalog.Errorf("read invalid rtp packet. err=%+v", err)
+		//nazalog.Debugf("%+v", h)
+		var pkt rtprtcp.RTPPacket
+		pkt.Header = h
+		pkt.Raw = b
+
+		if packetType == base.RTPPacketTypeAVC {
+			p.videoComposer.Feed(pkt)
+		} else {
+			p.audioComposer.Feed(pkt)
 		}
-		nazalog.Debugf("%+v", h)
-		var pkt RTPPacket
-		pkt.header = h
-		pkt.raw = b
-		p.audioStream.FeedAACPacket(pkt)
-	default:
+	} else {
 		nazalog.Errorf("unknown PT. pt=%d", packetType)
-		parseRTCPPacket(b)
+		rtprtcp.ParseRTCPPacket(b)
 	}
+
 }
 
-func (p *PubSession) onAVPacket(pkt AVPacket) {
-	p.onAVPacketFn(pkt)
+func (p *PubSession) onAVPacket(pkt base.AVPacket) {
+	p.observer.OnAVPacket(pkt)
 }

@@ -6,7 +6,7 @@
 //
 // Author: Chef (191201771@qq.com)
 
-package rtsp
+package rtprtcp
 
 import (
 	"github.com/q191201771/naza/pkg/bele"
@@ -105,7 +105,7 @@ type SR struct {
 	octetCnt   uint32
 }
 
-func parseRTCPPacket(b []byte) {
+func ParseRTCPPacket(b []byte) {
 	var h RTCPHeader
 	h.version = b[0] >> 6
 	h.padding = (b[0] >> 5) & 0x1
@@ -131,5 +131,5 @@ func parseSR(b []byte) {
 	s.ts = bele.BEUint32(b[16:])
 	s.pktCnt = bele.BEUint32(b[20:])
 	s.octetCnt = bele.BEUint32(b[24:])
-	nazalog.Debugf("%+v", s)
+	nazalog.Debugf("sr=%+v", s)
 }

@@ -12,21 +12,12 @@ import (
 	"encoding/hex"
 	"fmt"
 
+	"github.com/q191201771/lal/pkg/base"
+
 	log "github.com/q191201771/naza/pkg/nazalog"
 )
 
 const initMsgLen = 4096
-
-// TODO chef: 将Timestamp字段隐藏，不对外暴露
-type Header struct {
-	CSID        int
-	MsgLen      uint32 // 不包含header的大小
-	Timestamp   uint32 // NOTICE 是 rtmp 协议 header 中的时间戳，可能是绝对的，也可能是相对的。上层不应该使用这个字段，而应该使用TimestampAbs
-	MsgTypeID   uint8  // 8 audio 9 video 18 metadata
-	MsgStreamID int
-
-	TimestampAbs uint32 // 经过计算得到的流上的绝对时间戳
-}
 
 // TODO chef: 将这个buffer实现和bytes.Buffer做比较，考虑将它放入naza package中
 type StreamMsg struct {
@@ -36,8 +27,10 @@ type StreamMsg struct {
 }
 
 type Stream struct {
-	header Header
+	header base.RTMPHeader
 	msg    StreamMsg
+
+	timestamp uint32 // 注意，是rtmp chunk协议header中的时间戳，可能是绝对的，也可能是相对的。上层不应该使用这个字段，而应该使用Header.TimestampAbs
 }
 
 func NewStream() *Stream {
@@ -55,8 +48,8 @@ func (stream *Stream) toDebugString() string {
 		stream.header, stream.msg.b, hex.Dump(stream.msg.buf[:stream.msg.e]))
 }
 
-func (stream *Stream) toAVMsg() AVMsg {
-	return AVMsg{
+func (stream *Stream) toAVMsg() base.RTMPMsg {
+	return base.RTMPMsg{
 		Header:  stream.header,
 		Payload: stream.msg.buf[stream.msg.b:stream.msg.e],
 	}
