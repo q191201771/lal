@@ -66,15 +66,15 @@ const (
 )
 
 type RTPHeader struct {
-	version    uint8  // 2b  *
-	padding    uint8  // 1b
-	extension  uint8  // 1
-	csrcCount  uint8  // 4b
-	mark       uint8  // 1b  *
-	packetType uint8  // 7b
-	seq        uint16 // 16b **
-	timestamp  uint32 // 32b ****
-	ssrc       uint32 // 32b ****
+	Version    uint8  // 2b  *
+	Padding    uint8  // 1b
+	Extension  uint8  // 1
+	CsrcCount  uint8  // 4b
+	Mark       uint8  // 1b  *
+	PacketType uint8  // 7b
+	Seq        uint16 // 16b **
+	Timestamp  uint32 // 32b ****
+	Ssrc       uint32 // 32b **** Synchronization source
 
 	payloadOffset uint32
 }
@@ -92,15 +92,15 @@ func ParseRTPPacket(b []byte) (h RTPHeader, err error) {
 		return
 	}
 
-	h.version = b[0] >> 6
-	h.padding = (b[0] >> 5) & 0x1
-	h.extension = (b[0] >> 4) & 0x1
-	h.csrcCount = b[0] & 0xF
-	h.mark = b[1] >> 7
-	h.packetType = b[1] & 0x7F
-	h.seq = bele.BEUint16(b[2:])
-	h.timestamp = bele.BEUint32(b[4:])
-	h.ssrc = bele.BEUint32(b[8:])
+	h.Version = b[0] >> 6
+	h.Padding = (b[0] >> 5) & 0x1
+	h.Extension = (b[0] >> 4) & 0x1
+	h.CsrcCount = b[0] & 0xF
+	h.Mark = b[1] >> 7
+	h.PacketType = b[1] & 0x7F
+	h.Seq = bele.BEUint16(b[2:])
+	h.Timestamp = bele.BEUint32(b[4:])
+	h.Ssrc = bele.BEUint32(b[8:])
 
 	h.payloadOffset = RTPFixedHeaderLength
 	return

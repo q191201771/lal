@@ -9,8 +9,9 @@
 package rtprtcp
 
 import (
+	"errors"
+
 	"github.com/q191201771/naza/pkg/bele"
-	"github.com/q191201771/naza/pkg/nazalog"
 )
 
 // -------------------------------------------
@@ -83,53 +84,63 @@ import (
 //        |                  profile-specific extensions                  |
 //        +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
 
+var ErrRTCP = errors.New("lal.rtcp: fxxk")
+
 const (
 	RTCPPacketTypeSR = 200 // Sender Report
 	RTCPPacketTypeRR = 201 // Receiver Report
+
+	RTCPVersion = 2
 )
 
 type RTCPHeader struct {
-	version       uint8  // 2b
-	padding       uint8  // 1b
-	countOrFormat uint8  // 5b
-	packetType    uint8  // 8b
-	length        uint16 // 16b, byte length = (length+1) * 4
+	Version       uint8  // 2b
+	Padding       uint8  // 1b
+	CountOrFormat uint8  // 5b
+	PacketType    uint8  // 8b
+	Length        uint16 // 16b, byte length = (length+1) * 4
 }
 
 type SR struct {
-	senderSSRC uint32
-	msw        uint32
-	lsw        uint32
-	ts         uint32
-	pktCnt     uint32
-	octetCnt   uint32
+	SenderSSRC uint32
+	MSW        uint32 // NTP timestamp, most significant word
+	LSW        uint32 // NTP timestamp, least significant word
+	Timestamp  uint32
+	PktCnt     uint32
+	OctetCnt   uint32
 }
 
-func ParseRTCPPacket(b []byte) {
+func ParseRTCPHeader(b []byte) RTCPHeader {
 	var h RTCPHeader
-	h.version = b[0] >> 6
-	h.padding = (b[0] >> 5) & 0x1
-	h.countOrFormat = b[0] & 0x1F
-	h.packetType = b[1]
-	h.length = bele.BEUint16(b[2:])
-	//nazalog.Debugf("%+v", h)
-
-	switch h.packetType {
-	case RTCPPacketTypeSR:
-		parseSR(b)
-	default:
-		nazalog.Warnf("unknown packet type. type=%d", h.packetType)
-	}
+	h.Version = b[0] >> 6
+	h.Padding = (b[0] >> 5) & 0x1
+	h.CountOrFormat = b[0] & 0x1F
+	h.PacketType = b[1]
+	h.Length = bele.BEUint16(b[2:])
+	return h
 }
 
 // rfc3550 6.4.1
-func parseSR(b []byte) {
+//
+// @param b rtcp包，包含包头
+func ParseSR(b []byte) SR {
 	var s SR
-	s.senderSSRC = bele.BEUint32(b[4:])
-	s.msw = bele.BEUint32(b[8:])
-	s.lsw = bele.BEUint32(b[12:])
-	s.ts = bele.BEUint32(b[16:])
-	s.pktCnt = bele.BEUint32(b[20:])
-	s.octetCnt = bele.BEUint32(b[24:])
-	nazalog.Debugf("sr=%+v", s)
+	s.SenderSSRC = bele.BEUint32(b[4:])
+	s.MSW = bele.BEUint32(b[8:])
+	s.LSW = bele.BEUint32(b[12:])
+	s.Timestamp = bele.BEUint32(b[16:])
+	s.PktCnt = bele.BEUint32(b[20:])
+	s.OctetCnt = bele.BEUint32(b[24:])
+	return s
+}
+
+// @param out 传出参数，注意，调用方保证长度>=4
+func (r *RTCPHeader) PackTo(out []byte) {
+	out[0] = r.Version<<6 | r.Padding<<5 | r.CountOrFormat
+	out[1] = r.PacketType
+	bele.BEPutUint16(out[2:], r.Length)
+}
+
+func (s *SR) GetMiddleNTP() uint32 {
+	return uint32(((uint64(s.MSW)<<32 | uint64(s.LSW)) << 16) >> 32)
 }

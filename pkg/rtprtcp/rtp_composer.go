@@ -17,9 +17,6 @@ import (
 // 一路音频或一路视频对应一个对象
 // 目前支持AVC和AAC
 
-// to be continued
-// 把composer改成unpacker。把stream去掉。解决时间戳问题。
-
 // TODO chef: 由于音频数据，存在多个帧放一个RTP包的情况，叫composer不一定合适了，可以改名为unpacker
 
 type RTPPacketListItem struct {
@@ -43,6 +40,8 @@ type RTPComposer struct {
 	composedSeq  uint16
 }
 
+// @param pkt: Timestamp   返回的是RTP包头中的时间戳(pts)，经过clockrate换算后的时间戳，单位毫秒
+//             PayloadType 返回的是RTPPacketTypeXXX
 type OnAVPacketComposed func(pkt base.AVPacket)
 
 func NewRTPComposer(payloadType int, clockRate int, maxSize int, onAVPacketComposed OnAVPacketComposed) *RTPComposer {
@@ -55,7 +54,7 @@ func NewRTPComposer(payloadType int, clockRate int, maxSize int, onAVPacketCompo
 }
 
 func (r *RTPComposer) Feed(pkt RTPPacket) {
-	if r.isStale(pkt.Header.seq) {
+	if r.isStale(pkt.Header.Seq) {
 		return
 	}
 	calcPositionIfNeeded(&pkt)
@@ -108,7 +107,7 @@ func (r *RTPComposer) isStale(seq uint16) bool {
 
 // 计算rtp包处于帧中的位置
 func calcPositionIfNeeded(pkt *RTPPacket) {
-	if pkt.Header.packetType != base.RTPPacketTypeAVC {
+	if pkt.Header.PacketType != base.RTPPacketTypeAVC {
 		return
 	}
 
@@ -184,7 +183,7 @@ func (r *RTPComposer) insert(pkt RTPPacket) {
 
 	p := &r.list.head
 	for ; p.next != nil; p = p.next {
-		res := CompareSeq(pkt.Header.seq, p.next.packet.Header.seq)
+		res := CompareSeq(pkt.Header.Seq, p.next.packet.Header.Seq)
 		switch res {
 		case 0:
 			return
@@ -214,7 +213,7 @@ func (r *RTPComposer) composeOneSequential() bool {
 		if first == nil {
 			return false
 		}
-		if SubSeq(first.packet.Header.seq, r.composedSeq) != 1 {
+		if SubSeq(first.packet.Header.Seq, r.composedSeq) != 1 {
 			return false
 		}
 	}
@@ -289,7 +288,7 @@ func (r *RTPComposer) composeOneAAC() bool {
 		// pau, auSize
 		//nazalog.Debugf("%d %d %s", auSize, auIndex, hex.Dump(b[pau:pau+auSize]))
 		var outPkt base.AVPacket
-		outPkt.Timestamp = first.packet.Header.timestamp / uint32(r.clockRate/1000)
+		outPkt.Timestamp = first.packet.Header.Timestamp / uint32(r.clockRate/1000)
 		outPkt.Timestamp += i * uint32((1024*1000)/r.clockRate)
 		outPkt.Payload = b[pau : pau+auSize]
 		outPkt.PayloadType = base.RTPPacketTypeAAC
@@ -301,7 +300,7 @@ func (r *RTPComposer) composeOneAAC() bool {
 	}
 
 	r.composedFlag = true
-	r.composedSeq = first.packet.Header.seq
+	r.composedSeq = first.packet.Header.Seq
 	r.list.head.next = first.next
 	r.list.size--
 	return true
@@ -317,12 +316,12 @@ func (r *RTPComposer) composeOneAVC() bool {
 	switch first.packet.positionType {
 	case PositionTypeSingle:
 		var pkt base.AVPacket
-		pkt.Timestamp = first.packet.Header.timestamp / uint32(r.clockRate/1000)
+		pkt.Timestamp = first.packet.Header.Timestamp / uint32(r.clockRate/1000)
 		pkt.Payload = first.packet.Raw[first.packet.Header.payloadOffset:]
 		pkt.PayloadType = base.RTPPacketTypeAVC
 
 		r.composedFlag = true
-		r.composedSeq = first.packet.Header.seq
+		r.composedSeq = first.packet.Header.Seq
 		r.list.head.next = first.next
 		r.list.size--
 		r.onAVPacketComposed(pkt)
@@ -335,7 +334,7 @@ func (r *RTPComposer) composeOneAVC() bool {
 			if prev == nil || p == nil {
 				return false
 			}
-			if SubSeq(p.packet.Header.seq, prev.packet.Header.seq) != 1 {
+			if SubSeq(p.packet.Header.Seq, prev.packet.Header.Seq) != 1 {
 				return false
 			}
 
@@ -345,7 +344,7 @@ func (r *RTPComposer) composeOneAVC() bool {
 				continue
 			} else if p.packet.positionType == PositionTypeMultiEnd {
 				var pkt base.AVPacket
-				pkt.Timestamp = p.packet.Header.timestamp / uint32(r.clockRate/1000)
+				pkt.Timestamp = p.packet.Header.Timestamp / uint32(r.clockRate/1000)
 
 				fuIndicator := first.packet.Raw[first.packet.Header.payloadOffset]
 				fuHeader := first.packet.Raw[first.packet.Header.payloadOffset+1]
@@ -366,7 +365,7 @@ func (r *RTPComposer) composeOneAVC() bool {
 				}
 
 				r.composedFlag = true
-				r.composedSeq = p.packet.Header.seq
+				r.composedSeq = p.packet.Header.Seq
 				r.list.head.next = p.next
 				r.list.size -= packetCount
 				r.onAVPacketComposed(pkt)

@@ -13,9 +13,11 @@ var (
 	AVPacketPTAAC = 97
 )
 
-// 目前供package rtsp使用。以后可能被多个package使用。不排除不同package使用时，字段含义也不同的情况出现
+// 目前供package rtsp使用。以后可能被多个package使用。
+// 不排除不同package使用时，字段含义也不同的情况出现。
+// 使用AVPacket的地方，应注明各字段的含义。
 type AVPacket struct {
-	Timestamp   uint32 // 绝对时间戳，单位毫秒
+	Timestamp   uint32
 	Payload     []byte
 	PayloadType int
 }

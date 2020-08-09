@@ -266,6 +266,7 @@ func (m *Muxer) updateFragment(ts uint64, boundary bool, flushRate int) {
 	discont := true
 	var f *fragmentInfo
 
+	// 注意，音频和视频是在一起检查的
 	if m.opened {
 		f = m.getFrag(m.nfrags)
 

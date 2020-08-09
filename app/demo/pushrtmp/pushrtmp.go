@@ -54,15 +54,18 @@ var br bitrate.Bitrate
 func main() {
 	filename, urlTmpl, num, isRecursive, logfile := parseFlag()
 	if logfile != "" {
-		_ = nazalog.Init(func(option *nazalog.Option) {
+		err := nazalog.Init(func(option *nazalog.Option) {
 			option.IsRotateDaily = false
 			option.Filename = logfile
 			option.IsToStdout = false
 		})
+		if err != nil {
+			_, _ = fmt.Fprintf(os.Stderr, "init nazalog failed. err=%+v", err)
+			os.Exit(1)
+		}
 	}
 
 	urls := collect(urlTmpl, num)
-	nazalog.Debug(urls, num)
 
 	tags := readAllTag(filename)
 

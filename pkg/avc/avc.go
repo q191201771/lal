@@ -342,9 +342,10 @@ func ParseSPS(payload []byte) (Context, error) {
 	if err != nil {
 		return Context{}, err
 	}
-	if t != 0x67 {
-		return Context{}, ErrAVC
-	}
+	_ = t
+	//if t != 0x67 {
+	//	return Context{}, ErrAVC
+	//}
 
 	sps.ProfileIdc, err = br.ReadBits8(8)
 	if err != nil {

@@ -14,6 +14,8 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"strconv"
+	"strings"
 	"time"
 
 	"github.com/q191201771/lal/pkg/rtmp"
@@ -190,9 +192,21 @@ func analysisVideoTag(tag httpflv.Tag) {
 					}
 					prevIDRTS = int64(tag.Header.Timestamp)
 				}
+				if avc.ParseNALUType(body[i+4]) == avc.NALUTypeSEI {
+					delay := SEIDelayMS(body[i+4 : i+4+int(naluLen)])
+					if delay != -1 {
+						buf.WriteString(fmt.Sprintf("delay: %dms", delay))
+					}
+				}
 				sliceTypeReadable, _ := avc.ParseSliceTypeReadable(body[i+4:])
 				buf.WriteString(fmt.Sprintf(" [%s(%s)] ", avc.ParseNALUTypeReadable(body[i+4]), sliceTypeReadable))
 			case typeHEVC:
+				if hevc.ParseNALUType(body[i+4]) == hevc.NALUTypeSEI {
+					delay := SEIDelayMS(body[i+4 : i+4+int(naluLen)])
+					if delay != -1 {
+						buf.WriteString(fmt.Sprintf("delay: %dms", delay))
+					}
+				}
 				buf.WriteString(fmt.Sprintf(" [%s] ", hevc.ParseNALUTypeReadable(body[i+4])))
 			}
 			i = i + 4 + int(naluLen)
@@ -201,6 +215,22 @@ func analysisVideoTag(tag httpflv.Tag) {
 	if analysisVideoTagFlag {
 		nazalog.Debug(buf.String())
 	}
+}
+
+// 注意，SEI的内容是自定义格式，解析的代码不具有通用性
+func SEIDelayMS(seiNALU []byte) int {
+	items := strings.Split(string(seiNALU), ":")
+	if len(items) != 3 {
+		return -1
+	}
+
+	a, err := strconv.ParseInt(items[1], 10, 64)
+	if err != nil {
+		return -1
+	}
+	t := time.Unix(a/1e3, a%1e3)
+	d := time.Now().Sub(t)
+	return int(d.Milliseconds())
 }
 
 func parseFlag() string {

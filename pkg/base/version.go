@@ -23,3 +23,9 @@ var (
 	//LALServerName    = "lalserver"
 	//LALGitHubRepoURL = "https://github.com/q191201771/lal"
 )
+
+// 作为HTTP客户端时，考虑User-Agent
+//
+// RTMP metadata
+// description     : Bilibili VXCode Swarm Transcoder v0.2.30(gap_fixed:False)
+// encoder         : Lavf57.83.100

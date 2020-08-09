@@ -31,10 +31,10 @@ func (obs *Obs) OnASC(asc []byte) {
 	_ = a.InitWithAACAudioSpecificConfig(asc)
 }
 func (obs *Obs) OnSPSPPS(sps, pps []byte) {
-	avcFp.Write([]byte{0, 0, 0, 1})
-	avcFp.Write(sps)
-	avcFp.Write([]byte{0, 0, 0, 1})
-	avcFp.Write(pps)
+	_, _ = avcFp.Write([]byte{0, 0, 0, 1})
+	_, _ = avcFp.Write(sps)
+	_, _ = avcFp.Write([]byte{0, 0, 0, 1})
+	_, _ = avcFp.Write(pps)
 }
 func (obs *Obs) OnAVPacket(pkt base.AVPacket) {
 	nazalog.Debugf("type=%d, ts=%d, len=%d", pkt.PayloadType, pkt.Timestamp, len(pkt.Payload))

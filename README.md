@@ -31,15 +31,15 @@ lalserver已支持：
 
 | 流连接类型 | rtmp | rtsp | hls | httpflv |
 | - | - | - | - | - |
-| pub推流   | ✔    | ✔ | - | - |
-| sub拉流   | ✔    | - | ✔ | ✔ |
-| relay转推 | ✔    | - | -  | - |
-| relay转拉 | ✔    | - | - | - |
+| pub推流        | ✔    | ✔ | - | - |
+| sub拉流        | ✔    | - | ✔ | ✔ |
+| relay push转推 | ✔    | - | - | - |
+| relay push转拉 | ✔    | - | - | - |
 
 | 编码类型 | rtmp | rtsp | hls | httpflv |
 | - | - | - | - | - |
-| aac | ✔ | ✔ | ✔ | ✔ |
-| avc/h264 | ✔ | ✔ | ✔ | ✔ |
+| aac       | ✔ | ✔ | ✔ | ✔ |
+| avc/h264  | ✔ | ✔ | ✔ | ✔ |
 | hevc/h265 | ✔ | - | - | ✔ |
 
 ### 编译，运行，体验功能
@@ -55,7 +55,7 @@ $cd $GOPATH/src/github.com/q191201771/lal
 $./build.sh
 
 # 使用 Go module
-$export GOPROXY=https://goproxy.io
+$export GOPROXY=https://goproxy.cn,https://goproxy.io
 $git clone https://github.com/q191201771/lal.git
 $cd lal
 $./build.sh
