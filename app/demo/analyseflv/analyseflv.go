@@ -230,7 +230,7 @@ func SEIDelayMS(seiNALU []byte) int {
 	}
 	t := time.Unix(a/1e3, a%1e3)
 	d := time.Now().Sub(t)
-	return int(d.Milliseconds())
+	return int(d.Nanoseconds() / 1e6)
 }
 
 func parseFlag() string {
