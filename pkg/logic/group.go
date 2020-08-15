@@ -175,7 +175,7 @@ func (group *Group) DelRTMPPubSession(session *rtmp.ServerSession) {
 	defer group.mutex.Unlock()
 
 	if session != group.rtmpPubSession {
-		nazalog.Warnf("[%s] del rtmp pub session but not match. del session=%s, group session=%s", group.UniqueKey, session.UniqueKey, group.rtmpPubSession.UniqueKey)
+		nazalog.Warnf("[%s] del rtmp pub session but not match. del session=%s, group session=%p", group.UniqueKey, session.UniqueKey, group.rtmpPubSession)
 		return
 	}
 

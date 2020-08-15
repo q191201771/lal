@@ -42,14 +42,15 @@ do
   fi
 done
 
-for file in `ls ${ROOT_DIR}/playground`
-do
-  if [ -d ${ROOT_DIR}/playground/${file} ]; then
-    echo "build" ${ROOT_DIR}/playgound/${file} "..."
-    cd ${ROOT_DIR}/playground/${file} && go build -ldflags "$LDFlags" -o ${ROOT_DIR}/${OUT_DIR}/${file}
-  fi
-done
-
+if [ -d "./playground" ]; then
+  for file in `ls ${ROOT_DIR}/playground`
+  do
+    if [ -d ${ROOT_DIR}/playground/${file} ]; then
+      echo "build" ${ROOT_DIR}/playgound/${file} "..."
+      cd ${ROOT_DIR}/playground/${file} && go build -ldflags "$LDFlags" -o ${ROOT_DIR}/${OUT_DIR}/${file}
+    fi
+  done
+fi
 
 ${ROOT_DIR}/${OUT_DIR}/lalserver -v &&
 ls -lrt ${ROOT_DIR}/${OUT_DIR} &&
