@@ -70,7 +70,7 @@ $make
 
 方式2，直接下载编译好的二进制可执行文件
 
-[点我打开《最新发布版本页面》](https://github.com/q191201771/lal/releases/latest)，下载对应平台编译好的二进制可执行文件的zip压缩包。
+[点我打开《github lal最新release版本页面》](https://github.com/q191201771/lal/releases/latest)，下载对应平台编译好的二进制可执行文件的zip压缩包。
 
 #### 运行
 
