@@ -1,7 +1,7 @@
 `/app/demo`示例程序功能简介：
 
 | demo | pub rtmp | sub rtmp | sub httpflv | 说明 |
-| - | - | - | - |
+| - | - | - | - | - |
 | pushrtmp    | ✔ | . | . | RTMP推流客户端，读取本地FLV文件，使用RTMP协议推送出去 |
 | pullrtmp    |   | ✔ | . | RTMP拉流客户端，从远端服务器拉取RTMP流，存储为本地FLV文件 |
 | pullhttpflv | . | . | ✔ | HTTP-FLV拉流客户端 |
