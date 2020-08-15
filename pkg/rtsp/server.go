@@ -26,7 +26,9 @@ import (
 )
 
 type ServerObserver interface {
-	OnNewRTSPPubSession(session *PubSession)
+	// @return 如果返回false，则表示上层要强制关闭这个推流请求
+	OnNewRTSPPubSession(session *PubSession) bool
+
 	OnDelRTSPPubSession(session *PubSession)
 }
 
@@ -118,7 +120,13 @@ func (s *Server) handleTCPConnect(conn net.Conn) {
 			s.presentation2PubSession[presentation] = pubSession
 			s.m.Unlock()
 
-			s.obs.OnNewRTSPPubSession(pubSession)
+			// TODO chef: 缺少统一释放pubsession的逻辑
+
+			// TODO chef: 我用ffmpeg向lal推rtsp流，发现lal直接关闭rtsp的连接，ffmpeg并不会退出，是否应先发送什么命令？
+			if ok := s.obs.OnNewRTSPPubSession(pubSession); !ok {
+				nazalog.Warnf("[%s] force close pubsession.", pubSession.UniqueKey)
+				break
+			}
 
 			resp := PackResponseAnnounce(headers[HeaderFieldCSeq])
 			_, _ = conn.Write([]byte(resp))

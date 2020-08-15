@@ -26,8 +26,7 @@ type PubSessionObserver interface {
 	OnASC(asc []byte)
 	OnSPSPPS(sps, pps []byte)
 
-	// @param pkt: Timestamp返回的是pts经过clockrate换算后的时间戳，单位毫秒
-	//             注意，不支持带B帧的视频流，pts和dts永远相同
+	// @param pkt: pkt结构体中字段含义见rtprtcp.OnAVPacket
 	OnAVPacket(pkt base.AVPacket)
 }
 
@@ -39,8 +38,8 @@ type PubSession struct {
 
 	rtpConn         *nazanet.UDPConnection
 	rtcpConn        *nazanet.UDPConnection
-	audioComposer   *rtprtcp.RTPComposer
-	videoComposer   *rtprtcp.RTPComposer
+	audioUnpacker   *rtprtcp.RTPUnpacker
+	videoUnpacker   *rtprtcp.RTPUnpacker
 	audioRRProducer *rtprtcp.RRProducer
 	videoRRProducer *rtprtcp.RRProducer
 	audioSsrc       uint32
@@ -111,8 +110,8 @@ func (p *PubSession) InitWithSDP(sdpCtx sdp.SDPContext) {
 		}
 	}
 
-	p.audioComposer = rtprtcp.NewRTPComposer(audioPayloadType, audioClockRate, composerItemMaxSize, p.onAVPacketComposed)
-	p.videoComposer = rtprtcp.NewRTPComposer(videoPayloadType, videoClockRate, composerItemMaxSize, p.onAVPacketComposed)
+	p.audioUnpacker = rtprtcp.NewRTPUnpacker(audioPayloadType, audioClockRate, unpackerItemMaxSize, p.onAVPacketUnpacked)
+	p.videoUnpacker = rtprtcp.NewRTPUnpacker(videoPayloadType, videoClockRate, unpackerItemMaxSize, p.onAVPacketUnpacked)
 
 	p.audioRRProducer = rtprtcp.NewRRProducer(audioClockRate)
 	p.videoRRProducer = rtprtcp.NewRRProducer(videoClockRate)
@@ -140,7 +139,7 @@ func (p *PubSession) Dispose() {
 }
 
 // callback by UDPConnection
-// TODO chef: 因为rtp和rtcp使用了两个连接，所以分成两个回调也行
+// TODO yoko: 因为rtp和rtcp使用了两个连接，所以分成两个回调也行
 func (p *PubSession) onReadUDPPacket(b []byte, remoteAddr net.Addr, err error) {
 	if err != nil {
 		nazalog.Errorf("read udp packet failed. err=%+v", err)
@@ -182,11 +181,11 @@ func (p *PubSession) onReadUDPPacket(b []byte, remoteAddr net.Addr, err error) {
 
 		if packetType == base.RTPPacketTypeAVC {
 			p.videoSsrc = h.Ssrc
-			p.videoComposer.Feed(pkt)
+			p.videoUnpacker.Feed(pkt)
 			p.videoRRProducer.FeedRTPPacket(h.Seq)
 		} else {
 			p.audioSsrc = h.Ssrc
-			p.audioComposer.Feed(pkt)
+			p.audioUnpacker.Feed(pkt)
 			p.audioRRProducer.FeedRTPPacket(h.Seq)
 		}
 
@@ -196,9 +195,13 @@ func (p *PubSession) onReadUDPPacket(b []byte, remoteAddr net.Addr, err error) {
 	nazalog.Errorf("unknown PT. pt=%d", b[1])
 }
 
-// callback by composer
-func (p *PubSession) onAVPacketComposed(pkt base.AVPacket) {
-	p.avPacketQueue.Insert(pkt)
+// callback by RTPUnpacker
+func (p *PubSession) onAVPacketUnpacked(pkt base.AVPacket) {
+	if p.audioUnpacker != nil && p.videoUnpacker != nil {
+		p.avPacketQueue.Feed(pkt)
+	} else {
+		p.observer.OnAVPacket(pkt)
+	}
 }
 
 // callback by avpacket queue

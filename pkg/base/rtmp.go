@@ -30,16 +30,20 @@ const (
 	//     AVCPacketType   UI8
 	//     CompositionTime SI24
 	//     Data            UI8[n]
-	RTMPFrameTypeKey            uint8 = 1
-	RTMPFrameTypeInter          uint8 = 2
-	RTMPCodecIDAVC              uint8 = 7
-	RTMPCodecIDHEVC             uint8 = 12
+	RTMPFrameTypeKey   uint8 = 1
+	RTMPFrameTypeInter uint8 = 2
+
+	RTMPCodecIDAVC  uint8 = 7
+	RTMPCodecIDHEVC uint8 = 12
+
 	RTMPAVCPacketTypeSeqHeader  uint8 = 0
 	RTMPAVCPacketTypeNALU       uint8 = 1
 	RTMPHEVCPacketTypeSeqHeader       = RTMPAVCPacketTypeSeqHeader
 	RTMPHEVCPacketTypeNALU            = RTMPAVCPacketTypeNALU
-	RTMPAVCKeyFrame                   = RTMPFrameTypeKey<<4 | RTMPCodecIDAVC
-	RTMPHEVCKeyFrame                  = RTMPFrameTypeKey<<4 | RTMPCodecIDHEVC
+
+	RTMPAVCKeyFrame   = RTMPFrameTypeKey<<4 | RTMPCodecIDAVC
+	RTMPHEVCKeyFrame  = RTMPFrameTypeKey<<4 | RTMPCodecIDHEVC
+	RTMPAVCInterFrame = RTMPFrameTypeInter<<4 | RTMPCodecIDAVC
 
 	// spec-video_file_format_spec_v10.pdf
 	// Audio tags

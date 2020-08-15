@@ -40,6 +40,7 @@ import (
 // TODO chef:
 // - 加上relay push
 // - 加上relay pull
+// - 加上rtspserver的测试
 
 var (
 	tt *testing.T
@@ -173,9 +174,9 @@ func InnerTestEntry(t *testing.T) {
 		})
 	assert.Equal(t, nil, err)
 	allContentMD5 := nazamd5.MD5(allContent)
-	assert.Equal(t, 52, fileNum)
-	assert.Equal(t, 7350158, len(allContent))
-	assert.Equal(t, "27f95371ea1f747cece1db3854554c9f", allContentMD5)
+	assert.Equal(t, 9, fileNum)
+	assert.Equal(t, 2219443, len(allContent))
+	assert.Equal(t, "fbccb04325eb2876c173ec6295359fef", allContentMD5)
 }
 
 func compareFile() {

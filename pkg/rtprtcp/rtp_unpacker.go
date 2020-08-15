@@ -10,14 +10,14 @@ package rtprtcp
 
 import (
 	"github.com/q191201771/lal/pkg/base"
+	"github.com/q191201771/naza/pkg/bele"
 	"github.com/q191201771/naza/pkg/nazalog"
 )
 
-// 传入RTP包，合成帧数据，并回调
-// 一路音频或一路视频对应一个对象
-// 目前支持AVC和AAC
-
-// TODO chef: 由于音频数据，存在多个帧放一个RTP包的情况，叫composer不一定合适了，可以改名为unpacker
+// 传入RTP包，合成帧数据，并回调。
+// 一路音频或一路视频各对应一个对象。
+// 目前支持AVC和AAC MPEG4-GENERIC/44100/2
+// 后续增加其他格式，可能会拆分出一些子结构体
 
 type RTPPacketListItem struct {
 	packet RTPPacket
@@ -29,41 +29,48 @@ type RTPPacketList struct {
 	size int               // 实际元素个数
 }
 
-type RTPComposer struct {
-	payloadType        int
-	clockRate          int
-	maxSize            int
-	onAVPacketComposed OnAVPacketComposed
+type RTPUnpacker struct {
+	payloadType int
+	clockRate   int
+	maxSize     int
+	onAVPacket  OnAVPacket
 
 	list         RTPPacketList
-	composedFlag bool
-	composedSeq  uint16
+	unpackedFlag bool
+	unpackedSeq  uint16
 }
 
-// @param pkt: Timestamp   返回的是RTP包头中的时间戳(pts)，经过clockrate换算后的时间戳，单位毫秒
-//             PayloadType 返回的是RTPPacketTypeXXX
-type OnAVPacketComposed func(pkt base.AVPacket)
+// @param pkt: pkt.Timestamp   RTP包头中的时间戳(pts)经过clockrate换算后的时间戳，单位毫秒
+//                             注意，不支持带B帧的视频流，pts和dts永远相同
+//             pkt.PayloadType base.RTPPacketTypeXXX
+//             pkt.Payload     如果是AAC，返回的是raw frame，一个AVPacket只包含一帧
+//                             如果是AVC，一个AVPacket可能包含多个NAL(受STAP-A影响)，所以NAL前包含4字节的长度信息
+//                             AAC引用的是接收到的RTP包中的内存块
+//                             AVC是新申请的内存块，回调结束后，内部不再使用该内存块
+type OnAVPacket func(pkt base.AVPacket)
 
-func NewRTPComposer(payloadType int, clockRate int, maxSize int, onAVPacketComposed OnAVPacketComposed) *RTPComposer {
-	return &RTPComposer{
-		payloadType:        payloadType,
-		clockRate:          clockRate,
-		maxSize:            maxSize,
-		onAVPacketComposed: onAVPacketComposed,
+func NewRTPUnpacker(payloadType int, clockRate int, maxSize int, onAVPacket OnAVPacket) *RTPUnpacker {
+	return &RTPUnpacker{
+		payloadType: payloadType,
+		clockRate:   clockRate,
+		maxSize:     maxSize,
+		onAVPacket:  onAVPacket,
 	}
 }
 
-func (r *RTPComposer) Feed(pkt RTPPacket) {
+// 输入收到的rtp包
+func (r *RTPUnpacker) Feed(pkt RTPPacket) {
 	if r.isStale(pkt.Header.Seq) {
 		return
 	}
+
 	calcPositionIfNeeded(&pkt)
 	r.insert(pkt)
 
 	// 尽可能多的合成顺序的帧
 	count := 0
 	for {
-		if !r.composeOneSequential() {
+		if !r.unpackOneSequential() {
 			break
 		}
 		count++
@@ -77,7 +84,7 @@ func (r *RTPComposer) Feed(pkt RTPPacket) {
 	// 缓存达到最大值
 	if r.list.size > r.maxSize {
 		// 尝试合成一帧发生跳跃的帧
-		if !r.composeOne() {
+		if !r.unpackOne() {
 
 			// 合成失败了，丢弃过期数据
 			r.list.head.next = r.list.head.next.next
@@ -86,7 +93,7 @@ func (r *RTPComposer) Feed(pkt RTPPacket) {
 
 		// 再次尝试，尽可能多的合成顺序的帧
 		for {
-			if !r.composeOneSequential() {
+			if !r.unpackOneSequential() {
 				break
 			}
 		}
@@ -98,14 +105,14 @@ func (r *RTPComposer) Feed(pkt RTPPacket) {
 // @return true  表示过期
 //         false 没过期
 //
-func (r *RTPComposer) isStale(seq uint16) bool {
-	if !r.composedFlag {
+func (r *RTPUnpacker) isStale(seq uint16) bool {
+	if !r.unpackedFlag {
 		return false
 	}
-	return CompareSeq(seq, r.composedSeq) <= 0
+	return CompareSeq(seq, r.unpackedSeq) <= 0
 }
 
-// 计算rtp包处于帧中的位置
+// 对AVC格式的流，计算rtp包处于帧中的位置
 func calcPositionIfNeeded(pkt *RTPPacket) {
 	if pkt.Header.PacketType != base.RTPPacketTypeAVC {
 		return
@@ -122,6 +129,7 @@ func calcPositionIfNeeded(pkt *RTPPacket) {
 	// +---------------+
 
 	outerNALUType := b[0] & 0x1F
+	//nazalog.Debugf("outerNALUType=%d", outerNALUType)
 	if outerNALUType <= NALUTypeSingleMax {
 		pkt.positionType = PositionTypeSingle
 		return
@@ -155,30 +163,36 @@ func calcPositionIfNeeded(pkt *RTPPacket) {
 		// |S|E|R|  Type   |
 		// +---------------+
 
-		//fuIndicator := b[0]
+		fuIndicator := b[0]
+		_ = fuIndicator
 		fuHeader := b[1]
 
 		startCode := (fuHeader & 0x80) != 0
 		endCode := (fuHeader & 0x40) != 0
 
 		if startCode {
-			pkt.positionType = PositionTypeMultiStart
+			pkt.positionType = PositionTypeFUAStart
 			return
 		}
 
 		if endCode {
-			pkt.positionType = PositionTypeMultiEnd
+			pkt.positionType = PositionTypeFUAEnd
 			return
 		}
 
-		pkt.positionType = PositionTypeMultiMiddle
+		pkt.positionType = PositionTypeFUAMiddle
 		return
+	} else if outerNALUType == NALUTypeSTAPA {
+		pkt.positionType = PositionTypeSTAPA
+	} else {
+		nazalog.Errorf("unknown nalu type. outerNALUType=%d", outerNALUType)
 	}
+
+	return
 }
 
-// 将rtp包插入队列中的合适位置
-func (r *RTPComposer) insert(pkt RTPPacket) {
-	//l := r.list
+// 将rtp包按seq排序插入队列中
+func (r *RTPUnpacker) insert(pkt RTPPacket) {
 	r.list.size++
 
 	p := &r.list.head
@@ -206,43 +220,42 @@ func (r *RTPComposer) insert(pkt RTPPacket) {
 	p.next = item
 }
 
-// 从头部检查，是否可以合成一个完成的帧。并且，需保证这次合成的帧的首个seq和上次处理的seq是连续的
-func (r *RTPComposer) composeOneSequential() bool {
-	if r.composedFlag {
+// 从队列头部，尝试合成一个完整的帧。保证这次合成的帧的首个seq和上次合成帧的尾部seq是连续的
+func (r *RTPUnpacker) unpackOneSequential() bool {
+	if r.unpackedFlag {
 		first := r.list.head.next
 		if first == nil {
 			return false
 		}
-		if SubSeq(first.packet.Header.Seq, r.composedSeq) != 1 {
+		if SubSeq(first.packet.Header.Seq, r.unpackedSeq) != 1 {
 			return false
 		}
 	}
 
-	return r.composeOne()
+	return r.unpackOne()
 }
 
-func (r *RTPComposer) composeOne() bool {
+// 从队列头部，尝试合成一个完整的帧。不保证这次合成的帧的首个seq和上次合成帧的尾部seq是连续的
+func (r *RTPUnpacker) unpackOne() bool {
 	switch r.payloadType {
 	case base.RTPPacketTypeAVC:
-		return r.composeOneAVC()
+		return r.unpackOneAVC()
 	case base.RTPPacketTypeAAC:
-		return r.composeOneAAC()
+		return r.unpackOneAAC()
 	}
 
 	return false
 }
 
-func (r *RTPComposer) composeOneAAC() bool {
+// AAC格式的流，尝试合成一个完整的帧
+func (r *RTPUnpacker) unpackOneAAC() bool {
 	first := r.list.head.next
 	if first == nil {
 		return false
 	}
 
 	// TODO chef:
-	// 目前只实现了AAC MPEG4-GENERIC/44100/2
-	//
-	// 只处理了一个RTP包含多个音频包的情况
-	// 没有处理一个音频包跨越多个RTP包的情况
+	// 2. 只处理了一个RTP包含多个音频包的情况，没有处理一个音频包跨越多个RTP包的情况（是否有这种情况）
 
 	// rfc3640 2.11.  Global Structure of Payload Format
 	//
@@ -293,21 +306,21 @@ func (r *RTPComposer) composeOneAAC() bool {
 		outPkt.Payload = b[pau : pau+auSize]
 		outPkt.PayloadType = base.RTPPacketTypeAAC
 
-		r.onAVPacketComposed(outPkt)
+		r.onAVPacket(outPkt)
 
 		pauh += 2
 		pau += auSize
 	}
 
-	r.composedFlag = true
-	r.composedSeq = first.packet.Header.Seq
+	r.unpackedFlag = true
+	r.unpackedSeq = first.packet.Header.Seq
 	r.list.head.next = first.next
 	r.list.size--
 	return true
 }
 
-// 从头部检查，是否可以合成一个完整的帧
-func (r *RTPComposer) composeOneAVC() bool {
+// AVC格式的流，尝试合成一个完整的帧
+func (r *RTPUnpacker) unpackOneAVC() bool {
 	first := r.list.head.next
 	if first == nil {
 		return false
@@ -316,18 +329,60 @@ func (r *RTPComposer) composeOneAVC() bool {
 	switch first.packet.positionType {
 	case PositionTypeSingle:
 		var pkt base.AVPacket
-		pkt.Timestamp = first.packet.Header.Timestamp / uint32(r.clockRate/1000)
-		pkt.Payload = first.packet.Raw[first.packet.Header.payloadOffset:]
 		pkt.PayloadType = base.RTPPacketTypeAVC
+		pkt.Timestamp = first.packet.Header.Timestamp / uint32(r.clockRate/1000)
 
-		r.composedFlag = true
-		r.composedSeq = first.packet.Header.Seq
+		pkt.Payload = make([]byte, len(first.packet.Raw)-int(first.packet.Header.payloadOffset)+4)
+		bele.BEPutUint32(pkt.Payload, uint32(len(first.packet.Raw))-first.packet.Header.payloadOffset)
+		copy(pkt.Payload[4:], first.packet.Raw[first.packet.Header.payloadOffset:])
+
+		r.unpackedFlag = true
+		r.unpackedSeq = first.packet.Header.Seq
 		r.list.head.next = first.next
 		r.list.size--
-		r.onAVPacketComposed(pkt)
+		r.onAVPacket(pkt)
 
 		return true
-	case PositionTypeMultiStart:
+
+	case PositionTypeSTAPA:
+		var pkt base.AVPacket
+		pkt.PayloadType = base.RTPPacketTypeAVC
+		pkt.Timestamp = first.packet.Header.Timestamp / uint32(r.clockRate/1000)
+
+		// 跳过首字节，并且将多nalu前的2字节长度，替换成4字节长度
+		buf := first.packet.Raw[first.packet.Header.payloadOffset+1:]
+
+		// 使用两次遍历，第一次遍历找出总大小，第二次逐个拷贝，目的是使得内存块一次就申请好，不用动态扩容造成额外性能开销
+		totalSize := 0
+		for i := 0; i != len(buf); {
+			if len(buf)-i < 2 {
+				nazalog.Errorf("invalid STAP-A packet.")
+				return false
+			}
+			naluSize := int(bele.BEUint16(buf[i:]))
+			totalSize += 4 + naluSize
+			i += 2 + naluSize
+		}
+
+		pkt.Payload = make([]byte, totalSize)
+		j := 0
+		for i := 0; i != len(buf); {
+			naluSize := int(bele.BEUint16(buf[i:]))
+			bele.BEPutUint32(pkt.Payload[j:], uint32(naluSize))
+			copy(pkt.Payload[j+4:], buf[i+2:i+2+naluSize])
+			j += 4 + naluSize
+			i += 2 + naluSize
+		}
+
+		r.unpackedFlag = true
+		r.unpackedSeq = first.packet.Header.Seq
+		r.list.head.next = first.next
+		r.list.size--
+		r.onAVPacket(pkt)
+
+		return true
+
+	case PositionTypeFUAStart:
 		prev := first
 		p := first.next
 		for {
@@ -338,24 +393,39 @@ func (r *RTPComposer) composeOneAVC() bool {
 				return false
 			}
 
-			if p.packet.positionType == PositionTypeMultiMiddle {
+			if p.packet.positionType == PositionTypeFUAMiddle {
 				prev = p
 				p = p.next
 				continue
-			} else if p.packet.positionType == PositionTypeMultiEnd {
+			} else if p.packet.positionType == PositionTypeFUAEnd {
 				var pkt base.AVPacket
+				pkt.PayloadType = base.RTPPacketTypeAVC
 				pkt.Timestamp = p.packet.Header.Timestamp / uint32(r.clockRate/1000)
 
 				fuIndicator := first.packet.Raw[first.packet.Header.payloadOffset]
 				fuHeader := first.packet.Raw[first.packet.Header.payloadOffset+1]
 				naluType := (fuIndicator & 0xE0) | (fuHeader & 0x1F)
-				pkt.Payload = append(pkt.Payload, naluType)
-				pkt.PayloadType = base.RTPPacketTypeAVC
 
+				// 使用两次遍历，第一次遍历找出总大小，第二次逐个拷贝，目的是使得内存块一次就申请好，不用动态扩容造成额外性能开销
+				totalSize := 0
 				pp := first
-				packetCount := 0
 				for {
-					pkt.Payload = append(pkt.Payload, pp.packet.Raw[pp.packet.Header.payloadOffset+2:]...)
+					totalSize += len(pp.packet.Raw) - int(pp.packet.Header.payloadOffset) - 2
+					if pp == p {
+						break
+					}
+					pp = pp.next
+				}
+
+				pkt.Payload = make([]byte, totalSize+5) // 4+1
+				bele.BEPutUint32(pkt.Payload, uint32(totalSize+1))
+				pkt.Payload[4] = naluType
+				index := 5
+				packetCount := 0
+				pp = first
+				for {
+					copy(pkt.Payload[index:], pp.packet.Raw[pp.packet.Header.payloadOffset+2:])
+					index += len(pp.packet.Raw) - int(pp.packet.Header.payloadOffset) - 2
 					packetCount++
 
 					if pp == p {
@@ -364,23 +434,26 @@ func (r *RTPComposer) composeOneAVC() bool {
 					pp = pp.next
 				}
 
-				r.composedFlag = true
-				r.composedSeq = p.packet.Header.Seq
+				r.unpackedFlag = true
+				r.unpackedSeq = p.packet.Header.Seq
 				r.list.head.next = p.next
 				r.list.size -= packetCount
-				r.onAVPacketComposed(pkt)
+				r.onAVPacket(pkt)
 
 				return true
 			} else {
-				// 正常不应该出现single和start
+				// 不应该出现其他类型
 				nazalog.Errorf("invalid position type. position=%d", p.packet.positionType)
 				return false
 			}
 		}
-	case PositionTypeMultiMiddle:
+
+	case PositionTypeFUAMiddle:
 		// noop
-	case PositionTypeMultiEnd:
+	case PositionTypeFUAEnd:
 		// noop
+	default:
+		nazalog.Errorf("invalid position. pos=%d", first.packet.positionType)
 	}
 
 	return false

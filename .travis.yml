@@ -1,14 +1,16 @@
 language: go
 
+env:
+    - GIMME_OS=linux GIMME_ARCH=amd64
+    - GIMME_OS=darwin GIMME_ARCH=amd64
+    - GIMME_OS=windows GIMME_ARCH=amd64
+
 go:
   - 1.9.x
-  - tip
-
-before_install:
-  - go get -t -v ./...
+  - master
 
 script:
-  - ./test.sh
+  - make all
 
 after_success:
   - bash <(curl -s https://codecov.io/bash)

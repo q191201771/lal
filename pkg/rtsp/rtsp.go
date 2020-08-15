@@ -41,7 +41,7 @@ var (
 	minServerPort = uint16(8000)
 	maxServerPort = uint16(16000)
 
-	composerItemMaxSize = 1024
+	unpackerItemMaxSize = 1024
 )
 
 // ffmpeg -re -stream_loop -1 -i /Volumes/Data/tmp/test.flv -acodec copy -vcodec copy -f rtsp rtsp://localhost:5544/live/test110

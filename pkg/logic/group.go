@@ -12,10 +12,10 @@ import (
 	"fmt"
 	"sync"
 
-	"github.com/q191201771/lal/pkg/base"
 	"github.com/q191201771/naza/pkg/bele"
 
 	"github.com/q191201771/lal/pkg/aac"
+	"github.com/q191201771/lal/pkg/base"
 
 	"github.com/q191201771/lal/pkg/avc"
 	"github.com/q191201771/lal/pkg/rtsp"
@@ -156,21 +156,13 @@ func (group *Group) AddRTMPPubSession(session *rtmp.ServerSession) bool {
 	group.mutex.Lock()
 	defer group.mutex.Unlock()
 
-	if group.rtmpPubSession != nil {
-		nazalog.Errorf("[%s] PubSession already exist in group. old=%s, new=%s", group.UniqueKey, group.rtmpPubSession.UniqueKey, session.UniqueKey)
+	if !group.isInEmpty() {
+		nazalog.Errorf("[%s] in stream already exist. wanna add=%s", group.UniqueKey, session.UniqueKey)
 		return false
 	}
+
 	group.rtmpPubSession = session
-
-	if config.HLSConfig.Enable {
-		group.hlsMuxer = hls.NewMuxer(group.streamName, &config.HLSConfig.MuxerConfig)
-		group.hlsMuxer.Start()
-	}
-
-	if config.RelayPushConfig.Enable {
-		group.pushIfNeeded()
-	}
-
+	group.addIn()
 	session.SetPubSessionObserver(group)
 
 	return true
@@ -182,41 +174,32 @@ func (group *Group) DelRTMPPubSession(session *rtmp.ServerSession) {
 	group.mutex.Lock()
 	defer group.mutex.Unlock()
 
+	if session != group.rtmpPubSession {
+		nazalog.Warnf("[%s] del rtmp pub session but not match. del session=%s, group session=%s", group.UniqueKey, session.UniqueKey, group.rtmpPubSession.UniqueKey)
+		return
+	}
+
 	group.rtmpPubSession = nil
-
-	if config.HLSConfig.Enable && group.hlsMuxer != nil {
-		group.hlsMuxer.Dispose()
-		group.hlsMuxer = nil
-	}
-
-	if config.RelayPushConfig.Enable {
-		for _, v := range group.url2PushProxy {
-			if v.pushSession != nil {
-				v.pushSession.Dispose()
-			}
-			v.pushSession = nil
-		}
-	}
-
-	group.gopCache.Clear()
-	group.httpflvGopCache.Clear()
+	group.delIn()
 }
 
-func (group *Group) AddRTSPPubSession(session *rtsp.PubSession) {
+// TODO chef: rtsp package中，增加回调返回值判断，如果是false，将连接关掉
+func (group *Group) AddRTSPPubSession(session *rtsp.PubSession) bool {
 	nazalog.Debugf("[%s] [%s] add RTSP PubSession into group.", group.UniqueKey, session.UniqueKey)
 
 	group.mutex.Lock()
 	defer group.mutex.Unlock()
 
-	group.rtspPubSession = session
-
-	// TODO chef: 有in创建时，将hls，relay push等操作集中到一个小函数中
-	if config.HLSConfig.Enable {
-		group.hlsMuxer = hls.NewMuxer(group.streamName, &config.HLSConfig.MuxerConfig)
-		group.hlsMuxer.Start()
+	if !group.isInEmpty() {
+		nazalog.Errorf("[%s] in stream already exist. wanna add=%s", group.UniqueKey, session.UniqueKey)
+		return false
 	}
 
+	group.rtspPubSession = session
+	group.addIn()
 	session.SetObserver(group)
+
+	return true
 }
 
 func (group *Group) AddRTMPPullSession(session *rtmp.PullSession) {
@@ -224,6 +207,8 @@ func (group *Group) AddRTMPPullSession(session *rtmp.PullSession) {
 
 	group.mutex.Lock()
 	defer group.mutex.Unlock()
+
+	// TODO chef: 需要考虑，relay pull类型是和pub类型保持逻辑一致：是否判断In已经存在，是否调用func addIn
 
 	group.pullSession = session
 
@@ -242,13 +227,7 @@ func (group *Group) DelRTMPPullSession(session *rtmp.PullSession) {
 	group.pullSession = nil
 	group.isPulling = false
 
-	if config.HLSConfig.Enable && group.hlsMuxer != nil {
-		group.hlsMuxer.Dispose()
-		group.hlsMuxer = nil
-	}
-
-	group.gopCache.Clear()
-	group.httpflvGopCache.Clear()
+	group.delIn()
 }
 
 func (group *Group) AddRTMPSubSession(session *rtmp.ServerSession) {
@@ -308,26 +287,7 @@ func (group *Group) DelRTMPPushSession(url string, session *rtmp.PushSession) {
 func (group *Group) IsTotalEmpty() bool {
 	group.mutex.Lock()
 	defer group.mutex.Unlock()
-
-	hasPushSession := false
-	for _, item := range group.url2PushProxy {
-		if item.isPushing || item.pushSession != nil {
-			hasPushSession = true
-			break
-		}
-	}
-
-	return group.rtmpPubSession == nil && len(group.rtmpSubSessionSet) == 0 &&
-		len(group.httpflvSubSessionSet) == 0 &&
-		group.hlsMuxer == nil &&
-		!hasPushSession &&
-		group.pullSession == nil
-}
-
-func (group *Group) IsInEmpty() bool {
-	// TODO chef: impl me
-	// 判断所有pub、pull类型是否为空
-	return false
+	return group.isTotalEmpty()
 }
 
 // rtmp.PubSession or rtmp.PullSession
@@ -339,6 +299,7 @@ func (group *Group) OnReadRTMPAVMsg(msg base.RTMPMsg) {
 	group.broadcastRTMP(msg)
 }
 
+// rtsp.PubSession
 func (group *Group) OnASC(asc []byte) {
 	if err := group.adts.InitWithAACAudioSpecificConfig(asc); err != nil {
 		nazalog.Errorf("init with aac asc failed. err=%+v", err)
@@ -348,12 +309,14 @@ func (group *Group) OnASC(asc []byte) {
 	group.broadcastMetadataAndSeqHeader()
 }
 
+// rtsp.PubSession
 func (group *Group) OnSPSPPS(sps, pps []byte) {
 	group.sps = sps
 	group.pps = pps
 	group.broadcastMetadataAndSeqHeader()
 }
 
+// rtsp.PubSession
 func (group *Group) OnAVPacket(pkt base.AVPacket) {
 	var h base.RTMPHeader
 	var msg base.RTMPMsg
@@ -365,27 +328,31 @@ func (group *Group) OnAVPacket(pkt base.AVPacket) {
 
 		h.MsgTypeID = base.RTMPTypeIDVideo
 		h.CSID = rtmp.CSIDVideo
-		h.MsgLen = uint32(len(pkt.Payload)) + 9
+		h.MsgLen = uint32(len(pkt.Payload)) + 5
+
+		// TODO chef: 这段代码应该放在更合适的地方，或者在AVPacket中标识是否包含关键帧
+		key := false
+		for i := 0; i != len(pkt.Payload); {
+			naluSize := int(bele.BEUint32(pkt.Payload[i:]))
+			t := pkt.Payload[i+4] & 0x1F
+			if t == avc.NALUTypeIDRSlice {
+				key = true
+			}
+			i += 4 + naluSize
+		}
 
 		msg.Payload = make([]byte, h.MsgLen)
-		switch pkt.Payload[0] & 0x1F {
-		case avc.NALUTypeIDRSlice:
-			msg.Payload[0] = 0x17
-			msg.Payload[1] = 0x1
-			msg.Payload[2] = 0x0
-			msg.Payload[3] = 0x0
-			msg.Payload[4] = 0x0
-			bele.BEPutUint32(msg.Payload[5:], uint32(len(pkt.Payload)))
-			copy(msg.Payload[9:], pkt.Payload)
-		default:
-			msg.Payload[0] = 0x27
-			msg.Payload[1] = 0x1
-			msg.Payload[2] = 0x0
-			msg.Payload[3] = 0x0
-			msg.Payload[4] = 0x0
-			bele.BEPutUint32(msg.Payload[5:], uint32(len(pkt.Payload)))
-			copy(msg.Payload[9:], pkt.Payload)
+		if key {
+			msg.Payload[0] = base.RTMPAVCKeyFrame
+		} else {
+			msg.Payload[0] = base.RTMPAVCInterFrame
 		}
+		msg.Payload[1] = base.RTMPAVCPacketTypeNALU
+		msg.Payload[2] = 0x0 // cts
+		msg.Payload[3] = 0x0
+		msg.Payload[4] = 0x0
+		copy(msg.Payload[5:], pkt.Payload)
+		//nazalog.Debugf("%d %s", len(msg.Payload), hex.Dump(msg.Payload[:32]))
 	case base.AVPacketPTAAC:
 		h.TimestampAbs = pkt.Timestamp
 		h.MsgStreamID = rtmp.MSID1
@@ -677,4 +644,58 @@ func (group *Group) pushIfNeeded() {
 			group.DelRTMPPushSession(url, pushSession)
 		}(url)
 	}
+}
+
+func (group *Group) hasPushSession() bool {
+	for _, item := range group.url2PushProxy {
+		if item.isPushing || item.pushSession != nil {
+			return true
+		}
+	}
+	return false
+}
+
+func (group *Group) isTotalEmpty() bool {
+	return group.rtmpPubSession == nil && len(group.rtmpSubSessionSet) == 0 &&
+		group.rtspPubSession == nil &&
+		len(group.httpflvSubSessionSet) == 0 &&
+		group.hlsMuxer == nil &&
+		!group.hasPushSession() &&
+		group.pullSession == nil
+}
+
+func (group *Group) isInEmpty() bool {
+	return group.rtmpPubSession == nil &&
+		group.rtspPubSession == nil &&
+		group.pullSession == nil
+}
+
+func (group *Group) addIn() {
+	if config.HLSConfig.Enable {
+		group.hlsMuxer = hls.NewMuxer(group.streamName, &config.HLSConfig.MuxerConfig)
+		group.hlsMuxer.Start()
+	}
+
+	if config.RelayPushConfig.Enable {
+		group.pushIfNeeded()
+	}
+}
+
+func (group *Group) delIn() {
+	if config.HLSConfig.Enable && group.hlsMuxer != nil {
+		group.hlsMuxer.Dispose()
+		group.hlsMuxer = nil
+	}
+
+	if config.RelayPushConfig.Enable {
+		for _, v := range group.url2PushProxy {
+			if v.pushSession != nil {
+				v.pushSession.Dispose()
+			}
+			v.pushSession = nil
+		}
+	}
+
+	group.gopCache.Clear()
+	group.httpflvGopCache.Clear()
 }

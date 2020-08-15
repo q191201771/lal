@@ -150,7 +150,7 @@ func ParseASC(a AFmtPBase) ([]byte, error) {
 	if !ok {
 		return nil, ErrSDP
 	}
-	if len(v) != 4 {
+	if len(v) < 4 {
 		return nil, ErrSDP
 	}
 
@@ -158,7 +158,7 @@ func ParseASC(a AFmtPBase) ([]byte, error) {
 	if err != nil {
 		return nil, ErrSDP
 	}
-	s, err := strconv.ParseInt(v[2:], 16, 0)
+	s, err := strconv.ParseInt(v[2:4], 16, 0)
 	if err != nil {
 		return nil, ErrSDP
 	}

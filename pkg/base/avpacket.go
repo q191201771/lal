@@ -18,6 +18,6 @@ var (
 // 使用AVPacket的地方，应注明各字段的含义。
 type AVPacket struct {
 	Timestamp   uint32
-	Payload     []byte
 	PayloadType int
+	Payload     []byte
 }

@@ -41,37 +41,37 @@ if [ ! -s "./testdata/test.flv" ]; then
     if [ ! -d "./testdata" ]; then
         mkdir "./testdata"
     fi
-    wget https://github.com/q191201771/doc/raw/master/stuff/source.200kbps.768x320.flv -O ./testdata/test.flv
+    wget https://github.com/q191201771/doc/raw/master/stuff/wontcry30s.flv -O ./testdata/test.flv
     if [ ! -s "./testdata/test.flv" ]; then
-        wget https://pengrl.com/images/other/source.200kbps.768x320.flv -O ./testdata/test.flv
+        wget https://pengrl.com/images/other/wontcry30s.flv -O ./testdata/test.flv
     fi
 fi
 
 # 将测试的flv文件分别拷贝到logic，rtmp，httpflv，hls的testdata目录下
-if [ ! -s "./pkg/logic/testdata/test.flv" ]; then
+#if [ ! -s "./pkg/logic/testdata/test.flv" ]; then
     if [ ! -d "./pkg/logic/testdata" ]; then
         mkdir "./pkg/logic/testdata"
     fi
     cp ./testdata/test.flv ./pkg/logic/testdata/test.flv
-fi
-if [ ! -s "./pkg/rtmp/testdata/test.flv" ]; then
+#fi
+#if [ ! -s "./pkg/rtmp/testdata/test.flv" ]; then
     if [ ! -d "./pkg/rtmp/testdata" ]; then
         mkdir "./pkg/rtmp/testdata"
     fi
     cp ./testdata/test.flv ./pkg/rtmp/testdata/test.flv
-fi
-if [ ! -s "./pkg/httpflv/testdata/test.flv" ]; then
+#fi
+#if [ ! -s "./pkg/httpflv/testdata/test.flv" ]; then
     if [ ! -d "./pkg/httpflv/testdata" ]; then
         mkdir "./pkg/httpflv/testdata"
     fi
     cp ./testdata/test.flv ./pkg/httpflv/testdata/test.flv
-fi
-if [ ! -s "./pkg/hls/testdata/test.flv" ]; then
+#fi
+#if [ ! -s "./pkg/hls/testdata/test.flv" ]; then
     if [ ! -d "./pkg/hls/testdata" ]; then
         mkdir "./pkg/hls/testdata"
     fi
     cp ./testdata/test.flv ./pkg/hls/testdata/test.flv
-fi
+#fi
 
 # 将配置文件分别拷贝到logic，rtmp，httpflv，hls的testdata目录下
 cp ./conf/lalserver.conf.json.tmpl ./pkg/logic/testdata/lalserver.conf.json

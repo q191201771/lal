@@ -443,6 +443,8 @@ func ParseSPS(payload []byte) (Context, error) {
 	if sps.PicOrderCntType == 0 {
 		sps.Log2MaxPicOrderCntLsb, err = br.ReadGolomb()
 		sps.Log2MaxPicOrderCntLsb += 4
+	} else if sps.PicOrderCntType == 2 {
+		// noop
 	} else {
 		nazalog.Debugf("not impl yet. sps.PicOrderCntType=%d", sps.PicOrderCntType)
 		return Context{}, ErrAVC

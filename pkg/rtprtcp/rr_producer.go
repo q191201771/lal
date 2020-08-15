@@ -10,6 +10,8 @@ package rtprtcp
 
 import "time"
 
+// 通过收到的rtp包和rtcp sr包，产生rtcp rr包
+
 type RRProducer struct {
 	senderSSRC uint32
 	mediaSSRC  uint32
@@ -38,6 +40,7 @@ func NewRRProducer(clockRate int) *RRProducer {
 	}
 }
 
+// 每次收到rtp包，都将seq序号传入这个函数
 func (r *RRProducer) FeedRTPPacket(seq uint16) {
 	r.received++
 
@@ -59,6 +62,11 @@ func (r *RRProducer) FeedRTPPacket(seq uint16) {
 	r.extendedSeq = (r.cycles << 16) | uint32(r.maxSeq)
 }
 
+// 收到sr包时，产生rr包
+//
+// @param lsr: 从sr包中获取，见func SR.GetMiddleNTP
+// @return:    rr包的二进制数据
+//
 func (r *RRProducer) Produce(lsr uint32) []byte {
 	if r.baseSeq == -1 {
 		return nil

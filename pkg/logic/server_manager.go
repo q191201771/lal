@@ -202,11 +202,11 @@ func (sm *ServerManager) OnDelHTTPFLVSubSession(session *httpflv.SubSession) {
 }
 
 // ServerObserver of rtsp.Server
-func (sm *ServerManager) OnNewRTSPPubSession(session *rtsp.PubSession) {
+func (sm *ServerManager) OnNewRTSPPubSession(session *rtsp.PubSession) bool {
 	sm.mutex.Lock()
 	defer sm.mutex.Unlock()
 	group := sm.getOrCreateGroup("", session.StreamName)
-	group.AddRTSPPubSession(session)
+	return group.AddRTSPPubSession(session)
 }
 
 // ServerObserver of rtsp.Server

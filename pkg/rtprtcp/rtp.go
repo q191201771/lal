@@ -54,15 +54,16 @@ const (
 
 const (
 	NALUTypeSingleMax = 23
+	NALUTypeSTAPA     = 24 // one packet, multiple nals
 	NALUTypeFUA       = 28
 )
 
 const (
-	//PositionUnknown uint8 = 0
-	PositionTypeSingle      uint8 = 1
-	PositionTypeMultiStart  uint8 = 2
-	PositionTypeMultiMiddle uint8 = 3
-	PositionTypeMultiEnd    uint8 = 4
+	PositionTypeSingle    uint8 = 1 // <= NALUTypeSingleMax
+	PositionTypeFUAStart  uint8 = 2 // NALUTypeFUA
+	PositionTypeFUAMiddle uint8 = 3 // NALUTypeFUA
+	PositionTypeFUAEnd    uint8 = 4 // NALUTypeFUA
+	PositionTypeSTAPA     uint8 = 5 // NALUTypeSTAPA
 )
 
 type RTPHeader struct {
