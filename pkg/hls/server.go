@@ -12,6 +12,8 @@ import (
 	"net"
 	"net/http"
 
+	"github.com/q191201771/lal/pkg/base"
+
 	"github.com/q191201771/naza/pkg/nazalog"
 )
 
@@ -74,8 +76,10 @@ func (s *Server) ServeHTTP(resp http.ResponseWriter, req *http.Request) {
 	switch ri.fileType {
 	case "m3u8":
 		resp.Header().Add("Content-Type", "application/x-mpegurl")
+		resp.Header().Add("Server", base.LALHLSM3U8Server)
 	case "ts":
 		resp.Header().Add("Content-Type", "video/mp2t")
+		resp.Header().Add("Server", base.LALHLSTSServer)
 	}
 	resp.Header().Add("Cache-Control", "no-cache")
 

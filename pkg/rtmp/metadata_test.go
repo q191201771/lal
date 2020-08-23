@@ -36,5 +36,5 @@ func TestMetadata(t *testing.T) {
 	v = opa.Find("videocodecid")
 	assert.Equal(t, float64(7), v.(float64))
 	v = opa.Find("version")
-	assert.Equal(t, base.LALFullInfo, v.(string))
+	assert.Equal(t, base.LALRTMPBuildMetadataEncoder, v.(string))
 }

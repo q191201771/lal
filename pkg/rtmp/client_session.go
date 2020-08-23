@@ -9,7 +9,6 @@
 package rtmp
 
 import (
-	"encoding/hex"
 	"errors"
 	"net"
 	"net/url"
@@ -84,14 +83,13 @@ func NewClientSession(t ClientSessionType, modOptions ...ModClientSessionOption)
 	case CSTPushSession:
 		uk = unique.GenUniqueKey("RTMPPUSH")
 	}
-	log.Infof("[%s] lifecycle new rtmp client session.", uk)
 
 	option := defaultClientSessOption
 	for _, fn := range modOptions {
 		fn(&option)
 	}
 
-	return &ClientSession{
+	s := &ClientSession{
 		UniqueKey:     uk,
 		t:             t,
 		option:        option,
@@ -99,6 +97,8 @@ func NewClientSession(t ClientSessionType, modOptions ...ModClientSessionOption)
 		packer:        NewMessagePacker(),
 		chunkComposer: NewChunkComposer(),
 	}
+	log.Infof("[%s] lifecycle new rtmp ClientSession. session=%p", uk, s)
+	return s
 }
 
 // 阻塞直到收到服务端返回的 publish / play 对应结果的信令或者发生错误
@@ -141,7 +141,7 @@ func (s *ClientSession) do(rawURL string) <-chan error {
 	}
 
 	log.Infof("[%s] > W connect('%s').", s.UniqueKey, s.appName)
-	if err := s.packer.writeConnect(s.conn, s.appName, s.tcURL); err != nil {
+	if err := s.packer.writeConnect(s.conn, s.appName, s.tcURL, s.t == CSTPushSession); err != nil {
 		ch <- err
 		return ch
 	}
@@ -173,7 +173,7 @@ func (s *ClientSession) Flush() error {
 }
 
 func (s *ClientSession) Dispose() {
-	log.Infof("[%s] lifecycle dispose rtmp client session.", s.UniqueKey)
+	log.Infof("[%s] lifecycle dispose rtmp ClientSession.", s.UniqueKey)
 	_ = s.conn.Close()
 }
 
@@ -222,9 +222,7 @@ func (s *ClientSession) doDataMessageAMF0(stream *Stream) error {
 
 	switch val {
 	case "|RtmpSampleAccess":
-		// TODO chef: handle this?
-		log.Error(val)
-		log.Error(hex.Dump(stream.msg.buf[stream.msg.b:stream.msg.e]))
+		log.Debugf("[%s] < R |RtmpSampleAccess, ignore.", s.UniqueKey)
 		return nil
 	default:
 	}

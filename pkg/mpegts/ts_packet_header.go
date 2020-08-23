@@ -6,7 +6,7 @@
 //
 // Author: Chef (191201771@qq.com)
 
-package hls
+package mpegts
 
 import (
 	"github.com/q191201771/naza/pkg/nazabits"

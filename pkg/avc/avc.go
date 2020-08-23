@@ -17,7 +17,7 @@ import (
 	"github.com/q191201771/naza/pkg/nazalog"
 )
 
-// Annex B:
+// AnnexB:
 //   keywords: MPEG-2 transport stream, ElementaryStream(ES),
 //   nalu with start code.
 //   e.g. ts

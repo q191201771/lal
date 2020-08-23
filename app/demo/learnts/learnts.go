@@ -11,6 +11,8 @@ package main
 import (
 	"io/ioutil"
 
+	"github.com/q191201771/lal/pkg/mpegts"
+
 	"github.com/q191201771/lal/pkg/hls"
 	"github.com/q191201771/naza/pkg/nazalog"
 )
@@ -18,8 +20,8 @@ import (
 // 学习如何解析TS文件。注意，该程序还没有写完。
 
 var (
-	pat        hls.PAT
-	pmt        hls.PMT
+	pat        mpegts.PAT
+	pmt        mpegts.PMT
 	pid2stream map[uint16]*Stream
 )
 
@@ -29,27 +31,27 @@ type Stream struct {
 var filename = "/Volumes/Data/nrm-0.ts"
 
 func handlePacket(packet []byte) {
-	h := hls.ParseTSPacketHeader(packet)
+	h := mpegts.ParseTSPacketHeader(packet)
 	index := 4
 	nazalog.Debugf("%+v", h)
 
-	var adaptation hls.TSPacketAdaptation
+	var adaptation mpegts.TSPacketAdaptation
 	switch h.Adaptation {
-	case hls.AdaptationFieldControlNo:
+	case mpegts.AdaptationFieldControlNo:
 		// noop
-	case hls.AdaptationFieldControlFollowed:
-		adaptation = hls.ParseTSPacketAdaptation(packet[4:])
+	case mpegts.AdaptationFieldControlFollowed:
+		adaptation = mpegts.ParseTSPacketAdaptation(packet[4:])
 		index++
 	default:
 		nazalog.Warn(h.Adaptation)
 	}
 	index += int(adaptation.Length)
 
-	if h.Pid == hls.PidPAT {
+	if h.Pid == mpegts.PidPAT {
 		if h.PayloadUnitStart == 1 {
 			index++
 		}
-		pat = hls.ParsePAT(packet[index:])
+		pat = mpegts.ParsePAT(packet[index:])
 		nazalog.Debugf("%+v", pat)
 		return
 	}
@@ -58,7 +60,7 @@ func handlePacket(packet []byte) {
 		if h.PayloadUnitStart == 1 {
 			index++
 		}
-		pmt = hls.ParsePMT(packet[index:])
+		pmt = mpegts.ParsePMT(packet[index:])
 		nazalog.Debugf("%+v", pmt)
 
 		for _, ele := range pmt.ProgramElements {
@@ -74,7 +76,7 @@ func handlePacket(packet []byte) {
 
 	// 判断是否有PES
 	if h.PayloadUnitStart == 1 {
-		pes, length := hls.ParsePES(packet[index:])
+		pes, length := mpegts.ParsePES(packet[index:])
 		nazalog.Debugf("%+v, %d", pes, length)
 	}
 }

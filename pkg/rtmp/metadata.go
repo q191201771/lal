@@ -72,7 +72,7 @@ func BuildMetadata(width int, height int, audiocodecid int, videocodecid int) ([
 
 	opa = append(opa, ObjectPair{
 		Key:   "version",
-		Value: base.LALFullInfo,
+		Value: base.LALRTMPBuildMetadataEncoder,
 	})
 
 	if err := AMF0.WriteObject(buf, opa); err != nil {

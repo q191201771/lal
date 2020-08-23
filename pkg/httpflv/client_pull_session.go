@@ -15,6 +15,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/q191201771/lal/pkg/base"
+
 	"github.com/q191201771/naza/pkg/nazahttp"
 
 	"github.com/q191201771/naza/pkg/connection"
@@ -53,11 +55,12 @@ func NewPullSession(modOptions ...ModPullSessionOption) *PullSession {
 	}
 
 	uk := unique.GenUniqueKey("FLVPULL")
-	nazalog.Infof("[%s] lifecycle new PullSession.", uk)
-	return &PullSession{
+	s := &PullSession{
 		option:    option,
 		UniqueKey: uk,
 	}
+	nazalog.Infof("[%s] lifecycle new httpflv PullSession. session=%p", uk, s)
+	return s
 }
 
 type OnReadFLVTag func(tag Tag)
@@ -81,7 +84,7 @@ func (session *PullSession) Pull(rawURL string, onReadFLVTag OnReadFLVTag) error
 }
 
 func (session *PullSession) Dispose() {
-	nazalog.Infof("[%s] lifecycle dispose PullSession.", session.UniqueKey)
+	nazalog.Infof("[%s] lifecycle dispose httpflv PullSession.", session.UniqueKey)
 	_ = session.Conn.Close()
 }
 
@@ -126,8 +129,8 @@ func (session *PullSession) Connect(rawURL string) error {
 func (session *PullSession) WriteHTTPRequest() error {
 	// # 发送 http GET 请求
 	nazalog.Debugf("[%s] > W http request. GET %s", session.UniqueKey, session.pathWithQuery)
-	req := fmt.Sprintf("GET %s HTTP/1.0\r\nAccept: */*\r\nRange: byte=0-\r\nConnection: close\r\nHost: %s\r\nIcy-MetaData: 1\r\n\r\n",
-		session.pathWithQuery, session.host)
+	req := fmt.Sprintf("GET %s HTTP/1.0\r\nUser-Agent: %s\r\nAccept: */*\r\nRange: byte=0-\r\nConnection: close\r\nHost: %s\r\nIcy-MetaData: 1\r\n\r\n",
+		session.pathWithQuery, base.LALHTTPFLVPullSessionUA, session.host)
 	_, err := session.Conn.Write([]byte(req))
 	return err
 }

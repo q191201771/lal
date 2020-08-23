@@ -69,8 +69,7 @@ type ServerSession struct {
 
 func NewServerSession(obs ServerSessionObserver, conn net.Conn) *ServerSession {
 	uk := unique.GenUniqueKey("RTMPPUBSUB")
-	nazalog.Infof("[%s] lifecycle new rtmp server session. addr=%s", uk, conn.RemoteAddr().String())
-	return &ServerSession{
+	s := &ServerSession{
 		conn: connection.New(conn, func(option *connection.Option) {
 			option.ReadBufSize = readBufSize
 		}),
@@ -81,6 +80,8 @@ func NewServerSession(obs ServerSessionObserver, conn net.Conn) *ServerSession {
 		packer:        NewMessagePacker(),
 		IsFresh:       true,
 	}
+	nazalog.Infof("[%s] lifecycle new rtmp ServerSession. session=%p, remote addr=%s", uk, s, conn.RemoteAddr().String())
+	return s
 }
 
 func (s *ServerSession) RunLoop() (err error) {
@@ -101,7 +102,7 @@ func (s *ServerSession) Flush() error {
 }
 
 func (s *ServerSession) Dispose() {
-	nazalog.Infof("[%s] lifecycle dispose rtmp server session.", s.UniqueKey)
+	nazalog.Infof("[%s] lifecycle dispose rtmp ServerSession.", s.UniqueKey)
 	_ = s.conn.Close()
 }
 

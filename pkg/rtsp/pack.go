@@ -22,9 +22,8 @@ import (
 // rfc2326 10.1 OPTIONS
 // CSeq
 var ResponseOptionsTmpl = "RTSP/1.0 200 OK\r\n" +
-	"Server: " + base.LALFullInfo + "\r\n" +
+	"Server: " + base.LALRTSPOptionsResponseServer + "\r\n" +
 	"CSeq: %s\r\n" +
-	//"Public:DESCRIBE, SETUP, TEARDOWN, PLAY, PAUSE\r\n\r\n"
 	"Public:DESCRIBE, ANNOUNCE, SETUP, PLAY, PAUSE, RECORD, TEARDOWN\r\n" +
 	"\r\n"
 

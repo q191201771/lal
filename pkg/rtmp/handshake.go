@@ -12,11 +12,14 @@ import (
 	"bytes"
 	"crypto/hmac"
 	"crypto/sha256"
+	"fmt"
 	"io"
 	"time"
 
+	"github.com/q191201771/lal/pkg/base"
+
 	"github.com/q191201771/naza/pkg/bele"
-	log "github.com/q191201771/naza/pkg/nazalog"
+	"github.com/q191201771/naza/pkg/nazalog"
 )
 
 // https://pengrl.com/p/20027
@@ -222,7 +225,7 @@ func parseChallenge(c0c1 []byte) []byte {
 	//}
 	ver := bele.BEUint32(c0c1[5:])
 	if ver == 0 {
-		log.Debug("handshake simple mode.")
+		nazalog.Debug("handshake simple mode.")
 		return nil
 	}
 
@@ -231,10 +234,10 @@ func parseChallenge(c0c1 []byte) []byte {
 		offs = findDigest(c0c1[1:], 8, clientKey[:clientPartKeyLen])
 	}
 	if offs == -1 {
-		log.Warn("get digest offs failed. roll back to try simple handshake.")
+		nazalog.Warn("get digest offs failed. roll back to try simple handshake.")
 		return nil
 	}
-	log.Debug("handshake complex mode.")
+	nazalog.Debug("handshake complex mode.")
 
 	// use c0c1 digest to make a new digest
 	digest := makeDigest(c0c1[1+offs:1+offs+keyLen], serverKey[:serverFullKeyLen])
@@ -282,10 +285,8 @@ func random1528(out []byte) {
 }
 
 func init() {
-	bs := []byte{'l', 'a', 'l'}
-	bsl := len(bs)
 	random1528Buf = make([]byte, 1528)
-	for i := 0; i < 1528; i++ {
-		random1528Buf[i] = bs[i%bsl]
-	}
+	hack := fmt.Sprintf("random buf of rtmp handshake gen by %s", base.LALRTMPHandshakeWaterMark)
+	copy(random1528Buf, []byte(hack))
+	nazalog.Debug(len(random1528Buf))
 }

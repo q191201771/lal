@@ -219,6 +219,7 @@ func analysisVideoTag(tag httpflv.Tag) {
 
 // 注意，SEI的内容是自定义格式，解析的代码不具有通用性
 func SEIDelayMS(seiNALU []byte) int {
+	nazalog.Debugf("sei: %s", hex.Dump(seiNALU))
 	items := strings.Split(string(seiNALU), ":")
 	if len(items) != 3 {
 		return -1

@@ -14,6 +14,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/q191201771/lal/pkg/base"
+
 	"github.com/q191201771/naza/pkg/nazahttp"
 
 	"github.com/q191201771/naza/pkg/connection"
@@ -22,15 +24,7 @@ import (
 	"github.com/q191201771/naza/pkg/unique"
 )
 
-var flvHTTPResponseHeaderStr = "HTTP/1.1 200 OK\r\n" +
-	"Cache-Control: no-cache\r\n" +
-	"Content-Type: video/x-flv\r\n" +
-	"Connection: close\r\n" +
-	"Expires: -1\r\n" +
-	"Pragma: no-cache\r\n" +
-	"\r\n"
-
-var flvHTTPResponseHeader = []byte(flvHTTPResponseHeaderStr)
+var flvHTTPResponseHeader []byte
 
 type SubSession struct {
 	UniqueKey string
@@ -48,8 +42,7 @@ type SubSession struct {
 
 func NewSubSession(conn net.Conn) *SubSession {
 	uk := unique.GenUniqueKey("FLVSUB")
-	nazalog.Infof("[%s] lifecycle new SubSession. addr=%s", uk, conn.RemoteAddr().String())
-	return &SubSession{
+	s := &SubSession{
 		UniqueKey: uk,
 		IsFresh:   true,
 		conn: connection.New(conn, func(option *connection.Option) {
@@ -58,6 +51,8 @@ func NewSubSession(conn net.Conn) *SubSession {
 			option.WriteTimeoutMS = subSessionWriteTimeoutMS
 		}),
 	}
+	nazalog.Infof("[%s] lifecycle new httpflv SubSession. session=%p, remote addr=%s", uk, s, conn.RemoteAddr().String())
+	return s
 }
 
 // TODO chef: read request timeout
@@ -135,5 +130,19 @@ func (session *SubSession) WriteRawPacket(pkt []byte) {
 }
 
 func (session *SubSession) Dispose() {
+	nazalog.Infof("[%s] lifecycle dispose httpflv SubSession.", session.UniqueKey)
 	_ = session.conn.Close()
+}
+
+func init() {
+	flvHTTPResponseHeaderStr := "HTTP/1.1 200 OK\r\n" +
+		"Server: " + base.LALHTTPFLVSubSessionServer + "\r\n" +
+		"Cache-Control: no-cache\r\n" +
+		"Content-Type: video/x-flv\r\n" +
+		"Connection: close\r\n" +
+		"Expires: -1\r\n" +
+		"Pragma: no-cache\r\n" +
+		"\r\n"
+
+	flvHTTPResponseHeader = []byte(flvHTTPResponseHeaderStr)
 }

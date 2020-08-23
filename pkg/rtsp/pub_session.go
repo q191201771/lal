@@ -57,6 +57,7 @@ func NewPubSession(streamName string) *PubSession {
 		StreamName: streamName,
 	}
 	ps.avPacketQueue = NewAVPacketQueue(ps.onAVPacket)
+	nazalog.Infof("[%s] lifecycle new rtsp PubSession. session=%p, streamName=%s", uk, ps, streamName)
 	return ps
 }
 

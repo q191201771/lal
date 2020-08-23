@@ -14,6 +14,7 @@ package rtmp
 
 import (
 	"bytes"
+	"fmt"
 	"io"
 
 	"github.com/q191201771/lal/pkg/base"
@@ -76,17 +77,23 @@ func (packer *MessagePacker) writePeerBandwidth(writer io.Writer, val int, limit
 	return err
 }
 
-func (packer *MessagePacker) writeConnect(writer io.Writer, appName, tcURL string) error {
+// @param isPush: 推流为true，拉流为false
+func (packer *MessagePacker) writeConnect(writer io.Writer, appName, tcURL string, isPush bool) error {
 	packer.writeMessageHeader(csidOverConnection, 0, base.RTMPTypeIDCommandMessageAMF0, 0)
 	_ = AMF0.WriteString(packer.b, "connect")
 	_ = AMF0.WriteNumber(packer.b, float64(tidClientConnect))
 
-	objs := []ObjectPair{
-		{Key: "app", Value: appName},
-		{Key: "type", Value: "nonprivate"},
-		{Key: "flashVer", Value: "FMLE/3.0 (compatible; Lal0.0.1)"},
-		{Key: "tcUrl", Value: tcURL},
+	var objs []ObjectPair
+	objs = append(objs, ObjectPair{Key: "app", Value: appName})
+	objs = append(objs, ObjectPair{Key: "type", Value: "nonprivate"})
+	var flashVer string
+	if isPush {
+		flashVer = fmt.Sprintf("FMLE/3.0 (compatible; %s)", base.LALRTMPPushSessionConnectVersion)
+	} else {
+		flashVer = "LNX 9,0,124,2"
 	}
+	objs = append(objs, ObjectPair{Key: "flashVer", Value: flashVer})
+	objs = append(objs, ObjectPair{Key: "tcUrl", Value: tcURL})
 	_ = AMF0.WriteObject(packer.b, objs)
 	raw := packer.b.Bytes()
 	bele.BEPutUint24(raw[4:], uint32(len(raw)-12))
@@ -95,7 +102,7 @@ func (packer *MessagePacker) writeConnect(writer io.Writer, appName, tcURL strin
 }
 
 func (packer *MessagePacker) writeConnectResult(writer io.Writer, tid int) error {
-	packer.writeMessageHeader(csidOverConnection, 190, base.RTMPTypeIDCommandMessageAMF0, 0)
+	packer.writeMessageHeader(csidOverConnection, 0, base.RTMPTypeIDCommandMessageAMF0, 0)
 	_ = AMF0.WriteString(packer.b, "_result")
 	_ = AMF0.WriteNumber(packer.b, float64(tid))
 	objs := []ObjectPair{
@@ -108,8 +115,11 @@ func (packer *MessagePacker) writeConnectResult(writer io.Writer, tid int) error
 		{Key: "code", Value: "NetConnection.Connect.Success"},
 		{Key: "description", Value: "Connection succeeded."},
 		{Key: "objectEncoding", Value: 0},
+		{Key: "version", Value: base.LALRTMPConnectResultVersion},
 	}
 	_ = AMF0.WriteObject(packer.b, objs)
+	raw := packer.b.Bytes()
+	bele.BEPutUint24(raw[4:], uint32(len(raw)-12))
 	_, err := packer.b.WriteTo(writer)
 	return err
 }
