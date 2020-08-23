@@ -89,7 +89,7 @@ var (
 
 func init() {
 	LALVersionDot = strings.TrimPrefix(LALVersion, "v")
-	LALVersionComma = strings.ReplaceAll(LALVersionDot, ".", ",")
+	LALVersionComma = strings.Replace(LALVersionDot, ".", ",", -1)
 
 	LALRTMPConnectResultVersion = LALVersionComma
 
