@@ -159,7 +159,7 @@ func (m *Muxer) feedVideo(msg base.RTMPMsg) {
 
 		nalType := avc.ParseNALUType(msg.Payload[i])
 
-		nazalog.Debugf("[%s] hls: h264 NAL type=%d, len=%d(%d) cts=%d.", m.UniqueKey, nalType, nalBytes, len(msg.Payload), cts)
+		//nazalog.Debugf("[%s] hls: h264 NAL type=%d, len=%d(%d) cts=%d.", m.UniqueKey, nalType, nalBytes, len(msg.Payload), cts)
 
 		// sps pps前面已经缓存过了，这里就不用处理了
 		// aud有自己的生产逻辑，原流中的aud直接过滤掉
@@ -224,7 +224,7 @@ func (m *Muxer) feedVideo(msg base.RTMPMsg) {
 	frame.Raw = out
 	frame.Pid = mpegts.PidVideo
 	frame.Sid = mpegts.StreamIDVideo
-	nazalog.Debugf("[%s] WriteFrame V. dts=%d, len=%d", m.UniqueKey, frame.DTS, len(frame.Raw))
+	//nazalog.Debugf("[%s] WriteFrame V. dts=%d, len=%d", m.UniqueKey, frame.DTS, len(frame.Raw))
 	m.fragment.WriteFrame(&frame)
 	m.videoCC = frame.CC
 }
@@ -237,7 +237,7 @@ func (m *Muxer) feedAudio(msg base.RTMPMsg) {
 		return
 	}
 
-	nazalog.Debugf("[%s] hls: feedAudio. dts=%d len=%d", m.UniqueKey, msg.Header.TimestampAbs, len(msg.Payload))
+	//nazalog.Debugf("[%s] hls: feedAudio. dts=%d len=%d", m.UniqueKey, msg.Header.TimestampAbs, len(msg.Payload))
 
 	if msg.Payload[1] == 0 {
 		m.cacheAACSeqHeader(msg)
@@ -460,7 +460,7 @@ func (m *Muxer) flushAudio() {
 	frame.Raw = m.audioCacheFrames
 	frame.Pid = mpegts.PidAudio
 	frame.Sid = mpegts.StreamIDAudio
-	nazalog.Debugf("[%s] WriteFrame A. dts=%d, len=%d", m.UniqueKey, frame.DTS, len(frame.Raw))
+	//nazalog.Debugf("[%s] WriteFrame A. dts=%d, len=%d", m.UniqueKey, frame.DTS, len(frame.Raw))
 	m.fragment.WriteFrame(&frame)
 	m.audioCC = frame.CC
 
