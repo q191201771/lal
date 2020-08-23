@@ -1,3 +1,21 @@
+#### v0.14.0
+
+- [feat] lalserver实现rtsp pub功能。支持接收rtsp(rtp/rtcp)推流，转换为rtmp,httpflv,hls格式供拉流使用
+- [feat] hls.Muxer释放时，向m3u8文件写入`#EXT-X-ENDLIST`
+- [refactor] 新增package sdp，rtprtcp
+- [refactor] 新增package base，整理lal项目中各package的依赖关系
+- [refactor] 新增package mpegts，将部分package hls中代码抽离出来
+- [refactor] 重写package aac
+- [feat] 在各协议的标准字段中写入lal版本信息
+- [fix] group Dispose主动释放所有内部资源，与中继转推回调回来的消息，做同步处理，避免崩溃
+- [fix] package avc: 修复解析sps中PicOrderCntType为2无法解析的bug
+- [refactor] 重命名app/demo中的一些程序名
+- [feat] package rtmp: 增加BuildMetadata函数
+- [test] 使用wontcry30s.flv作为单元测试用的音视频文件
+- [chore] 使用Makefile管理build, test
+- [doc] 增加文档: https://pengrl.com/p/20080/
+- [log] 整理所有session的日志
+
 #### v0.13.0
 
 - [feat] package httpflv: pull拉流时，携带url参数
