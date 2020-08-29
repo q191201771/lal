@@ -79,6 +79,8 @@ func InnerTestEntry(t *testing.T) {
 	config, err := logic.LoadConf(confFile)
 	assert.Equal(t, nil, err)
 
+	_ = os.RemoveAll(config.HLSConfig.OutPath)
+
 	pushURL = fmt.Sprintf("rtmp://127.0.0.1%s/live/innertest", config.RTMPConfig.Addr)
 	httpflvPullURL = fmt.Sprintf("http://127.0.0.1%s/live/innertest.flv", config.HTTPFLVConfig.SubListenAddr)
 	rtmpPullURL = fmt.Sprintf("rtmp://127.0.0.1%s/live/innertest", config.RTMPConfig.Addr)
@@ -166,7 +168,7 @@ func InnerTestEntry(t *testing.T) {
 	err = filebatch.Walk(
 		fmt.Sprintf("%sinnertest", config.HLSConfig.OutPath),
 		false,
-		"",
+		".ts",
 		func(path string, info os.FileInfo, content []byte, err error) []byte {
 			allContent = append(allContent, content...)
 			fileNum++
@@ -174,9 +176,9 @@ func InnerTestEntry(t *testing.T) {
 		})
 	assert.Equal(t, nil, err)
 	allContentMD5 := nazamd5.MD5(allContent)
-	assert.Equal(t, 9, fileNum)
-	assert.Equal(t, 2219443, len(allContent))
-	assert.Equal(t, "fbccb04325eb2876c173ec6295359fef", allContentMD5)
+	assert.Equal(t, 8, fileNum)
+	assert.Equal(t, 2219152, len(allContent))
+	assert.Equal(t, "48db6251d40c271fd11b05650f074e0f", allContentMD5)
 }
 
 func compareFile() {

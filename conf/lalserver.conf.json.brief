@@ -16,6 +16,10 @@
     "fragment_duration_ms": 3000, // 单个TS文件切片时长，单位毫秒
     "fragment_num": 6             // M3U8文件列表中TS文件的数量
   },
+  "httpts": {
+    "enable": true, // 是否开启HTTP-TS服务的监听。注意，这并不是HLS中的TS，而是在一条HTTP长连接上持续性传输TS流
+    "sub_listen_addr": ":8082" // HTTP-TS拉流地址
+  },
   "rtsp": {
     "enable": true, // 是否开启rtsp服务的监听，目前只支持rtsp推流
     "addr": ":5544" // rtsp推流地址

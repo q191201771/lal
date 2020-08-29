@@ -21,8 +21,8 @@ import (
 
 // 临时小工具，比较两个TS文件。注意，该程序还没有写完。
 
-var filename1 = "/tmp/lal/hls/innertest/innertest-0.ts"
-var filename2 = "/tmp/lal/hls/new/innertest-0.ts"
+var filename1 = "/tmp/lal/hls/innertest/innertest-7.ts"
+var filename2 = "/tmp/lal/hls/innertest.bak/innertest-7.ts"
 
 func skipPacketFilter(tss [][]byte) (ret [][]byte) {
 	for _, ts := range tss {
@@ -65,8 +65,8 @@ func main() {
 	content2, err := ioutil.ReadFile(filename2)
 	nazalog.Assert(nil, err)
 
-	tss1 := hls.SplitFragment2TSPackets(content1)
-	tss2 := hls.SplitFragment2TSPackets(content2)
+	tss1, _ := hls.SplitFragment2TSPackets(content1)
+	tss2, _ := hls.SplitFragment2TSPackets(content2)
 
 	nazalog.Debugf("num of ts1=%d, num of ts2=%d", len(tss1), len(tss2))
 
@@ -87,7 +87,6 @@ func main() {
 			parsePacket(tss2[i])
 			nazalog.Debugf("\n%s", hex.Dump(tss1[i]))
 			nazalog.Debugf("\n%s", hex.Dump(tss2[i]))
-			//break
 		}
 	}
 

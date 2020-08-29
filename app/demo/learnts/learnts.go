@@ -87,7 +87,7 @@ func main() {
 	content, err := ioutil.ReadFile(filename)
 	nazalog.Assert(nil, err)
 
-	packets := hls.SplitFragment2TSPackets(content)
+	packets, _ := hls.SplitFragment2TSPackets(content)
 
 	for _, packet := range packets {
 		handlePacket(packet)

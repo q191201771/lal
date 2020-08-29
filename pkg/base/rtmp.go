@@ -55,7 +55,7 @@ const (
 	//   AACAUDIODATA
 	//     AACPacketType UI8
 	//     Data          UI8[n]
-	RTMPSoundFormatACC         uint8 = 10
+	RTMPSoundFormatAAC         uint8 = 10
 	RTMPAACPacketTypeSeqHeader       = 0
 	RTMPAACPacketTypeRaw             = 1
 )
@@ -98,5 +98,5 @@ func (msg RTMPMsg) IsVideoKeyNALU() bool {
 }
 
 func (msg RTMPMsg) IsAACSeqHeader() bool {
-	return msg.Header.MsgTypeID == RTMPTypeIDAudio && (msg.Payload[0]>>4) == RTMPSoundFormatACC && msg.Payload[1] == RTMPAACPacketTypeSeqHeader
+	return msg.Header.MsgTypeID == RTMPTypeIDAudio && (msg.Payload[0]>>4) == RTMPSoundFormatAAC && msg.Payload[1] == RTMPAACPacketTypeSeqHeader
 }

@@ -25,8 +25,9 @@ import (
 // rootPath="/tmp/lal/hls/"
 //
 // 则
-// http://127.0.0.1:8081/hls/test110/playlist.m3u8 -> /tmp/lal/hls/test110/playlist.m3u8
-// http://127.0.0.1:8081/hls/test110/test110-0.ts  -> /tmp/lal/hls/test110/test110-0.ts
+// http://127.0.0.1:8081/hls/test110/playlist.m3u8  -> /tmp/lal/hls/test110/playlist.m3u8
+// http://127.0.0.1:8081/hls/test110/record.m3u8    -> /tmp/lal/hls/test110/record.m3u8
+// http://127.0.0.1:8081/hls/test110/timestamp-0.ts -> /tmp/lal/hls/test110/timestamp-0.ts
 
 type requestInfo struct {
 	fileName   string
@@ -35,9 +36,10 @@ type requestInfo struct {
 }
 
 // RequestURI example:
-// uri                                             -> fileName      streamName fileType
-// http://127.0.0.1:8081/hls/test110/playlist.m3u8 -> playlist.m3u8 test110    m3u8
-// http://127.0.0.1:8081/hls/test110/test110-0.ts  -> test110-0.ts  test110    ts
+// uri                                              -> fileName       streamName fileType
+// http://127.0.0.1:8081/hls/test110/playlist.m3u8  -> playlist.m3u8  test110    m3u8
+// http://127.0.0.1:8081/hls/test110/record.m3u8    -> record.m3u8    test110    m3u8
+// http://127.0.0.1:8081/hls/test110/timestamp-0.ts -> timestamp-0.ts test110    ts
 func parseRequestInfo(uri string) (ri requestInfo) {
 	ss := strings.Split(uri, "/")
 	if len(ss) < 2 {
@@ -68,10 +70,14 @@ func getM3U8Filename(outpath string, streamName string) string {
 	return fmt.Sprintf("%s%s.m3u8", outpath, "playlist")
 }
 
-func getTSFilename(outpath string, streamName string, id int) string {
-	return fmt.Sprintf("%s%s-%d.ts", outpath, streamName, id)
+func getRecordM3U8Filename(outpath string, streamName string) string {
+	return fmt.Sprintf("%s%s.m3u8", outpath, "record")
 }
 
-func getTSFilenameWithoutPath(streamName string, id int) string {
-	return fmt.Sprintf("%s-%d.ts", streamName, id)
+func getTSFilenameWithPath(outpath string, filename string) string {
+	return fmt.Sprintf("%s%s", outpath, filename)
+}
+
+func getTSFilename(streamName string, id int, timestamp int) string {
+	return fmt.Sprintf("%d-%d.ts", timestamp, id)
 }

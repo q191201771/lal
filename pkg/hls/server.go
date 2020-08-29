@@ -55,7 +55,6 @@ func (s *Server) ServeHTTP(resp http.ResponseWriter, req *http.Request) {
 
 	// TODO chef:
 	// - check appname in URI path
-	// - DIY 404 response body
 
 	ri := parseRequestInfo(req.RequestURI)
 	//nazalog.Debugf("%+v", ri)

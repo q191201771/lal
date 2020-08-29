@@ -16,7 +16,7 @@ import "strings"
 // 并且将这些信息打入可执行文件、日志、各协议中的标准版本字段中
 
 // 版本，该变量由build脚本修改维护
-var LALVersion = "v0.13.0"
+var LALVersion = "v0.14.0"
 
 var (
 	LALLibraryName = "lal"
@@ -62,6 +62,9 @@ var (
 
 	// e.g. lal0.12.3
 	LALRTSPOptionsResponseServer string
+
+	// e.g. lal0.12.3
+	LALHTTPTSSubSessionServer string
 )
 
 // - rtmp handshake random buf
@@ -86,6 +89,8 @@ var (
 // - rtsp
 //     - Options response `Server:`
 //
+// - httpts sub
+//     - `server:`
 
 func init() {
 	LALVersionDot = strings.TrimPrefix(LALVersion, "v")
@@ -99,6 +104,7 @@ func init() {
 	LALHLSM3U8Server = LALLibraryName + LALVersionDot
 	LALHLSTSServer = LALLibraryName + LALVersionDot
 	LALRTSPOptionsResponseServer = LALLibraryName + LALVersionDot
+	LALHTTPTSSubSessionServer = LALLibraryName + LALVersionDot
 
 	LALHTTPFLVPullSessionUA = LALLibraryName + "/" + LALVersionDot
 

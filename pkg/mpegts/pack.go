@@ -8,31 +8,37 @@
 
 package mpegts
 
-// MPEG: Moving Picture Experts Group
-
 type Frame struct {
 	PTS uint64
 	DTS uint64
-	Pid uint16 // PID of PES Header
-	Sid uint8  // stream_id of PES Header
-	CC  uint8  // continuity_counter of TS Header
+	CC  uint8 // continuity_counter of TS Header
+
+	// PID of PES Header
+	// 音频 mpegts.PidAudio
+	// 视频 mpegts.PidVideo
+	Pid uint16
+
+	// stream_id of PES Header
+	// 音频 mpegts.StreamIDAudio
+	// 视频 mpegts.StreamIDVideo
+	Sid uint8
+
+	// 音频 全部为false
+	// 视频 关键帧为true，非关键帧为false
 	Key bool
+
+	// 音频AAC 格式为2字节ADTS头加raw frame
+	// 视频AVC 格式为AnnexB
 	Raw []byte
 }
 
 // @param packet: 188字节大小的TS包，注意，一次Pack对应的多个TSPacket，复用的是一块内存
-// @param cc:     当前TS包的continuity_counter
 //
-type OnTSPacket func(packet []byte, cc uint8)
+type OnTSPacket func(packet []byte)
 
-// @param frame: frame.CC  注意，内部会修改frame.CC的值，外部在调用结束后，可保持CC的值，供下次调用时使用
-//               frame.Pid 音频设置为mpegts.PidAudio，视频设置为mpegts.PidVideo
-//               frame.Sid 音频设置为mpegts.StreamIDAudio，视频设置为mpegts.StreamIDVideo
-//               frame.Key 是否是关键帧，一般用于视频格式，音频全部设置为false
-//
-//               frame.Raw 如果是AVC类型，格式为AnnexB
-//                         如果是AAC类型，格式为2字节ADTS头加raw frame
-//                         函数内部不会持有该内存块
+// @param frame: 各字段含义见mpegts.Frame结构体定义
+//               frame.CC  注意，内部会修改frame.CC的值，外部在调用结束后，可保存CC的值，供下次调用时使用
+//               frame.Raw 函数调用结束后，内部不会持有该内存块
 //
 // @param onTSPacket: 注意，一次函数调用，可能对应多次回调
 //
@@ -213,7 +219,7 @@ func PackTSPacket(frame *Frame, onTSPacket OnTSPacket) {
 			lpos = rpos
 		}
 
-		onTSPacket(packet, frame.CC)
+		onTSPacket(packet)
 	}
 }
 

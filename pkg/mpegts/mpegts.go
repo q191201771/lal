@@ -8,6 +8,8 @@
 
 package mpegts
 
+// MPEG: Moving Picture Experts Group
+
 // 每个TS文件都以固定的PAT，PMT开始
 var FixedFragmentHeader = []byte{
 	/* TS */

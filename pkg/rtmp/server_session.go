@@ -319,7 +319,7 @@ func (s *ServerSession) doPlay(tid int, stream *Stream) (err error) {
 	ss := strings.Split(s.StreamNameWithRawQuery, "?")
 	s.StreamName = ss[0]
 
-	nazalog.Infof("[%s] < R play('%s').", s.StreamName, s.UniqueKey)
+	nazalog.Infof("[%s] < R play('%s').", s.UniqueKey, s.StreamName)
 	// TODO chef: start duration reset
 
 	nazalog.Infof("[%s] > W onStatus('NetStream.Play.Start').", s.UniqueKey)

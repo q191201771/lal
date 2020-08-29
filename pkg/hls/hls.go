@@ -8,14 +8,14 @@
 
 package hls
 
+import "errors"
+
 // TODO chef:
 // - 支持HEVC
-// - 检查所有的容错处理，是否会出现
 // - 补充单元测试
 // - 配置项
 // - Server
 //     - 超时时间
-// - 考虑删除过期的TS文件，并考虑做一个全量TS的m3u8作为点播用
 
 // https://developer.apple.com/documentation/http_live_streaming/example_playlists_for_http_live_streaming/incorporating_ads_into_a_playlist
 // https://developer.apple.com/documentation/http_live_streaming/example_playlists_for_http_live_streaming/event_playlist_construction
@@ -29,6 +29,8 @@ package hls
 
 // 进来的数据称为Frame帧，188字节的封装称为TSPacket包，TS文件称为Fragment
 
+var ErrHLS = errors.New("lal.hls: fxxk")
+
 var audNal = []byte{
 	0x00, 0x00, 0x00, 0x01, 0x09, 0xf0,
 }
@@ -40,8 +42,9 @@ const (
 	maxAudioCacheDelayByVideo uint64 = 300 * 90  // 单位（毫秒*90）
 )
 
-func SplitFragment2TSPackets(content []byte) (ret [][]byte) {
+func SplitFragment2TSPackets(content []byte) (ret [][]byte, err error) {
 	if len(content)%188 != 0 {
+		err = ErrHLS
 		return
 	}
 	for {

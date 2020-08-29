@@ -23,20 +23,15 @@ func (f *Fragment) OpenFile(filename string) (err error) {
 	if err != nil {
 		return
 	}
-	f.writeFile(mpegts.FixedFragmentHeader)
-	return nil
+	err = f.WriteFile(mpegts.FixedFragmentHeader)
+	return
 }
 
-func (f *Fragment) WriteFrame(frame *mpegts.Frame) {
-	mpegts.PackTSPacket(frame, func(packet []byte, cc uint8) {
-		f.writeFile(packet)
-	})
+func (f *Fragment) WriteFile(b []byte) (err error) {
+	_, err = f.fp.Write(b)
+	return
 }
 
-func (f *Fragment) CloseFile() {
-	_ = f.fp.Close()
-}
-
-func (f *Fragment) writeFile(b []byte) {
-	_, _ = f.fp.Write(b)
+func (f *Fragment) CloseFile() error {
+	return f.fp.Close()
 }
