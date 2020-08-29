@@ -43,7 +43,7 @@ app/lalserver服务器支持的协议：
 
 基于lal开发的客户端示例程序见： [《lal/app/demo/README.md》](https://github.com/q191201771/lal/blob/master/app/demo/README.md)
 
-<img alt="Wide" src="https://pengrl.com/images/other/lalmodule.jpg">
+<img alt="Wide" src="https://pengrl.com/images/other/lalmodule.jpg?date=0829">
 
 ### 编译，运行，体验功能
 
