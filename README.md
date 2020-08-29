@@ -25,37 +25,25 @@
 
 ---
 
-app/lalserver支持的协议：
+app/lalserver服务器支持的协议：
 
-| - | sub rtmp | sub httpflv |  sub hls | sub rtsp | relay push rtmp |
+| - | sub rtmp | sub http-flv | sub http-ts | sub hls | sub rtsp | relay push rtmp |
+| - | - | - | - | - | - | - |
+| pub rtmp        | ✔ | ✔ | ✔ | ✔ | - | ✔ |
+| pub rtsp        | ✔ | ✔ | ✔ | ✔ | - | ✔ |
+| relay pull rtmp | ✔ | ✔ | ✔ | ✔ | - | . |
+
+| 编码类型 | rtmp | rtsp | hls | http-flv | http-ts |
 | - | - | - | - | - | - |
-| pub rtmp        | ✔    | ✔ | ✔ | - | ✔ |
-| pub rtsp        | ✔    | ✔ | ✔ | - | ✔ |
-| relay pull rtmp | ✔    | ✔ | ✔ | - | . |
-
-| 编码类型 | rtmp | rtsp | hls | httpflv |
-| - | - | - | - | - |
-| aac       | ✔ | ✔ | ✔ | ✔ |
-| avc/h264  | ✔ | ✔ | ✔ | ✔ |
-| hevc/h265 | ✔ | - | - | ✔ |
+| aac       | ✔ | ✔ | ✔ | ✔ | ✔ |
+| avc/h264  | ✔ | ✔ | ✔ | ✔ | ✔ |
+| hevc/h265 | ✔ | - | - | ✔ | - |
 
 表格含义见： [《流媒体传输连接类型之session client, server, pub, sub, push, pull》](https://pengrl.com/p/20080)
 
-其他客户端示例程序见： [《lal/app/demo/README.md》](https://github.com/q191201771/lal/blob/master/app/demo/README.md)
-
-### 源码框架
+基于lal开发的客户端示例程序见： [《lal/app/demo/README.md》](https://github.com/q191201771/lal/blob/master/app/demo/README.md)
 
 <img alt="Wide" src="https://pengrl.com/images/other/lalmodule.jpg">
-
-<br>
-
-简单来说，源码在`pkg/`，`app/lalserver/`，`app/demo/`三个目录下。
-
-- `pkg/`：存放各package包，供本repo的程序以及其他业务方使用
-- `app/lalserver`：基于lal编写的一个通用流媒体服务器程序入口
-- `app/demo/`：存放各种基于`lal/pkg`开发的小程序（小工具），一个子目录是一个程序，详情见各源码文件中头部的说明
-
-目前唯一的第三方依赖（我自己写的Go基础库）： [github.com/q191201771/naza](https://github.com/q191201771/naza)
 
 ### 编译，运行，体验功能
 
@@ -83,6 +71,18 @@ $./bin/lalserver -c conf/lalserver.conf.json
 快速体验lalserver服务器见： [《常见推拉流客户端软件的使用方式》](https://pengrl.com/p/20051/)
 
 lalserver详细配置见： [《配置注释文档》](https://github.com/q191201771/lal/blob/master/conf/lalserver.conf.json.brief)
+
+### 源码框架
+
+<br>
+
+简单来说，源码在`pkg/`，`app/lalserver/`，`app/demo/`三个目录下。
+
+- `pkg/`：存放各package包，供本repo的程序以及其他业务方使用
+- `app/lalserver`：基于lal编写的一个通用流媒体服务器程序入口
+- `app/demo/`：存放各种基于`lal/pkg`开发的小程序（小工具），一个子目录是一个程序，详情见各源码文件中头部的说明
+
+目前唯一的第三方依赖（我自己写的Go基础库）： [github.com/q191201771/naza](https://github.com/q191201771/naza)
 
 ### 文档
 
