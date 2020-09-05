@@ -13,7 +13,6 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
-	"strconv"
 	"time"
 
 	"github.com/q191201771/lal/pkg/mpegts"
@@ -298,45 +297,25 @@ func (m *Muxer) writeRecordPlaylist(isLast bool) {
 	}
 
 	//frag := m.getCurrFrag()
-	frag := m.getFrag(m.nfrags - 1)
-	if frag.duration > m.recordMaxFragDuration {
-		m.recordMaxFragDuration = frag.duration + 0.5
+	currFrag := m.getFrag(m.nfrags - 1)
+	if currFrag.duration > m.recordMaxFragDuration {
+		m.recordMaxFragDuration = currFrag.duration + 0.5
 	}
 
-	fragLines := fmt.Sprintf("#EXTINF:%.3f,\n%s\n", frag.duration, frag.filename)
+	fragLines := fmt.Sprintf("#EXTINF:%.3f,\n%s\n", currFrag.duration, currFrag.filename)
 
 	content, err := ioutil.ReadFile(m.recordPlayListFilename)
 	if err == nil {
 		// m3u8文件已经存在
 
 		content = bytes.TrimSuffix(content, []byte("#EXT-X-ENDLIST\n"))
-
-		// 更新 #EXT-X-TARGETDURATION
-		l := bytes.Index(content, []byte("#EXT-X-TARGETDURATION:"))
-		if l == -1 {
-			nazalog.Errorf("m3u8 file format invalid. file=%s", m.recordPlayListFilename)
-			return
-		}
-		r := bytes.Index(content[l:], []byte{'\n'})
-		if r == -1 {
-			nazalog.Errorf("m3u8 file format invalid. file=%s", m.recordPlayListFilename)
-			return
-		}
-		oldDurationStr := bytes.TrimPrefix(content[l:l+r], []byte("#EXT-X-TARGETDURATION:"))
-		oldDuration, err := strconv.Atoi(string(oldDurationStr))
+		content, err := updateTargetDurationInM3U8(content, int(m.recordMaxFragDuration))
 		if err != nil {
-			nazalog.Errorf("m3u8 file format invalid. file=%s", m.recordPlayListFilename)
+			nazalog.Errorf("[%s] update target duration failed. err=%+v", m.UniqueKey, err)
 			return
 		}
-		if int(m.recordMaxFragDuration) > oldDuration {
-			tmpContent := make([]byte, l)
-			copy(tmpContent, content[:l])
-			tmpContent = append(tmpContent, []byte(fmt.Sprintf("#EXT-X-TARGETDURATION:%d", int(m.recordMaxFragDuration)))...)
-			tmpContent = append(tmpContent, content[l+r:]...)
-			content = tmpContent
-		}
 
-		if frag.discont {
+		if currFrag.discont {
 			content = append(content, []byte("#EXT-X-DISCONTINUITY\n")...)
 		}
 
@@ -350,7 +329,7 @@ func (m *Muxer) writeRecordPlaylist(isLast bool) {
 		buf.WriteString(fmt.Sprintf("#EXT-X-TARGETDURATION:%d\n", int(m.recordMaxFragDuration)))
 		buf.WriteString(fmt.Sprintf("#EXT-X-MEDIA-SEQUENCE:%d\n\n", 0))
 
-		if frag.discont {
+		if currFrag.discont {
 			buf.WriteString("#EXT-X-DISCONTINUITY\n")
 		}
 
@@ -360,22 +339,8 @@ func (m *Muxer) writeRecordPlaylist(isLast bool) {
 		content = buf.Bytes()
 	}
 
-	var fp *os.File
-	if fp, err = os.Create(m.recordPlayListFilenameBak); err != nil {
-		nazalog.Errorf("[%s] create file failed. file=%s, err=%+v", m.UniqueKey, m.recordPlayListFilenameBak, err)
-		return
-	}
-	if _, err = fp.Write(content); err != nil {
-		nazalog.Errorf("[%s] write file failed. file=%s, err=%+v", m.UniqueKey, m.recordPlayListFilenameBak, err)
-		return
-	}
-	if err = fp.Close(); err != nil {
-		nazalog.Errorf("[%s] close file failed. file=%s, err=%+v", m.UniqueKey, m.recordPlayListFilenameBak, err)
-		return
-	}
-	if err = os.Rename(m.recordPlayListFilenameBak, m.recordPlayListFilename); err != nil {
-		nazalog.Errorf("[%s] rename file failed. err=%+v", m.UniqueKey, err)
-		return
+	if err := writeM3U8File(content, m.recordPlayListFilename, m.recordPlayListFilenameBak); err != nil {
+		nazalog.Errorf("[%s] write record m3u8 file error. err=%+v", m.UniqueKey, err)
 	}
 }
 
@@ -415,23 +380,8 @@ func (m *Muxer) writePlaylist(isLast bool) {
 		buf.WriteString("#EXT-X-ENDLIST\n")
 	}
 
-	var fp *os.File
-	var err error
-	if fp, err = os.Create(m.playlistFilenameBak); err != nil {
-		nazalog.Errorf("[%s] create file failed. file=%s, err=%+v", m.UniqueKey, m.playlistFilenameBak, err)
-		return
-	}
-	if _, err = fp.Write(buf.Bytes()); err != nil {
-		nazalog.Errorf("[%s] write file failed. file=%s, err=%+v", m.UniqueKey, m.playlistFilenameBak, err)
-		return
-	}
-	if err = fp.Close(); err != nil {
-		nazalog.Errorf("[%s] close file failed. file=%s, err=%+v", m.UniqueKey, m.playlistFilenameBak, err)
-		return
-	}
-	if err = os.Rename(m.playlistFilenameBak, m.playlistFilename); err != nil {
-		nazalog.Errorf("[%s] rename file failed. err=%+v", m.UniqueKey, err)
-		return
+	if err := writeM3U8File(buf.Bytes(), m.playlistFilename, m.playlistFilenameBak); err != nil {
+		nazalog.Errorf("[%s] write live m3u8 file error. err=%+v", m.UniqueKey, err)
 	}
 }
 

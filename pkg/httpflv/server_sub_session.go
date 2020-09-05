@@ -142,6 +142,7 @@ func init() {
 		"Connection: close\r\n" +
 		"Expires: -1\r\n" +
 		"Pragma: no-cache\r\n" +
+		"Access-Control-Allow-Origin: *\r\n" +
 		"\r\n"
 
 	flvHTTPResponseHeader = []byte(flvHTTPResponseHeaderStr)

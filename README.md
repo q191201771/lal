@@ -84,12 +84,6 @@ lalserver详细配置见： [《配置注释文档》](https://github.com/q19120
 
 目前唯一的第三方依赖（我自己写的Go基础库）： [github.com/q191201771/naza](https://github.com/q191201771/naza)
 
-### 文档
-
-* [流媒体音视频相关的点我](https://pengrl.com/categories/%E6%B5%81%E5%AA%92%E4%BD%93%E9%9F%B3%E8%A7%86%E9%A2%91/)
-* [Go语言相关的点我](https://pengrl.com/categories/Go/)
-* [我写的其他文章](https://pengrl.com/all/)
-
 ### 联系我
 
 扫码加我微信（微信号： q191201771），进行技术交流或扯淡。微信群已开放，加我好友后可拉进群。

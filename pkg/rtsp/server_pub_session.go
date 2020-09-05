@@ -119,14 +119,14 @@ func (p *PubSession) InitWithSDP(sdpCtx sdp.SDPContext) {
 }
 
 func (p *PubSession) SetRTPConn(conn *net.UDPConn) {
-	server := nazanet.NewUDPConnectionWithConn(conn, p.onReadUDPPacket)
-	go server.RunLoop()
+	server := nazanet.NewUDPConnectionWithConn(conn)
+	go server.RunLoop(p.onReadUDPPacket)
 	p.rtpConn = server
 }
 
 func (p *PubSession) SetRTCPConn(conn *net.UDPConn) {
-	server := nazanet.NewUDPConnectionWithConn(conn, p.onReadUDPPacket)
-	go server.RunLoop()
+	server := nazanet.NewUDPConnectionWithConn(conn)
+	go server.RunLoop(p.onReadUDPPacket)
 	p.rtcpConn = server
 }
 
@@ -141,15 +141,15 @@ func (p *PubSession) Dispose() {
 
 // callback by UDPConnection
 // TODO yoko: 因为rtp和rtcp使用了两个连接，所以分成两个回调也行
-func (p *PubSession) onReadUDPPacket(b []byte, remoteAddr net.Addr, err error) {
+func (p *PubSession) onReadUDPPacket(b []byte, rAddr *net.UDPAddr, err error) bool {
 	if err != nil {
 		nazalog.Errorf("read udp packet failed. err=%+v", err)
-		return
+		return true
 	}
 
 	if len(b) < 2 {
 		nazalog.Errorf("read udp packet length invalid. len=%d", len(b))
-		return
+		return true
 	}
 
 	// try RTCP
@@ -165,7 +165,7 @@ func (p *PubSession) onReadUDPPacket(b []byte, remoteAddr net.Addr, err error) {
 			rrBuf = p.videoRRProducer.Produce(sr.GetMiddleNTP())
 		}
 		_ = p.rtcpConn.Write(rrBuf)
-		return
+		return true
 	}
 
 	// try RTP
@@ -190,10 +190,11 @@ func (p *PubSession) onReadUDPPacket(b []byte, remoteAddr net.Addr, err error) {
 			p.audioRRProducer.FeedRTPPacket(h.Seq)
 		}
 
-		return
+		return true
 	}
 
 	nazalog.Errorf("unknown PT. pt=%d", b[1])
+	return true
 }
 
 // callback by RTPUnpacker

@@ -56,7 +56,7 @@ import (
 var (
 	timestampCheckFlag   = true
 	printStatFlag        = true
-	printEveryTagFlag    = false
+	printEveryTagFlag    = true
 	printMetaData        = true
 	analysisVideoTagFlag = true
 )

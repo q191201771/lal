@@ -81,6 +81,7 @@ func (s *Server) ServeHTTP(resp http.ResponseWriter, req *http.Request) {
 		resp.Header().Add("Server", base.LALHLSTSServer)
 	}
 	resp.Header().Add("Cache-Control", "no-cache")
+	resp.Header().Add("Access-Control-Allow-Origin", "*")
 
 	_, _ = resp.Write(content)
 	return
