@@ -93,7 +93,7 @@ func (s *Server) handleTCPConnect(conn net.Conn) {
 
 		switch method {
 		case MethodOptions:
-			// pub
+			// pub, sub
 			nazalog.Info("< R OPTIONS")
 			resp := PackResponseOptions(headers[HeaderFieldCSeq])
 			_, _ = conn.Write([]byte(resp))
@@ -193,6 +193,7 @@ func (s *Server) handleTCPConnect(conn net.Conn) {
 			resp := PackResponseTeardown(headers[HeaderFieldCSeq])
 			_, _ = conn.Write([]byte(resp))
 		case MethodDescribe:
+			// sub
 			nazalog.Info("< R DESCRIBE")
 			resp := PackResponseDescribe(headers[HeaderFieldCSeq])
 			_, _ = conn.Write([]byte(resp))

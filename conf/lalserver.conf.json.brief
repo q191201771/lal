@@ -5,8 +5,12 @@
     "gop_num": 2      // RTMP拉流的GOP缓存数量，加速秒开
   },
   "httpflv": {
-    "enable": true,             // 是否开启HTTP-FLV服务的监听
-    "sub_listen_addr": ":8080", // HTTP-FLV拉流地址
+    "enable": true,                       // 是否开启HTTP-FLV服务的监听
+    "sub_listen_addr": ":8080",           // HTTP-FLV拉流地址
+    "enable_https": true,                 // 是否开启HTTPS-FLV监听
+    "https_addr": ":4433",                // HTTPS-FLV拉流地址
+    "https_cert_file": "./conf/cert.pem", // cert文件地址
+    "https_key_file": "./conf/key.pem",   // key文件地址
     "gop_num": 2
   },
   "hls": {

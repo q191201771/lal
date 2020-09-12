@@ -37,6 +37,12 @@ func writeM3U8File(content []byte, filename string, filenameBak string) error {
 	return nil
 }
 
+// 如果当前duration比原m3u8文件的`EXT-X-TARGETDURATION`大，则更新`EXT-X-TARGETDURATION`的值
+//
+// @param content      原m3u8文件的内容
+// @param currDuration 当前duration
+//
+// @return 处理后的m3u8文件内容
 func updateTargetDurationInM3U8(content []byte, currDuration int) ([]byte, error) {
 	l := bytes.Index(content, []byte("#EXT-X-TARGETDURATION:"))
 	if l == -1 {

@@ -44,13 +44,13 @@ func NewServerManager() *ServerManager {
 	if config.RTMPConfig.Enable {
 		m.rtmpServer = rtmp.NewServer(m, config.RTMPConfig.Addr)
 	}
-	if config.HTTPFLVConfig.Enable {
-		m.httpflvServer = httpflv.NewServer(m, config.HTTPFLVConfig.SubListenAddr)
+	if config.HTTPFLVConfig.Enable || config.HTTPFLVConfig.EnableHTTPS {
+		m.httpflvServer = httpflv.NewServer(m, config.HTTPFLVConfig.ServerConfig)
 	}
 	if config.HLSConfig.Enable {
 		m.hlsServer = hls.NewServer(config.HLSConfig.SubListenAddr, config.HLSConfig.OutPath)
 	}
-	if config.HTTPFLVConfig.Enable {
+	if config.HTTPTSConfig.Enable {
 		m.httptsServer = httpts.NewServer(m, config.HTTPTSConfig.SubListenAddr)
 	}
 	if config.RTSPConfig.Enable {

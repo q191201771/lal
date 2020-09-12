@@ -6,11 +6,14 @@
 //
 // Author: Chef (191201771@qq.com)
 
-package stun
+package stun_test
 
 import (
 	"sync"
 	"testing"
+	"time"
+
+	"github.com/q191201771/lal/pkg/alpha/stun"
 
 	"github.com/q191201771/naza/pkg/nazalog"
 )
@@ -59,7 +62,7 @@ func TestClient(t *testing.T) {
 	for _, s := range serverAddrList {
 		wg.Add(1)
 		go func(ss string) {
-			var c Client
+			var c stun.Client
 			ip, port, err := c.Query(ss, 200)
 			nazalog.Debugf("server=%s, addr=%s:%d, err=%+v", ss, ip, port, err)
 			wg.Done()
@@ -69,4 +72,21 @@ func TestClient(t *testing.T) {
 }
 
 func TestServer(t *testing.T) {
+	var wg sync.WaitGroup
+	wg.Add(1)
+	s, err := stun.NewServer(":3478")
+	go func() {
+		err := s.RunLoop()
+		nazalog.Errorf("server loop done. err=%+v", err)
+		wg.Done()
+	}()
+
+	time.Sleep(100 * time.Millisecond)
+
+	var c stun.Client
+	ip, port, err := c.Query(":3478", 100)
+	nazalog.Debugf("query result: %s %d %+v", ip, port, err)
+	err = s.Dispose()
+	nazalog.Debugf("dispose server. err=%+v", err)
+	wg.Wait()
 }

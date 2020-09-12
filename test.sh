@@ -48,36 +48,29 @@ if [ ! -s "./testdata/test.flv" ]; then
 fi
 
 # 将测试的flv文件分别拷贝到logic，rtmp，httpflv，hls的testdata目录下
-#if [ ! -s "./pkg/logic/testdata/test.flv" ]; then
-    if [ ! -d "./pkg/logic/testdata" ]; then
-        mkdir "./pkg/logic/testdata"
-    fi
-    cp ./testdata/test.flv ./pkg/logic/testdata/test.flv
-#fi
-#if [ ! -s "./pkg/rtmp/testdata/test.flv" ]; then
-    if [ ! -d "./pkg/rtmp/testdata" ]; then
-        mkdir "./pkg/rtmp/testdata"
-    fi
-    cp ./testdata/test.flv ./pkg/rtmp/testdata/test.flv
-#fi
-#if [ ! -s "./pkg/httpflv/testdata/test.flv" ]; then
-    if [ ! -d "./pkg/httpflv/testdata" ]; then
-        mkdir "./pkg/httpflv/testdata"
-    fi
-    cp ./testdata/test.flv ./pkg/httpflv/testdata/test.flv
-#fi
-#if [ ! -s "./pkg/hls/testdata/test.flv" ]; then
-    if [ ! -d "./pkg/hls/testdata" ]; then
-        mkdir "./pkg/hls/testdata"
-    fi
-    cp ./testdata/test.flv ./pkg/hls/testdata/test.flv
-#fi
+mkdir "./pkg/logic/testdata"
+mkdir "./pkg/rtmp/testdata"
+mkdir "./pkg/httpflv/testdata"
+mkdir "./pkg/hls/testdata"
+cp ./testdata/test.flv ./pkg/logic/testdata/test.flv
+cp ./testdata/test.flv ./pkg/rtmp/testdata/test.flv
+cp ./testdata/test.flv ./pkg/httpflv/testdata/test.flv
+cp ./testdata/test.flv ./pkg/hls/testdata/test.flv
 
 # 将配置文件分别拷贝到logic，rtmp，httpflv，hls的testdata目录下
 cp ./conf/lalserver.conf.json.tmpl ./pkg/logic/testdata/lalserver.conf.json
 cp ./conf/lalserver.conf.json.tmpl ./pkg/rtmp/testdata/lalserver.conf.json
 cp ./conf/lalserver.conf.json.tmpl ./pkg/httpflv/testdata/lalserver.conf.json
 cp ./conf/lalserver.conf.json.tmpl ./pkg/hls/testdata/lalserver.conf.json
+
+mkdir "./pkg/logic/testdata/conf"
+mkdir "./pkg/rtmp/testdata/conf"
+mkdir "./pkg/httpflv/testdata/conf"
+mkdir "./pkg/hls/testdata/conf"
+cp ./conf/cert.pem ./conf/key.pem ./pkg/logic/testdata/conf/
+cp ./conf/cert.pem ./conf/key.pem ./pkg/rtmp/testdata/conf/
+cp ./conf/cert.pem ./conf/key.pem ./pkg/httpflv/testdata/conf/
+cp ./conf/cert.pem ./conf/key.pem ./pkg/hls/testdata/conf/
 
 echo "" > coverage.txt
 for d in $(go list ./... | grep -v vendor | grep pkg | grep -v innertest); do

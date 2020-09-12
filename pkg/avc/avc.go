@@ -62,7 +62,7 @@ const (
 	NALUTypeSEI      uint8 = 6
 	NALUTypeSPS      uint8 = 7
 	NALUTypePPS      uint8 = 8
-	NALUTypeAUD      uint8 = 9
+	NALUTypeAUD      uint8 = 9 // Access Unit Delimiter
 )
 
 const (

@@ -35,8 +35,8 @@ type MuxerObserver interface {
 }
 
 type MuxerConfig struct {
-	Enable             bool   `json:"enable"` // 如果false，说明hls功能没开，也即不写磁盘，但是MuxerObserver依然会回调
-	OutPath            string `json:"out_path"`
+	Enable             bool   `json:"enable"`   // 如果false，说明hls功能没开，也即不写磁盘，但是MuxerObserver依然会回调
+	OutPath            string `json:"out_path"` // m3u8和ts文件的输出根目录，注意，末尾需已'/'结束
 	FragmentDurationMS int    `json:"fragment_duration_ms"`
 	FragmentNum        int    `json:"fragment_num"`
 }
@@ -309,7 +309,7 @@ func (m *Muxer) writeRecordPlaylist(isLast bool) {
 		// m3u8文件已经存在
 
 		content = bytes.TrimSuffix(content, []byte("#EXT-X-ENDLIST\n"))
-		content, err := updateTargetDurationInM3U8(content, int(m.recordMaxFragDuration))
+		content, err = updateTargetDurationInM3U8(content, int(m.recordMaxFragDuration))
 		if err != nil {
 			nazalog.Errorf("[%s] update target duration failed. err=%+v", m.UniqueKey, err)
 			return

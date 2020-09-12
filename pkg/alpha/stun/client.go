@@ -16,7 +16,6 @@ import (
 )
 
 // TODO chef:
-// - 设置超时
 // - 重试
 
 type Client struct {
@@ -47,5 +46,5 @@ func (c *Client) Query(addr string, timeoutMS int) (ip string, port int, err err
 
 	_ = uc.Dispose()
 
-	return ParseMessage(b)
+	return UnpackResponseMessage(b)
 }

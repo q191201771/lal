@@ -13,6 +13,8 @@ import (
 	"errors"
 	"io/ioutil"
 
+	"github.com/q191201771/lal/pkg/httpflv"
+
 	"github.com/q191201771/lal/pkg/hls"
 	"github.com/q191201771/naza/pkg/nazajson"
 	"github.com/q191201771/naza/pkg/nazalog"
@@ -38,9 +40,8 @@ type RTMPConfig struct {
 }
 
 type HTTPFLVConfig struct {
-	Enable        bool   `json:"enable"`
-	SubListenAddr string `json:"sub_listen_addr"`
-	GOPNum        int    `json:"gop_num"`
+	httpflv.ServerConfig
+	GOPNum int `json:"gop_num"`
 }
 
 type HTTPTSConfig struct {

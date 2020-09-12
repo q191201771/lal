@@ -25,15 +25,15 @@
 
 ---
 
-app/lalserver服务器支持的协议：
+`app/lalserver`服务器支持的协议：
 
-| - | sub rtmp | sub http-flv | sub http-ts | sub hls | sub rtsp | relay push rtmp |
+| - | sub rtmp | sub http(s)-flv | sub http-ts | sub hls | sub rtsp | relay push rtmp |
 | - | - | - | - | - | - | - |
 | pub rtmp        | ✔ | ✔ | ✔ | ✔ | - | ✔ |
 | pub rtsp        | ✔ | ✔ | ✔ | ✔ | - | ✔ |
 | relay pull rtmp | ✔ | ✔ | ✔ | ✔ | - | . |
 
-| 编码类型 | rtmp | rtsp | hls | http-flv | http-ts |
+| 编码类型 | rtmp | rtsp | hls | http(s)-flv | http-ts |
 | - | - | - | - | - | - |
 | aac       | ✔ | ✔ | ✔ | ✔ | ✔ |
 | avc/h264  | ✔ | ✔ | ✔ | ✔ | ✔ |
@@ -41,7 +41,21 @@ app/lalserver服务器支持的协议：
 
 表格含义见： [《流媒体传输连接类型之session client, server, pub, sub, push, pull》](https://pengrl.com/p/20080)
 
-基于lal开发的客户端示例程序见： [《lal/app/demo/README.md》](https://github.com/q191201771/lal/blob/master/app/demo/README.md)
+`app/lalserver`功能特性：
+
+- (依托Go语言)：支持`(linux/macOS/windows)`多平台开发、调试、运行。支持交叉编译。生成的可执行文件(无任何库依赖)可独立运行。(开放源码的同时)，提供各平台可执行文件，可(免编译)直接运行
+- 高性能，多核多线程扩展
+- 支持RTMP/RTSP/HTTP-FLV/HTTP-TS/HLS多种封装协议，不同封装协议支持相互转换
+- 支持HTTPS-FLV
+- HTTP类型的流支持CORS跨域请求
+- 支持HTTP服务器(比如HLS切片文件可直接播放，不需要额外的HTTP文件服务器)
+- 支持HLS录制(HLS直播与录制可同时开启)
+- 视频支持H264/AVC，H265/HEVC格式
+- 音频支持AAC格式
+- 支持静态回源、静态转推，可搭建基础的集群
+- 支持Gop缓冲，用于秒开播放
+
+除了lalserver，还提供一些基于lal开发的demo： [《lal/app/demo》](https://github.com/q191201771/lal/blob/master/app/demo/README.md)
 
 <img alt="Wide" src="https://pengrl.com/images/other/lalmodule.jpg?date=0829">
 
@@ -86,11 +100,16 @@ lalserver详细配置见： [《配置注释文档》](https://github.com/q19120
 
 ### 联系我
 
-扫码加我微信（微信号： q191201771），进行技术交流或扯淡。微信群已开放，加我好友后可拉进群。
+- 个人微信号： q191201771
+- 个人QQ号： 191201771
+- 微信群： 加我微信好友后，告诉我拉你进群
+- QQ群： 1090510973
 
-也欢迎大家通过github issue交流，提PR贡献代码。提PR前请先阅读：[《yoko版本PR规范》](https://pengrl.com/p/20070/)
+欢迎任何技术和非技术的交流。
 
-<img src="https://pengrl.com/images/yoko_vx.jpeg" width="180" height="180" />
+目前lal正在收集新一轮需求中。
+
+并且，lal也十分欢迎开源贡献者的加入。提PR前请先阅读：[《yoko版本PR规范》](https://pengrl.com/p/20070/)
 
 ### 性能测试，测试过的第三方客户端
 
@@ -98,7 +117,7 @@ lalserver详细配置见： [《配置注释文档》](https://github.com/q19120
 
 ### 项目star趋势图
 
-觉得这个repo还不错，就点个star支持一下吧 :)
+觉得项目还不错，就点个star支持一下吧 :)
 
 [![Stargazers over time](https://starchart.cc/q191201771/lal.svg)](https://starchart.cc/q191201771/lal)
 
