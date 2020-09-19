@@ -14,7 +14,6 @@ import (
 	"io"
 	"io/ioutil"
 	"os"
-	"syscall"
 	"testing"
 	"time"
 
@@ -158,7 +157,9 @@ func InnerTestEntry(t *testing.T) {
 	rtmpPullSession.Dispose()
 	httpFLVWriter.Dispose()
 	rtmpWriter.Dispose()
-	_ = syscall.Kill(syscall.Getpid(), syscall.SIGUSR1)
+	// 由于windows没有信号，会导致编译错误，所以直接调用Dispose
+	//_ = syscall.Kill(syscall.Getpid(), syscall.SIGUSR1)
+	logic.Dispose()
 
 	nazalog.Debugf("count. %d %d %d", fileTagCount.Load(), httpflvPullTagCount.Load(), rtmpPullTagCount.Load())
 	compareFile()

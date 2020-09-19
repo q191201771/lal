@@ -22,6 +22,7 @@ import (
 
 var (
 	config *Config
+	sm     *ServerManager
 )
 
 func Entry(confFile string) {
@@ -30,7 +31,7 @@ func Entry(confFile string) {
 	nazalog.Infof("bininfo: %s", bininfo.StringifySingleLine())
 	nazalog.Infof("version: %s", base.LALFullInfo)
 
-	sm := NewServerManager()
+	sm = NewServerManager()
 
 	if config.PProfConfig.Enable {
 		go runWebPProf(config.PProfConfig.Addr)
@@ -40,6 +41,10 @@ func Entry(confFile string) {
 	})
 
 	sm.RunLoop()
+}
+
+func Dispose() {
+	sm.Dispose()
 }
 
 func loadConf(confFile string) *Config {
