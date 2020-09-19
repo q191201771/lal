@@ -1,3 +1,16 @@
+#### v0.15.0
+
+- [feat] 支持HTTP-TS sub长连接拉流
+- [feat] 支持HTTPS-FLV
+- [feat] 支持跨域请求：HTTP-FLV sub, HTTP-TS sub, HLS这几个HTTP类型的拉流
+- [feat] 支持HLS录制与回放（在原有HLS直播的基础之上）
+- [fix] 修复record m3u8文件无法更新的问题
+- [fix] 修复rtsp pub无法接收IPv6 RTP数据的问题
+- [fix] 修复windows平台编译失败的问题（单元测试package innertest中使用syscall.Kill导致）
+- [feat] demo pullrtmp2hls: 新增demo，从远端服务器拉取rtmp流，存储为本地hls文件
+- [feat] 新增package alpha/stun，学习stun协议
+- [feat] 部分rtsp pub支持h265的代码，未完全完成
+
 #### v0.14.0
 
 - [feat] lalserver实现rtsp pub功能。支持接收rtsp(rtp/rtcp)推流，转换为rtmp,httpflv,hls格式供拉流使用
