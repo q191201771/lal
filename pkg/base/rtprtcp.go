@@ -9,6 +9,6 @@
 package base
 
 const (
-	RTPPacketTypeAVC = 96
+	RTPPacketTypeAVC = 96 // 注意，RTSP SDP中，HEVC也使用96 TODO chef: 是否需要重命名
 	RTPPacketTypeAAC = 97
 )

@@ -9,6 +9,7 @@
 package sdp_test
 
 import (
+	"encoding/hex"
 	"testing"
 
 	"github.com/q191201771/lal/pkg/sdp"
@@ -63,6 +64,12 @@ func TestParseARTPMap(t *testing.T) {
 			ClockRate:          44100,
 			EncodingParameters: "2",
 		},
+		"a=rtpmap:96 H265/90000": {
+			PayloadType:        96,
+			EncodingName:       "H265",
+			ClockRate:          90000,
+			EncodingParameters: "",
+		},
 	}
 	for in, out := range golden {
 		actual, err := sdp.ParseARTPMap(in)
@@ -92,6 +99,14 @@ func TestParseFmtPBase(t *testing.T) {
 				"config":           "1210",
 			},
 		},
+		"a=fmtp:96 sprop-vps=QAEMAf//AWAAAAMAkAAAAwAAAwA/ugJA; sprop-sps=QgEBAWAAAAMAkAAAAwAAAwA/oAUCAXHy5bpKTC8BAQAAAwABAAADAA8I; sprop-pps=RAHAc8GJ": {
+			Format: 96,
+			Parameters: map[string]string{
+				"sprop-vps": "QAEMAf//AWAAAAMAkAAAAwAAAwA/ugJA",
+				"sprop-sps": "QgEBAWAAAAMAkAAAAwAAAwA/oAUCAXHy5bpKTC8BAQAAAwABAAADAA8I",
+				"sprop-pps": "RAHAc8GJ",
+			},
+		},
 	}
 	for in, out := range golden {
 		actual, err := sdp.ParseAFmtPBase(in)
@@ -117,4 +132,19 @@ func TestParseASC(t *testing.T) {
 	asc, err := sdp.ParseASC(f)
 	assert.Equal(t, nil, err)
 	assert.Equal(t, []byte{0x12, 0x10}, asc)
+}
+
+// TODO chef 补充assert判断
+//[]byte{0x40, 0x01, 0x0c, 0x01, 0xff, 0xff, 0x01, 0x60, 0x00, 0x00, 0x03, 0x00, 0x90, 0x00, 0x00, 0x03, 0x00, 0x00, 0x03, 0x00, 0x3f, 0x95, 0x98, 0x09}
+//[]byte{0x42, 0x01, 0x01, 0x01, 0x60, 0x00, 0x00, 0x03, 0x00, 0x90, 0x00, 0x00, 0x03, 0x00, 0x00, 0x03, 0x00, 0x3f, 0xa0, 0x05, 0x02, 0x01, 0x69, 0x65, 0x95, 0x9a, 0x49, 0x32, 0xbc, 0x04, 0x04, 0x00, 0x00, 0x03, 0x00, 0x04, 0x00, 0x00, 0x03, 0x00, 0x3c, 0x20}
+//[]byte{0x44, 0x01, 0xc1, 0x72, 0xb4, 0x62, 0x40}
+func TestParseVPSSPSPPS(t *testing.T) {
+	s := "a=fmtp:96 sprop-vps=QAEMAf//AWAAAAMAkAAAAwAAAwA/ugJA; sprop-sps=QgEBAWAAAAMAkAAAAwAAAwA/oAUCAXHy5bpKTC8BAQAAAwABAAADAA8I; sprop-pps=RAHAc8GJ"
+	f, err := sdp.ParseAFmtPBase(s)
+	assert.Equal(t, nil, err)
+	vps, sps, pps, err := sdp.ParseVPSSPSPPS(f)
+	assert.Equal(t, nil, err)
+	nazalog.Debugf("%s", hex.Dump(vps))
+	nazalog.Debugf("%s", hex.Dump(sps))
+	nazalog.Debugf("%s", hex.Dump(pps))
 }

@@ -12,6 +12,8 @@ import (
 	"fmt"
 	"sync"
 
+	"github.com/q191201771/naza/pkg/nazastring"
+
 	"github.com/q191201771/lal/pkg/httpts"
 
 	"github.com/q191201771/naza/pkg/bele"
@@ -57,10 +59,11 @@ type Group struct {
 	gopCache             *GOPCache
 	httpflvGopCache      *GOPCache
 
-	adts aac.ADTS
-	asc  []byte
-	sps  []byte
-	pps  []byte
+	// rtsp pub使用
+	asc []byte
+	vps []byte
+	sps []byte
+	pps []byte
 }
 
 type pushProxy struct {
@@ -360,16 +363,20 @@ func (group *Group) OnReadRTMPAVMsg(msg base.RTMPMsg) {
 
 // rtsp.PubSession
 func (group *Group) OnASC(asc []byte) {
-	if err := group.adts.InitWithAACAudioSpecificConfig(asc); err != nil {
-		nazalog.Errorf("init with aac asc failed. err=%+v", err)
-		return
-	}
 	group.asc = asc
 	group.broadcastMetadataAndSeqHeader()
 }
 
 // rtsp.PubSession
 func (group *Group) OnSPSPPS(sps, pps []byte) {
+	group.sps = sps
+	group.pps = pps
+	group.broadcastMetadataAndSeqHeader()
+}
+
+// rtsp.PubSession
+func (group *Group) OnVPSSPSPPS(vps, sps, pps []byte) {
+	group.vps = vps
 	group.sps = sps
 	group.pps = pps
 	group.broadcastMetadataAndSeqHeader()
@@ -465,21 +472,32 @@ func (group *Group) broadcastMetadataAndSeqHeader() {
 		return
 	}
 
-	ctx, err := avc.ParseSPS(group.sps)
-	if err != nil {
-		nazalog.Errorf("parse sps failed. err=%+v", err)
-		return
-	}
+	var metadata []byte
+	var vsh []byte
+	var err error
+	if group.isHEVC() {
+		metadata, err = rtmp.BuildMetadata(-1, -1, int(base.RTMPSoundFormatAAC), int(base.RTMPCodecIDHEVC))
+		if err != nil {
+			nazalog.Errorf("build metadata failed. err=%+v", err)
+			return
+		}
+	} else {
+		ctx, err := avc.ParseSPS(group.sps)
+		if err != nil {
+			nazalog.Errorf("parse sps failed. err=%+v", err)
+			return
+		}
 
-	metadata, err := rtmp.BuildMetadata(int(ctx.Width), int(ctx.Height), int(base.RTMPSoundFormatAAC), int(base.RTMPCodecIDAVC))
-	if err != nil {
-		nazalog.Errorf("build metadata failed. err=%+v", err)
-		return
-	}
-	vsh, err := avc.BuildSeqHeaderFromSPSPPS(group.sps, group.pps)
-	if err != nil {
-		nazalog.Errorf("build avc seq header failed. err=%+v", err)
-		return
+		metadata, err = rtmp.BuildMetadata(int(ctx.Width), int(ctx.Height), int(base.RTMPSoundFormatAAC), int(base.RTMPCodecIDAVC))
+		if err != nil {
+			nazalog.Errorf("build metadata failed. err=%+v", err)
+			return
+		}
+		vsh, err = avc.BuildSeqHeaderFromSPSPPS(group.sps, group.pps)
+		if err != nil {
+			nazalog.Errorf("build avc seq header failed. err=%+v", err)
+			return
+		}
 	}
 	ash, err := aac.BuildAACSeqHeader(group.asc)
 	if err != nil {
@@ -522,6 +540,9 @@ func (group *Group) broadcastMetadataAndSeqHeader() {
 // TODO chef: 目前相当于其他类型往rtmp.AVMsg转了，考虑统一往一个通用类型转
 // @param msg 调用结束后，内部不持有msg.Payload内存块
 func (group *Group) broadcastRTMP(msg base.RTMPMsg) {
+	if msg.IsHEVCKeySeqHeader() {
+		nazalog.Debugf("%s", nazastring.DumpSliceByte(msg.Payload))
+	}
 	var (
 		lcd    LazyChunkDivider
 		lrm2ft LazyRTMPMsg2FLVTag
@@ -764,4 +785,9 @@ func (group *Group) delIn() {
 
 	group.gopCache.Clear()
 	group.httpflvGopCache.Clear()
+}
+
+// TODO chef: 后续看是否有更合适的方法判断
+func (group *Group) isHEVC() bool {
+	return group.vps != nil
 }

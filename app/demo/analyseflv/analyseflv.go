@@ -173,7 +173,12 @@ func analysisVideoTag(tag httpflv.Tag) {
 			}
 		} else if tag.IsHEVCKeySeqHeader() {
 			t = typeHEVC
-			nazalog.Debugf("%s", nazastring.DumpSliceByte(tag.Raw[11:]))
+			//nazalog.Debugf("%s", nazastring.DumpSliceByte(tag.Raw[11:]))
+			vps, sps, pps, _ := hevc.ParseVPSSPSPPSFromSeqHeader(tag.Raw[11:])
+			nazalog.Debugf("%s", nazastring.DumpSliceByte(vps))
+			nazalog.Debugf("%s", nazastring.DumpSliceByte(sps))
+			nazalog.Debugf("%s", nazastring.DumpSliceByte(pps))
+			//nazalog.Debugf("%s %s %s %+v", hex.Dump(vps), hex.Dump(sps), hex.Dump(pps), err)
 			buf.WriteString(" [HEVC SeqHeader] ")
 		}
 	} else {

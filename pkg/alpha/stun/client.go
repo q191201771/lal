@@ -27,7 +27,9 @@ func (c *Client) Query(addr string, timeoutMS int) (ip string, port int, err err
 		addr = fmt.Sprintf("%s:%d", addr, DefaultPort)
 	}
 
-	uc, err := nazanet.NewUDPConnection("", addr)
+	uc, err := nazanet.NewUDPConnection(func(option *nazanet.UDPConnectionOption) {
+		option.LAddr = addr
+	})
 	if err != nil {
 		return "", 0, err
 	}

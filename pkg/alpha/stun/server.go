@@ -20,7 +20,9 @@ type Server struct {
 }
 
 func NewServer(addr string) (*Server, error) {
-	conn, err := nazanet.NewUDPConnection(addr, "")
+	conn, err := nazanet.NewUDPConnection(func(option *nazanet.UDPConnectionOption) {
+		option.LAddr = addr
+	})
 	if err != nil {
 		return nil, err
 	}

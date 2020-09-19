@@ -24,7 +24,8 @@ import (
 
 type PubSessionObserver interface {
 	OnASC(asc []byte)
-	OnSPSPPS(sps, pps []byte)
+	OnSPSPPS(sps, pps []byte)         // 如果是H264
+	OnVPSSPSPPS(vps, sps, pps []byte) // 如果是H265
 
 	// @param pkt: pkt结构体中字段含义见rtprtcp.OnAVPacket
 	OnAVPacket(pkt base.AVPacket)
@@ -45,6 +46,7 @@ type PubSession struct {
 	audioSsrc       uint32
 	videoSsrc       uint32
 
+	vps []byte // 如果是H265的话
 	sps []byte
 	pps []byte
 	asc []byte
@@ -65,7 +67,11 @@ func (p *PubSession) SetObserver(obs PubSessionObserver) {
 	p.observer = obs
 
 	if p.sps != nil && p.pps != nil {
-		p.observer.OnSPSPPS(p.sps, p.pps)
+		if p.vps != nil {
+			p.observer.OnVPSSPSPPS(p.vps, p.sps, p.pps)
+		} else {
+			p.observer.OnSPSPPS(p.sps, p.pps)
+		}
 	}
 	if p.asc != nil {
 		p.observer.OnASC(p.asc)
@@ -79,12 +85,31 @@ func (p *PubSession) InitWithSDP(sdpCtx sdp.SDPContext) {
 	var videoPayloadType int
 	var audioClockRate int
 	var videoClockRate int
+
+	var isHEVC bool
+
+	for _, item := range sdpCtx.ARTPMapList {
+		switch item.PayloadType {
+		case base.RTPPacketTypeAVC:
+			videoClockRate = item.ClockRate
+			isHEVC = item.EncodingName == "H265"
+		case base.RTPPacketTypeAAC:
+			audioClockRate = item.ClockRate
+		default:
+			nazalog.Errorf("unknown payloadType. type=%d", item.PayloadType)
+		}
+	}
+
 	for _, item := range sdpCtx.AFmtPBaseList {
 		switch item.Format {
 		case base.RTPPacketTypeAVC:
 			videoPayloadType = item.Format
 
-			p.sps, p.pps, err = sdp.ParseSPSPPS(item)
+			if isHEVC {
+				p.vps, p.sps, p.pps, err = sdp.ParseVPSSPSPPS(item)
+			} else {
+				p.sps, p.pps, err = sdp.ParseSPSPPS(item)
+			}
 			if err != nil {
 				nazalog.Errorf("parse sps pps from sdp failed.")
 			}
@@ -100,17 +125,6 @@ func (p *PubSession) InitWithSDP(sdpCtx sdp.SDPContext) {
 		}
 	}
 
-	for _, item := range sdpCtx.ARTPMapList {
-		switch item.PayloadType {
-		case base.RTPPacketTypeAVC:
-			videoClockRate = item.ClockRate
-		case base.RTPPacketTypeAAC:
-			audioClockRate = item.ClockRate
-		default:
-			nazalog.Errorf("unknown payloadType. type=%d", item.PayloadType)
-		}
-	}
-
 	p.audioUnpacker = rtprtcp.NewRTPUnpacker(audioPayloadType, audioClockRate, unpackerItemMaxSize, p.onAVPacketUnpacked)
 	p.videoUnpacker = rtprtcp.NewRTPUnpacker(videoPayloadType, videoClockRate, unpackerItemMaxSize, p.onAVPacketUnpacked)
 
@@ -119,13 +133,17 @@ func (p *PubSession) InitWithSDP(sdpCtx sdp.SDPContext) {
 }
 
 func (p *PubSession) SetRTPConn(conn *net.UDPConn) {
-	server := nazanet.NewUDPConnectionWithConn(conn)
+	server, _ := nazanet.NewUDPConnection(func(option *nazanet.UDPConnectionOption) {
+		option.Conn = conn
+	})
 	go server.RunLoop(p.onReadUDPPacket)
 	p.rtpConn = server
 }
 
 func (p *PubSession) SetRTCPConn(conn *net.UDPConn) {
-	server := nazanet.NewUDPConnectionWithConn(conn)
+	server, _ := nazanet.NewUDPConnection(func(option *nazanet.UDPConnectionOption) {
+		option.Conn = conn
+	})
 	go server.RunLoop(p.onReadUDPPacket)
 	p.rtcpConn = server
 }
