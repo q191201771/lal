@@ -75,31 +75,36 @@ func (server *Server) Listen() (err error) {
 
 func (server *Server) RunLoop() error {
 	var wg sync.WaitGroup
-	wg.Add(2)
 
 	// TODO chef: 临时这么搞，错误值丢失了，重构一下
 
-	go func() {
-		for {
-			conn, err := server.ln.Accept()
-			if err != nil {
-				break
+	if server.ln != nil {
+		wg.Add(1)
+		go func() {
+			for {
+				conn, err := server.ln.Accept()
+				if err != nil {
+					break
+				}
+				go server.handleConnect(conn)
 			}
-			go server.handleConnect(conn)
-		}
-		wg.Done()
-	}()
+			wg.Done()
+		}()
+	}
 
-	go func() {
-		for {
-			conn, err := server.httpsLn.Accept()
-			if err != nil {
-				break
+	if server.httpsLn != nil {
+		wg.Add(1)
+		go func() {
+			for {
+				conn, err := server.httpsLn.Accept()
+				if err != nil {
+					break
+				}
+				go server.handleConnect(conn)
 			}
-			go server.handleConnect(conn)
-		}
-		wg.Done()
-	}()
+			wg.Done()
+		}()
+	}
 
 	wg.Wait()
 	return nil
