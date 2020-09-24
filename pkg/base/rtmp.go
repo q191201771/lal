@@ -19,7 +19,10 @@ const (
 	RTMPTypeIDUserControl        uint8 = 4
 	RTMPTypeIDWinAckSize         uint8 = 5
 	RTMPTypeIDBandwidth          uint8 = 6
+	RTMPTypeIDStreamBegin        uint8 = 0
+	RTMPTypeIDStreamIsRecorded   uint8 = 4
 	RTMPTypeIDCommandMessageAMF0 uint8 = 20
+	RTMPTypeIDCommandMessageAMF3 uint8 = 17
 
 	// spec-video_file_format_spec_v10.pdf
 	// Video tags
