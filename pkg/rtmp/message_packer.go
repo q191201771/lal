@@ -114,7 +114,7 @@ func (packer *MessagePacker) writeConnectResult(writer io.Writer, tid int) error
 		{Key: "level", Value: "status"},
 		{Key: "code", Value: "NetConnection.Connect.Success"},
 		{Key: "description", Value: "Connection succeeded."},
-		{Key: "objectEncoding", Value: 0},
+		{Key: "objectEncoding", Value: 3},
 		{Key: "version", Value: base.LALRTMPConnectResultVersion},
 	}
 	_ = AMF0.WriteObject(packer.b, objs)
@@ -197,6 +197,22 @@ func (packer *MessagePacker) writeOnStatusPlay(writer io.Writer, streamID int) e
 		{Key: "description", Value: "Start live"},
 	}
 	_ = AMF0.WriteObject(packer.b, objs)
+	_, err := packer.b.WriteTo(writer)
+	return err
+}
+
+func (packer *MessagePacker) writeStreamIsRecorded(writer io.Writer,streamid uint32) error {
+	packer.writeMessageHeader(csidProtocolControl, 6, base.RTMPTypeIDUserControl, 0)
+	_ = bele.WriteBE(packer.b, uint16(base.RTMPTypeIDStreamIsRecorded))
+	_ = bele.WriteBE(packer.b, uint32(streamid))
+	_, err := packer.b.WriteTo(writer)
+	return err
+}
+
+func (packer *MessagePacker) writeStreamBegin(writer io.Writer,streamid uint32) error {
+	packer.writeMessageHeader(csidProtocolControl, 6, base.RTMPTypeIDUserControl, 0)
+	_ = bele.WriteBE(packer.b, uint16(base.RTMPTypeIDStreamBegin))
+	_ = bele.WriteBE(packer.b, uint32(streamid))
 	_, err := packer.b.WriteTo(writer)
 	return err
 }

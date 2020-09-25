@@ -136,6 +136,8 @@ func (s *ServerSession) doMsg(stream *Stream) error {
 		// 因为底层的 chunk composer 已经处理过了，这里就不用处理
 	case base.RTMPTypeIDCommandMessageAMF0:
 		return s.doCommandMessage(stream)
+	case base.RTMPTypeIDCommandMessageAMF3:
+		return s.doCommandAFM3Message(stream)
 	case base.RTMPTypeIDMetadata:
 		return s.doDataMessageAMF0(stream)
 	case base.RTMPTypeIDAck:
@@ -234,6 +236,12 @@ func (s *ServerSession) doCommandMessage(stream *Stream) error {
 	return nil
 }
 
+func (s *ServerSession) doCommandAFM3Message(stream *Stream) error {
+	//去除前面的0就是AMF0的数据
+	stream.msg.b = stream.msg.b + 1
+	return s.doCommandMessage(stream)
+}
+
 func (s *ServerSession) doConnect(tid int, stream *Stream) error {
 	val, err := stream.msg.readObjectWithType()
 	if err != nil {
@@ -321,6 +329,13 @@ func (s *ServerSession) doPlay(tid int, stream *Stream) (err error) {
 
 	nazalog.Infof("[%s] < R play('%s').", s.UniqueKey, s.StreamName)
 	// TODO chef: start duration reset
+
+	if err := s.packer.writeStreamIsRecorded(s.conn,1); err != nil {
+		return err
+	}
+	if err := s.packer.writeStreamBegin(s.conn, 1); err != nil {
+		return err
+	}
 
 	nazalog.Infof("[%s] > W onStatus('NetStream.Play.Start').", s.UniqueKey)
 	if err := s.packer.writeOnStatusPlay(s.conn, MSID1); err != nil {
