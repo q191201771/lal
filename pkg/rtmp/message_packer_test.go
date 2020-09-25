@@ -57,7 +57,7 @@ func TestWrite(t *testing.T) {
 	buf.Reset()
 
 	// 注意，由于writeConnect中包含了版本信息，是可变的，所以不对结果做断言检查
-	err = packer.writeConnectResult(buf, 1)
+	err = packer.writeConnectResult(buf, 1, 0)
 	assert.Equal(t, nil, err)
 	buf.Reset()
 
@@ -129,7 +129,7 @@ func TestPackCorner(t *testing.T) {
 	assert.IsNotNil(t, err)
 	err = packer.writeConnect(mw, "live", "rtmp://127.0.0.1/live", true)
 	assert.IsNotNil(t, err)
-	err = packer.writeConnectResult(mw, 1)
+	err = packer.writeConnectResult(mw, 1, 0)
 	assert.IsNotNil(t, err)
 	err = packer.writeCreateStream(mw)
 	assert.IsNotNil(t, err)

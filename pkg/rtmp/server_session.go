@@ -238,7 +238,7 @@ func (s *ServerSession) doCommandMessage(stream *Stream) error {
 
 func (s *ServerSession) doCommandAFM3Message(stream *Stream) error {
 	//去除前面的0就是AMF0的数据
-	stream.msg.b = stream.msg.b + 1
+	stream.msg.consumed(1)
 	return s.doCommandMessage(stream)
 }
 
@@ -269,7 +269,11 @@ func (s *ServerSession) doConnect(tid int, stream *Stream) error {
 	}
 
 	nazalog.Infof("[%s] > W _result('NetConnection.Connect.Success').", s.UniqueKey)
-	if err := s.packer.writeConnectResult(s.conn, tid); err != nil {
+	oe, err := val.FindNumber("objectEncoding")
+	if oe != 0 && oe != 3 {
+		oe = 0
+	}
+	if err := s.packer.writeConnectResult(s.conn, tid, oe); err != nil {
 		return err
 	}
 	return nil
@@ -330,10 +334,10 @@ func (s *ServerSession) doPlay(tid int, stream *Stream) (err error) {
 	nazalog.Infof("[%s] < R play('%s').", s.UniqueKey, s.StreamName)
 	// TODO chef: start duration reset
 
-	if err := s.packer.writeStreamIsRecorded(s.conn,1); err != nil {
+	if err := s.packer.writeStreamIsRecorded(s.conn, MSID1); err != nil {
 		return err
 	}
-	if err := s.packer.writeStreamBegin(s.conn, 1); err != nil {
+	if err := s.packer.writeStreamBegin(s.conn, MSID1); err != nil {
 		return err
 	}
 

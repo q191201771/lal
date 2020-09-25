@@ -101,7 +101,8 @@ func (packer *MessagePacker) writeConnect(writer io.Writer, appName, tcURL strin
 	return err
 }
 
-func (packer *MessagePacker) writeConnectResult(writer io.Writer, tid int) error {
+// @param objectEncoding 设置0或者3，表示是AMF0或AMF3，上层可根据connect信令中的objectEncoding值设置该值
+func (packer *MessagePacker) writeConnectResult(writer io.Writer, tid int, objectEncoding int) error {
 	packer.writeMessageHeader(csidOverConnection, 0, base.RTMPTypeIDCommandMessageAMF0, 0)
 	_ = AMF0.WriteString(packer.b, "_result")
 	_ = AMF0.WriteNumber(packer.b, float64(tid))
@@ -114,7 +115,7 @@ func (packer *MessagePacker) writeConnectResult(writer io.Writer, tid int) error
 		{Key: "level", Value: "status"},
 		{Key: "code", Value: "NetConnection.Connect.Success"},
 		{Key: "description", Value: "Connection succeeded."},
-		{Key: "objectEncoding", Value: 3},
+		{Key: "objectEncoding", Value: objectEncoding},
 		{Key: "version", Value: base.LALRTMPConnectResultVersion},
 	}
 	_ = AMF0.WriteObject(packer.b, objs)
@@ -201,18 +202,18 @@ func (packer *MessagePacker) writeOnStatusPlay(writer io.Writer, streamID int) e
 	return err
 }
 
-func (packer *MessagePacker) writeStreamIsRecorded(writer io.Writer,streamid uint32) error {
+func (packer *MessagePacker) writeStreamIsRecorded(writer io.Writer, streamID uint32) error {
 	packer.writeMessageHeader(csidProtocolControl, 6, base.RTMPTypeIDUserControl, 0)
-	_ = bele.WriteBE(packer.b, uint16(base.RTMPTypeIDStreamIsRecorded))
-	_ = bele.WriteBE(packer.b, uint32(streamid))
+	_ = bele.WriteBE(packer.b, uint16(base.RTMPUserControlRecorded))
+	_ = bele.WriteBE(packer.b, uint32(streamID))
 	_, err := packer.b.WriteTo(writer)
 	return err
 }
 
-func (packer *MessagePacker) writeStreamBegin(writer io.Writer,streamid uint32) error {
+func (packer *MessagePacker) writeStreamBegin(writer io.Writer, streamID uint32) error {
 	packer.writeMessageHeader(csidProtocolControl, 6, base.RTMPTypeIDUserControl, 0)
-	_ = bele.WriteBE(packer.b, uint16(base.RTMPTypeIDStreamBegin))
-	_ = bele.WriteBE(packer.b, uint32(streamid))
+	_ = bele.WriteBE(packer.b, uint16(base.RTMPUserControlStreamBegin))
+	_ = bele.WriteBE(packer.b, uint32(streamID))
 	_, err := packer.b.WriteTo(writer)
 	return err
 }
