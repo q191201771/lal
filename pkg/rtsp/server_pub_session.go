@@ -37,14 +37,16 @@ type PubSession struct {
 	observer      PubSessionObserver
 	avPacketQueue *AVPacketQueue
 
-	rtpConn         *nazanet.UDPConnection
-	rtcpConn        *nazanet.UDPConnection
-	audioUnpacker   *rtprtcp.RTPUnpacker
-	videoUnpacker   *rtprtcp.RTPUnpacker
-	audioRRProducer *rtprtcp.RRProducer
-	videoRRProducer *rtprtcp.RRProducer
-	audioSsrc       uint32
-	videoSsrc       uint32
+	rtpConn          *nazanet.UDPConnection
+	rtcpConn         *nazanet.UDPConnection
+	audioUnpacker    *rtprtcp.RTPUnpacker
+	videoUnpacker    *rtprtcp.RTPUnpacker
+	audioRRProducer  *rtprtcp.RRProducer
+	videoRRProducer  *rtprtcp.RRProducer
+	audioSsrc        uint32
+	videoSsrc        uint32
+	audioPayloadType base.AVPacketPT
+	videoPayloadType base.AVPacketPT
 
 	vps []byte // 如果是H265的话
 	sps []byte
@@ -53,7 +55,7 @@ type PubSession struct {
 }
 
 func NewPubSession(streamName string) *PubSession {
-	uk := unique.GenUniqueKey("RTSP")
+	uk := unique.GenUniqueKey("RTSPPUB")
 	ps := &PubSession{
 		UniqueKey:  uk,
 		StreamName: streamName,
@@ -81,20 +83,21 @@ func (p *PubSession) SetObserver(obs PubSessionObserver) {
 func (p *PubSession) InitWithSDP(sdpCtx sdp.SDPContext) {
 	var err error
 
-	var audioPayloadType int
-	var videoPayloadType int
 	var audioClockRate int
 	var videoClockRate int
 
-	var isHEVC bool
-
 	for _, item := range sdpCtx.ARTPMapList {
 		switch item.PayloadType {
-		case base.RTPPacketTypeAVC:
+		case base.RTPPacketTypeAVCOrHEVC:
 			videoClockRate = item.ClockRate
-			isHEVC = item.EncodingName == "H265"
+			if item.EncodingName == "H265" {
+				p.videoPayloadType = base.AVPacketPTHEVC
+			} else {
+				p.videoPayloadType = base.AVPacketPTAVC
+			}
 		case base.RTPPacketTypeAAC:
 			audioClockRate = item.ClockRate
+			p.audioPayloadType = base.AVPacketPTAAC
 		default:
 			nazalog.Errorf("unknown payloadType. type=%d", item.PayloadType)
 		}
@@ -102,10 +105,8 @@ func (p *PubSession) InitWithSDP(sdpCtx sdp.SDPContext) {
 
 	for _, item := range sdpCtx.AFmtPBaseList {
 		switch item.Format {
-		case base.RTPPacketTypeAVC:
-			videoPayloadType = item.Format
-
-			if isHEVC {
+		case base.RTPPacketTypeAVCOrHEVC:
+			if p.videoPayloadType == base.AVPacketPTHEVC {
 				p.vps, p.sps, p.pps, err = sdp.ParseVPSSPSPPS(item)
 			} else {
 				p.sps, p.pps, err = sdp.ParseSPSPPS(item)
@@ -114,8 +115,6 @@ func (p *PubSession) InitWithSDP(sdpCtx sdp.SDPContext) {
 				nazalog.Errorf("parse sps pps from sdp failed.")
 			}
 		case base.RTPPacketTypeAAC:
-			audioPayloadType = item.Format
-
 			p.asc, err = sdp.ParseASC(item)
 			if err != nil {
 				nazalog.Errorf("parse asc from sdp failed.")
@@ -125,8 +124,8 @@ func (p *PubSession) InitWithSDP(sdpCtx sdp.SDPContext) {
 		}
 	}
 
-	p.audioUnpacker = rtprtcp.NewRTPUnpacker(audioPayloadType, audioClockRate, unpackerItemMaxSize, p.onAVPacketUnpacked)
-	p.videoUnpacker = rtprtcp.NewRTPUnpacker(videoPayloadType, videoClockRate, unpackerItemMaxSize, p.onAVPacketUnpacked)
+	p.audioUnpacker = rtprtcp.NewRTPUnpacker(p.audioPayloadType, audioClockRate, unpackerItemMaxSize, p.onAVPacketUnpacked)
+	p.videoUnpacker = rtprtcp.NewRTPUnpacker(p.videoPayloadType, videoClockRate, unpackerItemMaxSize, p.onAVPacketUnpacked)
 
 	p.audioRRProducer = rtprtcp.NewRRProducer(audioClockRate)
 	p.videoRRProducer = rtprtcp.NewRRProducer(videoClockRate)
@@ -188,7 +187,7 @@ func (p *PubSession) onReadUDPPacket(b []byte, rAddr *net.UDPAddr, err error) bo
 
 	// try RTP
 	packetType := b[1] & 0x7F
-	if packetType == base.RTPPacketTypeAVC || packetType == base.RTPPacketTypeAAC {
+	if packetType == base.RTPPacketTypeAVCOrHEVC || packetType == base.RTPPacketTypeAAC {
 		h, err := rtprtcp.ParseRTPPacket(b)
 		if err != nil {
 			nazalog.Errorf("read invalid rtp packet. err=%+v", err)
@@ -198,7 +197,7 @@ func (p *PubSession) onReadUDPPacket(b []byte, rAddr *net.UDPAddr, err error) bo
 		pkt.Header = h
 		pkt.Raw = b
 
-		if packetType == base.RTPPacketTypeAVC {
+		if packetType == base.RTPPacketTypeAVCOrHEVC {
 			p.videoSsrc = h.Ssrc
 			p.videoUnpacker.Feed(pkt)
 			p.videoRRProducer.FeedRTPPacket(h.Seq)

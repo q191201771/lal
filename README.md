@@ -14,9 +14,7 @@
 <br>
 <a title="pr" target="_blank" href="https://github.com/q191201771/lal/pulls"><img src="https://img.shields.io/github/issues-pr-closed/q191201771/lal.svg?style=flat-square&color=FF9966"></a>
 <a title="hits" target="_blank" href="https://github.com/q191201771/lal"><img src="https://hits.b3log.org/q191201771/lal.svg?style=flat-square"></a>
-<a title="language" target="_blank" href="https://github.com/q191201771/lal"><img src="https://img.shields.io/github/languages/count/q191201771/lal.svg?style=flat-square"></a>
 <a title="toplanguage" target="_blank" href="https://github.com/q191201771/lal"><img src="https://img.shields.io/github/languages/top/q191201771/lal.svg?style=flat-square"></a>
-<a title="godoc" target="_blank" href="https://godoc.org/github.com/q191201771/lal"><img src="http://img.shields.io/badge/godoc-reference-5272B4.svg?style=flat-square"></a>
 <br>
 </p>
 
@@ -34,7 +32,7 @@
 | - | - | - | - | - | - |
 | aac       | ✔ | ✔ | ✔ | ✔ | ✔ |
 | avc/h264  | ✔ | ✔ | ✔ | ✔ | ✔ |
-| hevc/h265 | ✔ | - | - | ✔ | - |
+| hevc/h265 | ✔ | ✔ | - | ✔ | - |
 
 表格含义见： [《流媒体传输连接类型之session client, server, pub, sub, push, pull》](https://pengrl.com/p/20080)
 

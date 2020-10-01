@@ -8,9 +8,12 @@
 
 package base
 
+type AVPacketPT int
+
 var (
-	AVPacketPTAVC = 96
-	AVPacketPTAAC = 97
+	AVPacketPTAVC  AVPacketPT = RTPPacketTypeAVCOrHEVC
+	AVPacketPTAAC  AVPacketPT = RTPPacketTypeAAC
+	AVPacketPTHEVC AVPacketPT = 98
 )
 
 // 目前供package rtsp使用。以后可能被多个package使用。
@@ -18,6 +21,6 @@ var (
 // 使用AVPacket的地方，应注明各字段的含义。
 type AVPacket struct {
 	Timestamp   uint32
-	PayloadType int
+	PayloadType AVPacketPT
 	Payload     []byte
 }

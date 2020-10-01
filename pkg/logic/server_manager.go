@@ -293,3 +293,7 @@ func (sm *ServerManager) getGroup(appName string, streamName string) *Group {
 	}
 	return group
 }
+
+func (sm *ServerManager) statAllGroup() {
+
+}

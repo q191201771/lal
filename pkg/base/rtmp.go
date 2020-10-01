@@ -46,9 +46,10 @@ const (
 	RTMPHEVCPacketTypeSeqHeader       = RTMPAVCPacketTypeSeqHeader
 	RTMPHEVCPacketTypeNALU            = RTMPAVCPacketTypeNALU
 
-	RTMPAVCKeyFrame   = RTMPFrameTypeKey<<4 | RTMPCodecIDAVC
-	RTMPHEVCKeyFrame  = RTMPFrameTypeKey<<4 | RTMPCodecIDHEVC
-	RTMPAVCInterFrame = RTMPFrameTypeInter<<4 | RTMPCodecIDAVC
+	RTMPAVCKeyFrame    = RTMPFrameTypeKey<<4 | RTMPCodecIDAVC
+	RTMPHEVCKeyFrame   = RTMPFrameTypeKey<<4 | RTMPCodecIDHEVC
+	RTMPAVCInterFrame  = RTMPFrameTypeInter<<4 | RTMPCodecIDAVC
+	RTMPHEVCInterFrame = RTMPFrameTypeInter<<4 | RTMPCodecIDHEVC
 
 	// spec-video_file_format_spec_v10.pdf
 	// Audio tags

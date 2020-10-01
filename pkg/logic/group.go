@@ -12,6 +12,8 @@ import (
 	"fmt"
 	"sync"
 
+	"github.com/q191201771/lal/pkg/hevc"
+
 	"github.com/q191201771/naza/pkg/nazastring"
 
 	"github.com/q191201771/lal/pkg/httpts"
@@ -389,6 +391,8 @@ func (group *Group) OnAVPacket(pkt base.AVPacket) {
 
 	switch pkt.PayloadType {
 	case base.AVPacketPTAVC:
+		fallthrough
+	case base.AVPacketPTHEVC:
 		h.TimestampAbs = pkt.Timestamp
 		h.MsgStreamID = rtmp.MSID1
 
@@ -396,24 +400,33 @@ func (group *Group) OnAVPacket(pkt base.AVPacket) {
 		h.CSID = rtmp.CSIDVideo
 		h.MsgLen = uint32(len(pkt.Payload)) + 5
 
+		msg.Payload = make([]byte, h.MsgLen)
+
 		// TODO chef: 这段代码应该放在更合适的地方，或者在AVPacket中标识是否包含关键帧
-		key := false
 		for i := 0; i != len(pkt.Payload); {
 			naluSize := int(bele.BEUint32(pkt.Payload[i:]))
-			t := pkt.Payload[i+4] & 0x1F
-			if t == avc.NALUTypeIDRSlice {
-				key = true
+
+			t := avc.ParseNALUType(pkt.Payload[i+4])
+			switch pkt.PayloadType {
+			case base.AVPacketPTAVC:
+				if t == avc.NALUTypeIDRSlice {
+					msg.Payload[0] = base.RTMPAVCKeyFrame
+				} else {
+					msg.Payload[0] = base.RTMPAVCInterFrame
+				}
+				msg.Payload[1] = base.RTMPAVCPacketTypeNALU
+			case base.AVPacketPTHEVC:
+				if t == hevc.NALUTypeSliceIDR || t == hevc.NALUTypeSliceIDRNLP {
+					msg.Payload[0] = base.RTMPHEVCKeyFrame
+				} else {
+					msg.Payload[0] = base.RTMPHEVCInterFrame
+				}
+				msg.Payload[1] = base.RTMPHEVCPacketTypeNALU
 			}
+
 			i += 4 + naluSize
 		}
 
-		msg.Payload = make([]byte, h.MsgLen)
-		if key {
-			msg.Payload[0] = base.RTMPAVCKeyFrame
-		} else {
-			msg.Payload[0] = base.RTMPAVCInterFrame
-		}
-		msg.Payload[1] = base.RTMPAVCPacketTypeNALU
 		msg.Payload[2] = 0x0 // cts
 		msg.Payload[3] = 0x0
 		msg.Payload[4] = 0x0
@@ -429,7 +442,7 @@ func (group *Group) OnAVPacket(pkt base.AVPacket) {
 
 		msg.Payload = make([]byte, h.MsgLen)
 		msg.Payload[0] = 0xAF
-		msg.Payload[1] = 0x1
+		msg.Payload[1] = base.RTMPAACPacketTypeRaw
 		copy(msg.Payload[2:], pkt.Payload)
 	default:
 		nazalog.Errorf("unknown payload type. pt=%d", pkt.PayloadType)
@@ -476,9 +489,21 @@ func (group *Group) broadcastMetadataAndSeqHeader() {
 	var vsh []byte
 	var err error
 	if group.isHEVC() {
-		metadata, err = rtmp.BuildMetadata(-1, -1, int(base.RTMPSoundFormatAAC), int(base.RTMPCodecIDHEVC))
+		var ctx hevc.Context
+		if err := hevc.ParseSPS(group.sps, &ctx); err != nil {
+			nazalog.Errorf("parse sps failed. err=%+v", err)
+			return
+		}
+
+		metadata, err = rtmp.BuildMetadata(int(ctx.PicWidthInLumaSamples), int(ctx.PicHeightInLumaSamples), int(base.RTMPSoundFormatAAC), int(base.RTMPCodecIDHEVC))
 		if err != nil {
 			nazalog.Errorf("build metadata failed. err=%+v", err)
+			return
+		}
+
+		vsh, err = hevc.BuildSeqHeaderFromVPSSPSPPS(group.vps, group.sps, group.pps)
+		if err != nil {
+			nazalog.Errorf("build seq header failed. err=%+v", err)
 			return
 		}
 	} else {
@@ -495,7 +520,7 @@ func (group *Group) broadcastMetadataAndSeqHeader() {
 		}
 		vsh, err = avc.BuildSeqHeaderFromSPSPPS(group.sps, group.pps)
 		if err != nil {
-			nazalog.Errorf("build avc seq header failed. err=%+v", err)
+			nazalog.Errorf("build seq header failed. err=%+v", err)
 			return
 		}
 	}

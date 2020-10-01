@@ -169,7 +169,7 @@ func ParseASC(a AFmtPBase) ([]byte, error) {
 }
 
 func ParseVPSSPSPPS(a AFmtPBase) (vps, sps, pps []byte, err error) {
-	if a.Format != base.RTPPacketTypeAVC {
+	if a.Format != base.RTPPacketTypeAVCOrHEVC {
 		return nil, nil, nil, ErrSDP
 	}
 
@@ -203,7 +203,7 @@ func ParseVPSSPSPPS(a AFmtPBase) (vps, sps, pps []byte, err error) {
 // 解析AVC/H264的sps，pps
 // 例子见单元测试
 func ParseSPSPPS(a AFmtPBase) (sps, pps []byte, err error) {
-	if a.Format != base.RTPPacketTypeAVC {
+	if a.Format != base.RTPPacketTypeAVCOrHEVC {
 		return nil, nil, ErrSDP
 	}
 

@@ -46,7 +46,9 @@ func NewAVPacketQueue(onAVPacket OnAVPacket) *AVPacketQueue {
 func (a *AVPacketQueue) Feed(pkt base.AVPacket) {
 	//nazalog.Debugf("AVQ feed. t=%d, ts=%d", pkt.PayloadType, pkt.Timestamp)
 	switch pkt.PayloadType {
-	case base.RTPPacketTypeAVC:
+	case base.AVPacketPTAVC:
+		fallthrough
+	case base.AVPacketPTHEVC:
 		if a.videoBaseTS == -1 {
 			a.videoBaseTS = int64(pkt.Timestamp)
 		}
@@ -58,7 +60,7 @@ func (a *AVPacketQueue) Feed(pkt base.AVPacket) {
 		}
 		_ = a.videoQueue.PushBack(pkt)
 		//nazalog.Debugf("AVQ v push. a=%d, v=%d", a.audioQueue.Size(), a.videoQueue.Size())
-	case base.RTPPacketTypeAAC:
+	case base.AVPacketPTAAC:
 		if a.audioBaseTS == -1 {
 			a.audioBaseTS = int64(pkt.Timestamp)
 		}

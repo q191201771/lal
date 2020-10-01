@@ -10,8 +10,6 @@ package rtsp
 
 import "errors"
 
-// 注意，正在学习以及实现rtsp，请不要使用这个package
-
 // TODO chef
 // - 支持tcp协议
 // - pub_session生命周期如何结束

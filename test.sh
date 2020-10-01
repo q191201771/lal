@@ -41,7 +41,7 @@ if [ ! -s "./testdata/test.flv" ]; then
     if [ ! -d "./testdata" ]; then
         mkdir "./testdata"
     fi
-    wget https://github.com/q191201771/doc/raw/master/stuff/wontcry30s.flv -O ./testdata/test.flv
+    wget https://github.com/q191201771/doc/raw/master/av/wontcry30s.flv -O ./testdata/test.flv
     if [ ! -s "./testdata/test.flv" ]; then
         wget https://pengrl.com/images/other/wontcry30s.flv -O ./testdata/test.flv
     fi

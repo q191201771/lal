@@ -65,6 +65,9 @@ var (
 
 	// e.g. lal0.12.3
 	LALHTTPTSSubSessionServer string
+
+	// e.g. lal0.12.3
+	LALHTTPAPIServer string
 )
 
 // - rtmp handshake random buf
@@ -91,6 +94,9 @@ var (
 //
 // - httpts sub
 //     - `server:`
+//
+// - http api
+//     - `server:`
 
 func init() {
 	LALVersionDot = strings.TrimPrefix(LALVersion, "v")
@@ -105,6 +111,7 @@ func init() {
 	LALHLSTSServer = LALLibraryName + LALVersionDot
 	LALRTSPOptionsResponseServer = LALLibraryName + LALVersionDot
 	LALHTTPTSSubSessionServer = LALLibraryName + LALVersionDot
+	LALHTTPAPIServer = LALLibraryName + LALVersionDot
 
 	LALHTTPFLVPullSessionUA = LALLibraryName + "/" + LALVersionDot
 

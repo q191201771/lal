@@ -21,6 +21,14 @@ import (
 //
 // ISO_IEC_23008-2_2013.pdf
 
+// NAL Unit Header
+//
+// +---------------+---------------+
+// |0|1|2|3|4|5|6|7|0|1|2|3|4|5|6|7|
+// +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+// |F|   Type    |  LayerId  | TID |
+// +-------------+-----------------+
+
 var ErrHEVC = errors.New("lal.hevc: fxxk")
 
 var (
@@ -46,6 +54,9 @@ var (
 )
 
 type Context struct {
+	PicWidthInLumaSamples  uint32 // sps
+	PicHeightInLumaSamples uint32 // sps
+
 	configurationVersion uint8
 
 	generalProfileSpace              uint8
@@ -60,11 +71,9 @@ type Context struct {
 	numTemporalLayers uint8
 	temporalIdNested  uint8
 
-	chromaFormat           uint8
-	bitDepthLumaMinus8     uint8
-	bitDepthChromaMinus8   uint8
-	picWidthInLumaSamples  uint32
-	picHeightInLumaSamples uint32
+	chromaFormat         uint8
+	bitDepthLumaMinus8   uint8
+	bitDepthChromaMinus8 uint8
 }
 
 func ParseNALUTypeReadable(v uint8) string {
@@ -75,6 +84,7 @@ func ParseNALUTypeReadable(v uint8) string {
 	return b
 }
 
+// @param v 第一个字节
 func ParseNALUType(v uint8) uint8 {
 	// 6 bit in middle
 	// 0*** ***0
@@ -178,7 +188,7 @@ func ParseVPSSPSPPSFromSeqHeader(payload []byte) (vps, sps, pps []byte, err erro
 
 func BuildSeqHeaderFromVPSSPSPPS(vps, sps, pps []byte) ([]byte, error) {
 	var sh []byte
-	sh = make([]byte, 27)
+	sh = make([]byte, 43+len(vps)+len(sps)+len(pps))
 	sh[0] = 0x1c
 	sh[1] = 0x0
 	sh[2] = 0x0
@@ -236,6 +246,26 @@ func BuildSeqHeaderFromVPSSPSPPS(vps, sps, pps []byte) ([]byte, error) {
 	// bit(1) temporalIdNested;
 	// unsigned int(2) lengthSizeMinusOne;
 	sh[26] = 0<<6 | ctx.numTemporalLayers<<3 | ctx.temporalIdNested<<2 | ctx.lengthSizeMinusOne
+
+	// num of vps sps pps
+	sh[27] = 0x03
+	i := 28
+	sh[i] = NALUTypeVPS
+	// num of vps
+	bele.BEPutUint16(sh[i+1:], 1)
+	// length
+	bele.BEPutUint16(sh[i+3:], uint16(len(vps)))
+	copy(sh[i+5:], vps)
+	i = i + 5 + len(vps)
+	sh[i] = NALUTypeSPS
+	bele.BEPutUint16(sh[i+1:], 1)
+	bele.BEPutUint16(sh[i+3:], uint16(len(sps)))
+	copy(sh[i+5:], sps)
+	i = i + 5 + len(sps)
+	sh[i] = NALUTypePPS
+	bele.BEPutUint16(sh[i+1:], 1)
+	bele.BEPutUint16(sh[i+3:], uint16(len(pps)))
+	copy(sh[i+5:], pps)
 
 	return sh, nil
 }
@@ -323,10 +353,10 @@ func ParseSPS(sps []byte, ctx *Context) error {
 		}
 	}
 
-	if ctx.picWidthInLumaSamples, err = br.ReadGolomb(); err != nil {
+	if ctx.PicWidthInLumaSamples, err = br.ReadGolomb(); err != nil {
 		return err
 	}
-	if ctx.picHeightInLumaSamples, err = br.ReadGolomb(); err != nil {
+	if ctx.PicHeightInLumaSamples, err = br.ReadGolomb(); err != nil {
 		return err
 	}
 

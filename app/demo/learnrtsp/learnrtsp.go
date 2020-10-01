@@ -48,7 +48,7 @@ func (obs *Obs) OnAVPacket(pkt base.AVPacket) {
 	nazalog.Debugf("type=%d, ts=%d, len=%d", pkt.PayloadType, pkt.Timestamp, len(pkt.Payload))
 
 	switch pkt.PayloadType {
-	case base.RTPPacketTypeAVC:
+	case base.RTPPacketTypeAVCOrHEVC:
 		// TODO chef: 由于存在多nalu情况，需要进行拆分
 		_, _ = avcFp.Write([]byte{0, 0, 0, 1})
 		_, _ = avcFp.Write(pkt.Payload)

@@ -218,7 +218,7 @@ func analysisVideoTag(tag httpflv.Tag) {
 						buf.WriteString(fmt.Sprintf("delay: %dms", delay))
 					}
 				}
-				buf.WriteString(fmt.Sprintf(" [%s] ", hevc.ParseNALUTypeReadable(body[i+4])))
+				buf.WriteString(fmt.Sprintf(" [%s(%d)] ", hevc.ParseNALUTypeReadable(body[i+4]), body[i+4]))
 			}
 			i = i + 4 + int(naluLen)
 		}
