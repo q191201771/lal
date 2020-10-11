@@ -7,7 +7,7 @@
   "httpflv": {
     "enable": true,
     "sub_listen_addr": ":8090",
-    "enable_https": true,
+    "enable_https": false,
     "https_addr": ":4443",
     "https_cert_file": "./conf/cert.pem",
     "https_key_file": "./conf/key.pem",
@@ -38,9 +38,13 @@
     "enable": true,
     "addr": "127.0.0.1:19350"
   },
+  "http_api": {
+    "enable": true,
+    "addr": ":8093"
+  },
   "pprof": {
     "enable": false,
-    "addr": ":10002"
+    "addr": ":10011"
   },
   "log": {
     "level": 1,

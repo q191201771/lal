@@ -333,6 +333,7 @@ func CaptureAVCC2AnnexB(w io.Writer, payload []byte) error {
 	return nil
 }
 
+// TODO chef: hevc中，ctx作为参数传入，这里考虑统一一下
 // 尝试解析SPS所有字段，实验中，请勿直接使用该函数
 func ParseSPS(payload []byte) (Context, error) {
 	var sps SPS

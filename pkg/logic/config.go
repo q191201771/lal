@@ -29,8 +29,9 @@ type Config struct {
 	RelayPushConfig RelayPushConfig `json:"relay_push"`
 	RelayPullConfig RelayPullConfig `json:"relay_pull"`
 
-	PProfConfig PProfConfig    `json:"pprof"`
-	LogConfig   nazalog.Option `json:"log"`
+	HTTPAPIConfig HTTPAPIConfig  `json:"http_api"`
+	PProfConfig   PProfConfig    `json:"pprof"`
+	LogConfig     nazalog.Option `json:"log"`
 }
 
 type RTMPConfig struct {
@@ -69,6 +70,11 @@ type RelayPullConfig struct {
 	Addr   string `json:"addr"`
 }
 
+type HTTPAPIConfig struct {
+	Enable bool   `json:"enable"`
+	Addr   string `json:"addr"`
+}
+
 type PProfConfig struct {
 	Enable bool   `json:"enable"`
 	Addr   string `json:"addr"`
@@ -97,6 +103,7 @@ func LoadConf(confFile string) (*Config, error) {
 		!j.Exist("rtsp") ||
 		!j.Exist("relay_push") ||
 		!j.Exist("relay_pull") ||
+		!j.Exist("http_api") ||
 		!j.Exist("pprof") ||
 		!j.Exist("log") {
 		return &config, errors.New("missing key field in config file")

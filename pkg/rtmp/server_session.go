@@ -11,6 +11,7 @@ package rtmp
 import (
 	"net"
 	"strings"
+	"time"
 
 	"github.com/q191201771/lal/pkg/base"
 
@@ -34,8 +35,8 @@ type PubSessionObserver interface {
 	OnReadRTMPAVMsg(msg base.RTMPMsg)
 }
 
-func (s *ServerSession) SetPubSessionObserver(obs PubSessionObserver) {
-	s.avObs = obs
+func (s *ServerSession) SetPubSessionObserver(observer PubSessionObserver) {
+	s.avObserver = observer
 }
 
 type ServerSessionType int
@@ -52,29 +53,36 @@ type ServerSession struct {
 	StreamName             string
 	StreamNameWithRawQuery string
 
-	obs           ServerSessionObserver
+	observer      ServerSessionObserver
 	t             ServerSessionType
 	hs            HandshakeServer
 	chunkComposer *ChunkComposer
 	packer        *MessagePacker
 
-	conn connection.Connection
+	conn         connection.Connection
+	prevConnStat connection.Stat
+	stat         base.StatSession
 
 	// only for PubSession
-	avObs PubSessionObserver
+	avObserver PubSessionObserver
 
 	// only for SubSession
 	IsFresh bool
 }
 
-func NewServerSession(obs ServerSessionObserver, conn net.Conn) *ServerSession {
+func NewServerSession(observer ServerSessionObserver, conn net.Conn) *ServerSession {
 	uk := unique.GenUniqueKey("RTMPPUBSUB")
 	s := &ServerSession{
 		conn: connection.New(conn, func(option *connection.Option) {
 			option.ReadBufSize = readBufSize
 		}),
+		stat: base.StatSession{
+			Protocol:   base.ProtocolRTMP,
+			StartTime:  time.Now().Format("2006-01-02 15:04:05.999"),
+			RemoteAddr: conn.RemoteAddr().String(),
+		},
 		UniqueKey:     uk,
-		obs:           obs,
+		observer:      observer,
 		t:             ServerSessionTypeUnknown,
 		chunkComposer: NewChunkComposer(),
 		packer:        NewMessagePacker(),
@@ -104,6 +112,28 @@ func (s *ServerSession) Flush() error {
 func (s *ServerSession) Dispose() {
 	nazalog.Infof("[%s] lifecycle dispose rtmp ServerSession.", s.UniqueKey)
 	_ = s.conn.Close()
+}
+
+func (s *ServerSession) GetStat() base.StatSession {
+	connStat := s.conn.GetStat()
+	s.stat.ReadBytesSum = connStat.ReadBytesSum
+	s.stat.WroteBytesSum = connStat.WroteBytesSum
+	return s.stat
+}
+
+// TODO chef: 默认每5秒调用一次
+func (s *ServerSession) UpdateStat(tickCount uint32) {
+	currStat := s.conn.GetStat()
+	var diffStat connection.Stat
+	diffStat.ReadBytesSum = currStat.ReadBytesSum - s.prevConnStat.ReadBytesSum
+	diffStat.WroteBytesSum = currStat.WroteBytesSum - s.prevConnStat.WroteBytesSum
+	switch s.t {
+	case ServerSessionTypePub:
+		s.stat.Bitrate = int(diffStat.ReadBytesSum * 8 / 1024 / 5)
+	case ServerSessionTypeSub:
+		s.stat.Bitrate = int(diffStat.WroteBytesSum * 8 / 1024 / 5)
+	}
+	s.prevConnStat = currStat
 }
 
 func (s *ServerSession) runReadLoop() error {
@@ -149,7 +179,7 @@ func (s *ServerSession) doMsg(stream *Stream) error {
 			nazalog.Errorf("[%s] read audio/video message but server session not pub type.", s.UniqueKey)
 			return ErrRTMP
 		}
-		s.avObs.OnReadRTMPAVMsg(stream.toAVMsg())
+		s.avObserver.OnReadRTMPAVMsg(stream.toAVMsg())
 	default:
 		nazalog.Warnf("[%s] read unknown message. typeid=%d, %s", s.UniqueKey, stream.header.MsgTypeID, stream.toDebugString())
 
@@ -197,7 +227,7 @@ func (s *ServerSession) doDataMessageAMF0(stream *Stream) error {
 		return nil
 	}
 
-	s.avObs.OnReadRTMPAVMsg(stream.toAVMsg())
+	s.avObserver.OnReadRTMPAVMsg(stream.toAVMsg())
 	return nil
 }
 
@@ -315,7 +345,7 @@ func (s *ServerSession) doPublish(tid int, stream *Stream) (err error) {
 	s.ModConnProps()
 
 	s.t = ServerSessionTypePub
-	s.obs.OnNewRTMPPubSession(s)
+	s.observer.OnNewRTMPPubSession(s)
 
 	return nil
 }
@@ -350,14 +380,17 @@ func (s *ServerSession) doPlay(tid int, stream *Stream) (err error) {
 	s.ModConnProps()
 
 	s.t = ServerSessionTypeSub
-	s.obs.OnNewRTMPSubSession(s)
+	s.observer.OnNewRTMPSubSession(s)
 
 	return nil
 }
 
 func (s *ServerSession) ModConnProps() {
 	s.conn.ModWriteChanSize(wChanSize)
-	// TODO chef: naza.connection 这种方式会导致最后一点数据发送不出去，我们应该使用更好的方式
+	// TODO chef:
+	// 使用合并发送
+	// naza.connection 这种方式会导致最后一点数据发送不出去，我们应该使用更好的方式，比如合并发送模式下，Dispose时发送剩余数据
+	//
 	//s.conn.ModWriteBufSize(writeBufSize)
 
 	switch s.t {

@@ -10,6 +10,10 @@ package rtsp
 
 import (
 	"net"
+	"sync/atomic"
+	"time"
+
+	"github.com/q191201771/naza/pkg/connection"
 
 	"github.com/q191201771/naza/pkg/nazanet"
 
@@ -37,8 +41,12 @@ type PubSession struct {
 	observer      PubSessionObserver
 	avPacketQueue *AVPacketQueue
 
-	rtpConn          *nazanet.UDPConnection
-	rtcpConn         *nazanet.UDPConnection
+	rtpConn      *nazanet.UDPConnection
+	rtcpConn     *nazanet.UDPConnection
+	currConnStat connection.Stat
+	prevConnStat connection.Stat
+	stat         base.StatPub
+
 	audioUnpacker    *rtprtcp.RTPUnpacker
 	videoUnpacker    *rtprtcp.RTPUnpacker
 	audioRRProducer  *rtprtcp.RRProducer
@@ -59,14 +67,20 @@ func NewPubSession(streamName string) *PubSession {
 	ps := &PubSession{
 		UniqueKey:  uk,
 		StreamName: streamName,
+		stat: base.StatPub{
+			StatSession: base.StatSession{
+				Protocol:  base.ProtocolRTSP,
+				StartTime: time.Now().Format("2006-01-02 15:04:05.999"),
+			},
+		},
 	}
 	ps.avPacketQueue = NewAVPacketQueue(ps.onAVPacket)
 	nazalog.Infof("[%s] lifecycle new rtsp PubSession. session=%p, streamName=%s", uk, ps, streamName)
 	return ps
 }
 
-func (p *PubSession) SetObserver(obs PubSessionObserver) {
-	p.observer = obs
+func (p *PubSession) SetObserver(observer PubSessionObserver) {
+	p.observer = observer
 
 	if p.sps != nil && p.pps != nil {
 		if p.vps != nil {
@@ -135,16 +149,18 @@ func (p *PubSession) SetRTPConn(conn *net.UDPConn) {
 	server, _ := nazanet.NewUDPConnection(func(option *nazanet.UDPConnectionOption) {
 		option.Conn = conn
 	})
-	go server.RunLoop(p.onReadUDPPacket)
 	p.rtpConn = server
+
+	go server.RunLoop(p.onReadUDPPacket)
 }
 
 func (p *PubSession) SetRTCPConn(conn *net.UDPConn) {
 	server, _ := nazanet.NewUDPConnection(func(option *nazanet.UDPConnectionOption) {
 		option.Conn = conn
 	})
-	go server.RunLoop(p.onReadUDPPacket)
 	p.rtcpConn = server
+
+	go server.RunLoop(p.onReadUDPPacket)
 }
 
 func (p *PubSession) Dispose() {
@@ -156,6 +172,18 @@ func (p *PubSession) Dispose() {
 	}
 }
 
+func (p *PubSession) GetStat() base.StatPub {
+	p.stat.ReadBytesSum = atomic.LoadUint64(&p.currConnStat.ReadBytesSum)
+	p.stat.WroteBytesSum = atomic.LoadUint64(&p.currConnStat.WroteBytesSum)
+	return p.stat
+}
+
+func (p *PubSession) UpdateStat(tickCount uint32) {
+	diff := p.currConnStat.ReadBytesSum - p.prevConnStat.ReadBytesSum
+	p.stat.Bitrate = int(diff * 8 / 1024 / 5)
+	p.prevConnStat = p.currConnStat
+}
+
 // callback by UDPConnection
 // TODO yoko: 因为rtp和rtcp使用了两个连接，所以分成两个回调也行
 func (p *PubSession) onReadUDPPacket(b []byte, rAddr *net.UDPAddr, err error) bool {
@@ -163,6 +191,8 @@ func (p *PubSession) onReadUDPPacket(b []byte, rAddr *net.UDPAddr, err error) bo
 		nazalog.Errorf("read udp packet failed. err=%+v", err)
 		return true
 	}
+
+	atomic.AddUint64(&p.currConnStat.ReadBytesSum, uint64(len(b)))
 
 	if len(b) < 2 {
 		nazalog.Errorf("read udp packet length invalid. len=%d", len(b))
@@ -172,7 +202,6 @@ func (p *PubSession) onReadUDPPacket(b []byte, rAddr *net.UDPAddr, err error) bo
 	// try RTCP
 	switch b[1] {
 	case rtprtcp.RTCPPacketTypeSR:
-		//h := rtprtcp.ParseRTCPHeader(b)
 		sr := rtprtcp.ParseSR(b)
 		var rrBuf []byte
 		switch sr.SenderSSRC {
@@ -181,7 +210,10 @@ func (p *PubSession) onReadUDPPacket(b []byte, rAddr *net.UDPAddr, err error) bo
 		case p.videoSsrc:
 			rrBuf = p.videoRRProducer.Produce(sr.GetMiddleNTP())
 		}
+
 		_ = p.rtcpConn.Write(rrBuf)
+
+		atomic.AddUint64(&p.currConnStat.WroteBytesSum, uint64(len(b)))
 		return true
 	}
 
@@ -205,6 +237,10 @@ func (p *PubSession) onReadUDPPacket(b []byte, rAddr *net.UDPAddr, err error) bo
 			p.audioSsrc = h.Ssrc
 			p.audioUnpacker.Feed(pkt)
 			p.audioRRProducer.FeedRTPPacket(h.Seq)
+		}
+
+		if p.stat.RemoteAddr == "" {
+			p.stat.RemoteAddr = rAddr.String()
 		}
 
 		return true

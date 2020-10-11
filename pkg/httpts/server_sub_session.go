@@ -36,7 +36,9 @@ type SubSession struct {
 
 	IsFresh bool
 
-	conn connection.Connection
+	conn         connection.Connection
+	prevConnStat connection.Stat
+	stat         base.StatSub
 }
 
 func NewSubSession(conn net.Conn) *SubSession {
@@ -49,6 +51,13 @@ func NewSubSession(conn net.Conn) *SubSession {
 			option.WriteChanSize = wChanSize
 			option.WriteTimeoutMS = subSessionWriteTimeoutMS
 		}),
+		stat: base.StatSub{
+			StatSession: base.StatSession{
+				Protocol:   base.ProtocolHTTPTS,
+				StartTime:  time.Now().Format("2006-01-02 15:04:05.999"),
+				RemoteAddr: conn.RemoteAddr().String(),
+			},
+		},
 	}
 	nazalog.Infof("[%s] lifecycle new httpts SubSession. session=%p, remote addr=%s", uk, s, conn.RemoteAddr().String())
 	return s
@@ -127,6 +136,21 @@ func (session *SubSession) WriteRawPacket(pkt []byte) {
 func (session *SubSession) Dispose() {
 	nazalog.Infof("[%s] lifecycle dispose httpts SubSession.", session.UniqueKey)
 	_ = session.conn.Close()
+}
+
+func (session *SubSession) GetStat() base.StatSub {
+	currStat := session.conn.GetStat()
+	session.stat.ReadBytesSum = currStat.ReadBytesSum
+	session.stat.WroteBytesSum = currStat.WroteBytesSum
+	return session.stat
+}
+
+func (session *SubSession) UpdateStat(tickCount uint32) {
+	currStat := session.conn.GetStat()
+	var diffStat connection.Stat
+	diffStat.WroteBytesSum = currStat.WroteBytesSum - session.prevConnStat.WroteBytesSum
+	session.stat.Bitrate = int(diffStat.WroteBytesSum * 8 / 1024 / 5)
+	session.prevConnStat = currStat
 }
 
 func init() {

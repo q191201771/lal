@@ -22,15 +22,15 @@ type ServerObserver interface {
 }
 
 type Server struct {
-	obs  ServerObserver
-	addr string
-	ln   net.Listener
+	observer ServerObserver
+	addr     string
+	ln       net.Listener
 }
 
-func NewServer(obs ServerObserver, addr string) *Server {
+func NewServer(observer ServerObserver, addr string) *Server {
 	return &Server{
-		obs:  obs,
-		addr: addr,
+		observer: observer,
+		addr:     addr,
 	}
 }
 
@@ -70,15 +70,15 @@ func (server *Server) handleTCPConnect(conn net.Conn) {
 	case ServerSessionTypeUnknown:
 	// noop
 	case ServerSessionTypePub:
-		server.obs.OnDelRTMPPubSession(session)
+		server.observer.OnDelRTMPPubSession(session)
 	case ServerSessionTypeSub:
-		server.obs.OnDelRTMPSubSession(session)
+		server.observer.OnDelRTMPSubSession(session)
 	}
 }
 
 // ServerSessionObserver
 func (server *Server) OnNewRTMPPubSession(session *ServerSession) {
-	if !server.obs.OnNewRTMPPubSession(session) {
+	if !server.observer.OnNewRTMPPubSession(session) {
 		log.Warnf("dispose PubSession since pub exist.")
 		session.Dispose()
 		return
@@ -87,7 +87,7 @@ func (server *Server) OnNewRTMPPubSession(session *ServerSession) {
 
 // ServerSessionObserver
 func (server *Server) OnNewRTMPSubSession(session *ServerSession) {
-	if !server.obs.OnNewRTMPSubSession(session) {
+	if !server.observer.OnNewRTMPSubSession(session) {
 		session.Dispose()
 		return
 	}

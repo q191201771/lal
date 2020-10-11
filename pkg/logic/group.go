@@ -14,8 +14,6 @@ import (
 
 	"github.com/q191201771/lal/pkg/hevc"
 
-	"github.com/q191201771/naza/pkg/nazastring"
-
 	"github.com/q191201771/lal/pkg/httpts"
 
 	"github.com/q191201771/naza/pkg/bele"
@@ -44,7 +42,8 @@ type Group struct {
 	UniqueKey string
 
 	appName    string
-	streamName string
+	streamName string // TODO chef: 和stat里的字段重复，可以删除掉
+	stat       base.StatGroup
 
 	exitChan chan struct{}
 
@@ -66,6 +65,8 @@ type Group struct {
 	vps []byte
 	sps []byte
 	pps []byte
+
+	tickCount uint32
 }
 
 type pushProxy struct {
@@ -89,9 +90,12 @@ func NewGroup(appName string, streamName string) *Group {
 	}
 
 	return &Group{
-		UniqueKey:            uk,
-		appName:              appName,
-		streamName:           streamName,
+		UniqueKey:  uk,
+		appName:    appName,
+		streamName: streamName,
+		stat: base.StatGroup{
+			StreamName: streamName,
+		},
 		exitChan:             make(chan struct{}, 1),
 		rtmpSubSessionSet:    make(map[*rtmp.ServerSession]struct{}),
 		httpflvSubSessionSet: make(map[*httpflv.SubSession]struct{}),
@@ -107,12 +111,33 @@ func (group *Group) RunLoop() {
 }
 
 // TODO chef: 传入时间
+// 目前每秒触发一次
 func (group *Group) Tick() {
 	group.mutex.Lock()
 	defer group.mutex.Unlock()
 
 	group.pullIfNeeded()
 	group.pushIfNeeded()
+
+	// 每5秒计算session bitrate
+	if group.tickCount%5 == 0 {
+		if group.rtmpPubSession != nil {
+			group.rtmpPubSession.UpdateStat(group.tickCount)
+		}
+		if group.rtspPubSession != nil {
+			group.rtspPubSession.UpdateStat(group.tickCount)
+		}
+		for session := range group.rtmpSubSessionSet {
+			session.UpdateStat(group.tickCount)
+		}
+		for session := range group.httpflvSubSessionSet {
+			session.UpdateStat(group.tickCount)
+		}
+		for session := range group.httptsSubSessionSet {
+			session.UpdateStat(group.tickCount)
+		}
+	}
+	group.tickCount++
 }
 
 // 主动释放所有资源。保证所有资源的生命周期逻辑上都在我们的控制中。降低出bug的几率，降低心智负担。
@@ -452,6 +477,7 @@ func (group *Group) OnAVPacket(pkt base.AVPacket) {
 	group.broadcastRTMP(msg)
 }
 
+// TODO chef 用Stat取代这个序列号函数
 func (group *Group) StringifyStats() string {
 	group.mutex.Lock()
 	defer group.mutex.Unlock()
@@ -476,8 +502,34 @@ func (group *Group) StringifyStats() string {
 		}
 	}
 
-	return fmt.Sprintf("[%s] stream name=%s, rtmp pub=%s, relay rtmp pull=%s, rtmp sub=%d, httpflv sub=%d, httpts sub=%d, relay rtmp push=%d",
-		group.UniqueKey, group.streamName, pub, pull, len(group.rtmpSubSessionSet), len(group.httpflvSubSessionSet), len(group.httptsSubSessionSet), pushSize)
+	return fmt.Sprintf("[%s] stat=%+v, rtmp pub=%s, relay rtmp pull=%s, rtmp sub=%d, httpflv sub=%d, httpts sub=%d, relay rtmp push=%d",
+		group.UniqueKey, group.stat, pub, pull, len(group.rtmpSubSessionSet), len(group.httpflvSubSessionSet), len(group.httptsSubSessionSet), pushSize)
+}
+
+func (group *Group) GetStat() base.StatGroup {
+	group.mutex.Lock()
+	defer group.mutex.Unlock()
+
+	if group.rtmpPubSession != nil {
+		group.stat.StatPub = base.StatSession2Pub(group.rtmpPubSession.GetStat())
+	} else if group.rtspPubSession != nil {
+		group.stat.StatPub = group.rtspPubSession.GetStat()
+	} else {
+		group.stat.StatPub = base.StatPub{}
+	}
+
+	group.stat.StatSubs = nil
+	for s := range group.rtmpSubSessionSet {
+		group.stat.StatSubs = append(group.stat.StatSubs, base.StatSession2Sub(s.GetStat()))
+	}
+	for s := range group.httpflvSubSessionSet {
+		group.stat.StatSubs = append(group.stat.StatSubs, s.GetStat())
+	}
+	for s := range group.httptsSubSessionSet {
+		group.stat.StatSubs = append(group.stat.StatSubs, s.GetStat())
+	}
+
+	return group.stat
 }
 
 func (group *Group) broadcastMetadataAndSeqHeader() {
@@ -565,9 +617,6 @@ func (group *Group) broadcastMetadataAndSeqHeader() {
 // TODO chef: 目前相当于其他类型往rtmp.AVMsg转了，考虑统一往一个通用类型转
 // @param msg 调用结束后，内部不持有msg.Payload内存块
 func (group *Group) broadcastRTMP(msg base.RTMPMsg) {
-	if msg.IsHEVCKeySeqHeader() {
-		nazalog.Debugf("%s", nazastring.DumpSliceByte(msg.Payload))
-	}
 	var (
 		lcd    LazyChunkDivider
 		lrm2ft LazyRTMPMsg2FLVTag
@@ -672,9 +721,46 @@ func (group *Group) broadcastRTMP(msg base.RTMPMsg) {
 	if config.RTMPConfig.Enable {
 		group.gopCache.Feed(msg, lcd.Get)
 	}
-
 	if config.HTTPFLVConfig.Enable {
 		group.httpflvGopCache.Feed(msg, lrm2ft.Get)
+	}
+
+	// # 6. 记录stat
+	if group.stat.AudioCodec == "" {
+		if msg.IsAACSeqHeader() {
+			group.stat.AudioCodec = base.AudioCodecAAC
+		}
+	}
+	if group.stat.AudioCodec == "" {
+		if msg.IsAVCKeySeqHeader() {
+			group.stat.VideoCodec = base.VideoCodecAVC
+		}
+		if msg.IsHEVCKeySeqHeader() {
+			group.stat.VideoCodec = base.VideoCodecHEVC
+		}
+	}
+	if group.stat.VideoHeight == 0 || group.stat.VideoWidth == 0 {
+		if msg.IsAVCKeySeqHeader() {
+			sps, _, err := avc.ParseSPSPPSFromSeqHeader(msg.Payload)
+			if err == nil {
+				ctx, err := avc.ParseSPS(sps)
+				if err == nil {
+					group.stat.VideoHeight = int(ctx.Height)
+					group.stat.VideoWidth = int(ctx.Width)
+				}
+			}
+		}
+		if msg.IsHEVCKeySeqHeader() {
+			_, sps, _, err := hevc.ParseVPSSPSPPSFromSeqHeader(msg.Payload)
+			if err == nil {
+				var ctx hevc.Context
+				err = hevc.ParseSPS(sps, &ctx)
+				if err == nil {
+					group.stat.VideoHeight = int(ctx.PicHeightInLumaSamples)
+					group.stat.VideoWidth = int(ctx.PicWidthInLumaSamples)
+				}
+			}
+		}
 	}
 }
 

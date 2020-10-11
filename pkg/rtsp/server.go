@@ -33,8 +33,8 @@ type ServerObserver interface {
 }
 
 type Server struct {
-	addr string
-	obs  ServerObserver
+	addr     string
+	observer ServerObserver
 
 	ln               net.Listener
 	availUDPConnPool *nazanet.AvailUDPConnPool
@@ -43,10 +43,10 @@ type Server struct {
 	presentation2PubSession map[string]*PubSession
 }
 
-func NewServer(addr string, obs ServerObserver) *Server {
+func NewServer(addr string, observer ServerObserver) *Server {
 	return &Server{
 		addr:                    addr,
-		obs:                     obs,
+		observer:                observer,
 		availUDPConnPool:        nazanet.NewAvailUDPConnPool(minServerPort, maxServerPort),
 		presentation2PubSession: make(map[string]*PubSession),
 	}
@@ -123,7 +123,7 @@ func (s *Server) handleTCPConnect(conn net.Conn) {
 			// TODO chef: 缺少统一释放pubsession的逻辑
 
 			// TODO chef: 我用ffmpeg向lal推rtsp流，发现lal直接关闭rtsp的连接，ffmpeg并不会退出，是否应先发送什么命令？
-			if ok := s.obs.OnNewRTSPPubSession(pubSession); !ok {
+			if ok := s.observer.OnNewRTSPPubSession(pubSession); !ok {
 				nazalog.Warnf("[%s] force close pubsession.", pubSession.UniqueKey)
 				break
 			}
@@ -187,7 +187,7 @@ func (s *Server) handleTCPConnect(conn net.Conn) {
 			s.m.Unlock()
 			if ok {
 				session.Dispose()
-				s.obs.OnDelRTSPPubSession(session)
+				s.observer.OnDelRTSPPubSession(session)
 			}
 
 			resp := PackResponseTeardown(headers[HeaderFieldCSeq])

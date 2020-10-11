@@ -13,6 +13,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/q191201771/lal/pkg/base"
+
 	"github.com/q191201771/lal/pkg/httpts"
 
 	"github.com/q191201771/lal/pkg/rtsp"
@@ -30,6 +32,7 @@ type ServerManager struct {
 	hlsServer     *hls.Server
 	httptsServer  *httpts.Server
 	rtspServer    *rtsp.Server
+	httpAPIServer *HTTPAPIServer
 	exitChan      chan struct{}
 
 	mutex    sync.Mutex
@@ -55,6 +58,9 @@ func NewServerManager() *ServerManager {
 	}
 	if config.RTSPConfig.Enable {
 		m.rtspServer = rtsp.NewServer(config.RTSPConfig.Addr, m)
+	}
+	if config.HTTPAPIConfig.Enable {
+		m.httpAPIServer = NewHTTPAPIServer(config.HTTPAPIConfig.Addr, m)
 	}
 	return m
 }
@@ -120,6 +126,18 @@ func (sm *ServerManager) RunLoop() {
 		}()
 	}
 
+	if sm.httpAPIServer != nil {
+		if err := sm.httpAPIServer.Listen(); err != nil {
+			nazalog.Error(err)
+			os.Exit(1)
+		}
+		go func() {
+			if err := sm.httpAPIServer.Runloop(); err != nil {
+				nazalog.Error(err)
+			}
+		}()
+	}
+
 	t := time.NewTicker(1 * time.Second)
 	defer t.Stop()
 	var count uint32
@@ -129,6 +147,8 @@ func (sm *ServerManager) RunLoop() {
 			return
 		case <-t.C:
 			sm.iterateGroup()
+
+			// log
 			count++
 			if (count % 10) == 0 {
 				sm.mutex.Lock()
@@ -258,6 +278,28 @@ func (sm *ServerManager) OnDelRTSPPubSession(session *rtsp.PubSession) {
 	if group != nil {
 		group.DelRTSPPubSession(session)
 	}
+}
+
+func (sm *ServerManager) OnStatAllGroup() (sgs []base.StatGroup) {
+	sm.mutex.Lock()
+	defer sm.mutex.Unlock()
+	for _, g := range sm.groupMap {
+		sgs = append(sgs, g.GetStat())
+	}
+	return
+}
+
+func (sm *ServerManager) OnStatGroup(streamName string) *base.StatGroup {
+	sm.mutex.Lock()
+	defer sm.mutex.Unlock()
+	g := sm.getGroup("fakeAppName", streamName)
+	if g == nil {
+		return nil
+	}
+	// copy
+	var ret base.StatGroup
+	ret = g.GetStat()
+	return &ret
 }
 
 func (sm *ServerManager) iterateGroup() {

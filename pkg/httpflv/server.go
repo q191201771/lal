@@ -34,18 +34,18 @@ type ServerConfig struct {
 }
 
 type Server struct {
-	obs     ServerObserver
-	config  ServerConfig
-	ln      net.Listener
-	httpsLn net.Listener
+	observer ServerObserver
+	config   ServerConfig
+	ln       net.Listener
+	httpsLn  net.Listener
 }
 
 // TODO chef: 监听太难看了，考虑直接传入Listener对象，或直接路由进来，使得不同server可以共用端口
 
-func NewServer(obs ServerObserver, config ServerConfig) *Server {
+func NewServer(observer ServerObserver, config ServerConfig) *Server {
 	return &Server{
-		obs:    obs,
-		config: config,
+		observer: observer,
+		config:   config,
 	}
 }
 
@@ -133,11 +133,11 @@ func (server *Server) handleConnect(conn net.Conn) {
 	}
 	nazalog.Debugf("[%s] < read http request. uri=%s", session.UniqueKey, session.URI)
 
-	if !server.obs.OnNewHTTPFLVSubSession(session) {
+	if !server.observer.OnNewHTTPFLVSubSession(session) {
 		session.Dispose()
 	}
 
 	err := session.RunLoop()
 	nazalog.Debugf("[%s] httpflv sub session loop done. err=%v", session.UniqueKey, err)
-	server.obs.OnDelHTTPFLVSubSession(session)
+	server.observer.OnDelHTTPFLVSubSession(session)
 }

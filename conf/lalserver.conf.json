@@ -37,6 +37,10 @@
     "enable": false,
     "addr": ""
   },
+  "http_api": {
+    "enable": true,
+    "addr": ":8083"
+  },
   "pprof": {
     "enable": true,
     "addr": ":10001"

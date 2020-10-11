@@ -20,60 +20,58 @@ import (
 )
 
 const httpAPIVersion = "v0.0.1"
-const CodeSucc = 0
-const DespSucc = "succ"
+
+const (
+	ErrorCodeSucc          = 0
+	DespSucc               = "succ"
+	ErrorCodeGroupNotFound = 1001
+	DespGroupNotFound      = "group not found"
+)
 
 var startTime string
 
+type HTTPAPIServerObserver interface {
+	OnStatAllGroup() []base.StatGroup
+	OnStatGroup(streamName string) *base.StatGroup
+}
+
 type HTTPAPIServer struct {
-	addr string
-	ln   net.Listener
+	addr     string
+	observer HTTPAPIServerObserver
+	ln       net.Listener
 }
 
 type HTTPResponseBasic struct {
-	Code int    `json:"code"`
-	Desp string `json:"desp"`
+	ErrorCode int    `json:"error_code"`
+	Desp      string `json:"desp"`
 }
 
-type APILalInfo struct {
+type APIStatLALInfo struct {
 	HTTPResponseBasic
-	BinInfo    string `json:"bin_info"`
-	LalVersion string `json:"lal_version"`
-	APIVersion string `json:"api_version"`
-	StartTime  string `json:"start_time"`
+	Data struct {
+		BinInfo    string `json:"bin_info"`
+		LalVersion string `json:"lal_version"`
+		APIVersion string `json:"api_version"`
+		StartTime  string `json:"start_time"`
+	} `json:"data"`
 }
 
 type APIStatAllGroup struct {
 	HTTPResponseBasic
-	Groups []StatGroupItem `json:"groups"`
+	Data struct {
+		Groups []base.StatGroup `json:"groups"`
+	} `json:"data"`
 }
 
-type StatGroupItem struct {
-	StreamName  string `json:"stream_name"`
-	AudioCodec  string `json:"audio_codec"`
-	VideoCodec  string `json:"video_codec"`
-	VideoWidth  string `json:"video_width"`
-	VideoHeight string `json:"video_height"`
+type APIStatGroup struct {
+	HTTPResponseBasic
+	Data *base.StatGroup `json:"data"`
 }
 
-type StatPub struct {
-	StatSession
-}
-
-type StatSub struct {
-	StatSession
-}
-
-type StatSession struct {
-	Protocol   string `json:"protocol"`
-	StartTime  string `json:"start_time"`
-	RemoteAddr string `json:"remote_addr"`
-	Bitrate    string `json:"bitrate"`
-}
-
-func NewHTTPAPIServer(addr string) *HTTPAPIServer {
+func NewHTTPAPIServer(addr string, observer HTTPAPIServerObserver) *HTTPAPIServer {
 	return &HTTPAPIServer{
-		addr: addr,
+		addr:     addr,
+		observer: observer,
 	}
 }
 
@@ -88,36 +86,85 @@ func (h *HTTPAPIServer) Listen() (err error) {
 func (h *HTTPAPIServer) Runloop() error {
 	mux := http.NewServeMux()
 
-	mux.HandleFunc("/api/lal_info", h.lalInfo)
-	mux.HandleFunc("/api/stat/group", h.statGroup)
-	mux.HandleFunc("/api/stat/all_group", h.statAllGroup)
+	//mux.HandleFunc("/api/list", h.apiListHandler)
+	mux.HandleFunc("/api/stat/lal_info", h.statLALInfoHandler)
+	mux.HandleFunc("/api/stat/group", h.statGroupHandler)
+	mux.HandleFunc("/api/stat/all_group", h.statAllGroupHandler)
 
 	var srv http.Server
 	srv.Handler = mux
 	return srv.Serve(h.ln)
 }
 
-func (h *HTTPAPIServer) lalInfo(w http.ResponseWriter, req *http.Request) {
-	var v APILalInfo
-	v.Code = CodeSucc
+// TODO chef: dispose
+
+func (h *HTTPAPIServer) apiListHandler(w http.ResponseWriter, req *http.Request) {
+	// TODO chef: 写完api list页面
+	b := []byte(`
+<html>
+<head><title>lal http api list</title></head>
+<body>
+<br>
+<br>
+<ul>
+<li><a href="https://pengrl.com">lal http api接口文档</li>
+</ul>
+</body>
+</html>
+`)
+	w.Header().Add("Server", base.LALHTTPAPIServer)
+	_, _ = w.Write(b)
+}
+
+func (h *HTTPAPIServer) statLALInfoHandler(w http.ResponseWriter, req *http.Request) {
+	var v APIStatLALInfo
+	v.ErrorCode = ErrorCodeSucc
 	v.Desp = DespSucc
-	v.BinInfo = bininfo.StringifySingleLine()
-	v.LalVersion = base.LALVersion
-	v.APIVersion = httpAPIVersion
-	v.StartTime = startTime
+	v.Data.BinInfo = bininfo.StringifySingleLine()
+	v.Data.LalVersion = base.LALVersion
+	v.Data.APIVersion = httpAPIVersion
+	v.Data.StartTime = startTime
 	resp, _ := json.Marshal(v)
 	w.Header().Add("Server", base.LALHTTPAPIServer)
 	_, _ = w.Write(resp)
 }
 
-func (h *HTTPAPIServer) statGroup(w http.ResponseWriter, req *http.Request) {
+func (h *HTTPAPIServer) statAllGroupHandler(w http.ResponseWriter, req *http.Request) {
+	gs := h.observer.OnStatAllGroup()
 
+	var v APIStatAllGroup
+	v.ErrorCode = ErrorCodeSucc
+	v.Desp = DespSucc
+	v.Data.Groups = gs
+	resp, _ := json.Marshal(v)
+	w.Header().Add("Server", base.LALHTTPAPIServer)
+	_, _ = w.Write(resp)
 }
 
-func (h *HTTPAPIServer) statAllGroup(w http.ResponseWriter, req *http.Request) {
+func (h *HTTPAPIServer) statGroupHandler(w http.ResponseWriter, req *http.Request) {
+	var v APIStatGroup
 
+	q := req.URL.Query()
+	streamName := q.Get("stream_name")
+	if streamName == "" {
+		v.ErrorCode = ErrorCodeGroupNotFound
+		v.Desp = DespGroupNotFound
+	} else {
+		v.Data = h.observer.OnStatGroup(streamName)
+		if v.Data == nil {
+			v.ErrorCode = ErrorCodeGroupNotFound
+			v.Desp = DespGroupNotFound
+		} else {
+			v.ErrorCode = ErrorCodeSucc
+			v.Desp = DespSucc
+		}
+	}
+
+	resp, _ := json.Marshal(v)
+	w.Header().Add("Server", base.LALHTTPAPIServer)
+	_, _ = w.Write(resp)
 }
 
 func init() {
-	startTime = time.Now().String()
+	startTime = time.Now().Format("2006-01-02 15:04:05.999")
 }
