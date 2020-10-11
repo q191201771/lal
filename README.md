@@ -48,6 +48,7 @@
 - 音频支持AAC格式
 - 支持静态回源、静态转推，可搭建基础的集群
 - 支持Gop缓冲，用于秒开播放
+- 支持HTTP API接口，获取服务信息，见[《lal流媒体服务器的HTTP API接口》](https://pengrl.com/p/20100)
 
 除了lalserver，还提供一些基于lal开发的demo： [《lal/app/demo》](https://github.com/q191201771/lal/blob/master/app/demo/README.md)
 
