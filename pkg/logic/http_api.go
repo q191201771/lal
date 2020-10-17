@@ -19,7 +19,7 @@ import (
 	"github.com/q191201771/naza/pkg/nazalog"
 )
 
-const httpAPIVersion = "v0.0.1"
+const httpAPIVersion = "v0.0.2"
 
 const (
 	ErrorCodeSucc          = 0
@@ -86,7 +86,7 @@ func (h *HTTPAPIServer) Listen() (err error) {
 func (h *HTTPAPIServer) Runloop() error {
 	mux := http.NewServeMux()
 
-	//mux.HandleFunc("/api/list", h.apiListHandler)
+	mux.HandleFunc("/api/list", h.apiListHandler)
 	mux.HandleFunc("/api/stat/lal_info", h.statLALInfoHandler)
 	mux.HandleFunc("/api/stat/group", h.statGroupHandler)
 	mux.HandleFunc("/api/stat/all_group", h.statAllGroupHandler)
@@ -106,8 +106,18 @@ func (h *HTTPAPIServer) apiListHandler(w http.ResponseWriter, req *http.Request)
 <body>
 <br>
 <br>
+<p>api接口列表：</p>
 <ul>
-<li><a href="https://pengrl.com">lal http api接口文档</li>
+	<li><a href="/api/stat/group?stream_name=test110">/api/stat/group?stream_name=test110</a></li>
+	<li><a href="/api/stat/all_group">/api/stat/all_group</a></li>
+	<li><a href="/api/stat/lal_info">/api/stat/lal_info</a></li>
+	<li><a href="/api/list">/api/list</a></li>
+</ul>
+<br>
+<p>其他链接：</p>
+<ul>
+	<li><a href="https://pengrl.com/p/20100/">lal http api接口说明文档</a></li>
+	<li><a href="https://github.com/q191201771/lal">lal github地址</a></li>
 </ul>
 </body>
 </html>
