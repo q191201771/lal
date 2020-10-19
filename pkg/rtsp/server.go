@@ -81,6 +81,9 @@ func (s *Server) Dispose() {
 }
 
 func (s *Server) handleTCPConnect(conn net.Conn) {
+	// Pub ffmpeg OPTIONS -> ANNOUNCE -> SETUP -> RECORD
+	// Sub vlc OPTIONS -> DESCRIBE -> SETUP
+
 	nazalog.Debugf("> handleTCPConnect. conn=%p", conn)
 	r := bufio.NewReader(conn)
 	for {

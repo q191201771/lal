@@ -27,9 +27,9 @@ import (
 )
 
 type PubSessionObserver interface {
-	OnASC(asc []byte)
-	OnSPSPPS(sps, pps []byte)         // 如果是H264
-	OnVPSSPSPPS(vps, sps, pps []byte) // 如果是H265
+	// @param asc: AAC AudioSpecificConfig，注意，如果不存在音频，则为nil
+	// @param vps: 视频为H264时为nil，视频为H265时不为nil
+	OnAVConfig(asc, vps, sps, pps []byte)
 
 	// @param pkt: pkt结构体中字段含义见rtprtcp.OnAVPacket
 	OnAVPacket(pkt base.AVPacket)
@@ -74,7 +74,6 @@ func NewPubSession(streamName string) *PubSession {
 			},
 		},
 	}
-	ps.avPacketQueue = NewAVPacketQueue(ps.onAVPacket)
 	nazalog.Infof("[%s] lifecycle new rtsp PubSession. session=%p, streamName=%s", uk, ps, streamName)
 	return ps
 }
@@ -82,16 +81,7 @@ func NewPubSession(streamName string) *PubSession {
 func (p *PubSession) SetObserver(observer PubSessionObserver) {
 	p.observer = observer
 
-	if p.sps != nil && p.pps != nil {
-		if p.vps != nil {
-			p.observer.OnVPSSPSPPS(p.vps, p.sps, p.pps)
-		} else {
-			p.observer.OnSPSPPS(p.sps, p.pps)
-		}
-	}
-	if p.asc != nil {
-		p.observer.OnASC(p.asc)
-	}
+	p.observer.OnAVConfig(p.asc, p.vps, p.sps, p.pps)
 }
 
 func (p *PubSession) InitWithSDP(sdpCtx sdp.SDPContext) {
@@ -143,6 +133,10 @@ func (p *PubSession) InitWithSDP(sdpCtx sdp.SDPContext) {
 
 	p.audioRRProducer = rtprtcp.NewRRProducer(audioClockRate)
 	p.videoRRProducer = rtprtcp.NewRRProducer(videoClockRate)
+
+	if p.audioPayloadType != 0 && p.videoPayloadType != 0 {
+		p.avPacketQueue = NewAVPacketQueue(p.onAVPacket)
+	}
 }
 
 func (p *PubSession) SetRTPConn(conn *net.UDPConn) {
@@ -252,11 +246,15 @@ func (p *PubSession) onReadUDPPacket(b []byte, rAddr *net.UDPAddr, err error) bo
 
 // callback by RTPUnpacker
 func (p *PubSession) onAVPacketUnpacked(pkt base.AVPacket) {
-	if p.audioUnpacker != nil && p.videoUnpacker != nil {
+	if p.avPacketQueue != nil {
 		p.avPacketQueue.Feed(pkt)
 	} else {
 		p.observer.OnAVPacket(pkt)
 	}
+	//if p.audioUnpacker != nil && p.videoUnpacker != nil {
+	//} else {
+	//	p.observer.OnAVPacket(pkt)
+	//}
 }
 
 // callback by avpacket queue

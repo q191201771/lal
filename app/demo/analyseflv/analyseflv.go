@@ -75,15 +75,21 @@ func main() {
 	url := parseFlag()
 	session := httpflv.NewPullSession()
 
-	brTotal := bitrate.New()
-	brAudio := bitrate.New()
-	brVideo := bitrate.New()
+	brTotal := bitrate.New(func(option *bitrate.Option) {
+		option.WindowMS = 5000
+	})
+	brAudio := bitrate.New(func(option *bitrate.Option) {
+		option.WindowMS = 5000
+	})
+	brVideo := bitrate.New(func(option *bitrate.Option) {
+		option.WindowMS = 5000
+	})
 
 	videoCTSNotZeroCount := 0
 
 	go func() {
 		for {
-			time.Sleep(1 * time.Second)
+			time.Sleep(5 * time.Second)
 			if printStatFlag {
 				nazalog.Debugf("stat. total=%dKb/s, audio=%dKb/s, video=%dKb/s, videoCTSNotZeroCount=%d, diffIDRTS=%d",
 					int(brTotal.Rate()), int(brAudio.Rate()), int(brVideo.Rate()), videoCTSNotZeroCount, diffIDRTS)

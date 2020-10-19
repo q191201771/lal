@@ -389,20 +389,8 @@ func (group *Group) OnReadRTMPAVMsg(msg base.RTMPMsg) {
 }
 
 // rtsp.PubSession
-func (group *Group) OnASC(asc []byte) {
+func (group *Group) OnAVConfig(asc, vps, sps, pps []byte) {
 	group.asc = asc
-	group.broadcastMetadataAndSeqHeader()
-}
-
-// rtsp.PubSession
-func (group *Group) OnSPSPPS(sps, pps []byte) {
-	group.sps = sps
-	group.pps = pps
-	group.broadcastMetadataAndSeqHeader()
-}
-
-// rtsp.PubSession
-func (group *Group) OnVPSSPSPPS(vps, sps, pps []byte) {
 	group.vps = vps
 	group.sps = sps
 	group.pps = pps
@@ -533,13 +521,12 @@ func (group *Group) GetStat() base.StatGroup {
 }
 
 func (group *Group) broadcastMetadataAndSeqHeader() {
-	if group.asc == nil || group.sps == nil || group.pps == nil {
-		return
-	}
-
 	var metadata []byte
 	var vsh []byte
 	var err error
+
+	// TODO chef: 考虑只有音频，没有视频的情况
+
 	if group.isHEVC() {
 		var ctx hevc.Context
 		if err := hevc.ParseSPS(group.sps, &ctx); err != nil {
@@ -576,11 +563,6 @@ func (group *Group) broadcastMetadataAndSeqHeader() {
 			return
 		}
 	}
-	ash, err := aac.BuildAACSeqHeader(group.asc)
-	if err != nil {
-		nazalog.Errorf("build aac seq header failed. err=%+v", err)
-		return
-	}
 
 	var h base.RTMPHeader
 	var msg base.RTMPMsg
@@ -603,15 +585,23 @@ func (group *Group) broadcastMetadataAndSeqHeader() {
 	msg.Payload = vsh
 	group.broadcastRTMP(msg)
 
-	h.MsgLen = uint32(len(ash))
-	h.TimestampAbs = 0
-	h.MsgTypeID = base.RTMPTypeIDAudio
-	h.CSID = rtmp.CSIDAudio
-	msg.Header = h
-	msg.Payload = ash
-	msg.Header = h
-	msg.Payload = ash
-	group.broadcastRTMP(msg)
+	if group.asc != nil {
+		ash, err := aac.BuildAACSeqHeader(group.asc)
+		if err != nil {
+			nazalog.Errorf("build aac seq header failed. err=%+v", err)
+			return
+		}
+
+		h.MsgLen = uint32(len(ash))
+		h.TimestampAbs = 0
+		h.MsgTypeID = base.RTMPTypeIDAudio
+		h.CSID = rtmp.CSIDAudio
+		msg.Header = h
+		msg.Payload = ash
+		msg.Header = h
+		msg.Payload = ash
+		group.broadcastRTMP(msg)
+	}
 }
 
 // TODO chef: 目前相当于其他类型往rtmp.AVMsg转了，考虑统一往一个通用类型转
