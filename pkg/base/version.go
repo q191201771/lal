@@ -16,7 +16,7 @@ import "strings"
 // 并且将这些信息打入可执行文件、日志、各协议中的标准版本字段中
 
 // 版本，该变量由build脚本修改维护
-var LALVersion = "v0.15.1"
+var LALVersion = "v0.16.0"
 
 var (
 	LALLibraryName = "lal"
