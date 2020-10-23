@@ -1,3 +1,10 @@
+#### v0.16.0
+
+- [feat] rtsp pub h265（lal支持接收rtsp h265视频格式的推流）
+- [feat] 增加HTTP API接口，用于获取服务的一些信息，具体见： https://pengrl.com/p/20100/
+- [fix] 修复部分使用adobe flash player作为rtmp拉流客户端，拉流失败的问题
+- [fix] 修复接收rtsp pub推流时，流只有视频（没有音频）流处理的问题
+
 #### v0.15.1
 
 - [fix] 配置文件没有开启HTTPS-FLV时，错误使用nil对象导致崩溃

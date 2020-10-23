@@ -37,18 +37,18 @@
 
 **`app/lalserver`功能特性：**
 
-- (依托Go语言)：支持`(linux/macOS/windows)`多平台开发、调试、运行。支持交叉编译。生成的可执行文件(无任何库依赖)可独立运行。(开放源码的同时)，提供各平台可执行文件，可(免编译)直接运行
-- 高性能，多核多线程扩展
-- 支持RTMP/RTSP/HTTP-FLV/HTTP-TS/HLS多种封装协议，不同封装协议支持相互转换
-- 支持HTTPS-FLV
-- HTTP类型的流支持CORS跨域请求
-- 支持HTTP服务器(比如HLS切片文件可直接播放，不需要额外的HTTP文件服务器)
-- 支持HLS录制(HLS直播与录制可同时开启)
-- 视频支持H264/AVC，H265/HEVC格式
-- 音频支持AAC格式
-- 支持静态回源、静态转推，可搭建基础的集群
-- 支持Gop缓冲，用于秒开播放
-- 支持HTTP API接口，获取服务信息，见[《lal流媒体服务器的HTTP API接口》](https://pengrl.com/p/20100)
+- [x] **全平台**。(依托Go语言)：支持`(linux/macOS/windows)`多平台开发、调试、运行。支持交叉编译。生成的可执行文件(无任何库依赖)可独立运行。(开放源码的同时)提供各平台可执行文件，可(免编译)直接运行
+- [x] **高性能**。多核多线程扩展
+- [x] **多种封装协议**。支持RTMP/RTSP/HTTP-FLV/HTTP-TS/HLS，不同封装协议支持相互转换
+- [x] **录制**。支持HLS录制(HLS直播与录制可同时开启)
+- [x] **HTTPS**。支持HTTPS-FLV拉流
+- [x] **CORS跨域**。支持HTTP-FLV，HTTP-TS，HLS跨域拉流
+- [x] **HTTP文件服务器**。比如HLS切片文件可直接播放，不需要额外的HTTP文件服务器
+- [x] **多种编码格式**。视频支持H264/AVC，H265/HEVC，音频支持AAC
+- [x] **静态pull回源**。用于搭建简易集群
+- [x] **静态push转推**。支持转推多个地址。通过静态文件配置
+- [x] **秒开播放**。GOP缓冲
+- [x] HTTP API接口。用于获取服务信息，见[《lal流媒体服务器的HTTP API接口》](https://pengrl.com/p/20100)
 
 除了lalserver，还提供一些基于lal开发的demo： [《lal/app/demo》](https://github.com/q191201771/lal/blob/master/app/demo/README.md)
 
@@ -108,7 +108,7 @@ lalserver详细配置见： [《配置注释文档》](https://github.com/q19120
 
 ### 性能测试，测试过的第三方客户端
 
-见[TEST.md](https://github.com/q191201771/lal/blob/master/TEST.md)
+见[《TEST.md》](https://github.com/q191201771/lal/blob/master/TEST.md)
 
 ### 项目star趋势图
 
