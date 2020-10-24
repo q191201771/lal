@@ -48,7 +48,7 @@
 - [x] **静态pull回源**。用于搭建简易集群
 - [x] **静态push转推**。支持转推多个地址。通过静态文件配置
 - [x] **秒开播放**。GOP缓冲
-- [x] HTTP API接口。用于获取服务信息，见[《lal流媒体服务器的HTTP API接口》](https://pengrl.com/p/20100)
+- [x] **HTTP API接口**。用于获取服务信息，见[《lal流媒体服务器的HTTP API接口》](https://pengrl.com/p/20100)
 
 除了lalserver，还提供一些基于lal开发的demo： [《lal/app/demo》](https://github.com/q191201771/lal/blob/master/app/demo/README.md)
 

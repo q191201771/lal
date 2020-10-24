@@ -10,12 +10,9 @@ package rtsp
 
 import (
 	"fmt"
-	"strings"
 	"time"
 
 	"github.com/q191201771/lal/pkg/base"
-
-	"github.com/q191201771/naza/pkg/nazalog"
 )
 
 // [DONE]
@@ -40,7 +37,7 @@ var ResponseSetupTmpl = "RTSP/1.0 200 OK\r\n" +
 	"CSeq: %s\r\n" +
 	"Date: %s\r\n" +
 	"Session: %s\r\n" +
-	"Transport:RTP/AVP/UDP;unicast;client_port=%s;server_port=%d-%d\r\n" +
+	"Transport:RTP/AVP/UDP;unicast;client_port=%d-%d;server_port=%d-%d\r\n" +
 	"\r\n"
 
 // rfc2326 10.11 RECORD
@@ -62,7 +59,7 @@ var ResponseDescribeTmpl = "RTSP/1.0 200 OK\r\n" +
 	"Content-Type: application/sdp\r\n" +
 	"Content-Length: %d\r\n" +
 	"\r\n" +
-	SDPTmpl
+	"%s"
 
 // rfc4566
 // * v=0
@@ -82,20 +79,20 @@ var ResponseDescribeTmpl = "RTSP/1.0 200 OK\r\n" +
 //   Media Description, name and address (m)
 // * b=
 //   Bandwidth Information (b)
-var SDPTmpl = "v=0\r\n" +
-	"o=mhandley 2890844526 2890842807 IN IP4 126.16.64.4\r\n" +
-	//"s=SDP Seminar\r\n" +
-	//"i=A Seminar on the session description protocol\r\n" +
-	//"u=http://www.cs.ucl.ac.uk/staff/M.Handley/sdp.03.ps\r\n" +
-	//"e=mjh@isi.edu (Mark Handley)\r\n" +
-	//"c=IN IP4 224.2.17.12/127\r\n" +
-	//"t=2873397496 2873404696\r\n" +
-	"t=0 0\r\n" +
-	"a=recvonly\r\n"
-	//"m=audio 3456 RTP/AVP 0\r\n" +
-	//"m=video 2232 RTP/AVP 31\r\n" +
-	//"m=whiteboard 32416 UDP WB\r\n" +
-	//"a=orient:portrait\r\n"
+//var SDPTmpl = "v=0\r\n" +
+//	"o=mhandley 2890844526 2890842807 IN IP4 126.16.64.4\r\n" +
+//	//"s=SDP Seminar\r\n" +
+//	//"i=A Seminar on the session description protocol\r\n" +
+//	//"u=http://www.cs.ucl.ac.uk/staff/M.Handley/sdp.03.ps\r\n" +
+//	//"e=mjh@isi.edu (Mark Handley)\r\n" +
+//	//"c=IN IP4 224.2.17.12/127\r\n" +
+//	//"t=2873397496 2873404696\r\n" +
+//	"t=0 0\r\n" +
+//	"a=recvonly\r\n"
+//	//"m=audio 3456 RTP/AVP 0\r\n" +
+//	//"m=video 2232 RTP/AVP 31\r\n" +
+//	//"m=whiteboard 32416 UDP WB\r\n" +
+//	//"a=orient:portrait\r\n"
 
 // rfc2326 10.5 PLAY
 var PlayTmpl = "RTSP/1.0 200 OK\r\n" +
@@ -112,26 +109,15 @@ func PackResponseAnnounce(cseq string) string {
 }
 
 // param transportC:
-//   server pub example:
+//   pub example:
 //   RTP/AVP/UDP;unicast;client_port=24254-24255;mode=record
 //   RTP/AVP/UDP;unicast;client_port=24256-24257;mode=record
-func PackResponseSetup(cseq string, transportC string, serverRTPPort uint16, serverRTCPPort uint16) string {
+//   sub example:
+//   RTP/AVP/UDP;unicast;client_port=9420-9421
+func PackResponseSetup(cseq string, rRTPPort, rRTCPPort, lRTPPort, lRTCPPort uint16) string {
 	date := time.Now().Format(time.RFC1123)
-	nazalog.Debug(transportC)
 
-	var clientPort string
-	items := strings.Split(transportC, ";")
-	for _, item := range items {
-		if strings.HasPrefix(item, "client_port") {
-			kv := strings.Split(item, "=")
-			if len(kv) != 2 {
-				continue
-			}
-			clientPort = kv[1]
-		}
-	}
-
-	return fmt.Sprintf(ResponseSetupTmpl, cseq, date, sessionID, clientPort, serverRTPPort, serverRTCPPort)
+	return fmt.Sprintf(ResponseSetupTmpl, cseq, date, sessionID, rRTPPort, rRTCPPort, lRTPPort, lRTCPPort)
 }
 
 func PackResponseRecord(cseq string) string {
@@ -142,9 +128,9 @@ func PackResponseTeardown(cseq string) string {
 	return fmt.Sprintf(ResponseTeardownTmpl, cseq)
 }
 
-func PackResponseDescribe(cseq string) string {
+func PackResponseDescribe(cseq, sdp string) string {
 	date := time.Now().Format(time.RFC1123)
-	return fmt.Sprintf(ResponseDescribeTmpl, cseq, date, 376)
+	return fmt.Sprintf(ResponseDescribeTmpl, cseq, date, len(sdp), sdp)
 }
 
 func PackResponsePlay(cseq string) string {

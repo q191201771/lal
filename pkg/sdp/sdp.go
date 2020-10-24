@@ -22,6 +22,7 @@ var ErrSDP = errors.New("lal.sdp: fxxk")
 type SDPContext struct {
 	ARTPMapList   []ARTPMap
 	AFmtPBaseList []AFmtPBase
+	AControlList  []AControl
 }
 
 type ARTPMap struct {
@@ -34,6 +35,10 @@ type ARTPMap struct {
 type AFmtPBase struct {
 	Format     int               // same as PayloadType
 	Parameters map[string]string // name -> value
+}
+
+type AControl struct {
+	Value string
 }
 
 // 例子见单元测试
@@ -56,6 +61,13 @@ func ParseSDP(b []byte) (SDPContext, error) {
 				return sdpCtx, err
 			}
 			sdpCtx.AFmtPBaseList = append(sdpCtx.AFmtPBaseList, aFmtPBase)
+		}
+		if strings.HasPrefix(line, "a=control") {
+			aControl, err := ParseAControl(line)
+			if err != nil {
+				return sdpCtx, err
+			}
+			sdpCtx.AControlList = append(sdpCtx.AControlList, aControl)
 		}
 	}
 
@@ -138,6 +150,15 @@ func ParseAFmtPBase(s string) (ret AFmtPBase, err error) {
 		ret.Parameters[kv[0]] = kv[1]
 	}
 
+	return
+}
+
+func ParseAControl(s string) (ret AControl, err error) {
+	if !strings.HasPrefix(s, "a=control:") {
+		err = ErrSDP
+		return
+	}
+	ret.Value = strings.TrimPrefix(s, "a=control:")
 	return
 }
 

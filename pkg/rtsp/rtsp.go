@@ -8,7 +8,11 @@
 
 package rtsp
 
-import "errors"
+import (
+	"errors"
+
+	"github.com/q191201771/naza/pkg/nazanet"
+)
 
 // TODO chef
 // - 支持tcp协议
@@ -42,65 +46,55 @@ var (
 	unpackerItemMaxSize = 1024
 )
 
-// ffmpeg -re -stream_loop -1 -i /Volumes/Data/tmp/test.flv -acodec copy -vcodec copy -f rtsp rtsp://localhost:5544/live/test110
-// read http request. method=ANNOUNCE, uri=rtsp://localhost:5544/live/test110, headers=map[CSeq:2 Content-Length:481 Content-Type:application/sdp User-Agent:Lavf57.83.100], body=v=0
-// o=- 0 0 IN IP6 ::1
+var availUDPConnPool *nazanet.AvailUDPConnPool
+
+func init() {
+	availUDPConnPool = nazanet.NewAvailUDPConnPool(minServerPort, maxServerPort)
+}
+
+// ---------------------------------------------------------------------------------------------------------------------
+// ffmpeg -re -stream_loop -1 -i /Volumes/Data/tmp/wontcry.flv -acodec copy -vcodec copy -f rtsp rtsp://localhost:5544/live/test110
+
+// read http request. method=OPTIONS, uri=rtsp://localhost:5544/live/test110, headers=map[CSeq:1 User-Agent:Lavf57.83.100], body= - server.go:95
+//
+// read http request. method=ANNOUNCE, uri=rtsp://localhost:5544/live/test110, headers=map[CSeq:2 Content-Length:490 Content-Type:application/sdp User-Agent:Lavf57.83.100], body=v=0
+// o=- 0 0 IN IP4 127.0.0.1
 // s=No Name
-// c=IN IP6 ::1
+// c=IN IP4 127.0.0.1
 // t=0 0
 // a=tool:libavformat 57.83.100
 // m=video 0 RTP/AVP 96
-// b=AS:212
 // a=rtpmap:96 H264/90000
-// a=fmtp:96 packetization-mode=1; sprop-parameter-sets=Z2QAIKzZQMApsBEAAAMAAQAAAwAyDxgxlg==,aOvssiw=; profile-level-id=640020
+// a=fmtp:96 packetization-mode=1; sprop-parameter-sets=Z2QAFqyyAUBf8uAiAAADAAIAAAMAPB4sXJA=,aOvDyyLA; profile-level-id=640016
 // a=control:streamid=0
 // m=audio 0 RTP/AVP 97
-// b=AS:30
+// b=AS:128
 // a=rtpmap:97 MPEG4-GENERIC/44100/2
-// a=fmtp:97 profile-level-id=1;mode=AAC-hbr;sizelength=13;indexlength=3;indexdeltalength=3; config=1210
+// a=fmtp:97 profile-level-id=1;mode=AAC-hbr;sizelength=13;indexlength=3;indexdeltalength=3; config=121056E500
 // a=control:streamid=1
-// - server.go:90
-// read http request. method=SETUP, uri=rtsp://localhost:5544/live/test110/streamid=0, headers=map[CSeq:3 Transport:RTP/AVP/UDP;unicast;client_port=16366-16367;mode=record User-Agent:Lavf57.83.100], body= - server.go:90
-// read http request. method=SETUP, uri=rtsp://localhost:5544/live/test110/streamid=1, headers=map[CSeq:4 Session:191201771 Transport:RTP/AVP/UDP;unicast;client_port=16368-16369;mode=record User-Agent:Lavf57.83.100], body= - server.go:90
-// read http request. method=RECORD, uri=rtsp://localhost:5544/live/test110, headers=map[CSeq:5 Range:npt=0.000- Session:191201771 User-Agent:Lavf57.83.100], body= - server.go:90
-// read http request. method=TEARDOWN, uri=rtsp://localhost:5544/live/test110, headers=map[CSeq:6 Session:191201771 User-Agent:Lavf57.83.100], body= - server.go:90
+// - server.go:95
+//
+// read http request. method=SETUP, uri=rtsp://localhost:5544/live/test110/streamid=0, headers=map[CSeq:3 Transport:RTP/AVP/UDP;unicast;client_port=32182-32183;mode=record User-Agent:Lavf57.83.100], body= - server.go:95
+//
+// read http request. method=SETUP, uri=rtsp://localhost:5544/live/test110/streamid=1, headers=map[CSeq:4 Session:191201771 Transport:RTP/AVP/UDP;unicast;client_port=32184-32185;mode=record User-Agent:Lavf57.83.100], body= - server.go:95
+//
+// read http request. method=RECORD, uri=rtsp://localhost:5544/live/test110, headers=map[CSeq:5 Range:npt=0.000- Session:191201771 User-Agent:Lavf57.83.100], body= - server.go:95
+//
+// read http request. method=TEARDOWN, uri=rtsp://localhost:5544/live/test110, headers=map[CSeq:6 Session:191201771 User-Agent:Lavf57.83.100], body= - server.go:95
 
-// VLC rtsp://127.0.0.1:5544/vlc
-// handleTCPConnect. conn=0xc000010030 - server.go:50
-// requestLine=OPTIONS rtsp://127.0.0.1:5544/vlc RTSP/1.0, headers=map[CSeq:2 User-Agent:LibVLC/3.0.8 (LIVE555 Streaming Media v2016.11.28)] - server.go:58
-// requestLine=DESCRIBE rtsp://127.0.0.1:5544/vlc RTSP/1.0, headers=map[Accept:application/sdp CSeq:3 User-Agent:LibVLC/3.0.8 (LIVE555 Streaming Media v2016.11.28)] - server.go:58
-// EOF - server.go:55
-// handleTCPConnect. conn=0xc000010038 - server.go:50
-// requestLine=SETUP rtsp://127.0.0.1:5544/vlc RTSP/1.0, headers=map[CSeq:0 Transport:RTP/AVP;unicast;client_port=9300-9301] - server.go:58
-// requestLine=PLAY rtsp://127.0.0.1:5544/stream=0 RTSP/1.0, headers=map[CSeq:1 Session:47112344] - server.go:58
+// read udp packet failed. err=read udp [::]:8002: use of closed network connection - server_pub_session.go:199
+// read udp packet failed. err=read udp [::]:8003: use of closed network connection - server_pub_session.go:199
+// ---------------------------------------------------------------------------------------------------------------------
 
-// ffmpeg -re -stream_loop -1 -i /Volumes/Data/tmp/test.flv -c copy -f rtsp rtsp://localhost:5544/test110
-//  INFO start hls server listen. addr=:5544 - server.go:37
-// DEBUG handleTCPConnect. conn=0xc000010030 - server.go:52
-// DEBUG requestLine=OPTIONS rtsp://localhost:5544/test110 RTSP/1.0, headers=map[CSeq:1 User-Agent:Lavf57.83.100] - server.go:60
-//  INFO < R OPTIONS - server.go:85
-// DEBUG requestLine=ANNOUNCE rtsp://localhost:5544/test110 RTSP/1.0, headers=map[CSeq:2 Content-Length:481 Content-Type:application/sdp User-Agent:Lavf57.83.100] - server.go:60
-// DEBUG body=v=0
-// o=- 0 0 IN IP6 ::1
-// s=No Name
-// c=IN IP6 ::1
-// t=0 0
-// a=tool:libavformat 57.83.100
-// m=video 0 RTP/AVP 96
-// b=AS:212
-// a=rtpmap:96 H264/90000
-// a=fmtp:96 packetization-mode=1; sprop-parameter-sets=Z2QAIKzZQMApsBEAAAMAAQAAAwAyDxgxlg==,aOvssiw=; profile-level-id=640020
-// a=control:streamid=0
-// m=audio 0 RTP/AVP 97
-// b=AS:30
-// a=rtpmap:97 MPEG4-GENERIC/44100/2
-// a=fmtp:97 profile-level-id=1;mode=AAC-hbr;sizelength=13;indexlength=3;indexdeltalength=3; config=1210
-// a=control:streamid=1
-// - server.go:76
-//  INFO < R ANNOUNCE - server.go:89
-// DEBUG requestLine=SETUP rtsp://localhost:5544/test110/streamid=0 RTSP/1.0, headers=map[CSeq:3 Transport:RTP/AVP/UDP;unicast;client_port=5560-5561;mode=record User-Agent:Lavf57.83.100] - server.go:60
-//  INFO < R SETUP - server.go:97
-// DEBUG requestLine=SETUP rtsp://localhost:5544/test110/streamid=1 RTSP/1.0, headers=map[CSeq:4 Session:47112344 Transport:RTP/AVP/UDP;unicast;client_port=5562-5563;mode=record User-Agent:Lavf57.83.100] - server.go:60
-//  INFO < R SETUP - server.go:97
-// DEBUG requestLine=RECORD rtsp://localhost:5544/test110 RTSP/1.0, headers=map[CSeq:5 Range:npt=0.000- Session:47112344 User-Agent:Lavf57.83.100] - server.go:60
-// ERROR RECORD - server.go:105
+// ---------------------------------------------------------------------------------------------------------------------
+// read http request. method=OPTIONS, uri=rtsp://localhost:5544/live/test110, headers=map[CSeq:1 User-Agent:Lavf57.83.100], body= - server.go:108
+// read http request. method=DESCRIBE, uri=rtsp://localhost:5544/live/test110, headers=map[Accept:application/sdp CSeq:2 User-Agent:Lavf57.83.100], body= - server.go:108
+// read http request. method=SETUP, uri=rtsp://localhost:5544/live/test110/streamid=0, headers=map[CSeq:3 Transport:RTP/AVP/UDP;unicast;client_port=15690-15691 User-Agent:Lavf57.83.100], body= - server.go:108
+// read http request. method=SETUP, uri=rtsp://localhost:5544/live/test110/streamid=1, headers=map[CSeq:4 Session:191201771 Transport:RTP/AVP/UDP;unicast;client_port=15692-15693 User-Agent:Lavf57.83.100], body= - server.go:108
+// read http request. method=PLAY, uri=rtsp://localhost:5544/live/test110, headers=map[CSeq:5 Range:npt=0.000- Session:191201771 User-Agent:Lavf57.83.100], body= - server.go:108
+// ---------------------------------------------------------------------------------------------------------------------
+
+// 8000 video rtp
+// 8001 video rtcp
+// 8002 audio rtp
+// 8003 audio rtcp

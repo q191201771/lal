@@ -280,6 +280,25 @@ func (sm *ServerManager) OnDelRTSPPubSession(session *rtsp.PubSession) {
 	}
 }
 
+// ServerObserver of rtsp.Server
+func (sm *ServerManager) OnNewRTSPSubSession(session *rtsp.SubSession) bool {
+	sm.mutex.Lock()
+	defer sm.mutex.Unlock()
+	group := sm.getOrCreateGroup("", session.StreamName)
+	return group.AddRTSPSubSession(session)
+}
+
+// ServerObserver of rtsp.Server
+func (sm *ServerManager) OnDelRTSPSubSession(session *rtsp.SubSession) {
+	// TODO chef: impl me
+	sm.mutex.Lock()
+	defer sm.mutex.Unlock()
+	group := sm.getGroup("", session.StreamName)
+	if group != nil {
+		group.DelRTSPSubSession(session)
+	}
+}
+
 func (sm *ServerManager) OnStatAllGroup() (sgs []base.StatGroup) {
 	sm.mutex.Lock()
 	defer sm.mutex.Unlock()

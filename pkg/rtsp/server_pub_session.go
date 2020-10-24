@@ -10,6 +10,8 @@ package rtsp
 
 import (
 	"net"
+	"strings"
+	"sync"
 	"sync/atomic"
 	"time"
 
@@ -26,7 +28,10 @@ import (
 	"github.com/q191201771/naza/pkg/nazalog"
 )
 
+// PubSession会同时向上层回调rtp packet，以及rtp合并后的av packet
 type PubSessionObserver interface {
+	OnRTPPacket(pkt rtprtcp.RTPPacket)
+
 	// @param asc: AAC AudioSpecificConfig，注意，如果不存在音频，则为nil
 	// @param vps: 视频为H264时为nil，视频为H265时不为nil
 	OnAVConfig(asc, vps, sps, pps []byte)
@@ -41,12 +46,6 @@ type PubSession struct {
 	observer      PubSessionObserver
 	avPacketQueue *AVPacketQueue
 
-	rtpConn      *nazanet.UDPConnection
-	rtcpConn     *nazanet.UDPConnection
-	currConnStat connection.Stat
-	prevConnStat connection.Stat
-	stat         base.StatPub
-
 	audioUnpacker    *rtprtcp.RTPUnpacker
 	videoUnpacker    *rtprtcp.RTPUnpacker
 	audioRRProducer  *rtprtcp.RRProducer
@@ -55,11 +54,24 @@ type PubSession struct {
 	videoSsrc        uint32
 	audioPayloadType base.AVPacketPT
 	videoPayloadType base.AVPacketPT
+	audioAControl    string
+	videoAControl    string
+
+	audioRTPConn  *nazanet.UDPConnection
+	videoRTPConn  *nazanet.UDPConnection
+	audioRTCPConn *nazanet.UDPConnection
+	videoRTCPConn *nazanet.UDPConnection
+	currConnStat  connection.Stat
+	prevConnStat  connection.Stat
+	stat          base.StatPub
 
 	vps []byte // 如果是H265的话
 	sps []byte
 	pps []byte
 	asc []byte
+
+	m      sync.Mutex
+	rawSDP []byte
 }
 
 func NewPubSession(streamName string) *PubSession {
@@ -84,13 +96,17 @@ func (p *PubSession) SetObserver(observer PubSessionObserver) {
 	p.observer.OnAVConfig(p.asc, p.vps, p.sps, p.pps)
 }
 
-func (p *PubSession) InitWithSDP(sdpCtx sdp.SDPContext) {
+func (p *PubSession) InitWithSDP(rawSDP []byte, sdpCtx sdp.SDPContext) {
+	p.m.Lock()
+	p.rawSDP = rawSDP
+	p.m.Unlock()
+
 	var err error
 
 	var audioClockRate int
 	var videoClockRate int
 
-	for _, item := range sdpCtx.ARTPMapList {
+	for i, item := range sdpCtx.ARTPMapList {
 		switch item.PayloadType {
 		case base.RTPPacketTypeAVCOrHEVC:
 			videoClockRate = item.ClockRate
@@ -99,9 +115,15 @@ func (p *PubSession) InitWithSDP(sdpCtx sdp.SDPContext) {
 			} else {
 				p.videoPayloadType = base.AVPacketPTAVC
 			}
+			if i < len(sdpCtx.AControlList) {
+				p.videoAControl = sdpCtx.AControlList[i].Value
+			}
 		case base.RTPPacketTypeAAC:
 			audioClockRate = item.ClockRate
 			p.audioPayloadType = base.AVPacketPTAAC
+			if i < len(sdpCtx.AControlList) {
+				p.audioAControl = sdpCtx.AControlList[i].Value
+			}
 		default:
 			nazalog.Errorf("unknown payloadType. type=%d", item.PayloadType)
 		}
@@ -139,30 +161,35 @@ func (p *PubSession) InitWithSDP(sdpCtx sdp.SDPContext) {
 	}
 }
 
-func (p *PubSession) SetRTPConn(conn *net.UDPConn) {
-	server, _ := nazanet.NewUDPConnection(func(option *nazanet.UDPConnectionOption) {
-		option.Conn = conn
-	})
-	p.rtpConn = server
+func (p *PubSession) Setup(uri string, rtpConn, rtcpConn *nazanet.UDPConnection) error {
+	if strings.HasSuffix(uri, p.audioAControl) {
+		p.audioRTPConn = rtpConn
+		p.audioRTCPConn = rtcpConn
+	} else if strings.HasSuffix(uri, p.videoAControl) {
+		p.videoRTPConn = rtpConn
+		p.videoRTCPConn = rtcpConn
+	} else {
+		return ErrRTSP
+	}
 
-	go server.RunLoop(p.onReadUDPPacket)
-}
+	go rtpConn.RunLoop(p.onReadUDPPacket)
+	go rtcpConn.RunLoop(p.onReadUDPPacket)
 
-func (p *PubSession) SetRTCPConn(conn *net.UDPConn) {
-	server, _ := nazanet.NewUDPConnection(func(option *nazanet.UDPConnectionOption) {
-		option.Conn = conn
-	})
-	p.rtcpConn = server
-
-	go server.RunLoop(p.onReadUDPPacket)
+	return nil
 }
 
 func (p *PubSession) Dispose() {
-	if p.rtpConn != nil {
-		_ = p.rtpConn.Dispose()
+	if p.audioRTPConn != nil {
+		_ = p.audioRTPConn.Dispose()
 	}
-	if p.rtcpConn != nil {
-		_ = p.rtcpConn.Dispose()
+	if p.audioRTCPConn != nil {
+		_ = p.audioRTCPConn.Dispose()
+	}
+	if p.videoRTPConn != nil {
+		_ = p.videoRTPConn.Dispose()
+	}
+	if p.videoRTCPConn != nil {
+		_ = p.videoRTCPConn.Dispose()
 	}
 }
 
@@ -176,6 +203,12 @@ func (p *PubSession) UpdateStat(tickCount uint32) {
 	diff := p.currConnStat.ReadBytesSum - p.prevConnStat.ReadBytesSum
 	p.stat.Bitrate = int(diff * 8 / 1024 / 5)
 	p.prevConnStat = p.currConnStat
+}
+
+func (p *PubSession) GetSDP() []byte {
+	p.m.Lock()
+	defer p.m.Unlock()
+	return p.rawSDP
 }
 
 // callback by UDPConnection
@@ -201,13 +234,18 @@ func (p *PubSession) onReadUDPPacket(b []byte, rAddr *net.UDPAddr, err error) bo
 		switch sr.SenderSSRC {
 		case p.audioSsrc:
 			rrBuf = p.audioRRProducer.Produce(sr.GetMiddleNTP())
+			if rrBuf != nil {
+				_ = p.audioRTCPConn.Write2Addr(rrBuf, rAddr)
+				atomic.AddUint64(&p.currConnStat.WroteBytesSum, uint64(len(b)))
+			}
 		case p.videoSsrc:
 			rrBuf = p.videoRRProducer.Produce(sr.GetMiddleNTP())
+			if rrBuf != nil {
+				_ = p.videoRTCPConn.Write2Addr(rrBuf, rAddr)
+				atomic.AddUint64(&p.currConnStat.WroteBytesSum, uint64(len(b)))
+			}
 		}
 
-		_ = p.rtcpConn.Write(rrBuf)
-
-		atomic.AddUint64(&p.currConnStat.WroteBytesSum, uint64(len(b)))
 		return true
 	}
 
@@ -225,10 +263,12 @@ func (p *PubSession) onReadUDPPacket(b []byte, rAddr *net.UDPAddr, err error) bo
 
 		if packetType == base.RTPPacketTypeAVCOrHEVC {
 			p.videoSsrc = h.Ssrc
+			p.observer.OnRTPPacket(pkt)
 			p.videoUnpacker.Feed(pkt)
 			p.videoRRProducer.FeedRTPPacket(h.Seq)
 		} else {
 			p.audioSsrc = h.Ssrc
+			p.observer.OnRTPPacket(pkt)
 			p.audioUnpacker.Feed(pkt)
 			p.audioRRProducer.FeedRTPPacket(h.Seq)
 		}

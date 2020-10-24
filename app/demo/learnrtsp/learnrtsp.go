@@ -11,6 +11,8 @@ package main
 import (
 	"os"
 
+	"github.com/q191201771/lal/pkg/rtprtcp"
+
 	"github.com/q191201771/lal/pkg/base"
 
 	"github.com/q191201771/lal/pkg/aac"
@@ -26,6 +28,10 @@ var obs Obs
 var aacFp *os.File
 var avcFp *os.File
 var a aac.ADTS
+
+func (obs *Obs) OnRTPPacket(pkt rtprtcp.RTPPacket) {
+
+}
 
 func (obs *Obs) OnAVConfig(asc, vps, sps, pps []byte) {
 	if asc != nil {
@@ -77,6 +83,14 @@ func (obs *Obs) OnNewRTSPPubSession(session *rtsp.PubSession) bool {
 
 func (obs *Obs) OnDelRTSPPubSession(session *rtsp.PubSession) {
 	nazalog.Debugf("OnDelRTSPPubSession. %+v", session)
+}
+
+func (obs *Obs) OnNewRTSPSubSession(session *rtsp.SubSession) bool {
+	return true
+}
+
+func (obs *Obs) OnDelRTSPSubSession(session *rtsp.SubSession) {
+
 }
 
 func main() {

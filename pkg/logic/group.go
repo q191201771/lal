@@ -12,6 +12,8 @@ import (
 	"fmt"
 	"sync"
 
+	"github.com/q191201771/lal/pkg/rtprtcp"
+
 	"github.com/q191201771/lal/pkg/hevc"
 
 	"github.com/q191201771/lal/pkg/httpts"
@@ -55,6 +57,7 @@ type Group struct {
 	rtmpSubSessionSet    map[*rtmp.ServerSession]struct{}
 	httpflvSubSessionSet map[*httpflv.SubSession]struct{}
 	httptsSubSessionSet  map[*httpts.SubSession]struct{}
+	rtspSubSessionSet    map[*rtsp.SubSession]struct{}
 	hlsMuxer             *hls.Muxer
 	url2PushProxy        map[string]*pushProxy
 	gopCache             *GOPCache
@@ -100,6 +103,7 @@ func NewGroup(appName string, streamName string) *Group {
 		rtmpSubSessionSet:    make(map[*rtmp.ServerSession]struct{}),
 		httpflvSubSessionSet: make(map[*httpflv.SubSession]struct{}),
 		httptsSubSessionSet:  make(map[*httpts.SubSession]struct{}),
+		rtspSubSessionSet:    make(map[*rtsp.SubSession]struct{}),
 		gopCache:             NewGOPCache("rtmp", uk, config.RTMPConfig.GOPNum),
 		httpflvGopCache:      NewGOPCache("httpflv", uk, config.HTTPFLVConfig.GOPNum),
 		url2PushProxy:        url2PushProxy,
@@ -338,6 +342,27 @@ func (group *Group) DelHTTPTSSubSession(session *httpts.SubSession) {
 	delete(group.httptsSubSessionSet, session)
 }
 
+func (group *Group) AddRTSPSubSession(session *rtsp.SubSession) bool {
+	nazalog.Debugf("[%s] [%s] add rtsp SubSession into group.", group.UniqueKey, session.UniqueKey)
+
+	group.mutex.Lock()
+	defer group.mutex.Unlock()
+	if group.rtspPubSession == nil {
+		return false
+	}
+
+	group.rtspSubSessionSet[session] = struct{}{}
+
+	return true
+}
+
+func (group *Group) DelRTSPSubSession(session *rtsp.SubSession) {
+	nazalog.Debugf("[%s] [%s] del rtsp SubSession from group.", group.UniqueKey, session.UniqueKey)
+	group.mutex.Lock()
+	defer group.mutex.Unlock()
+	delete(group.rtspSubSessionSet, session)
+}
+
 func (group *Group) AddRTMPPushSession(url string, session *rtmp.PushSession) {
 	nazalog.Debugf("[%s] [%s] add rtmp PushSession into group.", group.UniqueKey, session.UniqueKey())
 	group.mutex.Lock()
@@ -386,6 +411,16 @@ func (group *Group) OnReadRTMPAVMsg(msg base.RTMPMsg) {
 
 	//nazalog.Debugf("%+v, %02x, %02x", msg.Header, msg.Payload[0], msg.Payload[1])
 	group.broadcastRTMP(msg)
+}
+
+// rtsp.PubSession
+func (group *Group) OnRTPPacket(pkt rtprtcp.RTPPacket) {
+	group.mutex.Lock()
+	defer group.mutex.Unlock()
+
+	for s := range group.rtspSubSessionSet {
+		s.WriteRawRTPPacket(pkt.Raw)
+	}
 }
 
 // rtsp.PubSession
@@ -844,6 +879,7 @@ func (group *Group) isTotalEmpty() bool {
 		group.rtspPubSession == nil &&
 		len(group.httpflvSubSessionSet) == 0 &&
 		len(group.httptsSubSessionSet) == 0 &&
+		len(group.rtspSubSessionSet) == 0 &&
 		group.hlsMuxer == nil &&
 		!group.hasPushSession() &&
 		group.pullSession == nil
