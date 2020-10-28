@@ -39,6 +39,7 @@ type MuxerConfig struct {
 	OutPath            string `json:"out_path"` // m3u8和ts文件的输出根目录，注意，末尾需已'/'结束
 	FragmentDurationMS int    `json:"fragment_duration_ms"`
 	FragmentNum        int    `json:"fragment_num"`
+	TsRecord           bool   `json:"ts_record"` //是否要开启ts录制
 }
 
 type Muxer struct {
@@ -53,6 +54,8 @@ type Muxer struct {
 
 	config   *MuxerConfig
 	observer MuxerObserver
+
+	tsRecorder *TsRecorder
 
 	fragment Fragment
 	opened   bool
@@ -93,12 +96,15 @@ func NewMuxer(streamName string, config *MuxerConfig, observer MuxerObserver) *M
 		playlistFilenameBak:       playlistFilenameBak,
 		recordPlayListFilename:    recordPlaylistFilename,
 		recordPlayListFilenameBak: recordPlaylistFilenameBak,
-		config:   config,
-		observer: observer,
-		frags:    frags,
+		config:                    config,
+		observer:                  observer,
+		frags:                     frags,
 	}
 	streamer := NewStreamer(m)
 	m.streamer = streamer
+	if config.TsRecord {
+		m.tsRecorder = NewTsRecorder(config.OutPath, streamName, uk)
+	}
 	nazalog.Infof("[%s] lifecycle new hls muxer. muxer=%p, streamName=%s", uk, m, streamName)
 	return m
 }
@@ -113,6 +119,9 @@ func (m *Muxer) Dispose() {
 	m.streamer.FlushAudio()
 	if err := m.closeFragment(true); err != nil {
 		nazalog.Errorf("[%s] close fragment error. err=%+v", m.UniqueKey, err)
+	}
+	if m.tsRecorder != nil {
+		m.tsRecorder.Dispose()
 	}
 }
 
@@ -172,6 +181,10 @@ func (m *Muxer) OnFrame(streamer *Streamer, frame *mpegts.Frame) {
 			packets = append(packets, packet...)
 		}
 	})
+
+	if m.tsRecorder != nil {
+		m.tsRecorder.FeedTsPacket(packets, boundary)
+	}
 	if m.observer != nil {
 		m.observer.OnTSPackets(packets, boundary)
 	}

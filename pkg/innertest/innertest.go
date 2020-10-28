@@ -34,7 +34,7 @@ import (
 // 读取flv文件，使用rtmp协议推送至服务端
 // 分别用rtmp协议以及httpflv协议从服务端拉流，再将拉取的流保存为flv文件
 // 对比三份flv文件，看是否完全一致
-// 并检查hls生成的m3u8和ts文件，是否和之前的完全一致
+// 并检查hls生成的m3u8和s文件，是否和之前的完全一致
 
 // TODO chef:
 // - 加上relay push

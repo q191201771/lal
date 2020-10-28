@@ -19,6 +19,7 @@
     "out_path": "/tmp/lal/hls/",  // HLS文件保存根目录
     "fragment_duration_ms": 3000, // 单个TS文件切片时长，单位毫秒
     "fragment_num": 6             // M3U8文件列表中TS文件的数量
+    "ts_record": true             // 是否开启长ts录制
   },
   "httpts": {
     "enable": true, // 是否开启HTTP-TS服务的监听。注意，这并不是HLS中的TS，而是在一条HTTP长连接上持续性传输TS流

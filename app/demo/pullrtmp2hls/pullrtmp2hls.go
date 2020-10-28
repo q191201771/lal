@@ -21,13 +21,14 @@ import (
 )
 
 func main() {
-	url, hlsOutPath, fragmentDurationMS, fragmentNum := parseFlag()
+	url, hlsOutPath, fragmentDurationMS, fragmentNum, tsRecord := parseFlag()
 
 	hlsMuxerConfig := hls.MuxerConfig{
 		Enable:             true,
 		OutPath:            hlsOutPath,
 		FragmentDurationMS: fragmentDurationMS,
 		FragmentNum:        fragmentNum,
+		TsRecord:           tsRecord,
 	}
 
 	index := strings.LastIndexByte(url, '/')
@@ -52,11 +53,12 @@ func main() {
 	nazalog.Errorf("pull error. err=%+v", err)
 }
 
-func parseFlag() (url string, hlsOutPath string, fragmentDurationMS int, fragmentNum int) {
+func parseFlag() (url string, hlsOutPath string, fragmentDurationMS int, fragmentNum int, tsRecord bool) {
 	i := flag.String("i", "", "specify pull rtmp url")
 	o := flag.String("o", "", "specify ouput hls file")
 	d := flag.Int("d", 3000, "specify duration of each ts file in millisecond")
 	n := flag.Int("n", 6, "specify num of ts file in live m3u8 list")
+	r := flag.Bool("r", true, "specify whether to enable record")
 	flag.Parse()
 	if *i == "" {
 		flag.Usage()
@@ -66,5 +68,5 @@ func parseFlag() (url string, hlsOutPath string, fragmentDurationMS int, fragmen
 `)
 		os.Exit(1)
 	}
-	return *i, *o, *d, *n
+	return *i, *o, *d, *n, *r
 }
