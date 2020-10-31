@@ -48,10 +48,11 @@ const (
 )
 
 type ServerSession struct {
-	UniqueKey              string
-	AppName                string
-	StreamName             string
-	StreamNameWithRawQuery string
+	UniqueKey              string // const after init
+	AppName                string // const after init
+	StreamName             string // const after set
+	RawQuery               string //const after set
+	StreamNameWithRawQuery string // const after set
 
 	observer      ServerSessionObserver
 	t             ServerSessionType
@@ -134,6 +135,10 @@ func (s *ServerSession) UpdateStat(tickCount uint32) {
 		s.stat.Bitrate = int(diffStat.WroteBytesSum * 8 / 1024 / 5)
 	}
 	s.prevConnStat = currStat
+}
+
+func (s *ServerSession) RemoteAddr() string {
+	return s.conn.RemoteAddr().String()
 }
 
 func (s *ServerSession) runReadLoop() error {
@@ -328,13 +333,16 @@ func (s *ServerSession) doPublish(tid int, stream *Stream) (err error) {
 	}
 	ss := strings.Split(s.StreamNameWithRawQuery, "?")
 	s.StreamName = ss[0]
+	if len(ss) == 2 {
+		s.RawQuery = ss[1]
+	}
 
 	pubType, err := stream.msg.readStringWithType()
 	if err != nil {
 		return err
 	}
 	nazalog.Debugf("[%s] pubType=%s", s.UniqueKey, pubType)
-	nazalog.Infof("[%s] < R publish('%s')", s.UniqueKey, s.StreamName)
+	nazalog.Infof("[%s] < R publish('%s')", s.UniqueKey, s.StreamNameWithRawQuery)
 
 	nazalog.Infof("[%s] > W onStatus('NetStream.Publish.Start').", s.UniqueKey)
 	if err := s.packer.writeOnStatusPublish(s.conn, MSID1); err != nil {
@@ -360,8 +368,11 @@ func (s *ServerSession) doPlay(tid int, stream *Stream) (err error) {
 	}
 	ss := strings.Split(s.StreamNameWithRawQuery, "?")
 	s.StreamName = ss[0]
+	if len(ss) == 2 {
+		s.RawQuery = ss[1]
+	}
 
-	nazalog.Infof("[%s] < R play('%s').", s.UniqueKey, s.StreamName)
+	nazalog.Infof("[%s] < R play('%s').", s.UniqueKey, s.StreamNameWithRawQuery)
 	// TODO chef: start duration reset
 
 	if err := s.packer.writeStreamIsRecorded(s.conn, MSID1); err != nil {

@@ -44,6 +44,8 @@ type ClientSession struct {
 	peerWinAckSize         int
 
 	conn         connection.Connection
+	prevConnStat connection.Stat
+	stat         base.StatSession
 	doResultChan chan struct{}
 
 	// 只有PullSession使用
@@ -96,6 +98,10 @@ func NewClientSession(t ClientSessionType, modOptions ...ModClientSessionOption)
 		doResultChan:  make(chan struct{}, 1),
 		packer:        NewMessagePacker(),
 		chunkComposer: NewChunkComposer(),
+		stat: base.StatSession{
+			Protocol:  base.ProtocolRTMP,
+			StartTime: time.Now().Format("2006-01-02 15:04:05.999"),
+		},
 	}
 	log.Infof("[%s] lifecycle new rtmp ClientSession. session=%p", uk, s)
 	return s
@@ -175,6 +181,28 @@ func (s *ClientSession) Flush() error {
 func (s *ClientSession) Dispose() {
 	log.Infof("[%s] lifecycle dispose rtmp ClientSession.", s.UniqueKey)
 	_ = s.conn.Close()
+}
+
+func (s *ClientSession) GetStat() base.StatSession {
+	connStat := s.conn.GetStat()
+	s.stat.ReadBytesSum = connStat.ReadBytesSum
+	s.stat.WroteBytesSum = connStat.WroteBytesSum
+	return s.stat
+}
+
+// TODO chef: 默认每5秒调用一次
+func (s *ClientSession) UpdateStat(tickCount uint32) {
+	currStat := s.conn.GetStat()
+	var diffStat connection.Stat
+	diffStat.ReadBytesSum = currStat.ReadBytesSum - s.prevConnStat.ReadBytesSum
+	diffStat.WroteBytesSum = currStat.WroteBytesSum - s.prevConnStat.WroteBytesSum
+	switch s.t {
+	case CSTPullSession:
+		s.stat.Bitrate = int(diffStat.ReadBytesSum * 8 / 1024 / 5)
+	case CSTPushSession:
+		s.stat.Bitrate = int(diffStat.WroteBytesSum * 8 / 1024 / 5)
+	}
+	s.prevConnStat = currStat
 }
 
 func (s *ClientSession) runReadLoop() {
@@ -421,6 +449,7 @@ func (s *ClientSession) tcpConnect() error {
 	} else {
 		addr = s.url.Host + ":1935"
 	}
+	s.stat.RemoteAddr = addr
 
 	var conn net.Conn
 	if conn, err = net.DialTimeout("tcp", addr, time.Duration(s.option.ConnectTimeoutMS)*time.Millisecond); err != nil {

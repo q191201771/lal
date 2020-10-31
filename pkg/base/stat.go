@@ -31,6 +31,7 @@ type StatGroup struct {
 	VideoHeight int       `json:"video_height"`
 	StatPub     StatPub   `json:"pub"`
 	StatSubs    []StatSub `json:"subs"`
+	StatPull    StatPull  `json:"pull"`
 }
 
 type StatPub struct {
@@ -38,6 +39,10 @@ type StatPub struct {
 }
 
 type StatSub struct {
+	StatSession
+}
+
+type StatPull struct {
 	StatSession
 }
 
@@ -61,6 +66,16 @@ func StatSession2Pub(ss StatSession) (ret StatPub) {
 }
 
 func StatSession2Sub(ss StatSession) (ret StatSub) {
+	ret.Protocol = ss.Protocol
+	ret.StartTime = ss.StartTime
+	ret.RemoteAddr = ss.RemoteAddr
+	ret.ReadBytesSum = ss.ReadBytesSum
+	ret.WroteBytesSum = ss.WroteBytesSum
+	ret.Bitrate = ss.Bitrate
+	return
+}
+
+func StatSession2Pull(ss StatSession) (ret StatPull) {
 	ret.Protocol = ss.Protocol
 	ret.StartTime = ss.StartTime
 	ret.RemoteAddr = ss.RemoteAddr

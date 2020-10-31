@@ -65,3 +65,12 @@ func (s *PullSession) Dispose() {
 func (s *PullSession) UniqueKey() string {
 	return s.core.UniqueKey
 }
+
+func (s *PullSession) GetStat() base.StatSession {
+	return s.core.GetStat()
+}
+
+// TODO chef: 默认每5秒调用一次
+func (s *PullSession) UpdateStat(tickCount uint32) {
+	s.core.UpdateStat(tickCount)
+}

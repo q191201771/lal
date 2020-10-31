@@ -9,6 +9,7 @@
 package logic
 
 import (
+	"encoding/json"
 	"fmt"
 	"sync"
 
@@ -41,35 +42,46 @@ import (
 //  - sub无数据超时时间
 
 type Group struct {
-	UniqueKey string
-
-	appName    string
-	streamName string // TODO chef: 和stat里的字段重复，可以删除掉
-	stat       base.StatGroup
+	UniqueKey  string // const after init
+	appName    string // const after init
+	streamName string // const after init TODO chef: 和stat里的字段重复，可以删除掉
 
 	exitChan chan struct{}
 
-	mutex                sync.Mutex
-	rtmpPubSession       *rtmp.ServerSession
-	rtspPubSession       *rtsp.PubSession
-	pullSession          *rtmp.PullSession
-	isPulling            bool
+	mutex sync.Mutex
+	//
+	stat base.StatGroup
+	//
+	rtmpPubSession *rtmp.ServerSession
+	rtspPubSession *rtsp.PubSession
+	//
+	pullEnable bool
+	pullURL    string
+	pullProxy  *pullProxy
+	//
 	rtmpSubSessionSet    map[*rtmp.ServerSession]struct{}
 	httpflvSubSessionSet map[*httpflv.SubSession]struct{}
 	httptsSubSessionSet  map[*httpts.SubSession]struct{}
 	rtspSubSessionSet    map[*rtsp.SubSession]struct{}
-	hlsMuxer             *hls.Muxer
-	url2PushProxy        map[string]*pushProxy
-	gopCache             *GOPCache
-	httpflvGopCache      *GOPCache
-
+	//
+	url2PushProxy map[string]*pushProxy
+	//
+	hlsMuxer *hls.Muxer
+	//
+	gopCache        *GOPCache
+	httpflvGopCache *GOPCache
 	// rtsp pub使用
 	asc []byte
 	vps []byte
 	sps []byte
 	pps []byte
-
+	//
 	tickCount uint32
+}
+
+type pullProxy struct {
+	isPulling   bool
+	pullSession *rtmp.PullSession
 }
 
 type pushProxy struct {
@@ -77,7 +89,7 @@ type pushProxy struct {
 	pushSession *rtmp.PushSession
 }
 
-func NewGroup(appName string, streamName string) *Group {
+func NewGroup(appName string, streamName string, pullEnable bool, pullURL string) *Group {
 	uk := unique.GenUniqueKey("GROUP")
 	nazalog.Infof("[%s] lifecycle new group. appName=%s, streamName=%s", uk, appName, streamName)
 
@@ -106,7 +118,10 @@ func NewGroup(appName string, streamName string) *Group {
 		rtspSubSessionSet:    make(map[*rtsp.SubSession]struct{}),
 		gopCache:             NewGOPCache("rtmp", uk, config.RTMPConfig.GOPNum),
 		httpflvGopCache:      NewGOPCache("httpflv", uk, config.HTTPFLVConfig.GOPNum),
+		pullProxy:            &pullProxy{},
 		url2PushProxy:        url2PushProxy,
+		pullEnable:           pullEnable,
+		pullURL:              pullURL,
 	}
 }
 
@@ -130,6 +145,9 @@ func (group *Group) Tick() {
 		}
 		if group.rtspPubSession != nil {
 			group.rtspPubSession.UpdateStat(group.tickCount)
+		}
+		if group.pullProxy.pullSession != nil {
+			group.pullProxy.pullSession.UpdateStat(group.tickCount)
 		}
 		for session := range group.rtmpSubSessionSet {
 			session.UpdateStat(group.tickCount)
@@ -199,7 +217,7 @@ func (group *Group) AddRTMPPubSession(session *rtmp.ServerSession) bool {
 	group.mutex.Lock()
 	defer group.mutex.Unlock()
 
-	if !group.isInEmpty() {
+	if group.hasInSession() {
 		nazalog.Errorf("[%s] in stream already exist. wanna add=%s", group.UniqueKey, session.UniqueKey)
 		return false
 	}
@@ -233,7 +251,7 @@ func (group *Group) AddRTSPPubSession(session *rtsp.PubSession) bool {
 	group.mutex.Lock()
 	defer group.mutex.Unlock()
 
-	if !group.isInEmpty() {
+	if group.hasInSession() {
 		nazalog.Errorf("[%s] in stream already exist. wanna add=%s", group.UniqueKey, session.UniqueKey)
 		return false
 	}
@@ -260,20 +278,20 @@ func (group *Group) DelRTSPPubSession(session *rtsp.PubSession) {
 	group.delIn()
 }
 
-func (group *Group) AddRTMPPullSession(session *rtmp.PullSession) {
+func (group *Group) AddRTMPPullSession(session *rtmp.PullSession) bool {
 	nazalog.Debugf("[%s] [%s] add PullSession into group.", group.UniqueKey, session.UniqueKey())
 
 	group.mutex.Lock()
 	defer group.mutex.Unlock()
 
-	// TODO chef: 需要考虑，relay pull类型是和pub类型保持逻辑一致：是否判断In已经存在，是否调用func addIn
-
-	group.pullSession = session
-
-	if config.HLSConfig.Enable {
-		group.hlsMuxer = hls.NewMuxer(group.streamName, &config.HLSConfig.MuxerConfig, group)
-		group.hlsMuxer.Start()
+	if group.hasInSession() {
+		nazalog.Errorf("[%s] in stream already exist. wanna add=%s", group.UniqueKey, session.UniqueKey())
+		return false
 	}
+
+	group.pullProxy.pullSession = session
+	group.addIn()
+	return true
 }
 
 func (group *Group) DelRTMPPullSession(session *rtmp.PullSession) {
@@ -282,8 +300,8 @@ func (group *Group) DelRTMPPullSession(session *rtmp.PullSession) {
 	group.mutex.Lock()
 	defer group.mutex.Unlock()
 
-	group.pullSession = nil
-	group.isPulling = false
+	group.pullProxy.pullSession = nil
+	group.pullProxy.isPulling = false
 
 	group.delIn()
 }
@@ -388,6 +406,18 @@ func (group *Group) IsTotalEmpty() bool {
 	return group.isTotalEmpty()
 }
 
+func (group *Group) HasInSession() bool {
+	group.mutex.Lock()
+	defer group.mutex.Unlock()
+	return group.hasInSession()
+}
+
+func (group *Group) HasOutSession() bool {
+	group.mutex.Lock()
+	defer group.mutex.Unlock()
+	return group.hasOutSession()
+}
+
 // hls.Muxer
 func (group *Group) OnTSPackets(rawFrame []byte, boundary bool) {
 	// 因为最前面Feed时已经加锁了，所以这里回调上来就不用加锁了
@@ -425,6 +455,8 @@ func (group *Group) OnRTPPacket(pkt rtprtcp.RTPPacket) {
 
 // rtsp.PubSession
 func (group *Group) OnAVConfig(asc, vps, sps, pps []byte) {
+	// 注意，前面已经进锁了，这里依然在锁保护内
+
 	group.asc = asc
 	group.vps = vps
 	group.sps = sps
@@ -434,6 +466,8 @@ func (group *Group) OnAVConfig(asc, vps, sps, pps []byte) {
 
 // rtsp.PubSession
 func (group *Group) OnAVPacket(pkt base.AVPacket) {
+	// TODO chef: 这里貌似没有加锁，最起码下面广播前需要加锁
+
 	var h base.RTMPHeader
 	var msg base.RTMPMsg
 
@@ -500,33 +534,9 @@ func (group *Group) OnAVPacket(pkt base.AVPacket) {
 	group.broadcastRTMP(msg)
 }
 
-// TODO chef 用Stat取代这个序列号函数
 func (group *Group) StringifyStats() string {
-	group.mutex.Lock()
-	defer group.mutex.Unlock()
-	var pub string
-	if group.rtmpPubSession != nil {
-		pub = group.rtmpPubSession.UniqueKey
-	} else if group.rtspPubSession != nil {
-		pub = group.rtspPubSession.UniqueKey
-	} else {
-		pub = "none"
-	}
-	var pull string
-	if group.pullSession == nil {
-		pull = "none"
-	} else {
-		pull = group.pullSession.UniqueKey()
-	}
-	var pushSize int
-	for _, v := range group.url2PushProxy {
-		if v.pushSession != nil {
-			pushSize++
-		}
-	}
-
-	return fmt.Sprintf("[%s] stat=%+v, rtmp pub=%s, relay rtmp pull=%s, rtmp sub=%d, httpflv sub=%d, httpts sub=%d, relay rtmp push=%d",
-		group.UniqueKey, group.stat, pub, pull, len(group.rtmpSubSessionSet), len(group.httpflvSubSessionSet), len(group.httptsSubSessionSet), pushSize)
+	b, _ := json.Marshal(group.GetStat())
+	return string(b)
 }
 
 func (group *Group) GetStat() base.StatGroup {
@@ -552,7 +562,20 @@ func (group *Group) GetStat() base.StatGroup {
 		group.stat.StatSubs = append(group.stat.StatSubs, s.GetStat())
 	}
 
+	if group.pullProxy.pullSession != nil {
+		group.stat.StatPull = base.StatSession2Pull(group.pullProxy.pullSession.GetStat())
+	}
+
 	return group.stat
+}
+
+func (group *Group) StartPull(url string) {
+	group.mutex.Lock()
+	defer group.mutex.Unlock()
+
+	group.pullEnable = true
+	group.pullURL = url
+	group.pullIfNeeded()
 }
 
 func (group *Group) broadcastMetadataAndSeqHeader() {
@@ -790,40 +813,39 @@ func (group *Group) broadcastRTMP(msg base.RTMPMsg) {
 }
 
 func (group *Group) pullIfNeeded() {
-	// pull回源功能没开
-	if !config.RelayPullConfig.Enable {
+	if !group.pullEnable {
 		return
 	}
-	// TODO chef: func IsOutEmpty?
-	// 没有sub订阅者
-	if len(group.rtmpSubSessionSet) == 0 && len(group.httpflvSubSessionSet) == 0 && len(group.httptsSubSessionSet) == 0 {
+	if !group.hasOutSession() {
 		return
 	}
-	// 已有pub推流或pull回源
-	if group.rtmpPubSession != nil || group.pullSession != nil {
+	if group.hasInSession() {
 		return
 	}
 	// 正在回源中
-	if group.isPulling {
+	if group.pullProxy.isPulling {
 		return
 	}
-	group.isPulling = true
+	group.pullProxy.isPulling = true
 
-	url := fmt.Sprintf("rtmp://%s/%s/%s", config.RelayPullConfig.Addr, group.appName, group.streamName)
-	nazalog.Infof("start relay pull. [%s] url=%s", group.UniqueKey, url)
+	nazalog.Infof("start relay pull. [%s] url=%s", group.UniqueKey, group.pullURL)
 
 	go func() {
 		pullSesion := rtmp.NewPullSession()
-		err := pullSesion.Pull(url, group.OnReadRTMPAVMsg)
+		err := pullSesion.Pull(group.pullURL, group.OnReadRTMPAVMsg)
 		if err != nil {
 			nazalog.Errorf("[%s] relay pull fail. err=%v", pullSesion.UniqueKey(), err)
 			group.DelRTMPPullSession(pullSesion)
 			return
 		}
-		group.AddRTMPPullSession(pullSesion)
-		err = <-pullSesion.Done()
-		nazalog.Infof("[%s] relay pull done. err=%v", pullSesion.UniqueKey(), err)
-		group.DelRTMPPullSession(pullSesion)
+		res := group.AddRTMPPullSession(pullSesion)
+		if res {
+			err = <-pullSesion.Done()
+			nazalog.Infof("[%s] relay pull done. err=%v", pullSesion.UniqueKey(), err)
+			group.DelRTMPPullSession(pullSesion)
+		} else {
+			pullSesion.Dispose()
+		}
 	}()
 }
 
@@ -836,6 +858,11 @@ func (group *Group) pushIfNeeded() {
 	if group.rtmpPubSession == nil {
 		return
 	}
+
+	// relay push时携带rtmp pub的参数
+	// TODO chef: 这个逻辑放这里不太好看
+	urlParam := group.rtmpPubSession.RawQuery
+
 	for url, v := range group.url2PushProxy {
 		// 正在转推中
 		if v.isPushing {
@@ -843,25 +870,29 @@ func (group *Group) pushIfNeeded() {
 		}
 		v.isPushing = true
 
-		nazalog.Infof("[%s] start relay push. url=%s", group.UniqueKey, url)
+		url2 := url
+		if urlParam != "" {
+			url2 += "?" + url
+		}
+		nazalog.Infof("[%s] start relay push. url=%s", group.UniqueKey, url2)
 
-		go func(url string) {
+		go func(u, u2 string) {
 			pushSession := rtmp.NewPushSession(func(option *rtmp.PushSessionOption) {
 				option.ConnectTimeoutMS = relayPushConnectTimeoutMS
 				option.PushTimeoutMS = relayPushTimeoutMS
 				option.WriteAVTimeoutMS = relayPushWriteAVTimeoutMS
 			})
-			err := pushSession.Push(url)
+			err := pushSession.Push(u2)
 			if err != nil {
 				nazalog.Errorf("[%s] relay push done. err=%v", pushSession.UniqueKey(), err)
-				group.DelRTMPPushSession(url, pushSession)
+				group.DelRTMPPushSession(u, pushSession)
 				return
 			}
-			group.AddRTMPPushSession(url, pushSession)
+			group.AddRTMPPushSession(u, pushSession)
 			err = <-pushSession.Done()
 			nazalog.Infof("[%s] relay push done. err=%v", pushSession.UniqueKey(), err)
-			group.DelRTMPPushSession(url, pushSession)
-		}(url)
+			group.DelRTMPPushSession(u, pushSession)
+		}(url, url2)
 	}
 }
 
@@ -875,20 +906,28 @@ func (group *Group) hasPushSession() bool {
 }
 
 func (group *Group) isTotalEmpty() bool {
-	return group.rtmpPubSession == nil && len(group.rtmpSubSessionSet) == 0 &&
+	return group.rtmpPubSession == nil &&
+		len(group.rtmpSubSessionSet) == 0 &&
 		group.rtspPubSession == nil &&
 		len(group.httpflvSubSessionSet) == 0 &&
 		len(group.httptsSubSessionSet) == 0 &&
 		len(group.rtspSubSessionSet) == 0 &&
 		group.hlsMuxer == nil &&
 		!group.hasPushSession() &&
-		group.pullSession == nil
+		group.pullProxy.pullSession == nil
 }
 
-func (group *Group) isInEmpty() bool {
-	return group.rtmpPubSession == nil &&
-		group.rtspPubSession == nil &&
-		group.pullSession == nil
+func (group *Group) hasInSession() bool {
+	return group.rtmpPubSession != nil ||
+		group.rtspPubSession != nil ||
+		group.pullProxy.pullSession != nil
+}
+
+func (group *Group) hasOutSession() bool {
+	return len(group.rtmpSubSessionSet) != 0 ||
+		len(group.httpflvSubSessionSet) != 0 ||
+		len(group.httptsSubSessionSet) != 0 ||
+		len(group.rtspSubSessionSet) != 0
 }
 
 func (group *Group) addIn() {

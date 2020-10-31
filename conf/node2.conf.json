@@ -1,47 +1,36 @@
 {
   "rtmp": {
     "enable": true,
-    "addr": ":19350",
+    "addr": ":19550",
     "gop_num": 2
   },
   "httpflv": {
     "enable": true,
-    "sub_listen_addr": ":8080",
+    "sub_listen_addr": ":8280",
     "enable_https": false,
-    "https_addr": ":4433",
-    "https_cert_file": "./conf/cert.pem",
-    "https_key_file": "./conf/key.pem",
     "gop_num": 2
+
   },
   "hls": {
-    "enable": true,
-    "sub_listen_addr": ":8081",
-    "out_path": "/tmp/lal/hls/",
-    "fragment_duration_ms": 3000,
-    "fragment_num": 6
+    "enable": false
   },
   "httpts": {
-    "enable": true,
-    "sub_listen_addr": ":8082"
+    "enable": false
   },
   "rtsp": {
-    "enable": true,
-    "addr": ":5544"
+    "enable": false
   },
   "relay_push": {
-    "enable": false,
-    "addr_list":[
-    ]
+    "enable": false
   },
   "relay_pull": {
-    "enable": false,
-    "addr": ""
+    "enable": false
   },
   "http_api": {
     "enable": true,
-    "addr": ":8083"
+    "addr": ":8283"
   },
-  "server_id": "1",
+  "server_id": "2",
   "http_notify": {
     "enable": true,
     "update_interval_sec": 5,
@@ -52,12 +41,11 @@
     "on_sub_stop": "http://127.0.0.1:10101/on_sub_stop"
   },
   "pprof": {
-    "enable": true,
-    "addr": ":8084"
+    "enable": false
   },
   "log": {
     "level": 1,
-    "filename": "./logs/lalserver.log",
+    "filename": "./logs/lalserver2.log",
     "is_to_stdout": true,
     "is_rotate_daily": true,
     "short_file_flag": true,

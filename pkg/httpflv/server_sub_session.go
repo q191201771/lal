@@ -29,11 +29,12 @@ var flvHTTPResponseHeader []byte
 type SubSession struct {
 	UniqueKey string
 
-	StartTick  int64
-	StreamName string
-	AppName    string
-	URI        string
-	Headers    map[string]string
+	StartTick              int64
+	AppName                string
+	StreamName             string
+	RawQuery               string
+	StreamNameWithRawQuery string
+	Headers                map[string]string
 
 	IsFresh bool
 
@@ -81,7 +82,7 @@ func (session *SubSession) ReadRequest() (err error) {
 	if requestLine, session.Headers, err = nazahttp.ReadHTTPHeader(session.conn); err != nil {
 		return
 	}
-	if method, session.URI, _, err = nazahttp.ParseHTTPRequestLine(requestLine); err != nil {
+	if method, session.StreamNameWithRawQuery, _, err = nazahttp.ParseHTTPRequestLine(requestLine); err != nil {
 		return
 	}
 	if method != "GET" {
@@ -90,7 +91,7 @@ func (session *SubSession) ReadRequest() (err error) {
 	}
 
 	var urlObj *url.URL
-	if urlObj, err = url.Parse(session.URI); err != nil {
+	if urlObj, err = url.Parse(session.StreamNameWithRawQuery); err != nil {
 		return
 	}
 	if !strings.HasSuffix(urlObj.Path, ".flv") {
@@ -110,6 +111,7 @@ func (session *SubSession) ReadRequest() (err error) {
 		return
 	}
 	session.StreamName = items[0]
+	session.RawQuery = urlObj.RawQuery
 
 	return nil
 }
@@ -156,6 +158,10 @@ func (session *SubSession) UpdateStat(tickCount uint32) {
 	diffStat.WroteBytesSum = currStat.WroteBytesSum - session.prevConnStat.WroteBytesSum
 	session.stat.Bitrate = int(diffStat.WroteBytesSum * 8 / 1024 / 5)
 	session.prevConnStat = currStat
+}
+
+func (session *SubSession) RemoteAddr() string {
+	return session.conn.RemoteAddr().String()
 }
 
 func init() {

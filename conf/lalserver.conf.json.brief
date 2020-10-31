@@ -41,9 +41,19 @@
     "enable": true, // 是否开启HTTP API接口
     "addr": ":8083" // 监听地址
   },
+  "server_id": "1", // 当前lalserver唯一ID。多个lalserver HTTP Notify同一个地址时，可通过该ID区分
+  "http_notify": {
+    "enable": true,                                        // 是否开启HTTP Notify事件回调
+    "update_interval_sec": 5,                              // update事件回调间隔，单位毫秒
+    "on_update": "http://127.0.0.1:10101/on_update",       // 各事件HTTP Notify事件回调地址
+    "on_pub_start": "http://127.0.0.1:10101/on_pub_start",
+    "on_pub_stop": "http://127.0.0.1:10101/on_sub_stop",
+    "on_sub_start": "http://127.0.0.1:10101/on_sub_start",
+    "on_sub_stop": "http://127.0.0.1:10101/on_sub_stop"
+  },
   "pprof": {
     "enable": true,  // 是否开启Go pprof web服务的监听
-    "addr": ":10001" // Go pprof web地址
+    "addr": ":8084" // Go pprof web地址
   },
   "log": {
     "level": 1,                         // 日志级别，1 debug, 2 info, 3 warn, 4 error, 5 fatal

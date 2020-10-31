@@ -10,7 +10,6 @@ package logic
 
 import (
 	"encoding/json"
-	"errors"
 	"io/ioutil"
 
 	"github.com/q191201771/lal/pkg/httpflv"
@@ -19,6 +18,8 @@ import (
 	"github.com/q191201771/naza/pkg/nazajson"
 	"github.com/q191201771/naza/pkg/nazalog"
 )
+
+//var ErrMissKeyField = errors.New("missing key field in config file")
 
 type Config struct {
 	RTMPConfig      RTMPConfig      `json:"rtmp"`
@@ -29,9 +30,11 @@ type Config struct {
 	RelayPushConfig RelayPushConfig `json:"relay_push"`
 	RelayPullConfig RelayPullConfig `json:"relay_pull"`
 
-	HTTPAPIConfig HTTPAPIConfig  `json:"http_api"`
-	PProfConfig   PProfConfig    `json:"pprof"`
-	LogConfig     nazalog.Option `json:"log"`
+	HTTPAPIConfig    HTTPAPIConfig    `json:"http_api"`
+	ServerID         string           `json:"server_id"`
+	HTTPNotifyConfig HTTPNotifyConfig `json:"http_notify"`
+	PProfConfig      PProfConfig      `json:"pprof"`
+	LogConfig        nazalog.Option   `json:"log"`
 }
 
 type RTMPConfig struct {
@@ -75,6 +78,16 @@ type HTTPAPIConfig struct {
 	Addr   string `json:"addr"`
 }
 
+type HTTPNotifyConfig struct {
+	Enable            bool   `json:"enable"`
+	UpdateIntervalSec int    `json:"update_interval_sec"`
+	OnUpdate          string `json:"on_update"`
+	OnPubStart        string `json:"on_pub_start"`
+	OnPubStop         string `json:"on_pub_stop"`
+	OnSubStart        string `json:"on_sub_start"`
+	OnSubStop         string `json:"on_sub_stop"`
+}
+
 type PProfConfig struct {
 	Enable bool   `json:"enable"`
 	Addr   string `json:"addr"`
@@ -95,18 +108,24 @@ func LoadConf(confFile string) (*Config, error) {
 		return nil, err
 	}
 
-	// 检查配置必须项
-	if !j.Exist("rtmp") ||
-		!j.Exist("httpflv") ||
-		!j.Exist("hls") ||
-		!j.Exist("httpts") ||
-		!j.Exist("rtsp") ||
-		!j.Exist("relay_push") ||
-		!j.Exist("relay_pull") ||
-		!j.Exist("http_api") ||
-		!j.Exist("pprof") ||
-		!j.Exist("log") {
-		return &config, errors.New("missing key field in config file")
+	// 检查一级配置项
+	keyFieldList := []string{
+		"rtmp",
+		"httpflv",
+		"hls",
+		"httpts",
+		"rtsp",
+		"relay_push",
+		"relay_pull",
+		"http_api",
+		"http_notify",
+		"pprof",
+		"log",
+	}
+	for _, kf := range keyFieldList {
+		if !j.Exist(kf) {
+			nazalog.Warnf("missing config item %s", kf)
+		}
 	}
 
 	// 配置不存在时，设置默认值

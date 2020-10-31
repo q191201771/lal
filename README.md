@@ -24,7 +24,7 @@
 | - | sub rtmp | sub http(s)-flv | sub http-ts | sub hls | sub rtsp | relay push rtmp |
 | - | - | - | - | - | - | - |
 | pub rtmp        | ✔ | ✔ | ✔ | ✔ | - | ✔ |
-| pub rtsp        | ✔ | ✔ | ✔ | ✔ | - | ✔ |
+| pub rtsp        | ✔ | ✔ | ✔ | ✔ | - | - |
 | relay pull rtmp | ✔ | ✔ | ✔ | ✔ | - | . |
 
 | 编码类型 | rtmp | rtsp | hls | http(s)-flv | http-ts |
@@ -49,6 +49,7 @@
 - [x] **静态push转推**。支持转推多个地址。通过静态文件配置
 - [x] **秒开播放**。GOP缓冲
 - [x] **HTTP API接口**。用于获取服务信息，见[《lal流媒体服务器的HTTP API接口》](https://pengrl.com/p/20100)
+- [x] **HTTP Notify事件回调**。见[《lal HTTP Notify(or Callback or Webhook)事件回调》](https://pengrl.com/p/20101)
 
 除了lalserver，还提供一些基于lal开发的demo： [《lal/app/demo》](https://github.com/q191201771/lal/blob/master/app/demo/README.md)
 

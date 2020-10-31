@@ -131,7 +131,7 @@ func (server *Server) handleConnect(conn net.Conn) {
 		nazalog.Errorf("[%s] read httpflv SubSession request error. err=%v", session.UniqueKey, err)
 		return
 	}
-	nazalog.Debugf("[%s] < read http request. uri=%s", session.UniqueKey, session.URI)
+	nazalog.Debugf("[%s] < read http request.", session.UniqueKey)
 
 	if !server.observer.OnNewHTTPFLVSubSession(session) {
 		session.Dispose()
