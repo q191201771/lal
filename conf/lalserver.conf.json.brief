@@ -21,7 +21,7 @@
     "fragment_num": 6             // M3U8文件列表中TS文件的数量
   },
   "httpts": {
-    "enable": true, // 是否开启HTTP-TS服务的监听。注意，这并不是HLS中的TS，而是在一条HTTP长连接上持续性传输TS流
+    "enable": true,            // 是否开启HTTP-TS服务的监听。注意，这并不是HLS中的TS，而是在一条HTTP长连接上持续性传输TS流
     "sub_listen_addr": ":8082" // HTTP-TS拉流地址
   },
   "rtsp": {
@@ -52,7 +52,7 @@
     "on_sub_stop": "http://127.0.0.1:10101/on_sub_stop"
   },
   "pprof": {
-    "enable": true,  // 是否开启Go pprof web服务的监听
+    "enable": true, // 是否开启Go pprof web服务的监听
     "addr": ":8084" // Go pprof web地址
   },
   "log": {
