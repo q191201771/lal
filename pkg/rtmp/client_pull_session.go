@@ -8,7 +8,10 @@
 
 package rtmp
 
-import "github.com/q191201771/lal/pkg/base"
+import (
+	"github.com/q191201771/lal/pkg/base"
+	"github.com/q191201771/naza/pkg/connection"
+)
 
 type OnReadRTMPAVMsg func(msg base.RTMPMsg)
 
@@ -71,6 +74,19 @@ func (s *PullSession) GetStat() base.StatSession {
 }
 
 // TODO chef: 默认每5秒调用一次
-func (s *PullSession) UpdateStat(tickCount uint32) {
-	s.core.UpdateStat(tickCount)
+func (s *PullSession) UpdateStat(interval uint32) {
+	s.core.UpdateStat(interval)
+}
+
+func (s *PullSession) IsAlive(interval uint32) (ret bool) {
+	currStat := s.core.conn.GetStat()
+	if s.core.staleStat == nil {
+		s.core.staleStat = new(connection.Stat)
+		*s.core.staleStat = currStat
+		return true
+	}
+
+	ret = !(currStat.ReadBytesSum-s.core.staleStat.ReadBytesSum == 0)
+	*s.core.staleStat = currStat
+	return ret
 }

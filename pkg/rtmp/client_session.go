@@ -45,6 +45,7 @@ type ClientSession struct {
 
 	conn         connection.Connection
 	prevConnStat connection.Stat
+	staleStat    *connection.Stat
 	stat         base.StatSession
 	doResultChan chan struct{}
 
@@ -191,16 +192,16 @@ func (s *ClientSession) GetStat() base.StatSession {
 }
 
 // TODO chef: 默认每5秒调用一次
-func (s *ClientSession) UpdateStat(tickCount uint32) {
+func (s *ClientSession) UpdateStat(interval uint32) {
 	currStat := s.conn.GetStat()
 	var diffStat connection.Stat
 	diffStat.ReadBytesSum = currStat.ReadBytesSum - s.prevConnStat.ReadBytesSum
 	diffStat.WroteBytesSum = currStat.WroteBytesSum - s.prevConnStat.WroteBytesSum
 	switch s.t {
 	case CSTPullSession:
-		s.stat.Bitrate = int(diffStat.ReadBytesSum * 8 / 1024 / 5)
+		s.stat.Bitrate = int(diffStat.ReadBytesSum * 8 / 1024 / uint64(interval))
 	case CSTPushSession:
-		s.stat.Bitrate = int(diffStat.WroteBytesSum * 8 / 1024 / 5)
+		s.stat.Bitrate = int(diffStat.WroteBytesSum * 8 / 1024 / uint64(interval))
 	}
 	s.prevConnStat = currStat
 }

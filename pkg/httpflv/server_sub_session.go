@@ -40,6 +40,7 @@ type SubSession struct {
 
 	conn         connection.Connection
 	prevConnStat connection.Stat
+	staleStat    *connection.Stat
 	stat         base.StatSub
 }
 
@@ -152,12 +153,25 @@ func (session *SubSession) GetStat() base.StatSub {
 	return session.stat
 }
 
-func (session *SubSession) UpdateStat(tickCount uint32) {
+func (session *SubSession) UpdateStat(interval uint32) {
 	currStat := session.conn.GetStat()
 	var diffStat connection.Stat
 	diffStat.WroteBytesSum = currStat.WroteBytesSum - session.prevConnStat.WroteBytesSum
-	session.stat.Bitrate = int(diffStat.WroteBytesSum * 8 / 1024 / 5)
+	session.stat.Bitrate = int(diffStat.WroteBytesSum * 8 / 1024 / uint64(interval))
 	session.prevConnStat = currStat
+}
+
+func (session *SubSession) IsAlive(interval uint32) (ret bool) {
+	currStat := session.conn.GetStat()
+	if session.staleStat == nil {
+		session.staleStat = new(connection.Stat)
+		*session.staleStat = currStat
+		return true
+	}
+
+	ret = !(currStat.WroteBytesSum-session.staleStat.WroteBytesSum == 0)
+	*session.staleStat = currStat
+	return ret
 }
 
 func (session *SubSession) RemoteAddr() string {

@@ -15,6 +15,7 @@ import (
 )
 
 type ServerObserver interface {
+	OnRTMPConnect(session *ServerSession, opa ObjectPairArray)
 	OnNewRTMPPubSession(session *ServerSession) bool // 返回true则允许推流，返回false则强制关闭这个连接
 	OnDelRTMPPubSession(session *ServerSession)
 	OnNewRTMPSubSession(session *ServerSession) bool // 返回true则允许拉流，返回false则强制关闭这个连接
@@ -74,6 +75,10 @@ func (server *Server) handleTCPConnect(conn net.Conn) {
 	case ServerSessionTypeSub:
 		server.observer.OnDelRTMPSubSession(session)
 	}
+}
+
+func (server *Server) OnRTMPConnect(session *ServerSession, opa ObjectPairArray) {
+	server.observer.OnRTMPConnect(session, opa)
 }
 
 // ServerSessionObserver

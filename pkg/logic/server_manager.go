@@ -199,6 +199,26 @@ func (sm *ServerManager) Dispose() {
 	sm.exitChan <- struct{}{}
 }
 
+func (sm *ServerManager) OnRTMPConnect(session *rtmp.ServerSession, opa rtmp.ObjectPairArray) {
+	sm.mutex.Lock()
+	defer sm.mutex.Unlock()
+
+	var info base.RTMPConnectInfo
+	info.ServerID = config.ServerID
+	info.SessionID = session.UniqueKey
+	info.RemoteAddr = session.RemoteAddr()
+	if app, err := opa.FindString("app"); err == nil {
+		info.App = app
+	}
+	if flashVer, err := opa.FindString("flashVer"); err == nil {
+		info.FlashVer = flashVer
+	}
+	if tcURL, err := opa.FindString("tcUrl"); err == nil {
+		info.TCURL = tcURL
+	}
+	httpNotify.OnRTMPConnect(info)
+}
+
 // ServerObserver of rtmp.Server
 func (sm *ServerManager) OnNewRTMPPubSession(session *rtmp.ServerSession) bool {
 	sm.mutex.Lock()
@@ -435,6 +455,7 @@ func (sm *ServerManager) iterateGroup() {
 	sm.mutex.Lock()
 	defer sm.mutex.Unlock()
 	for k, group := range sm.groupMap {
+		// 关闭空闲的group
 		if group.IsTotalEmpty() {
 			nazalog.Infof("erase empty group manager. [%s]", group.UniqueKey)
 			group.Dispose()

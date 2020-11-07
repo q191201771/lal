@@ -38,7 +38,8 @@
     "on_pub_start": "http://127.0.0.1:10101/on_pub_start",
     "on_pub_stop": "http://127.0.0.1:10101/on_pub_stop",
     "on_sub_start": "http://127.0.0.1:10101/on_sub_start",
-    "on_sub_stop": "http://127.0.0.1:10101/on_sub_stop"
+    "on_sub_stop": "http://127.0.0.1:10101/on_sub_stop",
+    "on_rtmp_connect": "http://127.0.0.1:10101/on_rtmp_connect"
   },
   "pprof": {
     "enable": false

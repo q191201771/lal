@@ -61,9 +61,11 @@ type PubSession struct {
 	videoRTPConn  *nazanet.UDPConnection
 	audioRTCPConn *nazanet.UDPConnection
 	videoRTCPConn *nazanet.UDPConnection
-	currConnStat  connection.Stat
-	prevConnStat  connection.Stat
-	stat          base.StatPub
+
+	currConnStat connection.Stat
+	prevConnStat connection.Stat
+	staleStat    *connection.Stat
+	stat         base.StatPub
 
 	vps []byte // 如果是H265的话
 	sps []byte
@@ -179,6 +181,8 @@ func (p *PubSession) Setup(uri string, rtpConn, rtcpConn *nazanet.UDPConnection)
 }
 
 func (p *PubSession) Dispose() {
+	nazalog.Infof("[%s] lifecycle dispose rtsp PubSession.", p.UniqueKey)
+
 	if p.audioRTPConn != nil {
 		_ = p.audioRTPConn.Dispose()
 	}
@@ -199,10 +203,29 @@ func (p *PubSession) GetStat() base.StatPub {
 	return p.stat
 }
 
-func (p *PubSession) UpdateStat(tickCount uint32) {
-	diff := p.currConnStat.ReadBytesSum - p.prevConnStat.ReadBytesSum
-	p.stat.Bitrate = int(diff * 8 / 1024 / 5)
-	p.prevConnStat = p.currConnStat
+func (p *PubSession) UpdateStat(interval uint32) {
+	readBytesSum := atomic.LoadUint64(&p.currConnStat.ReadBytesSum)
+	wroteBytesSum := atomic.LoadUint64(&p.currConnStat.WroteBytesSum)
+	diff := readBytesSum - p.prevConnStat.ReadBytesSum
+	p.stat.Bitrate = int(diff * 8 / 1024 / uint64(interval))
+	p.prevConnStat.ReadBytesSum = readBytesSum
+	p.prevConnStat.WroteBytesSum = wroteBytesSum
+}
+
+func (p *PubSession) IsAlive(interval uint32) (ret bool) {
+	readBytesSum := atomic.LoadUint64(&p.currConnStat.ReadBytesSum)
+	wroteBytesSum := atomic.LoadUint64(&p.currConnStat.WroteBytesSum)
+	if p.staleStat == nil {
+		p.staleStat = new(connection.Stat)
+		p.staleStat.ReadBytesSum = readBytesSum
+		p.staleStat.WroteBytesSum = wroteBytesSum
+		return true
+	}
+
+	ret = !(readBytesSum-p.staleStat.ReadBytesSum == 0)
+	p.staleStat.ReadBytesSum = readBytesSum
+	p.staleStat.WroteBytesSum = wroteBytesSum
+	return ret
 }
 
 func (p *PubSession) GetSDP() []byte {

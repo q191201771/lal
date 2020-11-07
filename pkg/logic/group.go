@@ -135,28 +135,81 @@ func (group *Group) Tick() {
 	group.mutex.Lock()
 	defer group.mutex.Unlock()
 
+	// 没有sub播放者了关闭pull回源
+	group.stopPullIfNeeded()
+	// 还有sub播放者，没在pull就触发pull
 	group.pullIfNeeded()
+	// 还有pub推流，没在push就触发push
 	group.pushIfNeeded()
 
-	// 每5秒计算session bitrate
-	if group.tickCount%5 == 0 {
+	// TODO chef:
+	// 梳理和naza.Connection超时重复部分
+
+	// 定时关闭没有数据的session
+	if group.tickCount%checkSessionAliveIntervalSec == 0 {
 		if group.rtmpPubSession != nil {
-			group.rtmpPubSession.UpdateStat(group.tickCount)
+			if !group.rtmpPubSession.IsAlive(checkSessionAliveIntervalSec) {
+				nazalog.Warnf("[%s] session timeout. session=%s", group.UniqueKey, group.rtmpPubSession.UniqueKey)
+				group.rtmpPubSession.Dispose()
+				group.delRTMPPubSession(group.rtmpPubSession)
+			}
 		}
 		if group.rtspPubSession != nil {
-			group.rtspPubSession.UpdateStat(group.tickCount)
+			if !group.rtspPubSession.IsAlive(checkSessionAliveIntervalSec) {
+				nazalog.Warnf("[%s] session timeout. session=%s", group.UniqueKey, group.rtspPubSession.UniqueKey)
+				group.rtspPubSession.Dispose()
+				group.delRTSPPubSession(group.rtspPubSession)
+			}
 		}
 		if group.pullProxy.pullSession != nil {
-			group.pullProxy.pullSession.UpdateStat(group.tickCount)
+			if !group.pullProxy.pullSession.IsAlive(checkSessionAliveIntervalSec) {
+				nazalog.Warnf("[%s] session timeout. session=%s", group.UniqueKey, group.pullProxy.pullSession.UniqueKey())
+				group.pullProxy.pullSession.Dispose()
+				group.delRTMPPullSession(group.pullProxy.pullSession)
+			}
 		}
 		for session := range group.rtmpSubSessionSet {
-			session.UpdateStat(group.tickCount)
+			if !session.IsAlive(checkSessionAliveIntervalSec) {
+				nazalog.Warnf("[%s] session timeout. session=%s", group.UniqueKey, session.UniqueKey)
+				session.Dispose()
+				group.delRTMPSubSession(session)
+			}
 		}
 		for session := range group.httpflvSubSessionSet {
-			session.UpdateStat(group.tickCount)
+			if !session.IsAlive(checkSessionAliveIntervalSec) {
+				nazalog.Warnf("[%s] session timeout. session=%s", group.UniqueKey, session.UniqueKey)
+				session.Dispose()
+				group.delHTTPFLVSubSession(session)
+			}
 		}
 		for session := range group.httptsSubSessionSet {
-			session.UpdateStat(group.tickCount)
+			if !session.IsAlive(checkSessionAliveIntervalSec) {
+				nazalog.Warnf("[%s] session timeout. session=%s", group.UniqueKey, session.UniqueKey)
+				session.Dispose()
+				group.delHTTPTSSubSession(session)
+			}
+		}
+	}
+
+	// 定时计算session bitrate
+	if group.tickCount%calcSessionStatIntervalSec == 0 {
+		if group.rtmpPubSession != nil {
+			group.rtmpPubSession.UpdateStat(calcSessionStatIntervalSec)
+		}
+		if group.rtspPubSession != nil {
+			group.rtspPubSession.UpdateStat(calcSessionStatIntervalSec)
+		}
+		if group.pullProxy.pullSession != nil {
+			group.pullProxy.pullSession.UpdateStat(calcSessionStatIntervalSec)
+		}
+		for session := range group.rtmpSubSessionSet {
+			session.UpdateStat(calcSessionStatIntervalSec)
+		}
+		for session := range group.httpflvSubSessionSet {
+			session.UpdateStat(calcSessionStatIntervalSec)
+		}
+		for session := range group.httptsSubSessionSet {
+			session.UpdateStat(calcSessionStatIntervalSec)
 		}
 	}
 	group.tickCount++
@@ -230,18 +283,9 @@ func (group *Group) AddRTMPPubSession(session *rtmp.ServerSession) bool {
 }
 
 func (group *Group) DelRTMPPubSession(session *rtmp.ServerSession) {
-	nazalog.Debugf("[%s] [%s] del PubSession from group.", group.UniqueKey, session.UniqueKey)
-
 	group.mutex.Lock()
 	defer group.mutex.Unlock()
-
-	if session != group.rtmpPubSession {
-		nazalog.Warnf("[%s] del rtmp pub session but not match. del session=%s, group session=%p", group.UniqueKey, session.UniqueKey, group.rtmpPubSession)
-		return
-	}
-
-	group.rtmpPubSession = nil
-	group.delIn()
+	group.delRTMPPubSession(session)
 }
 
 // TODO chef: rtsp package中，增加回调返回值判断，如果是false，将连接关掉
@@ -264,18 +308,9 @@ func (group *Group) AddRTSPPubSession(session *rtsp.PubSession) bool {
 }
 
 func (group *Group) DelRTSPPubSession(session *rtsp.PubSession) {
-	nazalog.Debugf("[%s] [%s] del PubSession from group.", group.UniqueKey, session.UniqueKey)
-
 	group.mutex.Lock()
 	defer group.mutex.Unlock()
-
-	if session != group.rtspPubSession {
-		nazalog.Warnf("[%s] del rtmp pub session but not match. del session=%s, group session=%p", group.UniqueKey, session.UniqueKey, group.rtmpPubSession)
-		return
-	}
-
-	group.rtspPubSession = nil
-	group.delIn()
+	group.delRTSPPubSession(session)
 }
 
 func (group *Group) AddRTMPPullSession(session *rtmp.PullSession) bool {
@@ -295,15 +330,9 @@ func (group *Group) AddRTMPPullSession(session *rtmp.PullSession) bool {
 }
 
 func (group *Group) DelRTMPPullSession(session *rtmp.PullSession) {
-	nazalog.Debugf("[%s] [%s] del PullSession from group.", group.UniqueKey, session.UniqueKey())
-
 	group.mutex.Lock()
 	defer group.mutex.Unlock()
-
-	group.pullProxy.pullSession = nil
-	group.pullProxy.isPulling = false
-
-	group.delIn()
+	group.delRTMPPullSession(session)
 }
 
 func (group *Group) AddRTMPSubSession(session *rtmp.ServerSession) {
@@ -316,10 +345,9 @@ func (group *Group) AddRTMPSubSession(session *rtmp.ServerSession) {
 }
 
 func (group *Group) DelRTMPSubSession(session *rtmp.ServerSession) {
-	nazalog.Debugf("[%s] [%s] del SubSession from group.", group.UniqueKey, session.UniqueKey)
 	group.mutex.Lock()
 	defer group.mutex.Unlock()
-	delete(group.rtmpSubSessionSet, session)
+	group.delRTMPSubSession(session)
 }
 
 func (group *Group) AddHTTPFLVSubSession(session *httpflv.SubSession) {
@@ -335,10 +363,9 @@ func (group *Group) AddHTTPFLVSubSession(session *httpflv.SubSession) {
 }
 
 func (group *Group) DelHTTPFLVSubSession(session *httpflv.SubSession) {
-	nazalog.Debugf("[%s] [%s] del httpflv SubSession from group.", group.UniqueKey, session.UniqueKey)
 	group.mutex.Lock()
 	defer group.mutex.Unlock()
-	delete(group.httpflvSubSessionSet, session)
+	group.delHTTPFLVSubSession(session)
 }
 
 func (group *Group) AddHTTPTSSubSession(session *httpts.SubSession) {
@@ -354,10 +381,9 @@ func (group *Group) AddHTTPTSSubSession(session *httpts.SubSession) {
 }
 
 func (group *Group) DelHTTPTSSubSession(session *httpts.SubSession) {
-	nazalog.Debugf("[%s] [%s] del httpflv SubSession from group.", group.UniqueKey, session.UniqueKey)
 	group.mutex.Lock()
 	defer group.mutex.Unlock()
-	delete(group.httptsSubSessionSet, session)
+	group.delHTTPTSSubSession(session)
 }
 
 func (group *Group) AddRTSPSubSession(session *rtsp.SubSession) bool {
@@ -576,6 +602,53 @@ func (group *Group) StartPull(url string) {
 	group.pullEnable = true
 	group.pullURL = url
 	group.pullIfNeeded()
+}
+
+func (group *Group) delRTMPPubSession(session *rtmp.ServerSession) {
+	nazalog.Debugf("[%s] [%s] del rtmp PubSession from group.", group.UniqueKey, session.UniqueKey)
+
+	if session != group.rtmpPubSession {
+		nazalog.Warnf("[%s] del rtmp pub session but not match. del session=%s, group session=%p", group.UniqueKey, session.UniqueKey, group.rtmpPubSession)
+		return
+	}
+
+	group.rtmpPubSession = nil
+	group.delIn()
+}
+
+func (group *Group) delRTSPPubSession(session *rtsp.PubSession) {
+	nazalog.Debugf("[%s] [%s] del rtsp PubSession from group.", group.UniqueKey, session.UniqueKey)
+
+	if session != group.rtspPubSession {
+		nazalog.Warnf("[%s] del rtmp pub session but not match. del session=%s, group session=%p", group.UniqueKey, session.UniqueKey, group.rtmpPubSession)
+		return
+	}
+
+	group.rtspPubSession = nil
+	group.delIn()
+}
+
+func (group *Group) delRTMPPullSession(session *rtmp.PullSession) {
+	nazalog.Debugf("[%s] [%s] del rtmp PullSession from group.", group.UniqueKey, session.UniqueKey())
+
+	group.pullProxy.pullSession = nil
+	group.pullProxy.isPulling = false
+	group.delIn()
+}
+
+func (group *Group) delRTMPSubSession(session *rtmp.ServerSession) {
+	nazalog.Debugf("[%s] [%s] del rtmp SubSession from group.", group.UniqueKey, session.UniqueKey)
+	delete(group.rtmpSubSessionSet, session)
+}
+
+func (group *Group) delHTTPFLVSubSession(session *httpflv.SubSession) {
+	nazalog.Debugf("[%s] [%s] del httpflv SubSession from group.", group.UniqueKey, session.UniqueKey)
+	delete(group.httpflvSubSessionSet, session)
+}
+
+func (group *Group) delHTTPTSSubSession(session *httpts.SubSession) {
+	nazalog.Debugf("[%s] [%s] del httpts SubSession from group.", group.UniqueKey, session.UniqueKey)
+	delete(group.httptsSubSessionSet, session)
 }
 
 func (group *Group) broadcastMetadataAndSeqHeader() {
@@ -812,6 +885,13 @@ func (group *Group) broadcastRTMP(msg base.RTMPMsg) {
 	}
 }
 
+func (group *Group) stopPullIfNeeded() {
+	if group.pullProxy.pullSession != nil && !group.hasOutSession() {
+		nazalog.Infof("[%s] stop pull since no sub session.", group.UniqueKey)
+		group.pullProxy.pullSession.Dispose()
+	}
+}
+
 func (group *Group) pullIfNeeded() {
 	if !group.pullEnable {
 		return
@@ -828,23 +908,27 @@ func (group *Group) pullIfNeeded() {
 	}
 	group.pullProxy.isPulling = true
 
-	nazalog.Infof("start relay pull. [%s] url=%s", group.UniqueKey, group.pullURL)
+	nazalog.Infof("[%s] start relay pull. url=%s", group.UniqueKey, group.pullURL)
 
 	go func() {
-		pullSesion := rtmp.NewPullSession()
-		err := pullSesion.Pull(group.pullURL, group.OnReadRTMPAVMsg)
+		pullSession := rtmp.NewPullSession(func(option *rtmp.PullSessionOption) {
+			option.ConnectTimeoutMS = relayPullConnectTimeoutMS
+			option.PullTimeoutMS = relayPullTimeoutMS
+			option.ReadAVTimeoutMS = relayPullReadAVTimeoutMS
+		})
+		err := pullSession.Pull(group.pullURL, group.OnReadRTMPAVMsg)
 		if err != nil {
-			nazalog.Errorf("[%s] relay pull fail. err=%v", pullSesion.UniqueKey(), err)
-			group.DelRTMPPullSession(pullSesion)
+			nazalog.Errorf("[%s] relay pull fail. err=%v", pullSession.UniqueKey(), err)
+			group.DelRTMPPullSession(pullSession)
 			return
 		}
-		res := group.AddRTMPPullSession(pullSesion)
+		res := group.AddRTMPPullSession(pullSession)
 		if res {
-			err = <-pullSesion.Done()
-			nazalog.Infof("[%s] relay pull done. err=%v", pullSesion.UniqueKey(), err)
-			group.DelRTMPPullSession(pullSesion)
+			err = <-pullSession.Done()
+			nazalog.Infof("[%s] relay pull done. err=%v", pullSession.UniqueKey(), err)
+			group.DelRTMPPullSession(pullSession)
 		} else {
-			pullSesion.Dispose()
+			pullSession.Dispose()
 		}
 	}()
 }

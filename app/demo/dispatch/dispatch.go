@@ -206,6 +206,7 @@ func main() {
 	m.HandleFunc("/on_sub_start", OnSubStartHandler)
 	m.HandleFunc("/on_sub_stop", OnSubStopHandler)
 	m.HandleFunc("/on_update", OnUpdateHandler)
+	m.HandleFunc("/on_rtmp_connect", logHandler)
 
 	srv := http.Server{
 		Handler: m,

@@ -10,7 +10,7 @@ package base
 
 // 文档见： https://pengrl.com/p/20101/
 
-const HTTPNotifyVersion = "v0.0.1"
+const HTTPNotifyVersion = "v0.0.2"
 
 type SessionEventCommonInfo struct {
 	ServerID      string `json:"server_id"`
@@ -43,4 +43,13 @@ type SubStartInfo struct {
 
 type SubStopInfo struct {
 	SessionEventCommonInfo
+}
+
+type RTMPConnectInfo struct {
+	ServerID   string `json:"server_id"`
+	SessionID  string `json:"session_id"`
+	RemoteAddr string `json:"remote_addr"`
+	App        string `json:"app"`
+	FlashVer   string `json:"flashVer"`
+	TCURL      string `json:"tcUrl"`
 }

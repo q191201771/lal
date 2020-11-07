@@ -1,15 +1,15 @@
-#### v0.16.0
+#### v0.16.0 (2020-10-23)
 
 - [feat] rtsp pub h265（lal支持接收rtsp h265视频格式的推流）
 - [feat] 增加HTTP API接口，用于获取服务的一些信息，具体见： https://pengrl.com/p/20100/
 - [fix] 修复部分使用adobe flash player作为rtmp拉流客户端，拉流失败的问题
 - [fix] 修复接收rtsp pub推流时，流只有视频（没有音频）流处理的问题
 
-#### v0.15.1
+#### v0.15.1 (2020-09-19)
 
 - [fix] 配置文件没有开启HTTPS-FLV时，错误使用nil对象导致崩溃
 
-#### v0.15.0
+#### v0.15.0 (2020-09-19)
 
 - [feat] 支持HTTP-TS sub长连接拉流
 - [feat] 支持HTTPS-FLV
@@ -22,7 +22,7 @@
 - [feat] 新增package alpha/stun，学习stun协议
 - [feat] 部分rtsp pub支持h265的代码，未完全完成
 
-#### v0.14.0
+#### v0.14.0 (2020-08-23)
 
 - [feat] lalserver实现rtsp pub功能。支持接收rtsp(rtp/rtcp)推流，转换为rtmp,httpflv,hls格式供拉流使用
 - [feat] hls.Muxer释放时，向m3u8文件写入`#EXT-X-ENDLIST`
@@ -40,7 +40,7 @@
 - [doc] 增加文档: https://pengrl.com/p/20080/
 - [log] 整理所有session的日志
 
-#### v0.13.0
+#### v0.13.0 (2020-07-18)
 
 - [feat] package httpflv: pull拉流时，携带url参数
 - [feat] package avc: 提供一些AVCC转AnnexB相关的代码。学习解析SPS、PPS内部的字段
@@ -57,14 +57,14 @@
 - [test] innertest中对hls生成的m3u8和ts文件做md5验证
 - [chore] 下载单元测试用的test.flv失败，本地文件大小为0时，去备用地址下载
 
-#### v0.12.0
+#### v0.12.0 (2020-06-20)
 
 - [feat] lalserver增加回源功能
 - [fix] rtmp.AMF0.ReadObject函数内部，增加解析子类型EcmaArray。避免向某些rtmp服务器推流时，触发断言错误
 - [fix] 解析rtmp metadata时，兼容Object和Array两种外层格式
 - [refactor] 重写了lalserver的中继转推的代码
 
-#### v0.11.0
+#### v0.11.0 (2020-06-13)
 
 - [feat] lalserver增加中继转推(relay push)功能，可将接收到的推流(pub)转推(push)到其他rtmp类型的服务器，支持1对n的转推
 - [feat] package rtmp: 新增函数amf0::ReadArray，用于解析amf array数据
@@ -75,7 +75,7 @@
 - [refactor] lal/demo移动到lal/app/demo
 - [refactor] 日志整理
 
-#### v0.10.0
+#### v0.10.0 (2020-06-06)
 
 - [refactor] app/lals重命名为app/lalserver，避免描述时容易和lal造成混淆
 - [refactor] 将app/lalserver的大部分逻辑代码移入pkg/logic中
@@ -90,7 +90,7 @@
 - [refactor] package aac: 删除函数CaptureAAC
 - [feat] 增加demo/learnrtsp，pkg/rtsp，开始学习rtsp
 
-#### v0.9.0
+#### v0.9.0 (2020-05-30)
 
 - [feat] 新增HLS直播功能
 - [fix] 接收rtmp数据时，同一个message的多个chunk混合使用fmt1，2时，可能出现时间戳多加的情况
@@ -98,7 +98,7 @@
 - [feat] 新增两个demo：analyseflv和analysehls，分别用于拉取HTTP-FLV和HLS的流，并进行分析
 - [fix] 修改rtmp简单握手，修复macOS ffmpeg 4.2.2向lals推rtmp流时的握手警告
 
-#### v0.8.1
+#### v0.8.1 (2020-05-01)
 
 - [feat] 新package hevc
 - [fix] windows平台缺少USER1信号导致编译失败
@@ -107,12 +107,12 @@
 - [doc] package aac增加一些注释
 - [refactor] 使用naza v0.10.0
 
-#### v0.8.0
+#### v0.8.0 (2020-04-18)
 
 - [feat] 支持H265/HEVC
 - [feat] 支持GOP缓存
 
-#### v0.7.0
+#### v0.7.0 (2019-12-13)
 
 - [fix] package logic: 转发 rtmp metadata 时，message header 中的 len 字段可能和 body 实际长度不一致
 - [feat] rtmp.AVMsg 增加判断包中音视频数据是否为 seq header 等函数
@@ -124,14 +124,14 @@
 - [doc] README 中增加测试过的推拉流客户端
 - [dep] update naza -> v0.7.1
 
-#### v0.6.0
+#### v0.6.0 (2019-11-08)
 
 - package rtmp: 结构体的属性重命名 AVMsg.Message -> AVMsg.Payload
 - app/flvfile2rtmppush: 支持推送多路 rtmp 流，相当于一个压测工具
 - app/rtmppull: 支持对特定的一路流并发拉取多份，相当于一个压测工具
 - README 中补充性能测试结果
 
-#### v0.5.0
+#### v0.5.0 (2019-11-01)
 
 - package rtmp:
     - 增加结构体 ClientSessionOption，PushSessionOption，PullSessionOption
@@ -150,13 +150,13 @@
     - 使用 rtmp.AVMsg
     - 增加两个函数 MakeDefaultRTMPHeader，FLVTagHeader2RTMPHeader
 
-#### v0.4.0
+#### v0.4.0 (2019-10-25)
 
 - [功能] 将 rtmp pub session 的音视频转发给httpflv sub session
 - [依赖] httpflv ServerSubSession 使用 naza connection
 - [其他] 增加测试，加载flv文件后使用rtmp推流至服务器，然后分别使用rtmp和httpflv将流拉取下来，存成文件，判断和输入文件是否相等
 
-#### v0.3.2
+#### v0.3.2 (2019-10-19)
 
 - [功能] 默认的rtmp地址
 - [依赖] naza 更新为 0.4.3
@@ -165,14 +165,14 @@
 - [其他] test.sh 中加入更多 go tool
 - [其他] 所有源码文件添加 MIT 许可证
 
-#### v0.3.1
+#### v0.3.1 (2019-09-30)
 
 - [功能] 读取配置文件时，部分未配置的字段设置初始值
 - [其他] build.sh 中 git信息单引号替换成双引号
 - [其他] test.sh 中 加入 gofmt 检查
 - [其他] 更新 naza -> 0.4.0
 
-#### v0.3.0
+#### v0.3.0 (2019-09-27)
 
 - [功能] package logic: 增加 func FlvTag2RTMPMsg
 - [代码调整] package rtmp: ClientSession 和 ServerSession 使用 nezha 中的 connection 做连接管理
@@ -182,7 +182,7 @@
 - [测试] package rtmp: 增加 `example_test.go` 用于测试整个 rtmp 包的流程
 - [其他] 更新 nezha -> 0.3.0
 
-#### v0.2.0
+#### v0.2.0 (2019-09-21)
 
 - [结构调整] 将 app/lal 的部分代码抽离到 pkg/logic 中，使得其他 app 可以使用
 - [结构调整] 将协议层 rtmp.Group 和 应用层 app/lal 中的 GroupManager 合并为 逻辑层 pkg/logic 的 Group，以后只在逻辑层维护一个 Group，用于处理各种具体协议的输入输出流的挂载
@@ -197,7 +197,7 @@
 - [其他] pprof web 地址放入配置文件中
 - [测试] 使用一些开源工具对 app/lal 做推流、拉流测试
 
-#### v0.1.0
+#### v0.1.0 (2019-09-12)
 
 - /app/flvfile2rtmppush 优化推流平稳性
 - bugfix rtmp 推拉流信令时可以携带 url 参数，并且在做上下行匹配时去掉 url 参数
@@ -213,6 +213,6 @@
 - 更新 nezha 0.1.0
 - errors.PanicIfErrorOccur -> log.FatalIfErrorNotNil
 
-#### v0.0.1
+#### v0.0.1 (2019-09-03)
 
 1. 提供 `/app/flvfile2rtmppush` 给业务方使用

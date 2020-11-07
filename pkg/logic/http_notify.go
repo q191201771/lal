@@ -54,6 +54,10 @@ func (h *HTTPNotify) OnSubStop(info base.SubStopInfo) {
 	h.asyncPost(config.HTTPNotifyConfig.OnSubStop, info)
 }
 
+func (h *HTTPNotify) OnRTMPConnect(info base.RTMPConnectInfo) {
+	h.asyncPost(config.HTTPNotifyConfig.OnRTMPConnect, info)
+}
+
 func (h *HTTPNotify) asyncPost(url string, info interface{}) {
 	select {
 	case h.taskQueue <- PostTask{url: url, info: info}:

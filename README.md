@@ -55,6 +55,8 @@
 
 <img alt="Wide" src="https://pengrl.com/images/other/lalmodule.jpg?date=0829">
 
+发行版本日志：[《CHANGELOG.md》](https://github.com/q191201771/lal/blob/master/CHANGELOG.md)
+
 ### 编译，运行，体验功能
 
 #### 编译

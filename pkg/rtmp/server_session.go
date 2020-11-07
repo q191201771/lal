@@ -24,6 +24,7 @@ import (
 // TODO chef: 没有进化成Pub Sub时的超时释放
 
 type ServerSessionObserver interface {
+	OnRTMPConnect(session *ServerSession, opa ObjectPairArray)
 	OnNewRTMPPubSession(session *ServerSession) // 上层代码应该在这个事件回调中注册音视频数据的监听
 	OnNewRTMPSubSession(session *ServerSession)
 }
@@ -62,6 +63,7 @@ type ServerSession struct {
 
 	conn         connection.Connection
 	prevConnStat connection.Stat
+	staleStat    *connection.Stat
 	stat         base.StatSession
 
 	// only for PubSession
@@ -122,19 +124,35 @@ func (s *ServerSession) GetStat() base.StatSession {
 	return s.stat
 }
 
-// TODO chef: 默认每5秒调用一次
-func (s *ServerSession) UpdateStat(tickCount uint32) {
+func (s *ServerSession) UpdateStat(interval uint32) {
 	currStat := s.conn.GetStat()
-	var diffStat connection.Stat
-	diffStat.ReadBytesSum = currStat.ReadBytesSum - s.prevConnStat.ReadBytesSum
-	diffStat.WroteBytesSum = currStat.WroteBytesSum - s.prevConnStat.WroteBytesSum
 	switch s.t {
 	case ServerSessionTypePub:
-		s.stat.Bitrate = int(diffStat.ReadBytesSum * 8 / 1024 / 5)
+		diff := currStat.ReadBytesSum - s.prevConnStat.ReadBytesSum
+		s.stat.Bitrate = int(diff * 8 / 1024 / uint64(interval))
 	case ServerSessionTypeSub:
-		s.stat.Bitrate = int(diffStat.WroteBytesSum * 8 / 1024 / 5)
+		diff := currStat.WroteBytesSum - s.prevConnStat.WroteBytesSum
+		s.stat.Bitrate = int(diff * 8 / 1024 / uint64(interval))
 	}
 	s.prevConnStat = currStat
+}
+
+func (s *ServerSession) IsAlive(interval uint32) (ret bool) {
+	currStat := s.conn.GetStat()
+	if s.staleStat == nil {
+		s.staleStat = new(connection.Stat)
+		*s.staleStat = currStat
+		return true
+	}
+
+	switch s.t {
+	case ServerSessionTypePub:
+		ret = !(currStat.ReadBytesSum-s.staleStat.ReadBytesSum == 0)
+	case ServerSessionTypeSub:
+		ret = !(currStat.WroteBytesSum-s.staleStat.WroteBytesSum == 0)
+	}
+	*s.staleStat = currStat
+	return ret
 }
 
 func (s *ServerSession) RemoteAddr() string {
@@ -287,6 +305,8 @@ func (s *ServerSession) doConnect(tid int, stream *Stream) error {
 		return err
 	}
 	nazalog.Infof("[%s] < R connect('%s').", s.UniqueKey, s.AppName)
+
+	s.observer.OnRTMPConnect(s, val)
 
 	nazalog.Infof("[%s] > W Window Acknowledgement Size %d.", s.UniqueKey, windowAcknowledgementSize)
 	if err := s.packer.writeWinAckSize(s.conn, windowAcknowledgementSize); err != nil {
