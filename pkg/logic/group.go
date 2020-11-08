@@ -954,11 +954,11 @@ func (group *Group) pushIfNeeded() {
 		}
 		v.isPushing = true
 
-		url2 := url
+		urlwithParam := url
 		if urlParam != "" {
-			url2 += "?" + url
+			urlwithParam += "?" + urlParam
 		}
-		nazalog.Infof("[%s] start relay push. url=%s", group.UniqueKey, url2)
+		nazalog.Infof("[%s] start relay push. url=%s", group.UniqueKey, urlwithParam)
 
 		go func(u, u2 string) {
 			pushSession := rtmp.NewPushSession(func(option *rtmp.PushSessionOption) {
@@ -976,7 +976,7 @@ func (group *Group) pushIfNeeded() {
 			err = <-pushSession.Done()
 			nazalog.Infof("[%s] relay push done. err=%v", pushSession.UniqueKey(), err)
 			group.DelRTMPPushSession(u, pushSession)
-		}(url, url2)
+		}(url, urlwithParam)
 	}
 }
 
