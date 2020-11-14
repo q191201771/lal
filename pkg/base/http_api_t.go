@@ -8,21 +8,19 @@
 
 package base
 
-import "errors"
-
 // 文档见： https://pengrl.com/p/20100/
 
-var ErrParamMissing = errors.New("lal.logic: param missing")
-
-const HTTPAPIVersion = "v0.1.0"
+const HTTPAPIVersion = "v0.1.1"
 
 const (
-	ErrorCodeSucc          = 0
-	DespSucc               = "succ"
-	ErrorCodeGroupNotFound = 1001
-	DespGroupNotFound      = "group not found"
-	ErrorCodeParamMissing  = 1002
-	DespParamMissing       = "param missing"
+	ErrorCodeSucc            = 0
+	DespSucc                 = "succ"
+	ErrorCodeGroupNotFound   = 1001
+	DespGroupNotFound        = "group not found"
+	ErrorCodeParamMissing    = 1002
+	DespParamMissing         = "param missing"
+	ErrorCodeSessionNotFound = 1003
+	DespSessionNotFound      = "session not found"
 )
 
 type HTTPResponseBasic struct {
@@ -59,4 +57,9 @@ type APICtrlStartPullReq struct {
 	AppName    string `json:"app_name"`
 	StreamName string `json:"stream_name"`
 	URLParam   string `json:"url_param"`
+}
+
+type APICtrlKickOutSession struct {
+	StreamName string `json:"stream_name"`
+	SessionID  string `json:"session_id"`
 }

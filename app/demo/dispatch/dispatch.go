@@ -14,8 +14,8 @@ import (
 	"net"
 	"net/http"
 	"strings"
-	"sync"
 
+	"github.com/q191201771/lal/app/demo/dispatch/datamanager"
 	"github.com/q191201771/lal/pkg/base"
 	"github.com/q191201771/naza/pkg/nazahttp"
 	"github.com/q191201771/naza/pkg/nazalog"
@@ -55,8 +55,7 @@ var (
 )
 
 var (
-	mutex           sync.Mutex
-	stream2ServerID map[string]string
+	dataManager datamanager.DataManger
 )
 
 func OnPubStartHandler(w http.ResponseWriter, r *http.Request) {
@@ -69,12 +68,26 @@ func OnPubStartHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	nazalog.Infof("[%s] on_pub_start. info=%+v", id, info)
 
-	mutex.Lock()
-	defer mutex.Unlock()
+	// 演示如何踢掉session，服务于鉴权失败等场景
+	//if info.URLParam == "" {
+	if info.SessionID == "RTMPPUBSUB1" {
+		reqServer, exist := serverID2Server[info.ServerID]
+		if !exist {
+			nazalog.Errorf("[%s] req server id invalid.", id)
+			return
+		}
+		url := fmt.Sprintf("http://%s/api/ctrl/kick_out_session", reqServer.apiAddr)
+		var b base.APICtrlKickOutSession
+		b.StreamName = info.StreamName
+		b.SessionID = info.SessionID
 
-	// 保存用户推流对应的节点信息
-	nazalog.Infof("[%s] add to cache.", id)
-	stream2ServerID[info.StreamName] = info.ServerID
+		nazalog.Infof("[%s] ctrl kick out session. send to %s with %+v", id, reqServer.apiAddr, b)
+		if _, err := nazahttp.PostJson(url, b, nil); err != nil {
+			nazalog.Errorf("[%s] post json error. err=%+v", id, err)
+		}
+	}
+
+	dataManager.AddPub(info.StreamName, info.SessionID)
 }
 
 func OnPubStopHandler(w http.ResponseWriter, r *http.Request) {
@@ -87,15 +100,7 @@ func OnPubStopHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	nazalog.Infof("[%s] on_pub_stop. info=%+v", id, info)
 
-	mutex.Lock()
-	defer mutex.Unlock()
-	// 清除用户推流对应的节点信息
-	serverID, exist := stream2ServerID[info.StreamName]
-	if !exist || serverID != info.ServerID {
-		nazalog.Errorf("[%s] OnPubStopHandler. req id=%s, cache id=%s", id, info.ServerID, serverID)
-		return
-	}
-	delete(stream2ServerID, serverID)
+	dataManager.DelPub(info.StreamName, info.ServerID)
 }
 
 func OnSubStartHandler(w http.ResponseWriter, r *http.Request) {
@@ -109,42 +114,39 @@ func OnSubStartHandler(w http.ResponseWriter, r *http.Request) {
 	nazalog.Infof("[%s] on_sub_start. info=%+v", id, info)
 
 	// sub拉流时，判断是否需要触发pull级联拉流
-
-	// 是内部级联拉流，不需要触发pull级联拉流
+	// 1. 是内部级联拉流，不需要触发
 	if strings.Contains(info.URLParam, pullSecretParam) {
 		nazalog.Infof("[%s] sub is pull by other node, ignore.", id)
 		return
 	}
-	// 已经存在输入流，不需要触发pull级联拉流
+	// 2. 已经存在输入流，不需要触发
 	if info.HasInSession {
 		nazalog.Infof("[%s] in not empty, ignore.", id)
 		return
 	}
 
-	mutex.Lock()
-	defer mutex.Unlock()
-
-	// 当前节点
+	// 3. 非法节点，本服务没有配置这个节点
 	reqServer, exist := serverID2Server[info.ServerID]
 	if !exist {
 		nazalog.Errorf("[%s] req server id invalid.", id)
 		return
 	}
 
-	pubServerID, exist := stream2ServerID[info.StreamName]
-	// 没有查到流所在节点，不需要触发pull级联拉流
+	pubServerID, exist := dataManager.QueryPub(info.StreamName)
+	// 4. 没有查到流所在节点，不需要触发
 	if !exist {
 		nazalog.Infof("[%s] pub not exist, ignore.", id)
 		return
 	}
-	// 流所在节点
+
+	// TODO chef: 5. 这里的容错是否会出现？是否可以去掉？
 	pubServer, exist := serverID2Server[pubServerID]
 	if !exist {
 		nazalog.Errorf("[%s] pub server id invalid. serverID=%s", id, pubServerID)
 		return
 	}
 
-	// 向当前节点，发送pull级联拉流的命令
+	// 向pub所在节点，发送pull级联拉流的命令
 	url := fmt.Sprintf("http://%s/api/ctrl/start_pull", reqServer.apiAddr)
 	var b base.APICtrlStartPullReq
 	b.Protocol = base.ProtocolRTMP
@@ -157,7 +159,6 @@ func OnSubStartHandler(w http.ResponseWriter, r *http.Request) {
 	if _, err := nazahttp.PostJson(url, b, nil); err != nil {
 		nazalog.Errorf("[%s] post json error. err=%+v", id, err)
 	}
-
 }
 
 func OnSubStopHandler(w http.ResponseWriter, r *http.Request) {
@@ -185,7 +186,7 @@ func OnUpdateHandler(w http.ResponseWriter, r *http.Request) {
 	nazalog.Infof("[%s] on_update. info=%+v", id, info)
 
 	// TODO chef:
-	// 1. 更新stream2ServerID，去掉过期的，增加不存在的
+	// 1. 更新pubStream2ServerID，去掉过期的，增加不存在的
 	// 2. 没有pub但是有sub的，触发ctrl pull
 }
 
@@ -195,7 +196,7 @@ func logHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func main() {
-	stream2ServerID = make(map[string]string)
+	dataManager = datamanager.NewDataManager(datamanager.DMTMemory)
 
 	l, err := net.Listen("tcp", listenAddr)
 	nazalog.Assert(nil, err)

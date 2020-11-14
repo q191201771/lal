@@ -157,7 +157,7 @@ func (sm *ServerManager) RunLoop() {
 
 			sm.iterateGroup()
 
-			if (count % 10) == 0 {
+			if (count % 30) == 0 {
 				sm.mutex.Lock()
 				nazalog.Debugf("group size=%d", len(sm.groupMap))
 				//for _, g := range sm.groupMap {
@@ -199,6 +199,14 @@ func (sm *ServerManager) Dispose() {
 	sm.exitChan <- struct{}{}
 }
 
+func (sm *ServerManager) GetGroup(appName string, streamName string) *Group {
+	sm.mutex.Lock()
+	defer sm.mutex.Unlock()
+
+	return sm.getGroup(appName, streamName)
+}
+
+// ServerObserver of rtmp.Server
 func (sm *ServerManager) OnRTMPConnect(session *rtmp.ServerSession, opa rtmp.ObjectPairArray) {
 	sm.mutex.Lock()
 	defer sm.mutex.Unlock()
@@ -451,13 +459,36 @@ func (sm *ServerManager) OnCtrlStartPull(info base.APICtrlStartPullReq) {
 	g.StartPull(url)
 }
 
+// HTTPAPIServerObserver
+func (sm *ServerManager) OnCtrlKickOutSession(info base.APICtrlKickOutSession) base.HTTPResponseBasic {
+	sm.mutex.Lock()
+	defer sm.mutex.Unlock()
+	g := sm.getGroup("fake", info.StreamName)
+	if g == nil {
+		return base.HTTPResponseBasic{
+			ErrorCode: base.ErrorCodeGroupNotFound,
+			Desp:      base.DespGroupNotFound,
+		}
+	}
+	if !g.KickOutSession(info.SessionID) {
+		return base.HTTPResponseBasic{
+			ErrorCode: base.ErrorCodeSessionNotFound,
+			Desp:      base.DespSessionNotFound,
+		}
+	}
+	return base.HTTPResponseBasic{
+		ErrorCode: base.ErrorCodeSucc,
+		Desp:      base.DespSucc,
+	}
+}
+
 func (sm *ServerManager) iterateGroup() {
 	sm.mutex.Lock()
 	defer sm.mutex.Unlock()
 	for k, group := range sm.groupMap {
 		// 关闭空闲的group
 		if group.IsTotalEmpty() {
-			nazalog.Infof("erase empty group manager. [%s]", group.UniqueKey)
+			nazalog.Infof("erase empty group. [%s]", group.UniqueKey)
 			group.Dispose()
 			delete(sm.groupMap, k)
 			continue

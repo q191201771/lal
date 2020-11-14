@@ -21,7 +21,6 @@ import (
 
 	"github.com/q191201771/naza/pkg/connection"
 	"github.com/q191201771/naza/pkg/nazalog"
-	"github.com/q191201771/naza/pkg/unique"
 )
 
 type PullSessionOption struct {
@@ -54,7 +53,7 @@ func NewPullSession(modOptions ...ModPullSessionOption) *PullSession {
 		fn(&option)
 	}
 
-	uk := unique.GenUniqueKey("FLVPULL")
+	uk := base.GenUniqueKey(base.UKPFLVPullSession)
 	s := &PullSession{
 		option:    option,
 		UniqueKey: uk,

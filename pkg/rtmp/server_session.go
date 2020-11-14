@@ -18,7 +18,6 @@ import (
 	"github.com/q191201771/naza/pkg/bele"
 	"github.com/q191201771/naza/pkg/connection"
 	"github.com/q191201771/naza/pkg/nazalog"
-	"github.com/q191201771/naza/pkg/unique"
 )
 
 // TODO chef: 没有进化成Pub Sub时的超时释放
@@ -74,13 +73,14 @@ type ServerSession struct {
 }
 
 func NewServerSession(observer ServerSessionObserver, conn net.Conn) *ServerSession {
-	uk := unique.GenUniqueKey("RTMPPUBSUB")
+	uk := base.GenUniqueKey(base.UKPRTMPServerSession)
 	s := &ServerSession{
 		conn: connection.New(conn, func(option *connection.Option) {
 			option.ReadBufSize = readBufSize
 		}),
 		stat: base.StatSession{
 			Protocol:   base.ProtocolRTMP,
+			SessionID:  uk,
 			StartTime:  time.Now().Format("2006-01-02 15:04:05.999"),
 			RemoteAddr: conn.RemoteAddr().String(),
 		},

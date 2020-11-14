@@ -27,6 +27,7 @@ type HTTPAPIServerObserver interface {
 	OnStatAllGroup() []base.StatGroup
 	OnStatGroup(streamName string) *base.StatGroup
 	OnCtrlStartPull(info base.APICtrlStartPullReq)
+	OnCtrlKickOutSession(info base.APICtrlKickOutSession) base.HTTPResponseBasic
 }
 
 type HTTPAPIServer struct {
@@ -58,6 +59,7 @@ func (h *HTTPAPIServer) Runloop() error {
 	mux.HandleFunc("/api/stat/group", h.statGroupHandler)
 	mux.HandleFunc("/api/stat/all_group", h.statAllGroupHandler)
 	mux.HandleFunc("/api/ctrl/start_pull", h.ctrlStartPullHandler)
+	mux.HandleFunc("/api/ctrl/kick_out_session", h.ctrlKickOutSessionHandler)
 
 	var srv http.Server
 	srv.Handler = mux
@@ -110,7 +112,6 @@ func (h *HTTPAPIServer) statLALInfoHandler(w http.ResponseWriter, req *http.Requ
 
 func (h *HTTPAPIServer) statAllGroupHandler(w http.ResponseWriter, req *http.Request) {
 	gs := h.observer.OnStatAllGroup()
-
 	var v base.APIStatAllGroup
 	v.ErrorCode = base.ErrorCodeSucc
 	v.Desp = base.DespSucc
@@ -146,22 +147,41 @@ func (h *HTTPAPIServer) statGroupHandler(w http.ResponseWriter, req *http.Reques
 
 func (h *HTTPAPIServer) ctrlStartPullHandler(w http.ResponseWriter, req *http.Request) {
 	var v base.HTTPResponseBasic
-
 	var info base.APICtrlStartPullReq
 
 	err := nazahttp.UnmarshalRequestJsonBody(req, &info, "protocol", "addr", "app_name", "stream_name")
 	if err != nil {
+		nazalog.Warnf("http api start pull error. err=%+v", err)
 		v.ErrorCode = base.ErrorCodeParamMissing
 		v.Desp = base.DespParamMissing
 		feedback(v, w)
 		return
 	}
+	nazalog.Infof("http api start pull. req info=%+v", info)
 
 	h.observer.OnCtrlStartPull(info)
-
 	v.ErrorCode = base.ErrorCodeSucc
 	v.Desp = base.DespSucc
 	feedback(v, w)
+	return
+}
+
+func (h *HTTPAPIServer) ctrlKickOutSessionHandler(w http.ResponseWriter, req *http.Request) {
+	var v base.HTTPResponseBasic
+	var info base.APICtrlKickOutSession
+
+	err := nazahttp.UnmarshalRequestJsonBody(req, &info, "stream_name", "session_id")
+	if err != nil {
+		nazalog.Warnf("http api kick out session error. err=%+v", err)
+		v.ErrorCode = base.ErrorCodeParamMissing
+		v.Desp = base.DespParamMissing
+		feedback(v, w)
+		return
+	}
+	nazalog.Infof("http api kick out session. req info=%+v", info)
+
+	resp := h.observer.OnCtrlKickOutSession(info)
+	feedback(resp, w)
 	return
 }
 

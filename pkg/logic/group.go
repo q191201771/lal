@@ -11,7 +11,11 @@ package logic
 import (
 	"encoding/json"
 	"fmt"
+	"os"
+	"strings"
 	"sync"
+
+	"github.com/q191201771/naza/pkg/defertaskthread"
 
 	"github.com/q191201771/lal/pkg/rtprtcp"
 
@@ -32,14 +36,10 @@ import (
 	"github.com/q191201771/lal/pkg/httpflv"
 	"github.com/q191201771/lal/pkg/rtmp"
 	"github.com/q191201771/naza/pkg/nazalog"
-	"github.com/q191201771/naza/pkg/unique"
 )
 
 // TODO chef:
-//  - group可以考虑搞个协程
-//  - 多长没有sub订阅拉流，关闭pull回源
-//  - pull重试次数
-//  - sub无数据超时时间
+// group的函数比较多，考虑调整一下函数排列位置
 
 type Group struct {
 	UniqueKey  string // const after init
@@ -90,7 +90,7 @@ type pushProxy struct {
 }
 
 func NewGroup(appName string, streamName string, pullEnable bool, pullURL string) *Group {
-	uk := unique.GenUniqueKey("GROUP")
+	uk := base.GenUniqueKey(base.UKPGroup)
 	nazalog.Infof("[%s] lifecycle new group. appName=%s, streamName=%s", uk, appName, streamName)
 
 	url2PushProxy := make(map[string]*pushProxy)
@@ -151,14 +151,12 @@ func (group *Group) Tick() {
 			if !group.rtmpPubSession.IsAlive(checkSessionAliveIntervalSec) {
 				nazalog.Warnf("[%s] session timeout. session=%s", group.UniqueKey, group.rtmpPubSession.UniqueKey)
 				group.rtmpPubSession.Dispose()
-				group.delRTMPPubSession(group.rtmpPubSession)
 			}
 		}
 		if group.rtspPubSession != nil {
 			if !group.rtspPubSession.IsAlive(checkSessionAliveIntervalSec) {
 				nazalog.Warnf("[%s] session timeout. session=%s", group.UniqueKey, group.rtspPubSession.UniqueKey)
 				group.rtspPubSession.Dispose()
-				group.delRTSPPubSession(group.rtspPubSession)
 			}
 		}
 		if group.pullProxy.pullSession != nil {
@@ -233,6 +231,10 @@ func (group *Group) Dispose() {
 		group.rtmpPubSession.Dispose()
 		group.rtmpPubSession = nil
 	}
+	if group.rtspPubSession != nil {
+		group.rtspPubSession.Dispose()
+		group.rtspPubSession = nil
+	}
 
 	for session := range group.rtmpSubSessionSet {
 		session.Dispose()
@@ -249,10 +251,7 @@ func (group *Group) Dispose() {
 	}
 	group.httptsSubSessionSet = nil
 
-	if group.hlsMuxer != nil {
-		group.hlsMuxer.Dispose()
-		group.hlsMuxer = nil
-	}
+	group.disposeHLSMuxer()
 
 	if config.RelayPushConfig.Enable {
 		for _, v := range group.url2PushProxy {
@@ -368,6 +367,9 @@ func (group *Group) DelHTTPFLVSubSession(session *httpflv.SubSession) {
 	group.delHTTPFLVSubSession(session)
 }
 
+// TODO chef:
+//   这里应该也要考虑触发hls muxer开启
+//   也即HTTPTS sub需要使用hls muxer，hls muxer开启和关闭都要考虑HTTPTS sub
 func (group *Group) AddHTTPTSSubSession(session *httpts.SubSession) {
 	nazalog.Debugf("[%s] [%s] add httpflv SubSession into group.", group.UniqueKey, session.UniqueKey)
 	session.WriteHTTPResponseHeader()
@@ -602,6 +604,52 @@ func (group *Group) StartPull(url string) {
 	group.pullEnable = true
 	group.pullURL = url
 	group.pullIfNeeded()
+}
+
+func (group *Group) IsHLSMuxerAlive() bool {
+	group.mutex.Lock()
+	defer group.mutex.Unlock()
+	return group.hlsMuxer != nil
+}
+
+func (group *Group) KickOutSession(sessionID string) bool {
+	group.mutex.Lock()
+	defer group.mutex.Unlock()
+
+	nazalog.Infof("[%s] kick out session. session id=%s", group.UniqueKey, sessionID)
+
+	if strings.HasPrefix(sessionID, base.UKPRTMPServerSession) {
+		if group.rtmpPubSession != nil {
+			group.rtmpPubSession.Dispose()
+			return true
+		}
+	} else if strings.HasPrefix(sessionID, base.UKPRTSPPubSession) {
+		if group.rtspPubSession != nil {
+			group.rtspPubSession.Dispose()
+			return true
+		}
+	} else if strings.HasPrefix(sessionID, base.UKPFLVSubSession) {
+		// TODO chef: 考虑数据结构改成sessionIDzuokey的map
+		for s := range group.httpflvSubSessionSet {
+			if s.UniqueKey == sessionID {
+				s.Dispose()
+				return true
+			}
+		}
+	} else if strings.HasPrefix(sessionID, base.UKPTSSubSession) {
+		for s := range group.httptsSubSessionSet {
+			if s.UniqueKey == sessionID {
+				s.Dispose()
+				return true
+			}
+		}
+	} else if strings.HasPrefix(sessionID, base.UKPRTSPSubSession) {
+		// TODO chef: impl me
+	} else {
+		nazalog.Errorf("[%s] kick out session while session id format invalid. %s", group.UniqueKey, sessionID)
+	}
+
+	return false
 }
 
 func (group *Group) delRTMPPubSession(session *rtmp.ServerSession) {
@@ -954,11 +1002,11 @@ func (group *Group) pushIfNeeded() {
 		}
 		v.isPushing = true
 
-		urlwithParam := url
+		urlWithParam := url
 		if urlParam != "" {
-			urlwithParam += "?" + urlParam
+			urlWithParam += "?" + urlParam
 		}
-		nazalog.Infof("[%s] start relay push. url=%s", group.UniqueKey, urlwithParam)
+		nazalog.Infof("[%s] start relay push. url=%s", group.UniqueKey, urlWithParam)
 
 		go func(u, u2 string) {
 			pushSession := rtmp.NewPushSession(func(option *rtmp.PushSessionOption) {
@@ -976,7 +1024,7 @@ func (group *Group) pushIfNeeded() {
 			err = <-pushSession.Done()
 			nazalog.Infof("[%s] relay push done. err=%v", pushSession.UniqueKey(), err)
 			group.DelRTMPPushSession(u, pushSession)
-		}(url, urlwithParam)
+		}(url, urlWithParam)
 	}
 }
 
@@ -1030,8 +1078,7 @@ func (group *Group) addIn() {
 
 func (group *Group) delIn() {
 	if config.HLSConfig.Enable && group.hlsMuxer != nil {
-		group.hlsMuxer.Dispose()
-		group.hlsMuxer = nil
+		group.disposeHLSMuxer()
 	}
 
 	if config.RelayPushConfig.Enable {
@@ -1045,6 +1092,41 @@ func (group *Group) delIn() {
 
 	group.gopCache.Clear()
 	group.httpflvGopCache.Clear()
+}
+
+func (group *Group) disposeHLSMuxer() {
+	if group.hlsMuxer != nil {
+		group.hlsMuxer.Dispose()
+
+		// 添加延时任务，删除HLS文件
+		if config.HLSConfig.Enable && config.HLSConfig.CleanupFlag {
+			defertaskthread.Go(
+				config.HLSConfig.FragmentDurationMS*config.HLSConfig.FragmentNum*2,
+				func(param ...interface{}) {
+					appName := param[0].(string)
+					streamName := param[1].(string)
+					outPath := param[2].(string)
+
+					if g := sm.getGroup(appName, streamName); g != nil {
+						if g.IsHLSMuxerAlive() {
+							nazalog.Warnf("cancel cleanup hls file path since hls muxer still alive. streamName=%s", streamName)
+							return
+						}
+					}
+
+					nazalog.Infof("cleanup hls file path. streamName=%s, path=%s", streamName, outPath)
+					if err := os.RemoveAll(outPath); err != nil {
+						nazalog.Warnf("cleanup hls file path error. path=%s, err=%+v", outPath, err)
+					}
+				},
+				group.appName,
+				group.streamName,
+				group.hlsMuxer.OutPath(),
+			)
+		}
+
+		group.hlsMuxer = nil
+	}
 }
 
 // TODO chef: 后续看是否有更合适的方法判断

@@ -20,7 +20,6 @@ import (
 	"github.com/q191201771/naza/pkg/connection"
 	"github.com/q191201771/naza/pkg/nazahttp"
 	"github.com/q191201771/naza/pkg/nazalog"
-	"github.com/q191201771/naza/pkg/unique"
 )
 
 var tsHTTPResponseHeader []byte
@@ -43,7 +42,7 @@ type SubSession struct {
 }
 
 func NewSubSession(conn net.Conn) *SubSession {
-	uk := unique.GenUniqueKey("TSSUB")
+	uk := base.GenUniqueKey(base.UKPTSSubSession)
 	s := &SubSession{
 		UniqueKey: uk,
 		IsFresh:   true,
@@ -55,6 +54,7 @@ func NewSubSession(conn net.Conn) *SubSession {
 		stat: base.StatSub{
 			StatSession: base.StatSession{
 				Protocol:   base.ProtocolHTTPTS,
+				SessionID:  uk,
 				StartTime:  time.Now().Format("2006-01-02 15:04:05.999"),
 				RemoteAddr: conn.RemoteAddr().String(),
 			},

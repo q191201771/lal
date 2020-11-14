@@ -47,7 +47,7 @@
 - [x] **多种编码格式**。视频支持H264/AVC，H265/HEVC，音频支持AAC
 - [x] **静态pull回源**。用于搭建简易集群
 - [x] **静态push转推**。支持转推多个地址。通过静态文件配置
-- [x] **HTTP API接口**。用于获取服务信息，见[《lal流媒体服务器的HTTP API接口》](https://pengrl.com/p/20100)
+- [x] **HTTP API接口**。用于获取服务信息，向服务发送命令。见[《lal流媒体服务器的HTTP API接口》](https://pengrl.com/p/20100)
 - [x] **HTTP Notify事件回调**。见[《lal HTTP Notify(or Callback or Webhook)事件回调》](https://pengrl.com/p/20101)
 - [x] **秒开播放**。GOP缓冲
 

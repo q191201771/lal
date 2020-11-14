@@ -19,8 +19,6 @@ import (
 
 	"github.com/q191201771/lal/pkg/base"
 
-	"github.com/q191201771/naza/pkg/unique"
-
 	"github.com/q191201771/naza/pkg/nazalog"
 )
 
@@ -44,12 +42,12 @@ type MuxerConfig struct {
 type Muxer struct {
 	UniqueKey string
 
-	streamName                string
-	outPath                   string
-	playlistFilename          string
-	playlistFilenameBak       string
-	recordPlayListFilename    string
-	recordPlayListFilenameBak string
+	streamName                string // const after init
+	outPath                   string // const after init
+	playlistFilename          string // const after init
+	playlistFilenameBak       string // const after init
+	recordPlayListFilename    string // const after init
+	recordPlayListFilenameBak string // const after init
 
 	config   *MuxerConfig
 	observer MuxerObserver
@@ -78,7 +76,7 @@ type fragmentInfo struct {
 
 // @param observer 可以为nil，如果不为nil，TS流将回调给上层
 func NewMuxer(streamName string, config *MuxerConfig, observer MuxerObserver) *Muxer {
-	uk := unique.GenUniqueKey("HLSMUXER")
+	uk := base.GenUniqueKey(base.UKPHLSMuxer)
 	op := getMuxerOutPath(config.OutPath, streamName)
 	playlistFilename := getM3U8Filename(op, streamName)
 	playlistFilenameBak := fmt.Sprintf("%s.bak", playlistFilename)
@@ -175,6 +173,10 @@ func (m *Muxer) OnFrame(streamer *Streamer, frame *mpegts.Frame) {
 	if m.observer != nil {
 		m.observer.OnTSPackets(packets, boundary)
 	}
+}
+
+func (m *Muxer) OutPath() string {
+	return m.outPath
 }
 
 // 决定是否开启新的TS切片文件（注意，可能已经有TS切片，也可能没有，这是第一个切片）

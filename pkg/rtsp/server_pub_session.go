@@ -23,8 +23,6 @@ import (
 	"github.com/q191201771/lal/pkg/rtprtcp"
 	"github.com/q191201771/lal/pkg/sdp"
 
-	"github.com/q191201771/naza/pkg/unique"
-
 	"github.com/q191201771/naza/pkg/nazalog"
 )
 
@@ -77,13 +75,14 @@ type PubSession struct {
 }
 
 func NewPubSession(streamName string) *PubSession {
-	uk := unique.GenUniqueKey("RTSPPUB")
+	uk := base.GenUniqueKey(base.UKPRTSPPubSession)
 	ps := &PubSession{
 		UniqueKey:  uk,
 		StreamName: streamName,
 		stat: base.StatPub{
 			StatSession: base.StatSession{
 				Protocol:  base.ProtocolRTSP,
+				SessionID: uk,
 				StartTime: time.Now().Format("2006-01-02 15:04:05.999"),
 			},
 		},
@@ -180,6 +179,7 @@ func (p *PubSession) Setup(uri string, rtpConn, rtcpConn *nazanet.UDPConnection)
 	return nil
 }
 
+// TODO chef: dispose后，回调上层
 func (p *PubSession) Dispose() {
 	nazalog.Infof("[%s] lifecycle dispose rtsp PubSession.", p.UniqueKey)
 

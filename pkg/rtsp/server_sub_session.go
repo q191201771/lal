@@ -16,7 +16,6 @@ import (
 	"github.com/q191201771/lal/pkg/base"
 	"github.com/q191201771/naza/pkg/nazalog"
 	"github.com/q191201771/naza/pkg/nazanet"
-	"github.com/q191201771/naza/pkg/unique"
 )
 
 // to be continued
@@ -33,7 +32,7 @@ type SubSession struct {
 }
 
 func NewSubSession(streamName string) *SubSession {
-	uk := unique.GenUniqueKey("RTSPSUB")
+	uk := base.GenUniqueKey(base.UKPRTSPSubSession)
 	ss := &SubSession{
 		UniqueKey:  uk,
 		StreamName: streamName,

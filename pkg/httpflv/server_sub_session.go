@@ -21,7 +21,6 @@ import (
 	"github.com/q191201771/naza/pkg/connection"
 
 	"github.com/q191201771/naza/pkg/nazalog"
-	"github.com/q191201771/naza/pkg/unique"
 )
 
 var flvHTTPResponseHeader []byte
@@ -45,7 +44,7 @@ type SubSession struct {
 }
 
 func NewSubSession(conn net.Conn) *SubSession {
-	uk := unique.GenUniqueKey("FLVSUB")
+	uk := base.GenUniqueKey(base.UKPFLVSubSession)
 	s := &SubSession{
 		UniqueKey: uk,
 		IsFresh:   true,
@@ -57,6 +56,7 @@ func NewSubSession(conn net.Conn) *SubSession {
 		stat: base.StatSub{
 			StatSession: base.StatSession{
 				Protocol:   base.ProtocolHTTPFLV,
+				SessionID:  uk,
 				StartTime:  time.Now().Format("2006-01-02 15:04:05.999"),
 				RemoteAddr: conn.RemoteAddr().String(),
 			},

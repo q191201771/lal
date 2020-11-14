@@ -20,7 +20,6 @@ import (
 	"github.com/q191201771/naza/pkg/bele"
 	"github.com/q191201771/naza/pkg/connection"
 	log "github.com/q191201771/naza/pkg/nazalog"
-	"github.com/q191201771/naza/pkg/unique"
 )
 
 var ErrClientSessionTimeout = errors.New("lal.rtmp: client session timeout")
@@ -82,9 +81,9 @@ func NewClientSession(t ClientSessionType, modOptions ...ModClientSessionOption)
 	var uk string
 	switch t {
 	case CSTPullSession:
-		uk = unique.GenUniqueKey("RTMPPULL")
+		uk = base.GenUniqueKey(base.UKPRTMPPullSession)
 	case CSTPushSession:
-		uk = unique.GenUniqueKey("RTMPPUSH")
+		uk = base.GenUniqueKey(base.UKPRTMPPushSession)
 	}
 
 	option := defaultClientSessOption
@@ -101,6 +100,7 @@ func NewClientSession(t ClientSessionType, modOptions ...ModClientSessionOption)
 		chunkComposer: NewChunkComposer(),
 		stat: base.StatSession{
 			Protocol:  base.ProtocolRTMP,
+			SessionID: uk,
 			StartTime: time.Now().Format("2006-01-02 15:04:05.999"),
 		},
 	}
