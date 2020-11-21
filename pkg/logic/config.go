@@ -19,7 +19,7 @@ import (
 	"github.com/q191201771/naza/pkg/nazalog"
 )
 
-//var ErrMissKeyField = errors.New("missing key field in config file")
+const ConfigVersion = "0.0.1"
 
 type Config struct {
 	RTMPConfig      RTMPConfig      `json:"rtmp"`
@@ -82,6 +82,7 @@ type HTTPAPIConfig struct {
 type HTTPNotifyConfig struct {
 	Enable            bool   `json:"enable"`
 	UpdateIntervalSec int    `json:"update_interval_sec"`
+	OnServerStart     string `json:"on_server_start"`
 	OnUpdate          string `json:"on_update"`
 	OnPubStart        string `json:"on_pub_start"`
 	OnPubStop         string `json:"on_pub_stop"`

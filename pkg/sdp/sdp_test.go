@@ -44,8 +44,8 @@ var goldenPPS = []byte{
 	0x68, 0xEB, 0xEC, 0xB2, 0x2C,
 }
 
-func TestParseSDP(t *testing.T) {
-	sdpCtx, err := sdp.ParseSDP([]byte(goldenSDP))
+func TestParseSDP2RawContext(t *testing.T) {
+	sdpCtx, err := sdp.ParseSDP2RawContext([]byte(goldenSDP))
 	assert.Equal(t, nil, err)
 	nazalog.Debugf("sdp=%+v", sdpCtx)
 }

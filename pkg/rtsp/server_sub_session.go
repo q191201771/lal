@@ -11,24 +11,32 @@ package rtsp
 import (
 	"encoding/hex"
 	"net"
+	"strings"
 	"time"
+
+	"github.com/q191201771/lal/pkg/rtprtcp"
+	"github.com/q191201771/lal/pkg/sdp"
 
 	"github.com/q191201771/lal/pkg/base"
 	"github.com/q191201771/naza/pkg/nazalog"
 	"github.com/q191201771/naza/pkg/nazanet"
 )
 
-// to be continued
-// 注意，音频和视频是不同的UDP连接
-// pub和sub挂载转发时，需要对应上
+// TODO chef: 主动发送SR
 
 type SubSession struct {
-	UniqueKey  string
-	StreamName string
+	UniqueKey  string // const after ctor
+	StreamName string // const after ctor
 
-	rtpConn  *nazanet.UDPConnection
-	rtcpConn *nazanet.UDPConnection
-	stat     base.StatPub
+	rawSDP      []byte           // const after set
+	sdpLogicCtx sdp.LogicContext // const after set
+
+	audioRTPConn  *nazanet.UDPConnection
+	videoRTPConn  *nazanet.UDPConnection
+	audioRTCPConn *nazanet.UDPConnection
+	videoRTCPConn *nazanet.UDPConnection
+
+	stat base.StatPub
 }
 
 func NewSubSession(streamName string) *SubSession {
@@ -47,14 +55,26 @@ func NewSubSession(streamName string) *SubSession {
 	return ss
 }
 
-func (s *SubSession) SetRTPConn(conn *nazanet.UDPConnection) {
-	s.rtpConn = conn
-	go s.rtpConn.RunLoop(s.onReadUDPPacket)
+func (s *SubSession) InitWithSDP(rawSDP []byte, sdpLogicCtx sdp.LogicContext) {
+	s.rawSDP = rawSDP
+	s.sdpLogicCtx = sdpLogicCtx
 }
 
-func (s *SubSession) SetRTCPConn(conn *nazanet.UDPConnection) {
-	s.rtcpConn = conn
-	go s.rtcpConn.RunLoop(s.onReadUDPPacket)
+func (s *SubSession) Setup(uri string, rtpConn, rtcpConn *nazanet.UDPConnection) error {
+	if strings.HasSuffix(uri, s.sdpLogicCtx.AudioAControl) {
+		s.audioRTPConn = rtpConn
+		s.audioRTCPConn = rtcpConn
+	} else if strings.HasSuffix(uri, s.sdpLogicCtx.VideoAControl) {
+		s.videoRTPConn = rtpConn
+		s.videoRTCPConn = rtcpConn
+	} else {
+		return ErrRTSP
+	}
+
+	go rtpConn.RunLoop(s.onReadUDPPacket)
+	go rtcpConn.RunLoop(s.onReadUDPPacket)
+
+	return nil
 }
 
 func (s *SubSession) onReadUDPPacket(b []byte, rAddr *net.UDPAddr, err error) bool {
@@ -62,8 +82,13 @@ func (s *SubSession) onReadUDPPacket(b []byte, rAddr *net.UDPAddr, err error) bo
 	return true
 }
 
-func (s *SubSession) WriteRawRTPPacket(b []byte) {
-	if err := s.rtpConn.Write(b); err != nil {
-		nazalog.Errorf("err=%+v", err)
-	}
+//to be continued
+//conn可能还不存在，这里涉及到pub和sub是否需要等到setup再回调给上层的问题
+func (s *SubSession) WriteRTPPacket(packet rtprtcp.RTPPacket) {
+	//switch packet.Header.PacketType {
+	//case base.RTPPacketTypeAVCOrHEVC:
+	//	s.videoRTPConn.Write(packet.Raw)
+	//case base.RTPPacketTypeAAC:
+	//	s.audioRTPConn.Write(packet.Raw)
+	//}
 }

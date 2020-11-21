@@ -123,14 +123,14 @@ Loop:
 				break Loop
 			}
 
-			sdpCtx, err := sdp.ParseSDP(body)
+			sdpLogicCtx, err := sdp.ParseSDP2LogicContext(body)
 			if err != nil {
 				nazalog.Errorf("parse sdp failed. err=%v", err)
 				break Loop
 			}
 
 			pubSession = NewPubSession(presentation)
-			pubSession.InitWithSDP(body, sdpCtx)
+			pubSession.InitWithSDP(body, sdpLogicCtx)
 
 			s.m.Lock()
 			s.presentation2PubSession[presentation] = pubSession
@@ -185,8 +185,10 @@ Loop:
 					break Loop
 				}
 			} else if subSession != nil {
-				subSession.SetRTPConn(rtpConn)
-				subSession.SetRTCPConn(rtcpConn)
+				if err = subSession.Setup(uri, rtpConn, rtcpConn); err != nil {
+					nazalog.Errorf("SETUP failed. err=%+v", err)
+					break Loop
+				}
 			} else {
 				nazalog.Error("SETUP while session not exist.")
 				break Loop
@@ -233,7 +235,8 @@ Loop:
 			pubSession, ok := s.presentation2PubSession[presentation]
 			s.m.Unlock()
 			if ok {
-				resp := PackResponseDescribe(headers[HeaderFieldCSeq], string(pubSession.rawSDP))
+				rawSDP, _ := pubSession.GetSDP()
+				resp := PackResponseDescribe(headers[HeaderFieldCSeq], string(rawSDP))
 				_, _ = conn.Write([]byte(resp))
 			} else {
 				nazalog.Errorf("rtsp sub but pub not exist. presentation=%s", presentation)

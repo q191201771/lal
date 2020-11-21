@@ -10,7 +10,7 @@ package base
 
 type AVPacketPT int
 
-var (
+const (
 	AVPacketPTAVC  AVPacketPT = RTPPacketTypeAVCOrHEVC
 	AVPacketPTAAC  AVPacketPT = RTPPacketTypeAAC
 	AVPacketPTHEVC AVPacketPT = 98

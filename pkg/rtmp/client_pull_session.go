@@ -73,7 +73,6 @@ func (s *PullSession) GetStat() base.StatSession {
 	return s.core.GetStat()
 }
 
-// TODO chef: 默认每5秒调用一次
 func (s *PullSession) UpdateStat(interval uint32) {
 	s.core.UpdateStat(interval)
 }

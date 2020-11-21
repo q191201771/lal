@@ -107,6 +107,7 @@ func (h *HTTPAPIServer) statLALInfoHandler(w http.ResponseWriter, req *http.Requ
 	v.Data.APIVersion = base.HTTPAPIVersion
 	v.Data.NotifyVersion = base.HTTPNotifyVersion
 	v.Data.StartTime = serverStartTime
+	v.Data.ServerID = config.ServerID
 	feedback(v, w)
 }
 

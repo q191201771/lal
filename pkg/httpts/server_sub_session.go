@@ -25,13 +25,13 @@ import (
 var tsHTTPResponseHeader []byte
 
 type SubSession struct {
-	UniqueKey string
-
-	StartTick  int64
+	UniqueKey  string
 	StreamName string
-	AppName    string
-	URI        string
-	Headers    map[string]string
+
+	StartTick int64
+	AppName   string
+	URI       string
+	Headers   map[string]string
 
 	IsFresh bool
 

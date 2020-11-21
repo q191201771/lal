@@ -10,7 +10,7 @@ package base
 
 // 文档见： https://pengrl.com/p/20101/
 
-const HTTPNotifyVersion = "v0.0.3"
+const HTTPNotifyVersion = "v0.0.4"
 
 type SessionEventCommonInfo struct {
 	ServerID      string `json:"server_id"`

@@ -10,7 +10,7 @@ package base
 
 // 文档见： https://pengrl.com/p/20100/
 
-const HTTPAPIVersion = "v0.1.1"
+const HTTPAPIVersion = "v0.1.2"
 
 const (
 	ErrorCodeSucc            = 0
@@ -28,15 +28,18 @@ type HTTPResponseBasic struct {
 	Desp      string `json:"desp"`
 }
 
+type LALInfo struct {
+	ServerID      string `json:"server_id"`
+	BinInfo       string `json:"bin_info"`
+	LalVersion    string `json:"lal_version"`
+	APIVersion    string `json:"api_version"`
+	NotifyVersion string `json:"notify_version"`
+	StartTime     string `json:"start_time"`
+}
+
 type APIStatLALInfo struct {
 	HTTPResponseBasic
-	Data struct {
-		BinInfo       string `json:"bin_info"`
-		LalVersion    string `json:"lal_version"`
-		APIVersion    string `json:"api_version"`
-		NotifyVersion string `json:"notify_version"`
-		StartTime     string `json:"start_time"`
-	} `json:"data"`
+	Data LALInfo `json:"data"`
 }
 
 type APIStatAllGroup struct {

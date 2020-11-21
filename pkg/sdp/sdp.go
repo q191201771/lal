@@ -19,7 +19,24 @@ import (
 
 var ErrSDP = errors.New("lal.sdp: fxxk")
 
-type SDPContext struct {
+const (
+	ARTPMapEncodingName = "H265"
+)
+
+type LogicContext struct {
+	AudioClockRate   int
+	VideoClockRate   int
+	AudioPayloadType base.AVPacketPT
+	VideoPayloadType base.AVPacketPT
+	AudioAControl    string
+	VideoAControl    string
+	ASC              []byte
+	VPS              []byte
+	SPS              []byte
+	PPS              []byte
+}
+
+type RawContext struct {
 	ARTPMapList   []ARTPMap
 	AFmtPBaseList []AFmtPBase
 	AControlList  []AControl
@@ -41,9 +58,64 @@ type AControl struct {
 	Value string
 }
 
+func ParseSDP2LogicContext(b []byte) (LogicContext, error) {
+	var ret LogicContext
+
+	c, err := ParseSDP2RawContext(b)
+	if err != nil {
+		return ret, err
+	}
+
+	for i, item := range c.ARTPMapList {
+		switch item.PayloadType {
+		case base.RTPPacketTypeAVCOrHEVC:
+			ret.VideoClockRate = item.ClockRate
+			if item.EncodingName == ARTPMapEncodingName {
+				ret.VideoPayloadType = base.AVPacketPTHEVC
+			} else {
+				ret.VideoPayloadType = base.AVPacketPTAVC
+			}
+			if i < len(c.AControlList) {
+				ret.VideoAControl = c.AControlList[i].Value
+			}
+		case base.RTPPacketTypeAAC:
+			ret.AudioClockRate = item.ClockRate
+			ret.AudioPayloadType = base.AVPacketPTAAC
+			if i < len(c.AControlList) {
+				ret.AudioAControl = c.AControlList[i].Value
+			}
+		default:
+			return ret, ErrSDP
+		}
+	}
+
+	for _, item := range c.AFmtPBaseList {
+		switch item.Format {
+		case base.RTPPacketTypeAVCOrHEVC:
+			if ret.VideoPayloadType == base.AVPacketPTHEVC {
+				ret.VPS, ret.SPS, ret.PPS, err = ParseVPSSPSPPS(item)
+			} else {
+				ret.SPS, ret.PPS, err = ParseSPSPPS(item)
+			}
+			if err != nil {
+				return ret, err
+			}
+		case base.RTPPacketTypeAAC:
+			ret.ASC, err = ParseASC(item)
+			if err != nil {
+				return ret, err
+			}
+		default:
+			return ret, ErrSDP
+		}
+	}
+
+	return ret, nil
+}
+
 // 例子见单元测试
-func ParseSDP(b []byte) (SDPContext, error) {
-	var sdpCtx SDPContext
+func ParseSDP2RawContext(b []byte) (RawContext, error) {
+	var sdpCtx RawContext
 
 	s := string(b)
 	lines := strings.Split(s, "\r\n")

@@ -12,6 +12,8 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/q191201771/naza/pkg/bininfo"
+
 	"github.com/q191201771/lal/pkg/base"
 	"github.com/q191201771/naza/pkg/nazahttp"
 	"github.com/q191201771/naza/pkg/nazalog"
@@ -33,6 +35,17 @@ type HTTPNotify struct {
 }
 
 var httpNotify *HTTPNotify
+
+func (h *HTTPNotify) OnServerStart() {
+	var info base.LALInfo
+	info.BinInfo = bininfo.StringifySingleLine()
+	info.LalVersion = base.LALVersion
+	info.APIVersion = base.HTTPAPIVersion
+	info.NotifyVersion = base.HTTPNotifyVersion
+	info.StartTime = serverStartTime
+	info.ServerID = config.ServerID
+	h.asyncPost(config.HTTPNotifyConfig.OnServerStart, info)
+}
 
 func (h *HTTPNotify) OnUpdate(info base.UpdateInfo) {
 	h.asyncPost(config.HTTPNotifyConfig.OnUpdate, info)

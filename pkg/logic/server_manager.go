@@ -67,6 +67,8 @@ func NewServerManager() *ServerManager {
 }
 
 func (sm *ServerManager) RunLoop() {
+	httpNotify.OnServerStart()
+
 	if sm.rtmpServer != nil {
 		if err := sm.rtmpServer.Listen(); err != nil {
 			nazalog.Error(err)
@@ -372,6 +374,9 @@ func (sm *ServerManager) OnNewHTTPTSSubSession(session *httpts.SubSession) bool 
 	defer sm.mutex.Unlock()
 	group := sm.getOrCreateGroup(session.AppName, session.StreamName)
 	group.AddHTTPTSSubSession(session)
+
+	// TODO chef: 部分session没有Notify
+
 	return true
 }
 

@@ -191,7 +191,6 @@ func (s *ClientSession) GetStat() base.StatSession {
 	return s.stat
 }
 
-// TODO chef: 默认每5秒调用一次
 func (s *ClientSession) UpdateStat(interval uint32) {
 	currStat := s.conn.GetStat()
 	var diffStat connection.Stat

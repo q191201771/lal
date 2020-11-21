@@ -38,9 +38,6 @@ import (
 	"github.com/q191201771/naza/pkg/nazalog"
 )
 
-// TODO chef:
-// group的函数比较多，考虑调整一下函数排列位置
-
 type Group struct {
 	UniqueKey  string // const after init
 	appName    string // const after init
@@ -67,7 +64,7 @@ type Group struct {
 	url2PushProxy map[string]*pushProxy
 	//
 	hlsMuxer *hls.Muxer
-	//
+	// rtmp pub/pull使用
 	gopCache        *GOPCache
 	httpflvGopCache *GOPCache
 	// rtsp pub使用
@@ -477,7 +474,7 @@ func (group *Group) OnRTPPacket(pkt rtprtcp.RTPPacket) {
 	defer group.mutex.Unlock()
 
 	for s := range group.rtspSubSessionSet {
-		s.WriteRawRTPPacket(pkt.Raw)
+		s.WriteRTPPacket(pkt)
 	}
 }
 
@@ -809,7 +806,7 @@ func (group *Group) broadcastRTMP(msg base.RTMPMsg) {
 	for session := range group.rtmpSubSessionSet {
 		// ## 3.1. 如果是新的 sub session，发送已缓存的信息
 		if session.IsFresh {
-			// TODO 头信息和full gop也可以在SubSession刚加入时发送
+			// TODO chef: 头信息和full gop也可以在SubSession刚加入时发送
 			if group.gopCache.Metadata != nil {
 				_ = session.AsyncWrite(group.gopCache.Metadata)
 			}
