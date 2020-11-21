@@ -1,3 +1,17 @@
+#### v0.17.0 (2020-11-21)
+
+- [feat] 增加HTTP Notify事件回调功能，见 https://pengrl.com/p/20101
+- [feat] 增加`/app/demo/dispatch`示例程序，用于演示如何结合HTTP Notify加HTTP API构架一个lalserver集群
+- [feat] 配置文件中增加配置项，支持配置是否清除过期流的HLS文件
+- [feat] lalserver的session增加存活检查，10秒没有数据会主动断开连接
+- [feat] lalserver的group没有sub拉流时，停止对应的pull回源
+- [feat] HTTP API，增加`/api/ctrl/start_pull`接口，可向lalserver发送命令，主动触发pull回源拉流
+- [feat] HTTP API，增加接口`/api/ctrl/kick_out_session`接口，可向lalserver发送命令，主动踢掉指定的session
+- [feat] HTTP API `/api/stat/lal_info` 中增加`server_id`字段
+- [feat] HTTP API，group结构体中增加pull结构体，包含了回源拉流的信息
+- [fix] 配置文件静态relay push转推方式中，push rtmp url透传pub rtmp url的参数
+- [chore] 增加`gen_tag.sh`，用于打tag
+
 #### v0.16.0 (2020-10-23)
 
 - [feat] rtsp pub h265（lal支持接收rtsp h265视频格式的推流）

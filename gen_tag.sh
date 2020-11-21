@@ -26,18 +26,18 @@ if [ "$NewVersion" == "$FileVersion" ];then
   echo 'same tag, noop.'
 else
   echo 'update version.go'
-  #gsed -i "/^var LALVersion/cvar LALVersion = \"${NewVersion}\"" pkg/base/version.go
-  #git add pkg/base/version.go
-  #git commit -m '${NewVersion} -> version.go'
-  #git push
+  gsed -i "/^var LALVersion/cconst LALVersion = \"${NewVersion}\"" pkg/base/version.go
+  git add .
+  git commit -m '${NewVersion} -> version.go'
+  git push
 fi
 
 # CHANGELOG.md和git tag不一致，打新的tag
 if [ "$NewVersion" == "$FileVersion" ];then
   echo 'same tag, noop.'
 else
-  echo 'add tag.'
-  #git tag ${NewVersion}
-  #git push --tags
+  echo 'add tag.' ${NewVersion}
+  git tag ${NewVersion}
+  git push --tags
 fi
 
