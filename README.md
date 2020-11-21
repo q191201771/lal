@@ -45,10 +45,11 @@
 - [x] **CORS跨域**。支持HTTP-FLV，HTTP-TS，HLS跨域拉流
 - [x] **HTTP文件服务器**。比如HLS切片文件可直接播放，不需要额外的HTTP文件服务器
 - [x] **多种编码格式**。视频支持H264/AVC，H265/HEVC，音频支持AAC
-- [x] **静态pull回源**。用于搭建简易集群
-- [x] **静态push转推**。支持转推多个地址。通过静态文件配置
 - [x] **HTTP API接口**。用于获取服务信息，向服务发送命令。见[《lal流媒体服务器的HTTP API接口》](https://pengrl.com/p/20100)
 - [x] **HTTP Notify事件回调**。见[《lal HTTP Notify(or Callback or Webhook)事件回调》](https://pengrl.com/p/20101)
+- [x] **分布式集群**。
+- [x] **静态pull回源**。通过配置文件配置回源地址
+- [x] **静态push转推**。支持转推多个地址。通过配置文件配置转推地址
 - [x] **秒开播放**。GOP缓冲
 
 除了lalserver，还提供一些基于lal开发的demo： [《lal/app/demo》](https://github.com/q191201771/lal/blob/master/app/demo/README.md)

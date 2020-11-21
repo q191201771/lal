@@ -6,7 +6,7 @@
 - [feat] lalserver的session增加存活检查，10秒没有数据会主动断开连接
 - [feat] lalserver的group没有sub拉流时，停止对应的pull回源
 - [feat] HTTP API，增加`/api/ctrl/start_pull`接口，可向lalserver发送命令，主动触发pull回源拉流
-- [feat] HTTP API，增加接口`/api/ctrl/kick_out_session`接口，可向lalserver发送命令，主动踢掉指定的session
+- [feat] HTTP API，增加`/api/ctrl/kick_out_session`接口，可向lalserver发送命令，主动踢掉指定的session
 - [feat] HTTP API `/api/stat/lal_info` 中增加`server_id`字段
 - [feat] HTTP API，group结构体中增加pull结构体，包含了回源拉流的信息
 - [fix] 配置文件静态relay push转推方式中，push rtmp url透传pub rtmp url的参数
