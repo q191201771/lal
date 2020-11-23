@@ -40,6 +40,13 @@ var ResponseSetupTmpl = "RTSP/1.0 200 OK\r\n" +
 	"Transport:RTP/AVP/UDP;unicast;client_port=%d-%d;server_port=%d-%d\r\n" +
 	"\r\n"
 
+var ResponseSetupTCPTmpl = "RTSP/1.0 200 OK\r\n" +
+	"CSeq: %s\r\n" +
+	"Date: %s\r\n" +
+	"Session: %s\r\n" +
+	"Transport:%s\r\n" +
+	"\r\n"
+
 // rfc2326 10.11 RECORD
 // CSeq, Session
 var ResponseRecordTmpl = "RTSP/1.0 200 OK\r\n" +
@@ -100,6 +107,17 @@ var PlayTmpl = "RTSP/1.0 200 OK\r\n" +
 	"Date: %s\r\n" +
 	"\r\n"
 
+// common message with status and message
+var CommonStatusTmpl = "RTSP/1.0 %d %s\r\n" +
+	"CSeq: %s\r\n" +
+	"Date: %s\r\n" +
+	"\r\n"
+
+func PackResponseStatus(cseq string, status int, message string) string {
+	date := time.Now().Format(time.RFC1123)
+	return fmt.Sprintf(CommonStatusTmpl, status, status, cseq, date)
+}
+
 func PackResponseOptions(cseq string) string {
 	return fmt.Sprintf(ResponseOptionsTmpl, cseq)
 }
@@ -118,6 +136,12 @@ func PackResponseSetup(cseq string, rRTPPort, rRTCPPort, lRTPPort, lRTCPPort uin
 	date := time.Now().Format(time.RFC1123)
 
 	return fmt.Sprintf(ResponseSetupTmpl, cseq, date, sessionID, rRTPPort, rRTCPPort, lRTPPort, lRTCPPort)
+}
+
+func PackResponseSetupTCP(cseq string, ts string) string {
+	date := time.Now().Format(time.RFC1123)
+
+	return fmt.Sprintf(ResponseSetupTCPTmpl, cseq, date, sessionID, ts)
 }
 
 func PackResponseRecord(cseq string) string {
