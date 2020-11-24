@@ -37,6 +37,12 @@ type SubSession struct {
 	videoRTCPConn *nazanet.UDPConnection
 
 	stat base.StatPub
+
+	// TCP channels
+	aRTPChannel        int
+	aRTPControlChannel int
+	vRTPChannel        int
+	vRTPControlChannel int
 }
 
 func NewSubSession(streamName string) *SubSession {
@@ -58,6 +64,20 @@ func NewSubSession(streamName string) *SubSession {
 func (s *SubSession) InitWithSDP(rawSDP []byte, sdpLogicCtx sdp.LogicContext) {
 	s.rawSDP = rawSDP
 	s.sdpLogicCtx = sdpLogicCtx
+}
+
+func (p *SubSession) GetSDP() ([]byte, sdp.LogicContext) {
+	return p.rawSDP, p.sdpLogicCtx
+}
+
+func (p *SubSession) SetTCPVideoRTPChannel(RTPChannel int, RTPControlChannel int) {
+	p.vRTPChannel = RTPChannel
+	p.vRTPControlChannel = RTPControlChannel
+}
+
+func (p *SubSession) SetTCPAudioRTPChannel(RTPChannel int, RTPControlChannel int) {
+	p.aRTPChannel = RTPChannel
+	p.aRTPControlChannel = RTPControlChannel
 }
 
 func (s *SubSession) Setup(uri string, rtpConn, rtcpConn *nazanet.UDPConnection) error {

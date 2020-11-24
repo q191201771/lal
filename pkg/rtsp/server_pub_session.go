@@ -67,6 +67,12 @@ type PubSession struct {
 	m           sync.Mutex
 	rawSDP      []byte           // const after set
 	sdpLogicCtx sdp.LogicContext // const after set
+
+	// TCP channels
+	aRTPChannel        int
+	aRTPControlChannel int
+	vRTPChannel        int
+	vRTPControlChannel int
 }
 
 func NewPubSession(streamName string) *PubSession {
@@ -179,6 +185,57 @@ func (p *PubSession) GetSDP() ([]byte, sdp.LogicContext) {
 	p.m.Lock()
 	defer p.m.Unlock()
 	return p.rawSDP, p.sdpLogicCtx
+}
+
+func (p *PubSession) SetTCPVideoRTPChannel(RTPChannel int, RTPControlChannel int) {
+	p.vRTPChannel = RTPChannel
+	p.vRTPControlChannel = RTPControlChannel
+}
+
+func (p *PubSession) SetTCPAudioRTPChannel(RTPChannel int, RTPControlChannel int) {
+	p.aRTPChannel = RTPChannel
+	p.aRTPControlChannel = RTPControlChannel
+}
+
+// process rtp pack
+func (p *PubSession) TcpReadRTPPacket(b []byte, nChannel int) {
+	atomic.AddUint64(&p.currConnStat.ReadBytesSum, uint64(len(b)))
+
+	if p.vRTPChannel == nChannel || p.aRTPChannel == nChannel {
+		//video or audio channel
+
+		packetType := b[1] & 0x7F
+		if packetType == base.RTPPacketTypeAVCOrHEVC || packetType == base.RTPPacketTypeAAC {
+			h, err := rtprtcp.ParseRTPPacket(b)
+			if err != nil {
+				nazalog.Errorf("read invalid rtp packet. err=%+v", err)
+			}
+			//nazalog.Debugf("%+v", h)
+			var pkt rtprtcp.RTPPacket
+			pkt.Header = h
+			pkt.Raw = b
+
+			if packetType == base.RTPPacketTypeAVCOrHEVC {
+				p.videoSsrc = h.Ssrc
+				p.observer.OnRTPPacket(pkt)
+				p.videoUnpacker.Feed(pkt)
+				p.videoRRProducer.FeedRTPPacket(h.Seq)
+			} else {
+				p.audioSsrc = h.Ssrc
+				p.observer.OnRTPPacket(pkt)
+				p.audioUnpacker.Feed(pkt)
+				p.audioRRProducer.FeedRTPPacket(h.Seq)
+			}
+		}
+
+	}
+}
+
+func (p *PubSession) SetRemoteAddr(addr string) {
+
+	if p.stat.RemoteAddr == "" {
+		p.stat.RemoteAddr = addr
+	}
 }
 
 // callback by UDPConnection
