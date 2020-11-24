@@ -114,18 +114,18 @@ Loop:
 			buf2 := make([]byte, 2)
 			if _, err := io.ReadFull(r, buf1); err != nil {
 				nazalog.Errorf("read channel failed, error:%s", err.Error())
-				return
+				break Loop
 			}
 			if _, err = io.ReadFull(r, buf2); err != nil {
 				nazalog.Errorf("read failed, error:%s", err.Error())
-				return
+				break Loop
 			}
 			channel := int(buf1[0])
 			rtpLen := int(binary.BigEndian.Uint16(buf2))
 			rtpBytes := make([]byte, rtpLen)
 			if _, err = io.ReadFull(r, rtpBytes); err != nil {
 				nazalog.Errorf("read data failed, error:%s", err.Error())
-				return
+				break Loop
 			}
 
 			if pubSession != nil {
@@ -203,7 +203,7 @@ Loop:
 				if err != nil {
 					resp := PackResponseStatus(headers[HeaderFieldCSeq], 500, "Invalid URL")
 					_, _ = conn.Write([]byte(resp))
-					return
+					break Loop
 				}
 				if setupURL.Port() == "" {
 					setupURL.Host = fmt.Sprintf("%s:554", setupURL.Host)
@@ -218,7 +218,7 @@ Loop:
 				} else {
 					resp := PackResponseStatus(headers[HeaderFieldCSeq], 500, "Invalid Status")
 					_, _ = conn.Write([]byte(resp))
-					return
+					break Loop
 				}
 
 				//to fill video PATH
@@ -228,7 +228,7 @@ Loop:
 					if err != nil {
 						resp := PackResponseStatus(headers[HeaderFieldCSeq], 500, "Invalid VControl")
 						_, _ = conn.Write([]byte(resp))
-						return
+						break Loop
 					}
 					if vControlURL.Port() == "" {
 						vControlURL.Host = fmt.Sprintf("%s:554", vControlURL.Host)
@@ -245,7 +245,7 @@ Loop:
 					if err != nil {
 						resp := PackResponseStatus(headers[HeaderFieldCSeq], 500, "Invalid AControl")
 						_, _ = conn.Write([]byte(resp))
-						return
+						break Loop
 					}
 					if aControlURL.Port() == "" {
 						aControlURL.Host = fmt.Sprintf("%s:554", aControlURL.Host)
@@ -283,7 +283,7 @@ Loop:
 					} else {
 						resp := PackResponseStatus(headers[HeaderFieldCSeq], 500, fmt.Sprintf("SETUP [TCP] got UnKown control:%s", setupPath))
 						_, _ = conn.Write([]byte(resp))
-						return
+						break Loop
 					}
 					nazalog.Infof("Parse SETUP req.TRANSPORT:TCP,control:%s, AControl:%s,VControl:%s", setupPath, aPath, vPath)
 					resp := PackResponseSetupTCP(headers[HeaderFieldCSeq], ts)
