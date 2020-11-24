@@ -273,11 +273,11 @@ Loop:
 						vRTPChannel, _ := strconv.Atoi(tcpMatchs[1])
 						vRTPControlChannel, _ := strconv.Atoi(tcpMatchs[3])
 						if pubSession != nil {
-							pubSession.SetTCPAudioRTPChannel(vRTPChannel, vRTPControlChannel)
+							pubSession.SetTCPVideoRTPChannel(vRTPChannel, vRTPControlChannel)
 							//暂时不知道需要不需要赋值
 							pubSession.SetRemoteAddr(conn.RemoteAddr().String())
 						} else if subSession != nil {
-							subSession.SetTCPAudioRTPChannel(vRTPChannel, vRTPControlChannel)
+							subSession.SetTCPVideoRTPChannel(vRTPChannel, vRTPControlChannel)
 						}
 
 					} else {
