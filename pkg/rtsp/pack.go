@@ -15,8 +15,13 @@ import (
 	"github.com/q191201771/lal/pkg/base"
 )
 
-// [DONE]
 // rfc2326 10.1 OPTIONS
+// uri CSeq
+var RequestOptionsTmpl = "OPTIONS %s RTSP/1.0\r\n" +
+	"CSeq: %d\r\n" +
+	"User-Agent: " + base.LALRTSPPullSessionUA + "\r\n" +
+	"\r\n"
+
 // CSeq
 var ResponseOptionsTmpl = "RTSP/1.0 200 OK\r\n" +
 	"Server: " + base.LALRTSPOptionsResponseServer + "\r\n" +
@@ -24,14 +29,45 @@ var ResponseOptionsTmpl = "RTSP/1.0 200 OK\r\n" +
 	"Public:DESCRIBE, ANNOUNCE, SETUP, PLAY, PAUSE, RECORD, TEARDOWN\r\n" +
 	"\r\n"
 
-// [DONE]
 // rfc2326 10.3 ANNOUNCE
 // CSeq
-var AnnounceTmpl = "RTSP/1.0 200 OK\r\n" +
+var ResponseAnnounceTmpl = "RTSP/1.0 200 OK\r\n" +
 	"CSeq: %s\r\n" +
 	"\r\n"
 
+// rfc2326 10.2 DESCRIBE
+// uri CSeq
+var RequestDescribeTmpl = "DESCRIBE %s RTSP/1.0\r\n" +
+	"Accept: application/sdp\r\n" +
+	"CSeq: %d\r\n" +
+	"User-Agent: " + base.LALRTSPPullSessionUA + "\r\n" +
+	"\r\n"
+
+// CSeq, Date, Content-Length,
+var ResponseDescribeTmpl = "RTSP/1.0 200 OK\r\n" +
+	"CSeq: %s\r\n" +
+	"Date: %s\r\n" +
+	"Content-Type: application/sdp\r\n" +
+	"Content-Length: %d\r\n" +
+	"\r\n" +
+	"%s"
+
 // rfc2326 10.4 SETUP
+// uri CSeq RTPPort RTCPPort
+var RequestSetupTmpl = "SETUP %s RTSP/1.0\r\n" +
+	"CSeq: %d\r\n" +
+	"Transport: RTP/AVP/UDP;unicast;client_port=%d-%d\r\n" +
+	"User-Agent: " + base.LALRTSPPullSessionUA + "\r\n" +
+	"\r\n"
+
+// uri CSeq Session RTPPort RTCPPort
+var RequestSetupWithSessionTmpl = "SETUP %s RTSP/1.0\r\n" +
+	"CSeq: %d\r\n" +
+	"Session: %s\r\n" +
+	"Transport: RTP/AVP/UDP;unicast;client_port=%d-%d\r\n" +
+	"User-Agent: " + base.LALRTSPPullSessionUA + "\r\n" +
+	"\r\n"
+
 // CSeq, Date, Session, Transport(client_port, server_rtp_port, server_rtcp_port)
 var ResponseSetupTmpl = "RTSP/1.0 200 OK\r\n" +
 	"CSeq: %s\r\n" +
@@ -40,6 +76,7 @@ var ResponseSetupTmpl = "RTSP/1.0 200 OK\r\n" +
 	"Transport:RTP/AVP/UDP;unicast;client_port=%d-%d;server_port=%d-%d\r\n" +
 	"\r\n"
 
+// CSeq, Date, Session, Transport
 var ResponseSetupTCPTmpl = "RTSP/1.0 200 OK\r\n" +
 	"CSeq: %s\r\n" +
 	"Date: %s\r\n" +
@@ -54,68 +91,45 @@ var ResponseRecordTmpl = "RTSP/1.0 200 OK\r\n" +
 	"Session: %s\r\n" +
 	"\r\n"
 
+// rfc2326 10.5 PLAY
+// uri CSeq Session
+var RequestPlayTmpl = "PLAY %s RTSP/1.0\r\n" +
+	"CSeq: %d\r\n" +
+	"Range: npt=0.000-\r\n" +
+	"Session: %s\r\n" +
+	"User-Agent: " + base.LALRTSPPullSessionUA + "\r\n" +
+	"\r\n"
+
+// CSeq Date
+var ResponsePlayTmpl = "RTSP/1.0 200 OK\r\n" +
+	"CSeq: %s\r\n" +
+	"Date: %s\r\n" +
+	"\r\n"
+
+// rfc2326 10.7 TEARDOWN
+// CSeq
 var ResponseTeardownTmpl = "RTSP/1.0 200 OK\r\n" +
 	"CSeq: %s\r\n" +
 	"\r\n"
 
-// rfc2326 10.2 DESCRIBE
-// CSeq, Date, Content-Length,
-var ResponseDescribeTmpl = "RTSP/1.0 200 OK\r\n" +
-	"CSeq: %s\r\n" +
-	"Date: %s\r\n" +
-	"Content-Type: application/sdp\r\n" +
-	"Content-Length: %d\r\n" +
-	"\r\n" +
-	"%s"
+func PackRequestOptions(uri string, cseq int) string {
+	return fmt.Sprintf(RequestOptionsTmpl, uri, cseq)
+}
 
-// rfc4566
-// * v=0
-//   Session Description Protocol Version (v)
-// * o=<username> <sess-id> <sess-version> <nettype> <addrtype> <unicast-address>
-//     <unicast-address>
-//   Owner/Creator, Session Id (o)
-// * s=
-//   Session Name (s)
-// * c=
-//   Connection Information (c)
-// * t=<start-time> <stop-time>
-//   Time Description, active time (t)
-// * a=
-//   Session Attribute | Media Attribute (a)
-// * m=
-//   Media Description, name and address (m)
-// * b=
-//   Bandwidth Information (b)
-//var SDPTmpl = "v=0\r\n" +
-//	"o=mhandley 2890844526 2890842807 IN IP4 126.16.64.4\r\n" +
-//	//"s=SDP Seminar\r\n" +
-//	//"i=A Seminar on the session description protocol\r\n" +
-//	//"u=http://www.cs.ucl.ac.uk/staff/M.Handley/sdp.03.ps\r\n" +
-//	//"e=mjh@isi.edu (Mark Handley)\r\n" +
-//	//"c=IN IP4 224.2.17.12/127\r\n" +
-//	//"t=2873397496 2873404696\r\n" +
-//	"t=0 0\r\n" +
-//	"a=recvonly\r\n"
-//	//"m=audio 3456 RTP/AVP 0\r\n" +
-//	//"m=video 2232 RTP/AVP 31\r\n" +
-//	//"m=whiteboard 32416 UDP WB\r\n" +
-//	//"a=orient:portrait\r\n"
+func PackRequestDescribe(uri string, cseq int) string {
+	return fmt.Sprintf(RequestDescribeTmpl, uri, cseq)
+}
 
-// rfc2326 10.5 PLAY
-var PlayTmpl = "RTSP/1.0 200 OK\r\n" +
-	"CSeq: %s\r\n" +
-	"Date: %s\r\n" +
-	"\r\n"
+// @param sessionID 可以为空，如果为空，则请求中不包含`Session`字段
+func PackRequestSetup(uri string, cseq int, sessionID string, rtpClientPort int, rtcpClientPort int) string {
+	if sessionID == "" {
+		return fmt.Sprintf(RequestSetupTmpl, uri, cseq, rtpClientPort, rtcpClientPort)
+	}
+	return fmt.Sprintf(RequestSetupWithSessionTmpl, uri, cseq, sessionID, rtpClientPort, rtcpClientPort)
+}
 
-// common message with status and message
-var CommonStatusTmpl = "RTSP/1.0 %d %s\r\n" +
-	"CSeq: %s\r\n" +
-	"Date: %s\r\n" +
-	"\r\n"
-
-func PackResponseStatus(cseq string, status int, message string) string {
-	date := time.Now().Format(time.RFC1123)
-	return fmt.Sprintf(CommonStatusTmpl, status, status, cseq, date)
+func PackRequestPlay(uri string, cseq int, sessionID string) string {
+	return fmt.Sprintf(RequestPlayTmpl, uri, cseq, sessionID)
 }
 
 func PackResponseOptions(cseq string) string {
@@ -123,10 +137,15 @@ func PackResponseOptions(cseq string) string {
 }
 
 func PackResponseAnnounce(cseq string) string {
-	return fmt.Sprintf(AnnounceTmpl, cseq)
+	return fmt.Sprintf(ResponseAnnounceTmpl, cseq)
 }
 
-// param transportC:
+func PackResponseDescribe(cseq, sdp string) string {
+	date := time.Now().Format(time.RFC1123)
+	return fmt.Sprintf(ResponseDescribeTmpl, cseq, date, len(sdp), sdp)
+}
+
+// @param transportC:
 //   pub example:
 //   RTP/AVP/UDP;unicast;client_port=24254-24255;mode=record
 //   RTP/AVP/UDP;unicast;client_port=24256-24257;mode=record
@@ -148,16 +167,11 @@ func PackResponseRecord(cseq string) string {
 	return fmt.Sprintf(ResponseRecordTmpl, cseq, sessionID)
 }
 
-func PackResponseTeardown(cseq string) string {
-	return fmt.Sprintf(ResponseTeardownTmpl, cseq)
-}
-
-func PackResponseDescribe(cseq, sdp string) string {
-	date := time.Now().Format(time.RFC1123)
-	return fmt.Sprintf(ResponseDescribeTmpl, cseq, date, len(sdp), sdp)
-}
-
 func PackResponsePlay(cseq string) string {
 	date := time.Now().Format(time.RFC1123)
-	return fmt.Sprintf(PlayTmpl, cseq, date)
+	return fmt.Sprintf(ResponsePlayTmpl, cseq, date)
+}
+
+func PackResponseTeardown(cseq string) string {
+	return fmt.Sprintf(ResponseTeardownTmpl, cseq)
 }

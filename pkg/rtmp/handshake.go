@@ -288,5 +288,4 @@ func init() {
 	random1528Buf = make([]byte, 1528)
 	hack := fmt.Sprintf("random buf of rtmp handshake gen by %s", base.LALRTMPHandshakeWaterMark)
 	copy(random1528Buf, []byte(hack))
-	nazalog.Debug(len(random1528Buf))
 }

@@ -85,7 +85,11 @@ func (obs *Obs) OnDelRTSPPubSession(session *rtsp.PubSession) {
 	nazalog.Debugf("OnDelRTSPPubSession. %+v", session)
 }
 
-func (obs *Obs) OnNewRTSPSubSession(session *rtsp.SubSession) bool {
+func (obs *Obs) OnNewRTSPSubSessionDescribe(session *rtsp.SubSession) (ok bool, sdp []byte) {
+	return true, nil
+}
+
+func (obs *Obs) OnNewRTSPSubSessionPlay(session *rtsp.SubSession) bool {
 	return true
 }
 

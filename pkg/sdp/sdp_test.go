@@ -12,6 +12,8 @@ import (
 	"encoding/hex"
 	"testing"
 
+	"github.com/q191201771/lal/pkg/base"
+
 	"github.com/q191201771/lal/pkg/sdp"
 
 	"github.com/q191201771/naza/pkg/nazalog"
@@ -42,6 +44,17 @@ var goldenSPS = []byte{
 
 var goldenPPS = []byte{
 	0x68, 0xEB, 0xEC, 0xB2, 0x2C,
+}
+
+func TestParseSDP2LogicContext(t *testing.T) {
+	ctx, err := sdp.ParseSDP2LogicContext([]byte(goldenSDP))
+	assert.Equal(t, nil, err)
+	assert.Equal(t, 44100, ctx.AudioClockRate)
+	assert.Equal(t, 90000, ctx.VideoClockRate)
+	assert.Equal(t, base.AVPacketPTAAC, ctx.AudioPayloadType)
+	assert.Equal(t, base.AVPacketPTAVC, ctx.VideoPayloadType)
+	assert.Equal(t, "streamid=1", ctx.AudioAControl)
+	assert.Equal(t, "streamid=0", ctx.VideoAControl)
 }
 
 func TestParseSDP2RawContext(t *testing.T) {

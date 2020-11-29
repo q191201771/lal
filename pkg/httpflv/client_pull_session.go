@@ -34,11 +34,10 @@ var defaultPullSessionOption = PullSessionOption{
 }
 
 type PullSession struct {
-	UniqueKey string
+	UniqueKey string            // const after ctor
+	option    PullSessionOption // const after ctor
 
 	Conn connection.Connection
-
-	option PullSessionOption
 
 	host          string
 	pathWithQuery string

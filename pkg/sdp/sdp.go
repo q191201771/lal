@@ -17,6 +17,8 @@ import (
 	"github.com/q191201771/lal/pkg/base"
 )
 
+// rfc4566
+
 var ErrSDP = errors.New("lal.sdp: fxxk")
 
 const (

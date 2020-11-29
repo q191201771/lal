@@ -68,13 +68,16 @@ var (
 
 	// e.g. lal0.12.3
 	LALHTTPAPIServer string
+
+	// e.g. lal/0.12.3
+	LALRTSPPullSessionUA string
 )
 
 // - rtmp handshake random buf
-// - rtmp server
+// - rtmp server(pub & sub)
 //     - rtmp message connect result
 //         - cdnws: 第一个obj: `fmsVer: FMS/3,0,1,123` 第二个obj: `version: x,x,x,xxx`
-// - rtmp client
+// - rtmp client(push & pull)
 //     - rtmp message connect
 //	       - ffmpeg push: `flashVer: FMLE/3.0 (compatible; Lavf57.83.100)`
 //         - ffmpeg pull: `flashVer: LNX 9,0,124,2` -- emulated Flash client version - 9.0.124.2 on Linux
@@ -89,8 +92,10 @@ var (
 //         - `Server:`
 //     - ts
 //         - `Server:`
-// - rtsp
+// - rtsp server(pub & sub)
 //     - Options response `Server:`
+// - rtsp client(pull)
+//     - Options User-Agent
 //
 // - httpts sub
 //     - `server:`
@@ -114,6 +119,7 @@ func init() {
 	LALHTTPAPIServer = LALLibraryName + LALVersionDot
 
 	LALHTTPFLVPullSessionUA = LALLibraryName + "/" + LALVersionDot
+	LALRTSPPullSessionUA = LALLibraryName + "/" + LALVersionDot
 
 	LALRTMPHandshakeWaterMark = LALFullInfo
 }

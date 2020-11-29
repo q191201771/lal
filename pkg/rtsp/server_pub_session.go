@@ -69,10 +69,10 @@ type PubSession struct {
 	sdpLogicCtx sdp.LogicContext // const after set
 
 	// TCP channels
-	aRTPChannel        int
-	aRTPControlChannel int
-	vRTPChannel        int
-	vRTPControlChannel int
+	audioRTPChannel  int
+	audioRTCPChannel int
+	videoRTPChannel  int
+	videoRTCPChannel int
 }
 
 func NewPubSession(streamName string) *PubSession {
@@ -92,12 +92,6 @@ func NewPubSession(streamName string) *PubSession {
 	return ps
 }
 
-func (p *PubSession) SetObserver(observer PubSessionObserver) {
-	p.observer = observer
-
-	p.observer.OnAVConfig(p.sdpLogicCtx.ASC, p.sdpLogicCtx.VPS, p.sdpLogicCtx.SPS, p.sdpLogicCtx.PPS)
-}
-
 func (p *PubSession) InitWithSDP(rawSDP []byte, sdpLogicCtx sdp.LogicContext) {
 	p.m.Lock()
 	p.rawSDP = rawSDP
@@ -115,7 +109,13 @@ func (p *PubSession) InitWithSDP(rawSDP []byte, sdpLogicCtx sdp.LogicContext) {
 	}
 }
 
-func (p *PubSession) Setup(uri string, rtpConn, rtcpConn *nazanet.UDPConnection) error {
+func (p *PubSession) SetObserver(observer PubSessionObserver) {
+	p.observer = observer
+
+	p.observer.OnAVConfig(p.sdpLogicCtx.ASC, p.sdpLogicCtx.VPS, p.sdpLogicCtx.SPS, p.sdpLogicCtx.PPS)
+}
+
+func (p *PubSession) SetupWithConn(uri string, rtpConn, rtcpConn *nazanet.UDPConnection) error {
 	if strings.HasSuffix(uri, p.sdpLogicCtx.AudioAControl) {
 		p.audioRTPConn = rtpConn
 		p.audioRTCPConn = rtcpConn
@@ -130,6 +130,22 @@ func (p *PubSession) Setup(uri string, rtpConn, rtcpConn *nazanet.UDPConnection)
 	go rtcpConn.RunLoop(p.onReadUDPPacket)
 
 	return nil
+}
+
+func (p *PubSession) SetupWithChannel(uri string, rtpChannel, rtcpChannel int, remoteAddr string) error {
+	p.stat.RemoteAddr = remoteAddr
+
+	if strings.HasSuffix(uri, p.sdpLogicCtx.AudioAControl) {
+		p.audioRTPChannel = rtpChannel
+		p.audioRTCPChannel = rtcpChannel
+		return nil
+	}
+	if strings.HasSuffix(uri, p.sdpLogicCtx.VideoAControl) {
+		p.videoRTPChannel = rtpChannel
+		p.videoRTCPChannel = rtcpChannel
+		return nil
+	}
+	return ErrRTSP
 }
 
 // TODO chef: dispose后，回调上层
@@ -187,54 +203,14 @@ func (p *PubSession) GetSDP() ([]byte, sdp.LogicContext) {
 	return p.rawSDP, p.sdpLogicCtx
 }
 
-func (p *PubSession) SetTCPVideoRTPChannel(RTPChannel int, RTPControlChannel int) {
-	p.vRTPChannel = RTPChannel
-	p.vRTPControlChannel = RTPControlChannel
-}
-
-func (p *PubSession) SetTCPAudioRTPChannel(RTPChannel int, RTPControlChannel int) {
-	p.aRTPChannel = RTPChannel
-	p.aRTPControlChannel = RTPControlChannel
-}
-
-// process rtp pack
-func (p *PubSession) TcpReadRTPPacket(b []byte, nChannel int) {
-	atomic.AddUint64(&p.currConnStat.ReadBytesSum, uint64(len(b)))
-
-	if p.vRTPChannel == nChannel || p.aRTPChannel == nChannel {
-		//video or audio channel
-
-		packetType := b[1] & 0x7F
-		if packetType == base.RTPPacketTypeAVCOrHEVC || packetType == base.RTPPacketTypeAAC {
-			h, err := rtprtcp.ParseRTPPacket(b)
-			if err != nil {
-				nazalog.Errorf("read invalid rtp packet. err=%+v", err)
-			}
-			//nazalog.Debugf("%+v", h)
-			var pkt rtprtcp.RTPPacket
-			pkt.Header = h
-			pkt.Raw = b
-
-			if packetType == base.RTPPacketTypeAVCOrHEVC {
-				p.videoSsrc = h.Ssrc
-				p.observer.OnRTPPacket(pkt)
-				p.videoUnpacker.Feed(pkt)
-				p.videoRRProducer.FeedRTPPacket(h.Seq)
-			} else {
-				p.audioSsrc = h.Ssrc
-				p.observer.OnRTPPacket(pkt)
-				p.audioUnpacker.Feed(pkt)
-				p.audioRRProducer.FeedRTPPacket(h.Seq)
-			}
-		}
-
+func (p *PubSession) HandleInterleavedRTPPacket(b []byte, nChannel int) {
+	if nChannel != p.audioRTPChannel && nChannel != p.videoRTPChannel {
+		nazalog.Errorf("[%s] invalid channel. channel=%d", p.UniqueKey, nChannel)
+		return
 	}
-}
 
-func (p *PubSession) SetRemoteAddr(addr string) {
-
-	if p.stat.RemoteAddr == "" {
-		p.stat.RemoteAddr = addr
+	if err := p.handleRTPPacket(b); err != nil {
+		nazalog.Errorf("[%s] handle rtp packet error. err=%+v", p.UniqueKey, err)
 	}
 }
 
@@ -242,14 +218,14 @@ func (p *PubSession) SetRemoteAddr(addr string) {
 // TODO yoko: 因为rtp和rtcp使用了两个连接，所以分成两个回调也行
 func (p *PubSession) onReadUDPPacket(b []byte, rAddr *net.UDPAddr, err error) bool {
 	if err != nil {
-		nazalog.Errorf("read udp packet failed. err=%+v", err)
+		nazalog.Errorf("[%s] read udp packet failed. err=%+v", p.UniqueKey, err)
 		return true
 	}
 
 	atomic.AddUint64(&p.currConnStat.ReadBytesSum, uint64(len(b)))
 
 	if len(b) < 2 {
-		nazalog.Errorf("read udp packet length invalid. len=%d", len(b))
+		nazalog.Errorf("[%s] read udp packet length invalid. len=%d", p.UniqueKey, len(b))
 		return true
 	}
 
@@ -277,11 +253,39 @@ func (p *PubSession) onReadUDPPacket(b []byte, rAddr *net.UDPAddr, err error) bo
 	}
 
 	// try RTP
+	err = p.handleRTPPacket(b)
+	if err == nil {
+		if p.stat.RemoteAddr == "" {
+			p.stat.RemoteAddr = rAddr.String()
+		}
+		return true
+	}
+
+	nazalog.Errorf("[%s] unknown PT. pt=%d", p.UniqueKey, b[1])
+	return true
+}
+
+// callback by RTPUnpacker
+func (p *PubSession) onAVPacketUnpacked(pkt base.AVPacket) {
+	if p.avPacketQueue != nil {
+		p.avPacketQueue.Feed(pkt)
+	} else {
+		p.observer.OnAVPacket(pkt)
+	}
+}
+
+// callback by avpacket queue
+func (p *PubSession) onAVPacket(pkt base.AVPacket) {
+	p.observer.OnAVPacket(pkt)
+}
+
+func (p *PubSession) handleRTPPacket(b []byte) error {
 	packetType := b[1] & 0x7F
 	if packetType == base.RTPPacketTypeAVCOrHEVC || packetType == base.RTPPacketTypeAAC {
 		h, err := rtprtcp.ParseRTPPacket(b)
 		if err != nil {
 			nazalog.Errorf("read invalid rtp packet. err=%+v", err)
+			return err
 		}
 		//nazalog.Debugf("%+v", h)
 		var pkt rtprtcp.RTPPacket
@@ -300,31 +304,8 @@ func (p *PubSession) onReadUDPPacket(b []byte, rAddr *net.UDPAddr, err error) bo
 			p.audioRRProducer.FeedRTPPacket(h.Seq)
 		}
 
-		if p.stat.RemoteAddr == "" {
-			p.stat.RemoteAddr = rAddr.String()
-		}
-
-		return true
+		return nil
 	}
 
-	nazalog.Errorf("unknown PT. pt=%d", b[1])
-	return true
-}
-
-// callback by RTPUnpacker
-func (p *PubSession) onAVPacketUnpacked(pkt base.AVPacket) {
-	if p.avPacketQueue != nil {
-		p.avPacketQueue.Feed(pkt)
-	} else {
-		p.observer.OnAVPacket(pkt)
-	}
-	//if p.audioUnpacker != nil && p.videoUnpacker != nil {
-	//} else {
-	//	p.observer.OnAVPacket(pkt)
-	//}
-}
-
-// callback by avpacket queue
-func (p *PubSession) onAVPacket(pkt base.AVPacket) {
-	p.observer.OnAVPacket(pkt)
+	return ErrRTSP
 }

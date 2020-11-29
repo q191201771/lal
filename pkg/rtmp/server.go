@@ -77,6 +77,7 @@ func (server *Server) handleTCPConnect(conn net.Conn) {
 	}
 }
 
+// ServerSessionObserver
 func (server *Server) OnRTMPConnect(session *ServerSession, opa ObjectPairArray) {
 	server.observer.OnRTMPConnect(session, opa)
 }

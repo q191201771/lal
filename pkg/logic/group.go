@@ -385,17 +385,24 @@ func (group *Group) DelHTTPTSSubSession(session *httpts.SubSession) {
 	group.delHTTPTSSubSession(session)
 }
 
-func (group *Group) AddRTSPSubSession(session *rtsp.SubSession) bool {
+func (group *Group) HandleNewRTSPSubSessionDescribe(session *rtsp.SubSession) (ok bool, sdp []byte) {
+	group.mutex.Lock()
+	defer group.mutex.Unlock()
+	if group.rtspPubSession == nil {
+		nazalog.Warnf("[%s] close rtsp subSession while describe but pubSession not exist. [%s]", group.UniqueKey, session.UniqueKey)
+		return false, nil
+	}
+
+	sdp, _ = group.rtspPubSession.GetSDP()
+	return true, sdp
+}
+
+func (group *Group) HandleNewRTSPSubSessionPlay(session *rtsp.SubSession) bool {
 	nazalog.Debugf("[%s] [%s] add rtsp SubSession into group.", group.UniqueKey, session.UniqueKey)
 
 	group.mutex.Lock()
 	defer group.mutex.Unlock()
-	if group.rtspPubSession == nil {
-		return false
-	}
-
 	group.rtspSubSessionSet[session] = struct{}{}
-
 	return true
 }
 
@@ -984,13 +991,16 @@ func (group *Group) pushIfNeeded() {
 		return
 	}
 	// 没有pub发布者
-	if group.rtmpPubSession == nil {
+	if group.rtmpPubSession == nil && group.rtspPubSession == nil {
 		return
 	}
 
 	// relay push时携带rtmp pub的参数
 	// TODO chef: 这个逻辑放这里不太好看
-	urlParam := group.rtmpPubSession.RawQuery
+	var urlParam string
+	if group.rtmpPubSession != nil {
+		urlParam = group.rtmpPubSession.RawQuery
+	}
 
 	for url, v := range group.url2PushProxy {
 		// 正在转推中

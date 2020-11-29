@@ -66,20 +66,6 @@ func (s *SubSession) InitWithSDP(rawSDP []byte, sdpLogicCtx sdp.LogicContext) {
 	s.sdpLogicCtx = sdpLogicCtx
 }
 
-func (p *SubSession) GetSDP() ([]byte, sdp.LogicContext) {
-	return p.rawSDP, p.sdpLogicCtx
-}
-
-func (p *SubSession) SetTCPVideoRTPChannel(RTPChannel int, RTPControlChannel int) {
-	p.vRTPChannel = RTPChannel
-	p.vRTPControlChannel = RTPControlChannel
-}
-
-func (p *SubSession) SetTCPAudioRTPChannel(RTPChannel int, RTPControlChannel int) {
-	p.aRTPChannel = RTPChannel
-	p.aRTPControlChannel = RTPControlChannel
-}
-
 func (s *SubSession) Setup(uri string, rtpConn, rtcpConn *nazanet.UDPConnection) error {
 	if strings.HasSuffix(uri, s.sdpLogicCtx.AudioAControl) {
 		s.audioRTPConn = rtpConn
@@ -98,17 +84,21 @@ func (s *SubSession) Setup(uri string, rtpConn, rtcpConn *nazanet.UDPConnection)
 }
 
 func (s *SubSession) onReadUDPPacket(b []byte, rAddr *net.UDPAddr, err error) bool {
-	nazalog.Debugf("SubSession::onReadUDPPacket. %s", hex.Dump(b))
+	nazalog.Debugf("[%s] SubSession::onReadUDPPacket. %s", s.UniqueKey, hex.Dump(b))
 	return true
 }
 
 //to be continued
 //conn可能还不存在，这里涉及到pub和sub是否需要等到setup再回调给上层的问题
 func (s *SubSession) WriteRTPPacket(packet rtprtcp.RTPPacket) {
-	//switch packet.Header.PacketType {
-	//case base.RTPPacketTypeAVCOrHEVC:
-	//	s.videoRTPConn.Write(packet.Raw)
-	//case base.RTPPacketTypeAAC:
-	//	s.audioRTPConn.Write(packet.Raw)
-	//}
+	switch packet.Header.PacketType {
+	case base.RTPPacketTypeAVCOrHEVC:
+		if s.videoRTPConn != nil {
+			_ = s.videoRTPConn.Write(packet.Raw)
+		}
+	case base.RTPPacketTypeAAC:
+		if s.audioRTPConn != nil {
+			_ = s.audioRTPConn.Write(packet.Raw)
+		}
+	}
 }

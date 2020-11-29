@@ -44,7 +44,7 @@
   },
   "server_id": "1",
   "http_notify": {
-    "enable": true,
+    "enable": false,
     "update_interval_sec": 5,
     "on_server_start": "http://127.0.0.1:10101/on_server_start",
     "on_update": "http://127.0.0.1:10101/on_update",

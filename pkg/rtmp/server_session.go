@@ -48,8 +48,8 @@ const (
 )
 
 type ServerSession struct {
-	UniqueKey              string // const after init
-	AppName                string // const after init
+	UniqueKey              string // const after ctor
+	AppName                string // const after set
 	StreamName             string // const after set
 	RawQuery               string //const after set
 	StreamNameWithRawQuery string // const after set
