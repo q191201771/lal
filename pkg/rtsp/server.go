@@ -15,11 +15,21 @@ import (
 )
 
 type ServerObserver interface {
+	// @brief 使得上层有能力管理未进化到Pub、Sub阶段的Session
+	OnNewRTSPSessionConnect(session *ServerCommandSession)
+
+	// @brief 注意，对于已经进化到了Pub、Sub阶段的Session，该回调依然会被调用
+	OnDelRTSPSession(session *ServerCommandSession)
+
+	///////////////////////////////////////////////////////////////////////////
+
 	// @brief  Announce阶段回调
 	// @return 如果返回false，则表示上层要强制关闭这个推流请求
 	OnNewRTSPPubSession(session *PubSession) bool
 
 	OnDelRTSPPubSession(session *PubSession)
+
+	///////////////////////////////////////////////////////////////////////////
 
 	// @return 如果返回false，则表示上层要强制关闭这个拉流请求
 	// @return sdp
@@ -37,9 +47,6 @@ type Server struct {
 	observer ServerObserver
 
 	ln net.Listener
-
-	// TODO chef:
-	// 在server中管理还没有被上层接管的session
 }
 
 func NewServer(addr string, observer ServerObserver) *Server {
@@ -77,33 +84,42 @@ func (s *Server) Dispose() {
 	}
 }
 
-// ServerBaseSessionObserver
+// ServerCommandSessionObserver
 func (s *Server) OnNewRTSPPubSession(session *PubSession) bool {
 	return s.observer.OnNewRTSPPubSession(session)
 }
 
-// ServerBaseSessionObserver
+// ServerCommandSessionObserver
 func (s *Server) OnNewRTSPSubSessionDescribe(session *SubSession) (ok bool, sdp []byte) {
 	return s.observer.OnNewRTSPSubSessionDescribe(session)
 }
 
-// ServerBaseSessionObserver
+// ServerCommandSessionObserver
 func (s *Server) OnNewRTSPSubSessionPlay(session *SubSession) bool {
 	return s.observer.OnNewRTSPSubSessionPlay(session)
 }
 
-// ServerBaseSessionObserver
+// ServerCommandSessionObserver
 func (s *Server) OnDelRTSPPubSession(session *PubSession) {
 	s.observer.OnDelRTSPPubSession(session)
 }
 
-// ServerBaseSessionObserver
+// ServerCommandSessionObserver
 func (s *Server) OnDelRTSPSubSession(session *SubSession) {
 	s.observer.OnDelRTSPSubSession(session)
 }
 
 func (s *Server) handleTCPConnect(conn net.Conn) {
-	session := NewServerBaseSession(s, conn)
+	session := NewServerCommandSession(s, conn)
+	s.observer.OnNewRTSPSessionConnect(session)
+
 	err := session.RunLoop()
 	nazalog.Info(err)
+
+	if session.pubSession != nil {
+		s.observer.OnDelRTSPPubSession(session.pubSession)
+	} else if session.subSession != nil {
+		s.observer.OnDelRTSPSubSession(session.subSession)
+	}
+	s.observer.OnDelRTSPSession(session)
 }

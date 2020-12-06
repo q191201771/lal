@@ -10,15 +10,25 @@ package rtsp
 
 import (
 	"errors"
+	"fmt"
+	"net"
+
+	"github.com/q191201771/lal/pkg/rtprtcp"
+	"github.com/q191201771/naza/pkg/nazalog"
 
 	"github.com/q191201771/naza/pkg/nazanet"
 )
 
 // TODO chef
-// - sub 是否也有tcp模式
-// - 所有对象生命周期管理
+// - pullrtsp支持pushrtmp
 // - 超时
 // - 日志
+// - Ssrc更名为SSRC
+// - stat
+// - pub和sub存在一些重复代码
+// - sub缺少主动发送sr
+// - queue的策略，当一条流没数据之后
+// - 用context重写其它pull session
 
 var ErrRTSP = errors.New("lal.rtsp: fxxk")
 
@@ -35,11 +45,17 @@ const (
 const (
 	HeaderFieldCSeq      = "CSeq"
 	HeaderFieldTransport = "Transport"
+	HeaderFieldSession   = "Session"
 )
 
 const (
 	TransportFieldClientPort  = "client_port"
+	TransportFieldServerPort  = "server_port"
 	TransportFieldInterleaved = "interleaved"
+)
+
+const (
+	DefaultRTSPPort = 554
 )
 
 const (
@@ -57,6 +73,39 @@ var (
 )
 
 var availUDPConnPool *nazanet.AvailUDPConnPool
+
+// 传入远端IP，RTPPort，RTCPPort，创建两个对应的RTP和RTCP的UDP连接对象，以及对应的本端端口
+func initConnWithClientPort(rHost string, rRTPPort, rRTCPPort uint16) (rtpConn, rtcpConn *nazanet.UDPConnection, lRTPPort, lRTCPPort uint16, err error) {
+	// NOTICE
+	// 处理Pub时，
+	// 一路流的rtp端口和rtcp端口必须不同。
+	// 我尝试给ffmpeg返回rtp和rtcp同一个端口，结果ffmpeg依然使用rtp+1作为rtcp的端口。
+	// 又尝试给ffmpeg返回rtp:a和rtcp:a+2的端口，结果ffmpeg依然使用a和a+1端口。
+	// 也即是说，ffmpeg默认认为rtcp的端口是rtp的端口+1。而不管SETUP RESPONSE的rtcp端口是多少。
+	// 我目前在Acquire2这个函数里做了保证，绑定两个可用且连续的端口。
+
+	var rtpc, rtcpc *net.UDPConn
+	rtpc, lRTPPort, rtcpc, lRTCPPort, err = availUDPConnPool.Acquire2()
+	if err != nil {
+		return
+	}
+	nazalog.Debugf("acquire udp conn. rtp port=%d, rtcp port=%d", lRTPPort, lRTCPPort)
+
+	rtpConn, err = nazanet.NewUDPConnection(func(option *nazanet.UDPConnectionOption) {
+		option.Conn = rtpc
+		option.RAddr = net.JoinHostPort(rHost, fmt.Sprintf("%d", rRTPPort))
+		option.MaxReadPacketSize = rtprtcp.MaxRTPRTCPPacketSize
+	})
+	if err != nil {
+		return
+	}
+	rtcpConn, err = nazanet.NewUDPConnection(func(option *nazanet.UDPConnectionOption) {
+		option.Conn = rtcpc
+		option.RAddr = net.JoinHostPort(rHost, fmt.Sprintf("%d", rRTCPPort))
+		option.MaxReadPacketSize = rtprtcp.MaxRTPRTCPPacketSize
+	})
+	return
+}
 
 func init() {
 	availUDPConnPool = nazanet.NewAvailUDPConnPool(minServerPort, maxServerPort)
@@ -126,6 +175,11 @@ func init() {
 // read http request. method=SETUP, uri=rtsp://localhost:5544/live/test110/streamid=0, headers=map[CSeq:3 Transport:RTP/AVP/UDP;unicast;client_port=15690-15691 User-Agent:Lavf57.83.100], body= - server.go:108
 // read http request. method=SETUP, uri=rtsp://localhost:5544/live/test110/streamid=1, headers=map[CSeq:4 Session:191201771 Transport:RTP/AVP/UDP;unicast;client_port=15692-15693 User-Agent:Lavf57.83.100], body= - server.go:108
 // read http request. method=PLAY, uri=rtsp://localhost:5544/live/test110, headers=map[CSeq:5 Range:npt=0.000- Session:191201771 User-Agent:Lavf57.83.100], body= - server.go:108
+// ---------------------------------------------------------------------------------------------------------------------
+
+// ---------------------------------------------------------------------------------------------------------------------
+// SUB(rtp over tcp)
+//
 // ---------------------------------------------------------------------------------------------------------------------
 
 // 8000 video rtp

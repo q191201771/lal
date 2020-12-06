@@ -245,21 +245,19 @@ func ParseASC(a AFmtPBase) ([]byte, error) {
 	if !ok {
 		return nil, ErrSDP
 	}
-	if len(v) < 4 {
+	if len(v) < 4 || (len(v)%2) != 0 {
 		return nil, ErrSDP
+	}
+	l := len(v) / 2
+	r := make([]byte, l)
+	for i := 0; i < l; i++ {
+		b, err := strconv.ParseInt(v[i*2:i*2+2], 16, 0)
+		if err != nil {
+			return nil, ErrSDP
+		}
+		r[i] = uint8(b)
 	}
 
-	f, err := strconv.ParseInt(v[0:2], 16, 0)
-	if err != nil {
-		return nil, ErrSDP
-	}
-	s, err := strconv.ParseInt(v[2:4], 16, 0)
-	if err != nil {
-		return nil, ErrSDP
-	}
-	r := make([]byte, 2)
-	r[0] = uint8(f)
-	r[1] = uint8(s)
 	return r, nil
 }
 

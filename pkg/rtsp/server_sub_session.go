@@ -9,7 +9,6 @@
 package rtsp
 
 import (
-	"encoding/hex"
 	"net"
 	"strings"
 	"time"
@@ -27,37 +26,39 @@ import (
 type SubSession struct {
 	UniqueKey  string // const after ctor
 	StreamName string // const after ctor
+	cmdSession *ServerCommandSession
 
 	rawSDP      []byte           // const after set
 	sdpLogicCtx sdp.LogicContext // const after set
 
-	audioRTPConn  *nazanet.UDPConnection
-	videoRTPConn  *nazanet.UDPConnection
-	audioRTCPConn *nazanet.UDPConnection
-	videoRTCPConn *nazanet.UDPConnection
+	audioRTPConn     *nazanet.UDPConnection
+	videoRTPConn     *nazanet.UDPConnection
+	audioRTCPConn    *nazanet.UDPConnection
+	videoRTCPConn    *nazanet.UDPConnection
+	audioRTPChannel  int
+	audioRTCPChannel int
+	videoRTPChannel  int
+	videoRTCPChannel int
 
 	stat base.StatPub
-
-	// TCP channels
-	aRTPChannel        int
-	aRTPControlChannel int
-	vRTPChannel        int
-	vRTPControlChannel int
 }
 
-func NewSubSession(streamName string) *SubSession {
+func NewSubSession(streamName string, cmdSession *ServerCommandSession) *SubSession {
 	uk := base.GenUniqueKey(base.UKPRTSPSubSession)
 	ss := &SubSession{
 		UniqueKey:  uk,
 		StreamName: streamName,
+		cmdSession: cmdSession,
 		stat: base.StatPub{
 			StatSession: base.StatSession{
 				Protocol:  base.ProtocolRTSP,
 				StartTime: time.Now().Format("2006-01-02 15:04:05.999"),
 			},
 		},
+		audioRTPChannel: -1,
+		videoRTPChannel: -1,
 	}
-	nazalog.Infof("[%s] lifecycle new rtsp PubSession. session=%p, streamName=%s", uk, ss, streamName)
+	nazalog.Infof("[%s] lifecycle new rtsp SubSession. session=%p, streamName=%s", uk, ss, streamName)
 	return ss
 }
 
@@ -66,7 +67,7 @@ func (s *SubSession) InitWithSDP(rawSDP []byte, sdpLogicCtx sdp.LogicContext) {
 	s.sdpLogicCtx = sdpLogicCtx
 }
 
-func (s *SubSession) Setup(uri string, rtpConn, rtcpConn *nazanet.UDPConnection) error {
+func (s *SubSession) SetupWithConn(uri string, rtpConn, rtcpConn *nazanet.UDPConnection) error {
 	if strings.HasSuffix(uri, s.sdpLogicCtx.AudioAControl) {
 		s.audioRTPConn = rtpConn
 		s.audioRTCPConn = rtcpConn
@@ -83,22 +84,64 @@ func (s *SubSession) Setup(uri string, rtpConn, rtcpConn *nazanet.UDPConnection)
 	return nil
 }
 
-func (s *SubSession) onReadUDPPacket(b []byte, rAddr *net.UDPAddr, err error) bool {
-	nazalog.Debugf("[%s] SubSession::onReadUDPPacket. %s", s.UniqueKey, hex.Dump(b))
-	return true
+func (s *SubSession) SetupWithChannel(uri string, rtpChannel, rtcpChannel int, remoteAddr string) error {
+	s.stat.RemoteAddr = remoteAddr
+
+	if strings.HasSuffix(uri, s.sdpLogicCtx.AudioAControl) {
+		s.audioRTPChannel = rtpChannel
+		s.audioRTCPChannel = rtcpChannel
+		return nil
+	}
+	if strings.HasSuffix(uri, s.sdpLogicCtx.VideoAControl) {
+		s.videoRTPChannel = rtpChannel
+		s.videoRTCPChannel = rtcpChannel
+		return nil
+	}
+	return ErrRTSP
 }
 
-//to be continued
-//conn可能还不存在，这里涉及到pub和sub是否需要等到setup再回调给上层的问题
+func (s *SubSession) Dispose() {
+	nazalog.Infof("[%s] lifecycle dispose rtsp SubSession.", s.UniqueKey)
+
+	if s.audioRTPConn != nil {
+		_ = s.audioRTPConn.Dispose()
+	}
+	if s.audioRTCPConn != nil {
+		_ = s.audioRTCPConn.Dispose()
+	}
+	if s.videoRTPConn != nil {
+		_ = s.videoRTPConn.Dispose()
+	}
+	if s.videoRTCPConn != nil {
+		_ = s.videoRTCPConn.Dispose()
+	}
+
+	_ = s.cmdSession.Dispose()
+}
+
 func (s *SubSession) WriteRTPPacket(packet rtprtcp.RTPPacket) {
 	switch packet.Header.PacketType {
 	case base.RTPPacketTypeAVCOrHEVC:
 		if s.videoRTPConn != nil {
 			_ = s.videoRTPConn.Write(packet.Raw)
 		}
+		if s.videoRTPChannel != -1 {
+			_ = s.cmdSession.Write(s.videoRTPChannel, packet.Raw)
+		}
 	case base.RTPPacketTypeAAC:
 		if s.audioRTPConn != nil {
 			_ = s.audioRTPConn.Write(packet.Raw)
 		}
+		if s.audioRTPChannel != -1 {
+			_ = s.cmdSession.Write(s.audioRTPChannel, packet.Raw)
+		}
+	default:
+		nazalog.Errorf("[%s] write rtp packet but type invalid. type=%d", s.UniqueKey, packet.Header.PacketType)
 	}
+}
+
+func (s *SubSession) onReadUDPPacket(b []byte, rAddr *net.UDPAddr, err error) bool {
+	// TODO chef: impl me
+	//nazalog.Errorf("[%s] SubSession::onReadUDPPacket. %s", s.UniqueKey, hex.Dump(b))
+	return true
 }

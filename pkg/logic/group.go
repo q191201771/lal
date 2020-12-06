@@ -15,6 +15,8 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/q191201771/lal/pkg/remux"
+
 	"github.com/q191201771/naza/pkg/defertaskthread"
 
 	"github.com/q191201771/lal/pkg/rtprtcp"
@@ -23,9 +25,6 @@ import (
 
 	"github.com/q191201771/lal/pkg/httpts"
 
-	"github.com/q191201771/naza/pkg/bele"
-
-	"github.com/q191201771/lal/pkg/aac"
 	"github.com/q191201771/lal/pkg/base"
 
 	"github.com/q191201771/lal/pkg/avc"
@@ -154,6 +153,7 @@ func (group *Group) Tick() {
 			if !group.rtspPubSession.IsAlive(checkSessionAliveIntervalSec) {
 				nazalog.Warnf("[%s] session timeout. session=%s", group.UniqueKey, group.rtspPubSession.UniqueKey)
 				group.rtspPubSession.Dispose()
+				group.rtspPubSession = nil
 			}
 		}
 		if group.pullProxy.pullSession != nil {
@@ -493,76 +493,33 @@ func (group *Group) OnAVConfig(asc, vps, sps, pps []byte) {
 	group.vps = vps
 	group.sps = sps
 	group.pps = pps
-	group.broadcastMetadataAndSeqHeader()
+
+	metadata, vsh, ash, err := remux.AVConfig2RTMPMsg(group.asc, group.vps, group.sps, group.pps)
+	if err != nil {
+		nazalog.Errorf("[%s] remux avconfig to metadata and seqheader failed. err=%+v", group.UniqueKey, err)
+		return
+	}
+	if metadata != nil {
+		group.broadcastRTMP(*metadata)
+	}
+	if vsh != nil {
+		group.broadcastRTMP(*vsh)
+	}
+	if ash != nil {
+		group.broadcastRTMP(*ash)
+	}
 }
 
 // rtsp.PubSession
 func (group *Group) OnAVPacket(pkt base.AVPacket) {
-	// TODO chef: 这里貌似没有加锁，最起码下面广播前需要加锁
+	// TODO chef: 这里没有加锁，最起码下面广播前需要加锁
 
-	var h base.RTMPHeader
-	var msg base.RTMPMsg
-
-	switch pkt.PayloadType {
-	case base.AVPacketPTAVC:
-		fallthrough
-	case base.AVPacketPTHEVC:
-		h.TimestampAbs = pkt.Timestamp
-		h.MsgStreamID = rtmp.MSID1
-
-		h.MsgTypeID = base.RTMPTypeIDVideo
-		h.CSID = rtmp.CSIDVideo
-		h.MsgLen = uint32(len(pkt.Payload)) + 5
-
-		msg.Payload = make([]byte, h.MsgLen)
-
-		// TODO chef: 这段代码应该放在更合适的地方，或者在AVPacket中标识是否包含关键帧
-		for i := 0; i != len(pkt.Payload); {
-			naluSize := int(bele.BEUint32(pkt.Payload[i:]))
-
-			t := avc.ParseNALUType(pkt.Payload[i+4])
-			switch pkt.PayloadType {
-			case base.AVPacketPTAVC:
-				if t == avc.NALUTypeIDRSlice {
-					msg.Payload[0] = base.RTMPAVCKeyFrame
-				} else {
-					msg.Payload[0] = base.RTMPAVCInterFrame
-				}
-				msg.Payload[1] = base.RTMPAVCPacketTypeNALU
-			case base.AVPacketPTHEVC:
-				if t == hevc.NALUTypeSliceIDR || t == hevc.NALUTypeSliceIDRNLP {
-					msg.Payload[0] = base.RTMPHEVCKeyFrame
-				} else {
-					msg.Payload[0] = base.RTMPHEVCInterFrame
-				}
-				msg.Payload[1] = base.RTMPHEVCPacketTypeNALU
-			}
-
-			i += 4 + naluSize
-		}
-
-		msg.Payload[2] = 0x0 // cts
-		msg.Payload[3] = 0x0
-		msg.Payload[4] = 0x0
-		copy(msg.Payload[5:], pkt.Payload)
-		//nazalog.Debugf("%d %s", len(msg.Payload), hex.Dump(msg.Payload[:32]))
-	case base.AVPacketPTAAC:
-		h.TimestampAbs = pkt.Timestamp
-		h.MsgStreamID = rtmp.MSID1
-
-		h.MsgTypeID = base.RTMPTypeIDAudio
-		h.CSID = rtmp.CSIDAudio
-		h.MsgLen = uint32(len(pkt.Payload)) + 2
-
-		msg.Payload = make([]byte, h.MsgLen)
-		msg.Payload[0] = 0xAF
-		msg.Payload[1] = base.RTMPAACPacketTypeRaw
-		copy(msg.Payload[2:], pkt.Payload)
-	default:
-		nazalog.Errorf("unknown payload type. pt=%d", pkt.PayloadType)
+	msg, err := remux.AVPacket2RTMPMsg(pkt)
+	if err != nil {
+		nazalog.Errorf("[%s] remux av packet to rtmp msg failed. err=+%v", group.UniqueKey, err)
+		return
 	}
 
-	msg.Header = h
 	group.broadcastRTMP(msg)
 }
 
@@ -703,90 +660,6 @@ func (group *Group) delHTTPTSSubSession(session *httpts.SubSession) {
 	delete(group.httptsSubSessionSet, session)
 }
 
-func (group *Group) broadcastMetadataAndSeqHeader() {
-	var metadata []byte
-	var vsh []byte
-	var err error
-
-	// TODO chef: 考虑只有音频，没有视频的情况
-
-	if group.isHEVC() {
-		var ctx hevc.Context
-		if err := hevc.ParseSPS(group.sps, &ctx); err != nil {
-			nazalog.Errorf("parse sps failed. err=%+v", err)
-			return
-		}
-
-		metadata, err = rtmp.BuildMetadata(int(ctx.PicWidthInLumaSamples), int(ctx.PicHeightInLumaSamples), int(base.RTMPSoundFormatAAC), int(base.RTMPCodecIDHEVC))
-		if err != nil {
-			nazalog.Errorf("build metadata failed. err=%+v", err)
-			return
-		}
-
-		vsh, err = hevc.BuildSeqHeaderFromVPSSPSPPS(group.vps, group.sps, group.pps)
-		if err != nil {
-			nazalog.Errorf("build seq header failed. err=%+v", err)
-			return
-		}
-	} else {
-		ctx, err := avc.ParseSPS(group.sps)
-		if err != nil {
-			nazalog.Errorf("parse sps failed. err=%+v", err)
-			return
-		}
-
-		metadata, err = rtmp.BuildMetadata(int(ctx.Width), int(ctx.Height), int(base.RTMPSoundFormatAAC), int(base.RTMPCodecIDAVC))
-		if err != nil {
-			nazalog.Errorf("build metadata failed. err=%+v", err)
-			return
-		}
-		vsh, err = avc.BuildSeqHeaderFromSPSPPS(group.sps, group.pps)
-		if err != nil {
-			nazalog.Errorf("build seq header failed. err=%+v", err)
-			return
-		}
-	}
-
-	var h base.RTMPHeader
-	var msg base.RTMPMsg
-
-	h.MsgLen = uint32(len(metadata))
-	h.TimestampAbs = 0
-	h.MsgTypeID = base.RTMPTypeIDMetadata
-	h.MsgStreamID = rtmp.MSID1
-	h.CSID = rtmp.CSIDAMF
-	msg.Header = h
-	msg.Payload = metadata
-	group.broadcastRTMP(msg)
-
-	h.MsgLen = uint32(len(vsh))
-	h.TimestampAbs = 0
-	h.MsgTypeID = base.RTMPTypeIDVideo
-	h.MsgStreamID = rtmp.MSID1
-	h.CSID = rtmp.CSIDVideo
-	msg.Header = h
-	msg.Payload = vsh
-	group.broadcastRTMP(msg)
-
-	if group.asc != nil {
-		ash, err := aac.BuildAACSeqHeader(group.asc)
-		if err != nil {
-			nazalog.Errorf("build aac seq header failed. err=%+v", err)
-			return
-		}
-
-		h.MsgLen = uint32(len(ash))
-		h.TimestampAbs = 0
-		h.MsgTypeID = base.RTMPTypeIDAudio
-		h.CSID = rtmp.CSIDAudio
-		msg.Header = h
-		msg.Payload = ash
-		msg.Header = h
-		msg.Payload = ash
-		group.broadcastRTMP(msg)
-	}
-}
-
 // TODO chef: 目前相当于其他类型往rtmp.AVMsg转了，考虑统一往一个通用类型转
 // @param msg 调用结束后，内部不持有msg.Payload内存块
 func (group *Group) broadcastRTMP(msg base.RTMPMsg) {
@@ -801,7 +674,7 @@ func (group *Group) broadcastRTMP(msg base.RTMPMsg) {
 	}
 
 	// # 1. 设置好用于发送的 rtmp 头部信息
-	currHeader := Trans.MakeDefaultRTMPHeader(msg.Header)
+	currHeader := remux.MakeDefaultRTMPHeader(msg.Header)
 	// TODO 这行代码是否放到 MakeDefaultRTMPHeader 中
 	currHeader.MsgLen = uint32(len(msg.Payload))
 

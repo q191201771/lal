@@ -186,6 +186,7 @@ func ParseVPSSPSPPSFromSeqHeader(payload []byte) (vps, sps, pps []byte, err erro
 	return
 }
 
+// 返回的内存块为新申请的独立内存块
 func BuildSeqHeaderFromVPSSPSPPS(vps, sps, pps []byte) ([]byte, error) {
 	var sh []byte
 	sh = make([]byte, 43+len(vps)+len(sps)+len(pps))

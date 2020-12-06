@@ -391,6 +391,16 @@ func (sm *ServerManager) OnDelHTTPTSSubSession(session *httpts.SubSession) {
 }
 
 // ServerObserver of rtsp.Server
+func (sm *ServerManager) OnNewRTSPSessionConnect(session *rtsp.ServerCommandSession) {
+	// TODO chef: impl me
+}
+
+// ServerObserver of rtsp.Server
+func (sm *ServerManager) OnDelRTSPSession(session *rtsp.ServerCommandSession) {
+	// TODO chef: impl me
+}
+
+// ServerObserver of rtsp.Server
 func (sm *ServerManager) OnNewRTSPPubSession(session *rtsp.PubSession) bool {
 	sm.mutex.Lock()
 	defer sm.mutex.Unlock()
