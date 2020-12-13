@@ -45,7 +45,6 @@ type BaseInSessionObserver interface {
 
 type BaseInSession struct {
 	UniqueKey  string // 使用上层Session的值
-	stat       base.StatPub
 	cmdSession BaseCommandSession
 
 	observer BaseInSessionObserver
@@ -62,6 +61,7 @@ type BaseInSession struct {
 	currConnStat connection.Stat
 	prevConnStat connection.Stat
 	staleStat    *connection.Stat
+	stat         base.StatSession
 
 	m           sync.Mutex
 	rawSDP      []byte           // const after set
@@ -72,8 +72,8 @@ type BaseInSession struct {
 	videoUnpacker   *rtprtcp.RTPUnpacker
 	audioRRProducer *rtprtcp.RRProducer
 	videoRRProducer *rtprtcp.RRProducer
-	audioSsrc       uint32
-	videoSsrc       uint32
+	audioSSRC       uint32
+	videoSSRC       uint32
 }
 
 func (s *BaseInSession) InitWithSDP(rawSDP []byte, sdpLogicCtx sdp.LogicContext) {
@@ -123,8 +123,6 @@ func (s *BaseInSession) SetupWithConn(uri string, rtpConn, rtcpConn *nazanet.UDP
 }
 
 func (s *BaseInSession) SetupWithChannel(uri string, rtpChannel, rtcpChannel int, remoteAddr string) error {
-	s.stat.RemoteAddr = remoteAddr
-
 	if strings.HasSuffix(uri, s.sdpLogicCtx.AudioAControl) {
 		s.audioRTPChannel = rtpChannel
 		s.audioRTCPChannel = rtcpChannel
@@ -180,7 +178,7 @@ func (s *BaseInSession) HandleInterleavedPacket(b []byte, channel int) {
 
 }
 
-func (s *BaseInSession) GetStat() base.StatPub {
+func (s *BaseInSession) GetStat() base.StatSession {
 	s.stat.ReadBytesSum = atomic.LoadUint64(&s.currConnStat.ReadBytesSum)
 	s.stat.WroteBytesSum = atomic.LoadUint64(&s.currConnStat.WroteBytesSum)
 	return s.stat
@@ -189,26 +187,30 @@ func (s *BaseInSession) GetStat() base.StatPub {
 func (s *BaseInSession) UpdateStat(interval uint32) {
 	readBytesSum := atomic.LoadUint64(&s.currConnStat.ReadBytesSum)
 	wroteBytesSum := atomic.LoadUint64(&s.currConnStat.WroteBytesSum)
-	diff := readBytesSum - s.prevConnStat.ReadBytesSum
-	s.stat.Bitrate = int(diff * 8 / 1024 / uint64(interval))
+	rDiff := readBytesSum - s.prevConnStat.ReadBytesSum
+	s.stat.ReadBitrate = int(rDiff * 8 / 1024 / uint64(interval))
+	wDiff := wroteBytesSum - s.prevConnStat.WroteBytesSum
+	s.stat.WriteBitrate = int(wDiff * 8 / 1024 / uint64(interval))
+	s.stat.Bitrate = s.stat.ReadBitrate
 	s.prevConnStat.ReadBytesSum = readBytesSum
 	s.prevConnStat.WroteBytesSum = wroteBytesSum
 }
 
-func (s *BaseInSession) IsAlive(interval uint32) (ret bool) {
+func (s *BaseInSession) IsAlive() (readAlive, writeAlive bool) {
 	readBytesSum := atomic.LoadUint64(&s.currConnStat.ReadBytesSum)
 	wroteBytesSum := atomic.LoadUint64(&s.currConnStat.WroteBytesSum)
 	if s.staleStat == nil {
 		s.staleStat = new(connection.Stat)
 		s.staleStat.ReadBytesSum = readBytesSum
 		s.staleStat.WroteBytesSum = wroteBytesSum
-		return true
+		return true, true
 	}
 
-	ret = !(readBytesSum-s.staleStat.ReadBytesSum == 0)
+	readAlive = !(readBytesSum-s.staleStat.ReadBytesSum == 0)
+	writeAlive = !(wroteBytesSum-s.staleStat.WroteBytesSum == 0)
 	s.staleStat.ReadBytesSum = readBytesSum
 	s.staleStat.WroteBytesSum = wroteBytesSum
-	return ret
+	return
 }
 
 // callback by RTPUnpacker
@@ -233,10 +235,6 @@ func (s *BaseInSession) onReadRTPPacket(b []byte, rAddr *net.UDPAddr, err error)
 	}
 
 	_ = s.handleRTPPacket(b)
-	if s.stat.RemoteAddr == "" {
-		s.stat.RemoteAddr = rAddr.String()
-	}
-
 	return true
 }
 
@@ -253,13 +251,25 @@ func (s *BaseInSession) onReadRTCPPacket(b []byte, rAddr *net.UDPAddr, err error
 
 // @param rAddr 对端地址，往对端发送数据时使用，注意，如果nil，则表示是interleaved模式，我们直接往TCP连接发数据
 func (s *BaseInSession) handleRTCPPacket(b []byte, rAddr *net.UDPAddr) error {
+	atomic.AddUint64(&s.currConnStat.ReadBytesSum, uint64(len(b)))
+
+	if len(b) <= 0 {
+		nazalog.Errorf("[%s] handleRTCPPacket length invalid. len=%d", s.UniqueKey, len(b))
+		return ErrRTSP
+	}
+
+	packetType := b[1]
+	if packetType != rtprtcp.RTCPPacketTypeSR {
+		return ErrRTSP
+	}
+
 	switch b[1] {
 	case rtprtcp.RTCPPacketTypeSR:
 		sr := rtprtcp.ParseSR(b)
 		//nazalog.Debugf("%+v", sr)
 		var rrBuf []byte
 		switch sr.SenderSSRC {
-		case s.audioSsrc:
+		case s.audioSSRC:
 			rrBuf = s.audioRRProducer.Produce(sr.GetMiddleNTP())
 			if rrBuf != nil {
 				if rAddr != nil {
@@ -269,7 +279,7 @@ func (s *BaseInSession) handleRTCPPacket(b []byte, rAddr *net.UDPAddr) error {
 				}
 				atomic.AddUint64(&s.currConnStat.WroteBytesSum, uint64(len(b)))
 			}
-		case s.videoSsrc:
+		case s.videoSSRC:
 			rrBuf = s.videoRRProducer.Produce(sr.GetMiddleNTP())
 			if rrBuf != nil {
 				if rAddr != nil {
@@ -282,7 +292,7 @@ func (s *BaseInSession) handleRTCPPacket(b []byte, rAddr *net.UDPAddr) error {
 		default:
 			// ffmpeg推流时，会在发送第一个RTP包之前就发送一个SR，所以关闭这个警告日志
 			//nazalog.Warnf("[%s] read rtcp sr but senderSSRC invalid. senderSSRC=%d, audio=%d, video=%d",
-			//	p.UniqueKey, sr.SenderSSRC, p.audioSsrc, p.videoSsrc)
+			//	p.UniqueKey, sr.SenderSSRC, p.audioSSRC, p.videoSSRC)
 			return ErrRTSP
 		}
 	default:
@@ -294,6 +304,8 @@ func (s *BaseInSession) handleRTCPPacket(b []byte, rAddr *net.UDPAddr) error {
 }
 
 func (s *BaseInSession) handleRTPPacket(b []byte) error {
+	atomic.AddUint64(&s.currConnStat.ReadBytesSum, uint64(len(b)))
+
 	if len(b) < rtprtcp.RTPFixedHeaderLength {
 		nazalog.Errorf("[%s] read udp packet length invalid. len=%d", s.UniqueKey, len(b))
 		return ErrRTSP
@@ -310,8 +322,6 @@ func (s *BaseInSession) handleRTPPacket(b []byte) error {
 		return err
 	}
 
-	atomic.AddUint64(&s.currConnStat.ReadBytesSum, uint64(len(b)))
-
 	//nazalog.Debugf("%+v", h)
 	var pkt rtprtcp.RTPPacket
 	pkt.Header = h
@@ -319,12 +329,12 @@ func (s *BaseInSession) handleRTPPacket(b []byte) error {
 
 	switch packetType {
 	case base.RTPPacketTypeAVCOrHEVC:
-		s.videoSsrc = h.Ssrc
+		s.videoSSRC = h.SSRC
 		s.observer.OnRTPPacket(pkt)
 		s.videoUnpacker.Feed(pkt)
 		s.videoRRProducer.FeedRTPPacket(h.Seq)
 	case base.RTPPacketTypeAAC:
-		s.audioSsrc = h.Ssrc
+		s.audioSSRC = h.SSRC
 		s.observer.OnRTPPacket(pkt)
 		s.audioUnpacker.Feed(pkt)
 		s.audioRRProducer.FeedRTPPacket(h.Seq)

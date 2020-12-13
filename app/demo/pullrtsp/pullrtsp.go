@@ -27,12 +27,10 @@ type Observer struct {
 }
 
 func (o *Observer) OnRTPPacket(pkt rtprtcp.RTPPacket) {
-	//nazalog.Debugf("obs OnRTPPacket %d %+v", len(pkt.Raw), pkt.Header)
 	// noop
 }
 
 func (o *Observer) OnAVConfig(asc, vps, sps, pps []byte) {
-	//nazalog.Debugf("obs OnAVConfig %d %d %d %d", len(asc), len(vps), len(sps), len(pps))
 	metadata, vsh, ash, err := remux.AVConfig2FLVTag(asc, vps, sps, pps)
 	nazalog.Assert(nil, err)
 	err = w.WriteTag(*metadata)
@@ -44,7 +42,6 @@ func (o *Observer) OnAVConfig(asc, vps, sps, pps []byte) {
 }
 
 func (o *Observer) OnAVPacket(pkt base.AVPacket) {
-	//nazalog.Debugf("obs OnAVPacket %d %d %d", len(pkt.Payload), pkt.PayloadType, pkt.Timestamp)
 	tag, err := remux.AVPacket2FLVTag(pkt)
 	nazalog.Assert(nil, err)
 	err = w.WriteTag(tag)

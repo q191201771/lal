@@ -12,6 +12,8 @@ import (
 	"errors"
 	"fmt"
 	"net"
+	"strconv"
+	"strings"
 
 	"github.com/q191201771/lal/pkg/rtprtcp"
 	"github.com/q191201771/naza/pkg/nazalog"
@@ -20,10 +22,10 @@ import (
 )
 
 // TODO chef
-// - pullrtsp支持pushrtmp
+// - 所有client session需要defer dispose？
+// - lalserver接入pullrtsp，通过HTTP API的形式
 // - 超时
 // - 日志
-// - Ssrc更名为SSRC
 // - stat
 // - pub和sub存在一些重复代码
 // - sub缺少主动发送sr
@@ -55,10 +57,6 @@ const (
 )
 
 const (
-	DefaultRTSPPort = 554
-)
-
-const (
 	Interleaved = uint8(0x24)
 )
 
@@ -70,6 +68,8 @@ var (
 	maxServerPort = uint16(16000)
 
 	unpackerItemMaxSize = 1024
+
+	serverCommandSessionReadBufSize = 256
 )
 
 var availUDPConnPool *nazanet.AvailUDPConnPool
@@ -105,6 +105,47 @@ func initConnWithClientPort(rHost string, rRTPPort, rRTCPPort uint16) (rtpConn, 
 		option.MaxReadPacketSize = rtprtcp.MaxRTPRTCPPacketSize
 	})
 	return
+}
+
+// 从setup消息的header中解析rtp rtcp channel
+func parseRTPRTCPChannel(setupTransport string) (rtp, rtcp uint16, err error) {
+	return parseTransport(setupTransport, TransportFieldInterleaved)
+}
+
+// 从setup消息的header中解析rtp rtcp 端口
+func parseClientPort(setupTransport string) (rtp, rtcp uint16, err error) {
+	return parseTransport(setupTransport, TransportFieldClientPort)
+}
+
+func parseServerPort(setupTransport string) (rtp, rtcp uint16, err error) {
+	return parseTransport(setupTransport, TransportFieldServerPort)
+}
+
+func parseTransport(setupTransport string, key string) (first, second uint16, err error) {
+	var clientPort string
+	items := strings.Split(setupTransport, ";")
+	for _, item := range items {
+		if strings.HasPrefix(item, key) {
+			kv := strings.Split(item, "=")
+			if len(kv) != 2 {
+				continue
+			}
+			clientPort = kv[1]
+		}
+	}
+	items = strings.Split(clientPort, "-")
+	if len(items) != 2 {
+		return 0, 0, ErrRTSP
+	}
+	iFirst, err := strconv.Atoi(items[0])
+	if err != nil {
+		return 0, 0, err
+	}
+	iSecond, err := strconv.Atoi(items[1])
+	if err != nil {
+		return 0, 0, err
+	}
+	return uint16(iFirst), uint16(iSecond), err
 }
 
 func init() {

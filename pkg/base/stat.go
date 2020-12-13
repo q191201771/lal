@@ -54,6 +54,8 @@ type StatSession struct {
 	ReadBytesSum  uint64 `json:"read_bytes_sum"`
 	WroteBytesSum uint64 `json:"wrote_bytes_sum"`
 	Bitrate       int    `json:"bitrate"`
+	ReadBitrate   int    `json:"read_bitrate"`
+	WriteBitrate  int    `json:"write_bitrate"`
 }
 
 func StatSession2Pub(ss StatSession) (ret StatPub) {
@@ -63,6 +65,8 @@ func StatSession2Pub(ss StatSession) (ret StatPub) {
 	ret.RemoteAddr = ss.RemoteAddr
 	ret.ReadBytesSum = ss.ReadBytesSum
 	ret.WroteBytesSum = ss.WroteBytesSum
+	ret.ReadBitrate = ss.ReadBitrate
+	ret.WriteBitrate = ss.WriteBitrate
 	ret.Bitrate = ss.Bitrate
 	return
 }
@@ -74,6 +78,8 @@ func StatSession2Sub(ss StatSession) (ret StatSub) {
 	ret.RemoteAddr = ss.RemoteAddr
 	ret.ReadBytesSum = ss.ReadBytesSum
 	ret.WroteBytesSum = ss.WroteBytesSum
+	ret.ReadBitrate = ss.ReadBitrate
+	ret.WriteBitrate = ss.WriteBitrate
 	ret.Bitrate = ss.Bitrate
 	return
 }
@@ -85,6 +91,8 @@ func StatSession2Pull(ss StatSession) (ret StatPull) {
 	ret.RemoteAddr = ss.RemoteAddr
 	ret.ReadBytesSum = ss.ReadBytesSum
 	ret.WroteBytesSum = ss.WroteBytesSum
+	ret.ReadBitrate = ss.ReadBitrate
+	ret.WriteBitrate = ss.WriteBitrate
 	ret.Bitrate = ss.Bitrate
 	return
 }

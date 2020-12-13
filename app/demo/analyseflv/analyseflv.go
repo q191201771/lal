@@ -18,8 +18,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/q191201771/naza/pkg/nazastring"
-
 	"github.com/q191201771/lal/pkg/rtmp"
 
 	"github.com/q191201771/lal/pkg/avc"
@@ -125,6 +123,10 @@ func main() {
 		case httpflv.TagTypeAudio:
 			brAudio.Add(len(tag.Raw))
 
+			if tag.IsAACSeqHeader() {
+				s := session.GetStat()
+				nazalog.Infof("aac seq header. readBytes=%d", s.ReadBytesSum)
+			}
 			if timestampCheckFlag {
 				if prevAudioTS != -1 && int64(tag.Header.Timestamp) < prevAudioTS {
 					nazalog.Errorf("audio timestamp error, less than prev audio timestamp. header=%+v, prevAudioTS=%d, diff=%d", tag.Header, prevAudioTS, int64(tag.Header.Timestamp)-prevAudioTS)
@@ -180,10 +182,10 @@ func analysisVideoTag(tag httpflv.Tag) {
 		} else if tag.IsHEVCKeySeqHeader() {
 			t = typeHEVC
 			//nazalog.Debugf("%s", nazastring.DumpSliceByte(tag.Raw[11:]))
-			vps, sps, pps, _ := hevc.ParseVPSSPSPPSFromSeqHeader(tag.Raw[11:])
-			nazalog.Debugf("%s", nazastring.DumpSliceByte(vps))
-			nazalog.Debugf("%s", nazastring.DumpSliceByte(sps))
-			nazalog.Debugf("%s", nazastring.DumpSliceByte(pps))
+			//vps, sps, pps, _ := hevc.ParseVPSSPSPPSFromSeqHeader(tag.Raw[11:])
+			//nazalog.Debugf("%s", nazastring.DumpSliceByte(vps))
+			//nazalog.Debugf("%s", nazastring.DumpSliceByte(sps))
+			//nazalog.Debugf("%s", nazastring.DumpSliceByte(pps))
 			//nazalog.Debugf("%s %s %s %+v", hex.Dump(vps), hex.Dump(sps), hex.Dump(pps), err)
 			buf.WriteString(" [HEVC SeqHeader] ")
 		}
@@ -216,7 +218,7 @@ func analysisVideoTag(tag httpflv.Tag) {
 					}
 				}
 				sliceTypeReadable, _ := avc.ParseSliceTypeReadable(body[i+4:])
-				buf.WriteString(fmt.Sprintf(" [%s(%s)] ", avc.ParseNALUTypeReadable(body[i+4]), sliceTypeReadable))
+				buf.WriteString(fmt.Sprintf(" [%s(%s)(%d)] ", avc.ParseNALUTypeReadable(body[i+4]), sliceTypeReadable, naluLen))
 			case typeHEVC:
 				if hevc.ParseNALUType(body[i+4]) == hevc.NALUTypeSEI {
 					delay := SEIDelayMS(body[i+4 : i+4+int(naluLen)])

@@ -12,7 +12,6 @@ import (
 	"context"
 	"fmt"
 	"net"
-	"net/url"
 	"time"
 
 	"github.com/q191201771/lal/pkg/base"
@@ -50,10 +49,8 @@ type PullSession struct {
 	cseq      int
 	sessionID string
 
-	rawURL        string
-	host          string // without port
-	hostport      string
-	pathWithQuery string
+	rawURL string
+	urlCtx base.URLContext
 }
 
 type ModPullSessionOption func(option *PullSessionOption)
@@ -71,12 +68,10 @@ func NewPullSession(observer PullSessionObserver, modOptions ...ModPullSessionOp
 	}
 	baseInSession := &BaseInSession{
 		UniqueKey: uk,
-		stat: base.StatPub{
-			StatSession: base.StatSession{
-				Protocol:  base.ProtocolRTSP,
-				SessionID: uk,
-				StartTime: time.Now().Format("2006-01-02 15:04:05.999"),
-			},
+		stat: base.StatSession{
+			Protocol:  base.ProtocolRTSP,
+			SessionID: uk,
+			StartTime: time.Now().Format("2006-01-02 15:04:05.999"),
 		},
 		observer:   observer,
 		cmdSession: s,
@@ -105,6 +100,29 @@ func (session *PullSession) Write(channel int, b []byte) error {
 }
 func (session *PullSession) Dispose() error {
 	return nil
+}
+
+func (session *PullSession) AppName() string {
+	return session.urlCtx.PathWithoutLastItem
+}
+func (session *PullSession) StreamName() string {
+	return session.urlCtx.LastItemOfPath
+}
+func (session *PullSession) RawQuery() string {
+	return session.urlCtx.RawQuery
+}
+
+// @return 注意，`RemoteAddr`字段返回的是RTSP command TCP连接的地址
+func (session *PullSession) GetStat() base.StatSession {
+	return session.baseInSession.GetStat()
+}
+
+func (session *PullSession) UpdateStat(interval uint32) {
+	session.baseInSession.UpdateStat(interval)
+}
+
+func (session *PullSession) IsAlive() (readAlive, writeAlive bool) {
+	return session.baseInSession.IsAlive()
 }
 
 func (session *PullSession) pullContext(ctx context.Context, rawURL string) error {
@@ -153,44 +171,25 @@ func (session *PullSession) pullContext(ctx context.Context, rawURL string) erro
 	return err
 }
 
-func (session *PullSession) connect(rawURL string) error {
-	// # 从 url 中解析 host uri addr
-	u, err := url.Parse(rawURL)
-	if err != nil {
-		return err
-	}
-	if u.Scheme != "rtsp" {
-		return ErrRTSP
-	}
-
+func (session *PullSession) connect(rawURL string) (err error) {
 	session.rawURL = rawURL
 
-	if u.RawQuery == "" {
-		session.pathWithQuery = u.Path
-	} else {
-		session.pathWithQuery = fmt.Sprintf("%s?%s", u.Path, u.RawQuery)
-	}
-
-	// TODO chef: 检查其他协议pull session这块的处理
-	host, _, err := net.SplitHostPort(u.Host)
-	if err == nil {
-		session.host = host
-		session.hostport = u.Host
-	} else {
-		session.host = u.Host
-		session.hostport = net.JoinHostPort(u.Host, fmt.Sprintf("%d", DefaultRTSPPort))
+	session.urlCtx, err = base.ParseRTSPURL(rawURL)
+	if err != nil {
+		return err
 	}
 
 	nazalog.Debugf("[%s] > tcp connect.", session.UniqueKey)
 
 	// # 建立连接
-	conn, err := net.Dial("tcp", session.hostport)
+	conn, err := net.Dial("tcp", session.urlCtx.HostWithPort)
 	if err != nil {
 		return err
 	}
 	session.CmdConn = connection.New(conn, func(option *connection.Option) {
 		option.ReadBufSize = pullReadBufSize
 	})
+	session.baseInSession.stat.RemoteAddr = conn.RemoteAddr().String()
 	return nil
 }
 
@@ -274,7 +273,7 @@ func (session *PullSession) writeOneSetup(aControl string) error {
 
 	rtpConn, err := nazanet.NewUDPConnection(func(option *nazanet.UDPConnectionOption) {
 		option.Conn = rtpC
-		option.RAddr = net.JoinHostPort(session.host, fmt.Sprintf("%d", srvRTPPort))
+		option.RAddr = net.JoinHostPort(session.urlCtx.Host, fmt.Sprintf("%d", srvRTPPort))
 		option.MaxReadPacketSize = rtprtcp.MaxRTPRTCPPacketSize
 	})
 	if err != nil {
@@ -283,7 +282,7 @@ func (session *PullSession) writeOneSetup(aControl string) error {
 
 	rtcpConn, err := nazanet.NewUDPConnection(func(option *nazanet.UDPConnectionOption) {
 		option.Conn = rtcpC
-		option.RAddr = net.JoinHostPort(session.host, fmt.Sprintf("%d", srvRTCPPort))
+		option.RAddr = net.JoinHostPort(session.urlCtx.Host, fmt.Sprintf("%d", srvRTCPPort))
 		option.MaxReadPacketSize = rtprtcp.MaxRTPRTCPPacketSize
 	})
 	if err != nil {

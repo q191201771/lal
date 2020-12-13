@@ -10,7 +10,6 @@ package rtmp
 
 import (
 	"github.com/q191201771/lal/pkg/base"
-	"github.com/q191201771/naza/pkg/connection"
 )
 
 type OnReadRTMPAVMsg func(msg base.RTMPMsg)
@@ -54,7 +53,7 @@ func NewPullSession(modOptions ...ModPullSessionOption) *PullSession {
 // @param onReadRTMPAVMsg: 注意，回调结束后，内存块会被PullSession重复使用
 func (s *PullSession) Pull(rawURL string, onReadRTMPAVMsg OnReadRTMPAVMsg) error {
 	s.core.onReadRTMPAVMsg = onReadRTMPAVMsg
-	return s.core.doWithTimeout(rawURL)
+	return s.core.DoWithTimeout(rawURL)
 }
 
 func (s *PullSession) Done() <-chan error {
@@ -69,6 +68,18 @@ func (s *PullSession) UniqueKey() string {
 	return s.core.UniqueKey
 }
 
+func (s *PullSession) AppName() string {
+	return s.core.AppName()
+}
+
+func (s *PullSession) StreamName() string {
+	return s.core.StreamName()
+}
+
+func (s *PullSession) RawQuery() string {
+	return s.core.RawQuery()
+}
+
 func (s *PullSession) GetStat() base.StatSession {
 	return s.core.GetStat()
 }
@@ -77,15 +88,6 @@ func (s *PullSession) UpdateStat(interval uint32) {
 	s.core.UpdateStat(interval)
 }
 
-func (s *PullSession) IsAlive(interval uint32) (ret bool) {
-	currStat := s.core.conn.GetStat()
-	if s.core.staleStat == nil {
-		s.core.staleStat = new(connection.Stat)
-		*s.core.staleStat = currStat
-		return true
-	}
-
-	ret = !(currStat.ReadBytesSum-s.core.staleStat.ReadBytesSum == 0)
-	*s.core.staleStat = currStat
-	return ret
+func (s *PullSession) IsAlive() (readAlive, writeAlive bool) {
+	return s.core.IsAlive()
 }

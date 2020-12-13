@@ -25,20 +25,21 @@ import (
 var tsHTTPResponseHeader []byte
 
 type SubSession struct {
-	UniqueKey  string
-	StreamName string
+	UniqueKey string
 
-	StartTick int64
-	AppName   string
-	URI       string
-	Headers   map[string]string
+	StartTick  int64
+	appName    string
+	streamName string
+	rawQuery   string
+	URI        string
+	Headers    map[string]string
 
 	IsFresh bool
 
 	conn         connection.Connection
 	prevConnStat connection.Stat
 	staleStat    *connection.Stat
-	stat         base.StatSub
+	stat         base.StatSession
 }
 
 func NewSubSession(conn net.Conn) *SubSession {
@@ -51,13 +52,11 @@ func NewSubSession(conn net.Conn) *SubSession {
 			option.WriteChanSize = wChanSize
 			option.WriteTimeoutMS = subSessionWriteTimeoutMS
 		}),
-		stat: base.StatSub{
-			StatSession: base.StatSession{
-				Protocol:   base.ProtocolHTTPTS,
-				SessionID:  uk,
-				StartTime:  time.Now().Format("2006-01-02 15:04:05.999"),
-				RemoteAddr: conn.RemoteAddr().String(),
-			},
+		stat: base.StatSession{
+			Protocol:   base.ProtocolHTTPTS,
+			SessionID:  uk,
+			StartTime:  time.Now().Format("2006-01-02 15:04:05.999"),
+			RemoteAddr: conn.RemoteAddr().String(),
 		},
 	}
 	nazalog.Infof("[%s] lifecycle new httpts SubSession. session=%p, remote addr=%s", uk, s, conn.RemoteAddr().String())
@@ -103,13 +102,14 @@ func (session *SubSession) ReadRequest() (err error) {
 		err = ErrHTTPTS
 		return
 	}
-	session.AppName = items[1]
+	session.appName = items[1]
 	items = strings.Split(items[2], ".")
 	if len(items) < 2 {
 		err = ErrHTTPTS
 		return
 	}
-	session.StreamName = items[0]
+	session.streamName = items[0]
+	session.rawQuery = urlObj.RawQuery
 
 	return nil
 }
@@ -139,32 +139,47 @@ func (session *SubSession) Dispose() {
 	_ = session.conn.Close()
 }
 
-func (session *SubSession) GetStat() base.StatSub {
-	currStat := session.conn.GetStat()
-	session.stat.ReadBytesSum = currStat.ReadBytesSum
-	session.stat.WroteBytesSum = currStat.WroteBytesSum
-	return session.stat
-}
-
 func (session *SubSession) UpdateStat(interval uint32) {
 	currStat := session.conn.GetStat()
-	var diffStat connection.Stat
-	diffStat.WroteBytesSum = currStat.WroteBytesSum - session.prevConnStat.WroteBytesSum
-	session.stat.Bitrate = int(diffStat.WroteBytesSum * 8 / 1024 / uint64(interval))
+	rDiff := currStat.ReadBytesSum - session.prevConnStat.ReadBytesSum
+	session.stat.ReadBitrate = int(rDiff * 8 / 1024 / uint64(interval))
+	wDiff := currStat.WroteBytesSum - session.prevConnStat.WroteBytesSum
+	session.stat.WriteBitrate = int(wDiff * 8 / 1024 / uint64(interval))
+	session.stat.Bitrate = session.stat.WriteBitrate
 	session.prevConnStat = currStat
 }
 
-func (session *SubSession) IsAlive(interval uint32) (ret bool) {
+func (session *SubSession) GetStat() base.StatSession {
+	connStat := session.conn.GetStat()
+	session.stat.ReadBytesSum = connStat.ReadBytesSum
+	session.stat.WroteBytesSum = connStat.WroteBytesSum
+	return session.stat
+}
+
+func (session *SubSession) IsAlive() (readAlive, writeAlive bool) {
 	currStat := session.conn.GetStat()
 	if session.staleStat == nil {
 		session.staleStat = new(connection.Stat)
 		*session.staleStat = currStat
-		return true
+		return true, true
 	}
 
-	ret = !(currStat.WroteBytesSum-session.staleStat.WroteBytesSum == 0)
+	readAlive = !(currStat.ReadBytesSum-session.staleStat.ReadBytesSum == 0)
+	writeAlive = !(currStat.WroteBytesSum-session.staleStat.WroteBytesSum == 0)
 	*session.staleStat = currStat
-	return ret
+	return
+}
+
+func (session *SubSession) AppName() string {
+	return session.appName
+}
+
+func (session *SubSession) StreamName() string {
+	return session.streamName
+}
+
+func (session *SubSession) RawQuery() string {
+	return session.rawQuery
 }
 
 func init() {

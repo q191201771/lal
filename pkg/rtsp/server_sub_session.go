@@ -11,7 +11,10 @@ package rtsp
 import (
 	"net"
 	"strings"
+	"sync/atomic"
 	"time"
+
+	"github.com/q191201771/naza/pkg/connection"
 
 	"github.com/q191201771/lal/pkg/rtprtcp"
 	"github.com/q191201771/lal/pkg/sdp"
@@ -25,8 +28,10 @@ import (
 
 type SubSession struct {
 	UniqueKey  string // const after ctor
-	StreamName string // const after ctor
 	cmdSession *ServerCommandSession
+	urlCtx     base.URLContext
+
+	//StreamName string // const after ctor
 
 	rawSDP      []byte           // const after set
 	sdpLogicCtx sdp.LogicContext // const after set
@@ -40,25 +45,28 @@ type SubSession struct {
 	videoRTPChannel  int
 	videoRTCPChannel int
 
-	stat base.StatPub
+	stat         base.StatSession
+	currConnStat connection.Stat
+	prevConnStat connection.Stat
+	staleStat    *connection.Stat
 }
 
-func NewSubSession(streamName string, cmdSession *ServerCommandSession) *SubSession {
+func NewSubSession(urlCtx base.URLContext, cmdSession *ServerCommandSession) *SubSession {
 	uk := base.GenUniqueKey(base.UKPRTSPSubSession)
 	ss := &SubSession{
 		UniqueKey:  uk,
-		StreamName: streamName,
+		urlCtx:     urlCtx,
 		cmdSession: cmdSession,
-		stat: base.StatPub{
-			StatSession: base.StatSession{
-				Protocol:  base.ProtocolRTSP,
-				StartTime: time.Now().Format("2006-01-02 15:04:05.999"),
-			},
+		stat: base.StatSession{
+			Protocol:   base.ProtocolRTSP,
+			SessionID:  uk,
+			StartTime:  time.Now().Format("2006-01-02 15:04:05.999"),
+			RemoteAddr: cmdSession.conn.RemoteAddr().String(),
 		},
 		audioRTPChannel: -1,
 		videoRTPChannel: -1,
 	}
-	nazalog.Infof("[%s] lifecycle new rtsp SubSession. session=%p, streamName=%s", uk, ss, streamName)
+	nazalog.Infof("[%s] lifecycle new rtsp SubSession. session=%p, streamName=%s", uk, ss, urlCtx.LastItemOfPath)
 	return ss
 }
 
@@ -119,7 +127,56 @@ func (s *SubSession) Dispose() {
 	_ = s.cmdSession.Dispose()
 }
 
+func (s *SubSession) GetStat() base.StatSession {
+	s.stat.ReadBytesSum = atomic.LoadUint64(&s.currConnStat.ReadBytesSum)
+	s.stat.WroteBytesSum = atomic.LoadUint64(&s.currConnStat.WroteBytesSum)
+	return s.stat
+}
+
+func (s *SubSession) UpdateStat(interval uint32) {
+	readBytesSum := atomic.LoadUint64(&s.currConnStat.ReadBytesSum)
+	wroteBytesSum := atomic.LoadUint64(&s.currConnStat.WroteBytesSum)
+	rDiff := readBytesSum - s.prevConnStat.ReadBytesSum
+	s.stat.ReadBitrate = int(rDiff * 8 / 1024 / uint64(interval))
+	wDiff := wroteBytesSum - s.prevConnStat.WroteBytesSum
+	s.stat.WriteBitrate = int(wDiff * 8 / 1024 / uint64(interval))
+	s.stat.Bitrate = s.stat.WriteBitrate
+	s.prevConnStat.ReadBytesSum = readBytesSum
+	s.prevConnStat.WroteBytesSum = wroteBytesSum
+}
+
+func (s *SubSession) IsAlive() (readAlive, writeAlive bool) {
+	readBytesSum := atomic.LoadUint64(&s.currConnStat.ReadBytesSum)
+	wroteBytesSum := atomic.LoadUint64(&s.currConnStat.WroteBytesSum)
+	if s.staleStat == nil {
+		s.staleStat = new(connection.Stat)
+		s.staleStat.ReadBytesSum = readBytesSum
+		s.staleStat.WroteBytesSum = wroteBytesSum
+		return true, true
+	}
+
+	readAlive = !(readBytesSum-s.staleStat.ReadBytesSum == 0)
+	writeAlive = !(wroteBytesSum-s.staleStat.WroteBytesSum == 0)
+	s.staleStat.ReadBytesSum = readBytesSum
+	s.staleStat.WroteBytesSum = wroteBytesSum
+	return
+}
+
+func (s *SubSession) AppName() string {
+	return s.urlCtx.PathWithoutLastItem
+}
+
+func (s *SubSession) StreamName() string {
+	return s.urlCtx.LastItemOfPath
+}
+
+func (s *SubSession) RawQuery() string {
+	return s.urlCtx.RawQuery
+}
+
 func (s *SubSession) WriteRTPPacket(packet rtprtcp.RTPPacket) {
+	atomic.AddUint64(&s.currConnStat.WroteBytesSum, uint64(len(packet.Raw)))
+
 	switch packet.Header.PacketType {
 	case base.RTPPacketTypeAVCOrHEVC:
 		if s.videoRTPConn != nil {

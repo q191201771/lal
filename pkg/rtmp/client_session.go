@@ -10,9 +10,8 @@ package rtmp
 
 import (
 	"errors"
+	"fmt"
 	"net"
-	"net/url"
-	"strings"
 	"time"
 
 	"github.com/q191201771/lal/pkg/base"
@@ -32,15 +31,11 @@ type ClientSession struct {
 	t      ClientSessionType
 	option ClientSessionOption
 
-	packer                 *MessagePacker
-	chunkComposer          *ChunkComposer
-	url                    *url.URL
-	tcURL                  string
-	appName                string
-	streamName             string
-	streamNameWithRawQuery string
-	hc                     HandshakeClientSimple
-	peerWinAckSize         int
+	packer         *MessagePacker
+	chunkComposer  *ChunkComposer
+	urlCtx         base.URLContext
+	hc             HandshakeClientSimple
+	peerWinAckSize int
 
 	conn         connection.Connection
 	prevConnStat connection.Stat
@@ -108,8 +103,74 @@ func NewClientSession(t ClientSessionType, modOptions ...ModClientSessionOption)
 	return s
 }
 
+func (s *ClientSession) Done() <-chan error {
+	return s.conn.Done()
+}
+
+func (s *ClientSession) AsyncWrite(msg []byte) error {
+	_, err := s.conn.Write(msg)
+	return err
+}
+
+func (s *ClientSession) Flush() error {
+	return s.conn.Flush()
+}
+
+func (s *ClientSession) Dispose() {
+	log.Infof("[%s] lifecycle dispose rtmp ClientSession.", s.UniqueKey)
+	_ = s.conn.Close()
+}
+
+func (s *ClientSession) AppName() string {
+	return s.urlCtx.PathWithoutLastItem
+}
+
+func (s *ClientSession) StreamName() string {
+	return s.urlCtx.LastItemOfPath
+}
+
+func (s *ClientSession) RawQuery() string {
+	return s.urlCtx.RawQuery
+}
+
+func (s *ClientSession) GetStat() base.StatSession {
+	connStat := s.conn.GetStat()
+	s.stat.ReadBytesSum = connStat.ReadBytesSum
+	s.stat.WroteBytesSum = connStat.WroteBytesSum
+	return s.stat
+}
+
+func (s *ClientSession) UpdateStat(interval uint32) {
+	currStat := s.conn.GetStat()
+	rDiff := currStat.ReadBytesSum - s.prevConnStat.ReadBytesSum
+	s.stat.ReadBitrate = int(rDiff * 8 / 1024 / uint64(interval))
+	wDiff := currStat.WroteBytesSum - s.prevConnStat.WroteBytesSum
+	s.stat.WriteBitrate = int(wDiff * 8 / 1024 / uint64(interval))
+	switch s.t {
+	case CSTPushSession:
+		s.stat.Bitrate = s.stat.WriteBitrate
+	case CSTPullSession:
+		s.stat.Bitrate = s.stat.ReadBitrate
+	}
+	s.prevConnStat = currStat
+}
+
+func (s *ClientSession) IsAlive() (readAlive, writeAlive bool) {
+	currStat := s.conn.GetStat()
+	if s.staleStat == nil {
+		s.staleStat = new(connection.Stat)
+		*s.staleStat = currStat
+		return true, true
+	}
+
+	readAlive = !(currStat.ReadBytesSum-s.staleStat.ReadBytesSum == 0)
+	writeAlive = !(currStat.WroteBytesSum-s.staleStat.WroteBytesSum == 0)
+	*s.staleStat = currStat
+	return
+}
+
 // 阻塞直到收到服务端返回的 publish / play 对应结果的信令或者发生错误
-func (s *ClientSession) doWithTimeout(rawURL string) error {
+func (s *ClientSession) DoWithTimeout(rawURL string) error {
 	if s.option.DoTimeoutMS == 0 {
 		err := <-s.do(rawURL)
 		return err
@@ -147,8 +208,8 @@ func (s *ClientSession) do(rawURL string) <-chan error {
 		return ch
 	}
 
-	log.Infof("[%s] > W connect('%s').", s.UniqueKey, s.appName)
-	if err := s.packer.writeConnect(s.conn, s.appName, s.tcURL, s.t == CSTPushSession); err != nil {
+	log.Infof("[%s] > W connect('%s').", s.UniqueKey, s.appName())
+	if err := s.packer.writeConnect(s.conn, s.appName(), s.tcURL(), s.t == CSTPushSession); err != nil {
 		ch <- err
 		return ch
 	}
@@ -166,43 +227,62 @@ func (s *ClientSession) do(rawURL string) <-chan error {
 	return ch
 }
 
-func (s *ClientSession) Done() <-chan error {
-	return s.conn.Done()
-}
-
-func (s *ClientSession) AsyncWrite(msg []byte) error {
-	_, err := s.conn.Write(msg)
-	return err
-}
-
-func (s *ClientSession) Flush() error {
-	return s.conn.Flush()
-}
-
-func (s *ClientSession) Dispose() {
-	log.Infof("[%s] lifecycle dispose rtmp ClientSession.", s.UniqueKey)
-	_ = s.conn.Close()
-}
-
-func (s *ClientSession) GetStat() base.StatSession {
-	connStat := s.conn.GetStat()
-	s.stat.ReadBytesSum = connStat.ReadBytesSum
-	s.stat.WroteBytesSum = connStat.WroteBytesSum
-	return s.stat
-}
-
-func (s *ClientSession) UpdateStat(interval uint32) {
-	currStat := s.conn.GetStat()
-	var diffStat connection.Stat
-	diffStat.ReadBytesSum = currStat.ReadBytesSum - s.prevConnStat.ReadBytesSum
-	diffStat.WroteBytesSum = currStat.WroteBytesSum - s.prevConnStat.WroteBytesSum
-	switch s.t {
-	case CSTPullSession:
-		s.stat.Bitrate = int(diffStat.ReadBytesSum * 8 / 1024 / uint64(interval))
-	case CSTPushSession:
-		s.stat.Bitrate = int(diffStat.WroteBytesSum * 8 / 1024 / uint64(interval))
+func (s *ClientSession) parseURL(rawURL string) (err error) {
+	s.urlCtx, err = base.ParseRTMPURL(rawURL)
+	if err != nil {
+		return err
 	}
-	s.prevConnStat = currStat
+
+	return
+}
+
+func (s *ClientSession) tcURL() string {
+	return fmt.Sprintf("%s://%s/%s", s.urlCtx.Scheme, s.urlCtx.StdHost, s.urlCtx.PathWithoutLastItem)
+}
+func (s *ClientSession) appName() string {
+	return s.urlCtx.PathWithoutLastItem
+}
+
+func (s *ClientSession) streamNameWithRawQuery() string {
+	if s.urlCtx.RawQuery == "" {
+		return s.urlCtx.LastItemOfPath
+	}
+	return fmt.Sprintf("%s?%s", s.urlCtx.LastItemOfPath, s.urlCtx.RawQuery)
+}
+
+func (s *ClientSession) tcpConnect() error {
+	var err error
+
+	s.stat.RemoteAddr = s.urlCtx.HostWithPort
+
+	var conn net.Conn
+	if conn, err = net.DialTimeout("tcp", s.urlCtx.HostWithPort, time.Duration(s.option.ConnectTimeoutMS)*time.Millisecond); err != nil {
+		return err
+	}
+
+	s.conn = connection.New(conn, func(option *connection.Option) {
+		option.ReadBufSize = readBufSize
+		option.WriteChanFullBehavior = connection.WriteChanFullBehaviorBlock
+	})
+	return nil
+}
+
+func (s *ClientSession) handshake() error {
+	log.Infof("[%s] > W Handshake C0+C1.", s.UniqueKey)
+	if err := s.hc.WriteC0C1(s.conn); err != nil {
+		return err
+	}
+
+	if err := s.hc.ReadS0S1S2(s.conn); err != nil {
+		return err
+	}
+	log.Infof("[%s] < R Handshake S0+S1+S2.", s.UniqueKey)
+
+	log.Infof("[%s] > W Handshake C2.", s.UniqueKey)
+	if err := s.hc.WriteC2(s.conn); err != nil {
+		return err
+	}
+	return nil
 }
 
 func (s *ClientSession) runReadLoop() {
@@ -354,13 +434,13 @@ func (s *ClientSession) doResultMessage(stream *Stream, tid int) error {
 		log.Infof("[%s] < R _result().", s.UniqueKey)
 		switch s.t {
 		case CSTPullSession:
-			log.Infof("[%s] > W play('%s').", s.UniqueKey, s.streamNameWithRawQuery)
-			if err := s.packer.writePlay(s.conn, s.streamNameWithRawQuery, sid); err != nil {
+			log.Infof("[%s] > W play('%s').", s.UniqueKey, s.streamNameWithRawQuery())
+			if err := s.packer.writePlay(s.conn, s.streamNameWithRawQuery(), sid); err != nil {
 				return err
 			}
 		case CSTPushSession:
-			log.Infof("[%s] > W publish('%s').", s.UniqueKey, s.streamNameWithRawQuery)
-			if err := s.packer.writePublish(s.conn, s.appName, s.streamNameWithRawQuery, sid); err != nil {
+			log.Infof("[%s] > W publish('%s').", s.UniqueKey, s.streamNameWithRawQuery())
+			if err := s.packer.writePublish(s.conn, s.appName(), s.streamNameWithRawQuery(), sid); err != nil {
 				return err
 			}
 		}
@@ -389,77 +469,6 @@ func (s *ClientSession) doProtocolControlMessage(stream *Stream) error {
 	default:
 		log.Errorf("[%s] read unknown protocol control message. typeid=%d, %s", s.UniqueKey, stream.header.MsgTypeID, stream.toDebugString())
 	}
-	return nil
-}
-
-func (s *ClientSession) parseURL(rawURL string) error {
-	var err error
-	s.url, err = url.Parse(rawURL)
-	if err != nil {
-		return err
-	}
-	if s.url.Scheme != "rtmp" || len(s.url.Host) == 0 || len(s.url.Path) == 0 || s.url.Path[0] != '/' {
-		return ErrRTMP
-	}
-	index := strings.LastIndexByte(rawURL, '/')
-	if index == -1 {
-		return ErrRTMP
-	}
-	s.tcURL = rawURL[:index]
-	strs := strings.Split(s.url.Path[1:], "/")
-	if len(strs) != 2 {
-		return ErrRTMP
-	}
-	s.appName = strs[0]
-	// 有的rtmp服务器会使用url后面的参数（比如说用于鉴权），这里把它带上
-	s.streamName = strs[1]
-	if s.url.RawQuery == "" {
-		s.streamNameWithRawQuery = s.streamName
-	} else {
-		s.streamNameWithRawQuery = s.streamName + "?" + s.url.RawQuery
-	}
-	log.Debugf("[%s] parseURL. %s %s %s %+v", s.UniqueKey, s.tcURL, s.appName, s.streamNameWithRawQuery, *s.url)
-
-	return nil
-}
-
-func (s *ClientSession) handshake() error {
-	log.Infof("[%s] > W Handshake C0+C1.", s.UniqueKey)
-	if err := s.hc.WriteC0C1(s.conn); err != nil {
-		return err
-	}
-
-	if err := s.hc.ReadS0S1S2(s.conn); err != nil {
-		return err
-	}
-	log.Infof("[%s] < R Handshake S0+S1+S2.", s.UniqueKey)
-
-	log.Infof("[%s] > W Handshake C2.", s.UniqueKey)
-	if err := s.hc.WriteC2(s.conn); err != nil {
-		return err
-	}
-	return nil
-}
-
-func (s *ClientSession) tcpConnect() error {
-	var err error
-	var addr string
-	if strings.Contains(s.url.Host, ":") {
-		addr = s.url.Host
-	} else {
-		addr = s.url.Host + ":1935"
-	}
-	s.stat.RemoteAddr = addr
-
-	var conn net.Conn
-	if conn, err = net.DialTimeout("tcp", addr, time.Duration(s.option.ConnectTimeoutMS)*time.Millisecond); err != nil {
-		return err
-	}
-
-	s.conn = connection.New(conn, func(option *connection.Option) {
-		option.ReadBufSize = readBufSize
-		option.WriteChanFullBehavior = connection.WriteChanFullBehaviorBlock
-	})
 	return nil
 }
 

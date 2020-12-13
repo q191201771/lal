@@ -144,44 +144,51 @@ func (group *Group) Tick() {
 	// 定时关闭没有数据的session
 	if group.tickCount%checkSessionAliveIntervalSec == 0 {
 		if group.rtmpPubSession != nil {
-			if !group.rtmpPubSession.IsAlive(checkSessionAliveIntervalSec) {
+			if readAlive, _ := group.rtmpPubSession.IsAlive(); !readAlive {
 				nazalog.Warnf("[%s] session timeout. session=%s", group.UniqueKey, group.rtmpPubSession.UniqueKey)
 				group.rtmpPubSession.Dispose()
 			}
 		}
 		if group.rtspPubSession != nil {
-			if !group.rtspPubSession.IsAlive(checkSessionAliveIntervalSec) {
+			if readAlive, _ := group.rtspPubSession.IsAlive(); !readAlive {
 				nazalog.Warnf("[%s] session timeout. session=%s", group.UniqueKey, group.rtspPubSession.UniqueKey)
 				group.rtspPubSession.Dispose()
 				group.rtspPubSession = nil
 			}
 		}
 		if group.pullProxy.pullSession != nil {
-			if !group.pullProxy.pullSession.IsAlive(checkSessionAliveIntervalSec) {
+			if readAlive, _ := group.pullProxy.pullSession.IsAlive(); !readAlive {
 				nazalog.Warnf("[%s] session timeout. session=%s", group.UniqueKey, group.pullProxy.pullSession.UniqueKey())
 				group.pullProxy.pullSession.Dispose()
 				group.delRTMPPullSession(group.pullProxy.pullSession)
 			}
 		}
 		for session := range group.rtmpSubSessionSet {
-			if !session.IsAlive(checkSessionAliveIntervalSec) {
+			if _, writeAlive := session.IsAlive(); !writeAlive {
 				nazalog.Warnf("[%s] session timeout. session=%s", group.UniqueKey, session.UniqueKey)
 				session.Dispose()
 				group.delRTMPSubSession(session)
 			}
 		}
 		for session := range group.httpflvSubSessionSet {
-			if !session.IsAlive(checkSessionAliveIntervalSec) {
+			if _, writeAlive := session.IsAlive(); !writeAlive {
 				nazalog.Warnf("[%s] session timeout. session=%s", group.UniqueKey, session.UniqueKey)
 				session.Dispose()
 				group.delHTTPFLVSubSession(session)
 			}
 		}
 		for session := range group.httptsSubSessionSet {
-			if !session.IsAlive(checkSessionAliveIntervalSec) {
+			if _, writeAlive := session.IsAlive(); !writeAlive {
 				nazalog.Warnf("[%s] session timeout. session=%s", group.UniqueKey, session.UniqueKey)
 				session.Dispose()
 				group.delHTTPTSSubSession(session)
+			}
+		}
+		for session := range group.rtspSubSessionSet {
+			if _, writeAlive := session.IsAlive(); !writeAlive {
+				nazalog.Warnf("[%s] session timeout. session=%s", group.UniqueKey, session.UniqueKey)
+				session.Dispose()
+				group.DelRTSPSubSession(session)
 			}
 		}
 	}
@@ -204,6 +211,9 @@ func (group *Group) Tick() {
 			session.UpdateStat(calcSessionStatIntervalSec)
 		}
 		for session := range group.httptsSubSessionSet {
+			session.UpdateStat(calcSessionStatIntervalSec)
+		}
+		for session := range group.rtspSubSessionSet {
 			session.UpdateStat(calcSessionStatIntervalSec)
 		}
 	}
@@ -535,7 +545,7 @@ func (group *Group) GetStat() base.StatGroup {
 	if group.rtmpPubSession != nil {
 		group.stat.StatPub = base.StatSession2Pub(group.rtmpPubSession.GetStat())
 	} else if group.rtspPubSession != nil {
-		group.stat.StatPub = group.rtspPubSession.GetStat()
+		group.stat.StatPub = base.StatSession2Pub(group.rtspPubSession.GetStat())
 	} else {
 		group.stat.StatPub = base.StatPub{}
 	}
@@ -545,10 +555,10 @@ func (group *Group) GetStat() base.StatGroup {
 		group.stat.StatSubs = append(group.stat.StatSubs, base.StatSession2Sub(s.GetStat()))
 	}
 	for s := range group.httpflvSubSessionSet {
-		group.stat.StatSubs = append(group.stat.StatSubs, s.GetStat())
+		group.stat.StatSubs = append(group.stat.StatSubs, base.StatSession2Sub(s.GetStat()))
 	}
 	for s := range group.httptsSubSessionSet {
-		group.stat.StatSubs = append(group.stat.StatSubs, s.GetStat())
+		group.stat.StatSubs = append(group.stat.StatSubs, base.StatSession2Sub(s.GetStat()))
 	}
 
 	if group.pullProxy.pullSession != nil {
@@ -675,8 +685,9 @@ func (group *Group) broadcastRTMP(msg base.RTMPMsg) {
 
 	// # 1. 设置好用于发送的 rtmp 头部信息
 	currHeader := remux.MakeDefaultRTMPHeader(msg.Header)
-	// TODO 这行代码是否放到 MakeDefaultRTMPHeader 中
-	currHeader.MsgLen = uint32(len(msg.Payload))
+	if currHeader.MsgLen != uint32(len(msg.Payload)) {
+		nazalog.Errorf("diff. msgLen=%d, payload len=%d, %+v", currHeader.MsgLen, len(msg.Payload), msg.Header)
+	}
 
 	// # 2. 懒初始化rtmp chunk切片，以及httpflv转换
 	lcd.Init(msg.Payload, &currHeader)
@@ -872,7 +883,7 @@ func (group *Group) pushIfNeeded() {
 	// TODO chef: 这个逻辑放这里不太好看
 	var urlParam string
 	if group.rtmpPubSession != nil {
-		urlParam = group.rtmpPubSession.RawQuery
+		urlParam = group.rtmpPubSession.RawQuery()
 	}
 
 	for url, v := range group.url2PushProxy {

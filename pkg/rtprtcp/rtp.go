@@ -79,7 +79,7 @@ type RTPHeader struct {
 	PacketType uint8  // 7b
 	Seq        uint16 // 16b **
 	Timestamp  uint32 // 32b ****
-	Ssrc       uint32 // 32b **** Synchronization source
+	SSRC       uint32 // 32b **** Synchronization source
 
 	payloadOffset uint32
 }
@@ -105,7 +105,7 @@ func ParseRTPPacket(b []byte) (h RTPHeader, err error) {
 	h.PacketType = b[1] & 0x7F
 	h.Seq = bele.BEUint16(b[2:])
 	h.Timestamp = bele.BEUint32(b[4:])
-	h.Ssrc = bele.BEUint32(b[8:])
+	h.SSRC = bele.BEUint32(b[8:])
 
 	h.payloadOffset = RTPFixedHeaderLength
 	return

@@ -66,3 +66,24 @@ func updateTargetDurationInM3U8(content []byte, currDuration int) ([]byte, error
 	}
 	return content, nil
 }
+
+// @param content 传入m3u8文件内容
+//
+// @return durationSec m3u8中所有ts的时间总和。注意，使用的是m3u8文件中描述的ts时间，而不是读取ts文件中实际音视频数据的时间。
+//
+func CalcM3U8Duration(content []byte) (durationSec float64, err error) {
+	lines := bytes.Split(content, []byte{'\n'})
+	for _, line := range lines {
+		if bytes.HasPrefix(line, []byte("#EXTINF:")) {
+			line = bytes.TrimSpace(line)
+			v := bytes.TrimSuffix(bytes.TrimPrefix(line, []byte("#EXTINF:")), []byte{','})
+			v = bytes.TrimSpace(v)
+			vv, err := strconv.ParseFloat(string(v), 64)
+			if err != nil {
+				return durationSec, err
+			}
+			durationSec += vv
+		}
+	}
+	return
+}

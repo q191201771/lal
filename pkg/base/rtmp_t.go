@@ -76,7 +76,7 @@ type RTMPHeader struct {
 
 type RTMPMsg struct {
 	Header  RTMPHeader
-	Payload []byte // 不包含 rtmp 头
+	Payload []byte // Payload不包含Header内容。如果需要将RTMPMsg序列化成RTMP chunk，可调用rtmp.ChunkDivider相关的函数
 }
 
 func (msg RTMPMsg) IsAVCKeySeqHeader() bool {

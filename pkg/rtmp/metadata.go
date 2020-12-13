@@ -14,13 +14,21 @@ import (
 	"github.com/q191201771/lal/pkg/base"
 )
 
-// TODO chef: 见ServerSession::doDataMessageAMF0
 func ParseMetadata(b []byte) (ObjectPairArray, error) {
-	_, l, err := AMF0.ReadString(b)
+	pos := 0
+	v, l, err := AMF0.ReadString(b[pos:])
 	if err != nil {
 		return nil, err
 	}
-	opa, _, err := AMF0.ReadObjectOrArray(b[l:])
+	pos += l
+	if v == "@setDataFrame" {
+		_, l, err = AMF0.ReadString(b[pos:])
+		if err != nil {
+			return nil, err
+		}
+		pos += l
+	}
+	opa, _, err := AMF0.ReadObjectOrArray(b[pos:])
 	return opa, err
 }
 

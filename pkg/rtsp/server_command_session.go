@@ -11,9 +11,9 @@ package rtsp
 import (
 	"bufio"
 	"net"
-	"net/url"
-	"strconv"
 	"strings"
+
+	"github.com/q191201771/naza/pkg/connection"
 
 	"github.com/q191201771/lal/pkg/base"
 	"github.com/q191201771/lal/pkg/sdp"
@@ -37,9 +37,12 @@ type ServerCommandSessionObserver interface {
 }
 
 type ServerCommandSession struct {
-	UniqueKey string                       // const after ctor
-	observer  ServerCommandSessionObserver // const after ctor
-	conn      net.Conn
+	UniqueKey    string                       // const after ctor
+	observer     ServerCommandSessionObserver // const after ctor
+	conn         connection.Connection
+	prevConnStat connection.Stat
+	staleStat    *connection.Stat
+	stat         base.StatSession
 
 	pubSession *PubSession
 	subSession *SubSession
@@ -50,7 +53,9 @@ func NewServerCommandSession(observer ServerCommandSessionObserver, conn net.Con
 	s := &ServerCommandSession{
 		UniqueKey: uk,
 		observer:  observer,
-		conn:      conn,
+		conn: connection.New(conn, func(option *connection.Option) {
+			option.ReadBufSize = serverCommandSessionReadBufSize
+		}),
 	}
 
 	nazalog.Infof("[%s] lifecycle new rtmp ServerSession. session=%p, remote addr=%s", uk, s, conn.RemoteAddr().String())
@@ -63,6 +68,36 @@ func (s *ServerCommandSession) RunLoop() error {
 
 func (s *ServerCommandSession) Dispose() error {
 	return s.conn.Close()
+}
+
+func (s *ServerCommandSession) UpdateStat(interval uint32) {
+	currStat := s.conn.GetStat()
+	rDiff := currStat.ReadBytesSum - s.prevConnStat.ReadBytesSum
+	s.stat.Bitrate = int(rDiff * 8 / 1024 / uint64(interval))
+	wDiff := currStat.WroteBytesSum - s.prevConnStat.WroteBytesSum
+	s.stat.Bitrate = int(wDiff * 8 / 1024 / uint64(interval))
+	s.prevConnStat = currStat
+}
+
+func (s *ServerCommandSession) GetStat() base.StatSession {
+	connStat := s.conn.GetStat()
+	s.stat.ReadBytesSum = connStat.ReadBytesSum
+	s.stat.WroteBytesSum = connStat.WroteBytesSum
+	return s.stat
+}
+
+func (s *ServerCommandSession) IsAlive() (readAlive, writeAlive bool) {
+	currStat := s.conn.GetStat()
+	if s.staleStat == nil {
+		s.staleStat = new(connection.Stat)
+		*s.staleStat = currStat
+		return true, true
+	}
+
+	readAlive = !(currStat.ReadBytesSum-s.staleStat.ReadBytesSum == 0)
+	writeAlive = !(currStat.WroteBytesSum-s.staleStat.WroteBytesSum == 0)
+	*s.staleStat = currStat
+	return
 }
 
 // 使用RTSP TCP命令连接，向对端发送RTP数据
@@ -149,9 +184,9 @@ func (s *ServerCommandSession) handleOptions(requestCtx nazahttp.HTTPReqMsgCtx) 
 func (s *ServerCommandSession) handleAnnounce(requestCtx nazahttp.HTTPReqMsgCtx) error {
 	nazalog.Infof("[%s] < R ANNOUNCE", s.UniqueKey)
 
-	presentation, err := parsePresentation(requestCtx.URI)
+	urlCtx, err := base.ParseRTSPURL(requestCtx.URI)
 	if err != nil {
-		nazalog.Errorf("[%s] getPresentation failed. uri=%s", s.UniqueKey, requestCtx.URI)
+		nazalog.Errorf("[%s] parse presentation failed. uri=%s", s.UniqueKey, requestCtx.URI)
 		return err
 	}
 
@@ -161,7 +196,7 @@ func (s *ServerCommandSession) handleAnnounce(requestCtx nazahttp.HTTPReqMsgCtx)
 		return err
 	}
 
-	s.pubSession = NewPubSession(presentation, s)
+	s.pubSession = NewPubSession(urlCtx, s)
 	nazalog.Infof("[%s] link new PubSession. [%s]", s.UniqueKey, s.pubSession.UniqueKey)
 	s.pubSession.InitWithSDP(requestCtx.Body, sdpLogicCtx)
 
@@ -171,6 +206,31 @@ func (s *ServerCommandSession) handleAnnounce(requestCtx nazahttp.HTTPReqMsgCtx)
 	}
 
 	resp := PackResponseAnnounce(requestCtx.Headers[HeaderFieldCSeq])
+	_, err = s.conn.Write([]byte(resp))
+	return err
+}
+
+func (s *ServerCommandSession) handleDescribe(requestCtx nazahttp.HTTPReqMsgCtx) error {
+	nazalog.Infof("[%s] < R DESCRIBE", s.UniqueKey)
+
+	urlCtx, err := base.ParseRTSPURL(requestCtx.URI)
+	if err != nil {
+		nazalog.Errorf("[%s] parse presentation failed. uri=%s", s.UniqueKey, requestCtx.URI)
+		return err
+	}
+
+	s.subSession = NewSubSession(urlCtx, s)
+	nazalog.Infof("[%s] link new SubSession. [%s]", s.UniqueKey, s.subSession.UniqueKey)
+	ok, rawSDP := s.observer.OnNewRTSPSubSessionDescribe(s.subSession)
+	if !ok {
+		nazalog.Warnf("[%s] force close subSession.", s.UniqueKey)
+		return ErrRTSP
+	}
+
+	ctx, _ := sdp.ParseSDP2LogicContext(rawSDP)
+	s.subSession.InitWithSDP(rawSDP, ctx)
+
+	resp := PackResponseDescribe(requestCtx.Headers[HeaderFieldCSeq], string(rawSDP))
 	_, err = s.conn.Write([]byte(resp))
 	return err
 }
@@ -241,31 +301,6 @@ func (s *ServerCommandSession) handleSetup(requestCtx nazahttp.HTTPReqMsgCtx) er
 	return err
 }
 
-func (s *ServerCommandSession) handleDescribe(requestCtx nazahttp.HTTPReqMsgCtx) error {
-	nazalog.Infof("[%s] < R DESCRIBE", s.UniqueKey)
-
-	presentation, err := parsePresentation(requestCtx.URI)
-	if err != nil {
-		nazalog.Errorf("[%s] parsePresentation failed. uri=%s", s.UniqueKey, requestCtx.URI)
-		return err
-	}
-
-	s.subSession = NewSubSession(presentation, s)
-	nazalog.Infof("[%s] link new SubSession. [%s]", s.UniqueKey, s.subSession.UniqueKey)
-	ok, rawSDP := s.observer.OnNewRTSPSubSessionDescribe(s.subSession)
-	if !ok {
-		nazalog.Warnf("[%s] force close subSession.", s.UniqueKey)
-		return ErrRTSP
-	}
-
-	ctx, _ := sdp.ParseSDP2LogicContext(rawSDP)
-	s.subSession.InitWithSDP(rawSDP, ctx)
-
-	resp := PackResponseDescribe(requestCtx.Headers[HeaderFieldCSeq], string(rawSDP))
-	_, err = s.conn.Write([]byte(resp))
-	return err
-}
-
 func (s *ServerCommandSession) handleRecord(requestCtx nazahttp.HTTPReqMsgCtx) error {
 	nazalog.Infof("[%s] < R RECORD", s.UniqueKey)
 	resp := PackResponseRecord(requestCtx.Headers[HeaderFieldCSeq])
@@ -288,70 +323,4 @@ func (s *ServerCommandSession) handleTeardown(requestCtx nazahttp.HTTPReqMsgCtx)
 	resp := PackResponseTeardown(requestCtx.Headers[HeaderFieldCSeq])
 	_, err := s.conn.Write([]byte(resp))
 	return err
-}
-
-// 从uri中解析stream name
-func parsePresentation(uri string) (string, error) {
-	u, err := url.Parse(uri)
-	if err != nil {
-		return "", err
-	}
-	if len(u.Path) == 0 {
-		return "", ErrRTSP
-	}
-	items := strings.Split(u.Path[1:], "/")
-	switch len(items) {
-	case 0:
-		return "", ErrRTSP
-	case 1:
-		return items[0], nil
-	default:
-		// TODO chef: 是否应该根据SDP的内容来决定过滤的内容
-		if strings.Contains(items[len(items)-1], "streamid=") {
-			return items[len(items)-2], nil
-		} else {
-			return items[len(items)-1], nil
-		}
-	}
-}
-
-// 从setup消息的header中解析rtp rtcp channel
-func parseRTPRTCPChannel(setupTransport string) (rtp, rtcp uint16, err error) {
-	return parseTransport(setupTransport, TransportFieldInterleaved)
-}
-
-// 从setup消息的header中解析rtp rtcp 端口
-func parseClientPort(setupTransport string) (rtp, rtcp uint16, err error) {
-	return parseTransport(setupTransport, TransportFieldClientPort)
-}
-
-func parseServerPort(setupTransport string) (rtp, rtcp uint16, err error) {
-	return parseTransport(setupTransport, TransportFieldServerPort)
-}
-
-func parseTransport(setupTransport string, key string) (first, second uint16, err error) {
-	var clientPort string
-	items := strings.Split(setupTransport, ";")
-	for _, item := range items {
-		if strings.HasPrefix(item, key) {
-			kv := strings.Split(item, "=")
-			if len(kv) != 2 {
-				continue
-			}
-			clientPort = kv[1]
-		}
-	}
-	items = strings.Split(clientPort, "-")
-	if len(items) != 2 {
-		return 0, 0, ErrRTSP
-	}
-	iFirst, err := strconv.Atoi(items[0])
-	if err != nil {
-		return 0, 0, err
-	}
-	iSecond, err := strconv.Atoi(items[1])
-	if err != nil {
-		return 0, 0, err
-	}
-	return uint16(iFirst), uint16(iSecond), err
 }

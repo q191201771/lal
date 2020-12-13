@@ -49,10 +49,10 @@ const (
 
 type ServerSession struct {
 	UniqueKey              string // const after ctor
-	AppName                string // const after set
-	StreamName             string // const after set
-	RawQuery               string //const after set
-	StreamNameWithRawQuery string // const after set
+	appName                string // const after set
+	streamName             string // const after set
+	rawQuery               string //const after set
+	streamNameWithRawQuery string // const after set
 
 	observer      ServerSessionObserver
 	t             ServerSessionType
@@ -117,6 +117,33 @@ func (s *ServerSession) Dispose() {
 	_ = s.conn.Close()
 }
 
+func (s *ServerSession) AppName() string {
+	return s.appName
+}
+
+func (s *ServerSession) StreamName() string {
+	return s.streamName
+}
+
+func (s *ServerSession) RawQuery() string {
+	return s.rawQuery
+}
+
+func (s *ServerSession) UpdateStat(interval uint32) {
+	currStat := s.conn.GetStat()
+	rDiff := currStat.ReadBytesSum - s.prevConnStat.ReadBytesSum
+	s.stat.ReadBitrate = int(rDiff * 8 / 1024 / uint64(interval))
+	wDiff := currStat.WroteBytesSum - s.prevConnStat.WroteBytesSum
+	s.stat.WriteBitrate = int(wDiff * 8 / 1024 / uint64(interval))
+	switch s.t {
+	case ServerSessionTypePub:
+		s.stat.Bitrate = s.stat.ReadBitrate
+	case ServerSessionTypeSub:
+		s.stat.Bitrate = s.stat.WriteBitrate
+	}
+	s.prevConnStat = currStat
+}
+
 func (s *ServerSession) GetStat() base.StatSession {
 	connStat := s.conn.GetStat()
 	s.stat.ReadBytesSum = connStat.ReadBytesSum
@@ -124,35 +151,18 @@ func (s *ServerSession) GetStat() base.StatSession {
 	return s.stat
 }
 
-func (s *ServerSession) UpdateStat(interval uint32) {
-	currStat := s.conn.GetStat()
-	switch s.t {
-	case ServerSessionTypePub:
-		diff := currStat.ReadBytesSum - s.prevConnStat.ReadBytesSum
-		s.stat.Bitrate = int(diff * 8 / 1024 / uint64(interval))
-	case ServerSessionTypeSub:
-		diff := currStat.WroteBytesSum - s.prevConnStat.WroteBytesSum
-		s.stat.Bitrate = int(diff * 8 / 1024 / uint64(interval))
-	}
-	s.prevConnStat = currStat
-}
-
-func (s *ServerSession) IsAlive(interval uint32) (ret bool) {
+func (s *ServerSession) IsAlive() (readAlive, writeAlive bool) {
 	currStat := s.conn.GetStat()
 	if s.staleStat == nil {
 		s.staleStat = new(connection.Stat)
 		*s.staleStat = currStat
-		return true
+		return true, true
 	}
 
-	switch s.t {
-	case ServerSessionTypePub:
-		ret = !(currStat.ReadBytesSum-s.staleStat.ReadBytesSum == 0)
-	case ServerSessionTypeSub:
-		ret = !(currStat.WroteBytesSum-s.staleStat.WroteBytesSum == 0)
-	}
+	readAlive = !(currStat.ReadBytesSum-s.staleStat.ReadBytesSum == 0)
+	writeAlive = !(currStat.WroteBytesSum-s.staleStat.WroteBytesSum == 0)
 	*s.staleStat = currStat
-	return ret
+	return
 }
 
 func (s *ServerSession) RemoteAddr() string {
@@ -229,29 +239,45 @@ func (s *ServerSession) doDataMessageAMF0(stream *Stream) error {
 
 	switch val {
 	case "|RtmpSampleAccess":
-		nazalog.Warnf("[%s] read data message, ignore it. val=%s", s.UniqueKey, val)
+		nazalog.Debugf("[%s] < R |RtmpSampleAccess, ignore.", s.UniqueKey)
 		return nil
-	case "@setDataFrame":
-		// macos obs
-		// skip @setDataFrame
-		val, err = stream.msg.readStringWithType()
-		val, err := stream.msg.peekStringWithType()
-		if err != nil {
-			return err
-		}
-		if val != "onMetaData" {
-			nazalog.Errorf("[%s] read unknown data message. val=%s, %s", s.UniqueKey, val, stream.toDebugString())
-			return ErrRTMP
-		}
-	case "onMetaData":
-		// noop
 	default:
-		nazalog.Errorf("[%s] read unknown data message. val=%s, %s", s.UniqueKey, val, stream.toDebugString())
-		return nil
 	}
-
 	s.avObserver.OnReadRTMPAVMsg(stream.toAVMsg())
 	return nil
+
+	// TODO chef: 下面注释掉的代码包含的逻辑：
+	// 1. 去除metadata中@setDataFrame
+	// 2. 判断一些错误格式
+	// 如果这个逻辑不是必须的，就可以删掉了
+	// 另外，如果返回给上层的msg是删除了内容的buf，应该注意和header中的len保持一致
+	//
+	//switch val {
+	//case "|RtmpSampleAccess":
+	//	nazalog.Warnf("[%s] read data message, ignore it. val=%s", s.UniqueKey, val)
+	//	return nil
+	//case "@setDataFrame":
+	//	// macos obs and ffmpeg
+	//	// skip @setDataFrame
+	//	val, err = stream.msg.readStringWithType()
+	//
+	//	val, err := stream.msg.peekStringWithType()
+	//	if err != nil {
+	//		return err
+	//	}
+	//	if val != "onMetaData" {
+	//		nazalog.Errorf("[%s] read unknown data message. val=%s, %s", s.UniqueKey, val, stream.toDebugString())
+	//		return ErrRTMP
+	//	}
+	//case "onMetaData":
+	//	// noop
+	//default:
+	//	nazalog.Errorf("[%s] read unknown data message. val=%s, %s", s.UniqueKey, val, stream.toDebugString())
+	//	return nil
+	//}
+	//
+	//s.avObserver.OnReadRTMPAVMsg(stream.toAVMsg())
+	//return nil
 }
 
 func (s *ServerSession) doCommandMessage(stream *Stream) error {
@@ -300,11 +326,11 @@ func (s *ServerSession) doConnect(tid int, stream *Stream) error {
 	if err != nil {
 		return err
 	}
-	s.AppName, err = val.FindString("app")
+	s.appName, err = val.FindString("app")
 	if err != nil {
 		return err
 	}
-	nazalog.Infof("[%s] < R connect('%s').", s.UniqueKey, s.AppName)
+	nazalog.Infof("[%s] < R connect('%s').", s.UniqueKey, s.appName)
 
 	s.observer.OnRTMPConnect(s, val)
 
@@ -347,14 +373,14 @@ func (s *ServerSession) doPublish(tid int, stream *Stream) (err error) {
 	if err = stream.msg.readNull(); err != nil {
 		return err
 	}
-	s.StreamNameWithRawQuery, err = stream.msg.readStringWithType()
+	s.streamNameWithRawQuery, err = stream.msg.readStringWithType()
 	if err != nil {
 		return err
 	}
-	ss := strings.Split(s.StreamNameWithRawQuery, "?")
-	s.StreamName = ss[0]
+	ss := strings.Split(s.streamNameWithRawQuery, "?")
+	s.streamName = ss[0]
 	if len(ss) == 2 {
-		s.RawQuery = ss[1]
+		s.rawQuery = ss[1]
 	}
 
 	pubType, err := stream.msg.readStringWithType()
@@ -362,7 +388,7 @@ func (s *ServerSession) doPublish(tid int, stream *Stream) (err error) {
 		return err
 	}
 	nazalog.Debugf("[%s] pubType=%s", s.UniqueKey, pubType)
-	nazalog.Infof("[%s] < R publish('%s')", s.UniqueKey, s.StreamNameWithRawQuery)
+	nazalog.Infof("[%s] < R publish('%s')", s.UniqueKey, s.streamNameWithRawQuery)
 
 	nazalog.Infof("[%s] > W onStatus('NetStream.Publish.Start').", s.UniqueKey)
 	if err := s.packer.writeOnStatusPublish(s.conn, MSID1); err != nil {
@@ -370,7 +396,7 @@ func (s *ServerSession) doPublish(tid int, stream *Stream) (err error) {
 	}
 
 	// 回复完信令后修改 connection 的属性
-	s.ModConnProps()
+	s.modConnProps()
 
 	s.t = ServerSessionTypePub
 	s.observer.OnNewRTMPPubSession(s)
@@ -382,17 +408,17 @@ func (s *ServerSession) doPlay(tid int, stream *Stream) (err error) {
 	if err = stream.msg.readNull(); err != nil {
 		return err
 	}
-	s.StreamNameWithRawQuery, err = stream.msg.readStringWithType()
+	s.streamNameWithRawQuery, err = stream.msg.readStringWithType()
 	if err != nil {
 		return err
 	}
-	ss := strings.Split(s.StreamNameWithRawQuery, "?")
-	s.StreamName = ss[0]
+	ss := strings.Split(s.streamNameWithRawQuery, "?")
+	s.streamName = ss[0]
 	if len(ss) == 2 {
-		s.RawQuery = ss[1]
+		s.rawQuery = ss[1]
 	}
 
-	nazalog.Infof("[%s] < R play('%s').", s.UniqueKey, s.StreamNameWithRawQuery)
+	nazalog.Infof("[%s] < R play('%s').", s.UniqueKey, s.streamNameWithRawQuery)
 	// TODO chef: start duration reset
 
 	if err := s.packer.writeStreamIsRecorded(s.conn, MSID1); err != nil {
@@ -408,7 +434,7 @@ func (s *ServerSession) doPlay(tid int, stream *Stream) (err error) {
 	}
 
 	// 回复完信令后修改 connection 的属性
-	s.ModConnProps()
+	s.modConnProps()
 
 	s.t = ServerSessionTypeSub
 	s.observer.OnNewRTMPSubSession(s)
@@ -416,7 +442,7 @@ func (s *ServerSession) doPlay(tid int, stream *Stream) (err error) {
 	return nil
 }
 
-func (s *ServerSession) ModConnProps() {
+func (s *ServerSession) modConnProps() {
 	s.conn.ModWriteChanSize(wChanSize)
 	// TODO chef:
 	// 使用合并发送

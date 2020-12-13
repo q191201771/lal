@@ -24,71 +24,83 @@ type PubSessionObserver interface {
 }
 
 type PubSession struct {
-	baseInSession *BaseInSession
 	UniqueKey     string
-	StreamName    string // presentation
+	baseInSession *BaseInSession
+	urlCtx        base.URLContext
 
 	observer PubSessionObserver
 }
 
-func NewPubSession(streamName string, cmdSession *ServerCommandSession) *PubSession {
+func NewPubSession(urlCtx base.URLContext, cmdSession *ServerCommandSession) *PubSession {
 	uk := base.GenUniqueKey(base.UKPRTSPPubSession)
 	baseInSession := &BaseInSession{
 		UniqueKey: uk,
-		stat: base.StatPub{
-			StatSession: base.StatSession{
-				Protocol:  base.ProtocolRTSP,
-				SessionID: uk,
-				StartTime: time.Now().Format("2006-01-02 15:04:05.999"),
-			},
+		stat: base.StatSession{
+			Protocol:   base.ProtocolRTSP,
+			SessionID:  uk,
+			StartTime:  time.Now().Format("2006-01-02 15:04:05.999"),
+			RemoteAddr: cmdSession.conn.RemoteAddr().String(),
 		},
 		cmdSession: cmdSession,
 	}
 	ps := &PubSession{
 		baseInSession: baseInSession,
 		UniqueKey:     uk,
-		StreamName:    streamName,
+		urlCtx:        urlCtx,
 	}
-	nazalog.Infof("[%s] lifecycle new rtsp PubSession. session=%p, streamName=%s", uk, ps, streamName)
+	nazalog.Infof("[%s] lifecycle new rtsp PubSession. session=%p, streamName=%s", uk, ps, urlCtx.LastItemOfPath)
 	return ps
 }
 
-func (p *PubSession) InitWithSDP(rawSDP []byte, sdpLogicCtx sdp.LogicContext) {
-	p.baseInSession.InitWithSDP(rawSDP, sdpLogicCtx)
+func (s *PubSession) InitWithSDP(rawSDP []byte, sdpLogicCtx sdp.LogicContext) {
+	s.baseInSession.InitWithSDP(rawSDP, sdpLogicCtx)
 }
 
-func (p *PubSession) SetObserver(observer PubSessionObserver) {
-	p.baseInSession.SetObserver(observer)
+func (s *PubSession) SetObserver(observer PubSessionObserver) {
+	s.baseInSession.SetObserver(observer)
 }
 
-func (p *PubSession) SetupWithConn(uri string, rtpConn, rtcpConn *nazanet.UDPConnection) error {
-	return p.baseInSession.SetupWithConn(uri, rtpConn, rtcpConn)
+func (s *PubSession) SetupWithConn(uri string, rtpConn, rtcpConn *nazanet.UDPConnection) error {
+	return s.baseInSession.SetupWithConn(uri, rtpConn, rtcpConn)
 }
 
-func (p *PubSession) SetupWithChannel(uri string, rtpChannel, rtcpChannel int, remoteAddr string) error {
-	return p.baseInSession.SetupWithChannel(uri, rtpChannel, rtcpChannel, remoteAddr)
+func (s *PubSession) SetupWithChannel(uri string, rtpChannel, rtcpChannel int, remoteAddr string) error {
+	return s.baseInSession.SetupWithChannel(uri, rtpChannel, rtcpChannel, remoteAddr)
 }
 
-func (p *PubSession) Dispose() {
-	p.baseInSession.Dispose()
+func (s *PubSession) Dispose() {
+	s.baseInSession.Dispose()
 }
 
-func (p *PubSession) GetSDP() ([]byte, sdp.LogicContext) {
-	return p.baseInSession.GetSDP()
+func (s *PubSession) GetSDP() ([]byte, sdp.LogicContext) {
+	return s.baseInSession.GetSDP()
 }
 
-func (p *PubSession) HandleInterleavedPacket(b []byte, channel int) {
-	p.baseInSession.HandleInterleavedPacket(b, channel)
+func (s *PubSession) HandleInterleavedPacket(b []byte, channel int) {
+	s.baseInSession.HandleInterleavedPacket(b, channel)
 }
 
-func (p *PubSession) GetStat() base.StatPub {
-	return p.baseInSession.GetStat()
+func (s *PubSession) AppName() string {
+	return s.urlCtx.PathWithoutLastItem
 }
 
-func (p *PubSession) UpdateStat(interval uint32) {
-	p.baseInSession.UpdateStat(interval)
+func (s *PubSession) StreamName() string {
+	return s.urlCtx.LastItemOfPath
 }
 
-func (p *PubSession) IsAlive(interval uint32) (ret bool) {
-	return p.baseInSession.IsAlive(interval)
+func (s *PubSession) RawQuery() string {
+	return s.urlCtx.RawQuery
+}
+
+// @return 注意，`RemoteAddr`字段返回的是RTSP command TCP连接的地址
+func (s *PubSession) GetStat() base.StatSession {
+	return s.baseInSession.GetStat()
+}
+
+func (s *PubSession) UpdateStat(interval uint32) {
+	s.baseInSession.UpdateStat(interval)
+}
+
+func (s *PubSession) IsAlive() (readAlive, writeAlive bool) {
+	return s.baseInSession.IsAlive()
 }

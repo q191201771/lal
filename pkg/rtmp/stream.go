@@ -14,7 +14,7 @@ import (
 
 	"github.com/q191201771/lal/pkg/base"
 
-	log "github.com/q191201771/naza/pkg/nazalog"
+	"github.com/q191201771/naza/pkg/nazalog"
 )
 
 const initMsgLen = 4096
@@ -49,6 +49,10 @@ func (stream *Stream) toDebugString() string {
 }
 
 func (stream *Stream) toAVMsg() base.RTMPMsg {
+	// TODO chef: 考虑可能出现header中的len和buf的大小不一致的情况
+	if stream.header.MsgLen != uint32(len(stream.msg.buf[stream.msg.b:stream.msg.e])) {
+		nazalog.Errorf("toAVMsg. headerMsgLen=%d, bufLen=%d", stream.header.MsgLen, len(stream.msg.buf[stream.msg.b:stream.msg.e]))
+	}
 	return base.RTMPMsg{
 		Header:  stream.header,
 		Payload: stream.msg.buf[stream.msg.b:stream.msg.e],
@@ -67,7 +71,7 @@ func (msg *StreamMsg) reserve(n uint32) {
 	nb := make([]byte, bufCap+nn)
 	copy(nb, msg.buf[msg.b:msg.e])
 	msg.buf = nb
-	log.Debugf("reserve. need:%d left:%d %d %d", n, nn, len(msg.buf), cap(msg.buf))
+	nazalog.Debugf("reserve. need:%d left:%d %d %d", n, nn, len(msg.buf), cap(msg.buf))
 }
 
 func (msg *StreamMsg) len() uint32 {

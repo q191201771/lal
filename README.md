@@ -23,15 +23,15 @@
 
 | - | sub rtmp | sub http(s)-flv | sub http-ts | sub hls | sub rtsp | relay push rtmp |
 | - | - | - | - | - | - | - |
-| pub rtmp        | ✔ | ✔ | ✔ | ✔ | - | ✔ |
+| pub rtmp        | ✔ | ✔ | ✔ | ✔ | X | ✔ |
 | pub rtsp        | ✔ | ✔ | ✔ | ✔ | ✔ | ✔ |
-| relay pull rtmp | ✔ | ✔ | ✔ | ✔ | - | . |
+| relay pull rtmp | ✔ | ✔ | ✔ | ✔ | X | . |
 
 | 编码类型 | rtmp | rtsp | hls | http(s)-flv | http-ts |
 | - | - | - | - | - | - |
 | aac       | ✔ | ✔ | ✔ | ✔ | ✔ |
 | avc/h264  | ✔ | ✔ | ✔ | ✔ | ✔ |
-| hevc/h265 | ✔ | ✔ | - | ✔ | - |
+| hevc/h265 | ✔ | ✔ | X | ✔ | X |
 
 表格含义见： [《流媒体传输连接类型之session client, server, pub, sub, push, pull》](https://pengrl.com/p/20080)
 
