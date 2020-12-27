@@ -43,7 +43,7 @@
 - [x] **多种编码格式**。视频支持H264/AVC，H265/HEVC，音频支持AAC
 - [x] **录制**。支持HLS录制(HLS直播与录制可同时开启)
 - [x] **HTTPS**。支持HTTPS-FLV拉流
-- [x] **RTSP支持interleaved mode模式**。同时支持RTP over UDP/TCP
+- [x] **RTSP**。支持interleaved模式。支持digest auth验证。支持`GET_PARAMETER`。
 - [x] **HTTP API接口**。用于获取服务信息，向服务发送命令。见[《lal流媒体服务器的HTTP API接口》](https://pengrl.com/p/20100)
 - [x] **HTTP Notify事件回调**。见[《lal HTTP Notify(or Callback or Webhook)事件回调》](https://pengrl.com/p/20101)
 - [x] **分布式集群**。

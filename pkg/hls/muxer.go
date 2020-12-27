@@ -91,9 +91,9 @@ func NewMuxer(streamName string, config *MuxerConfig, observer MuxerObserver) *M
 		playlistFilenameBak:       playlistFilenameBak,
 		recordPlayListFilename:    recordPlaylistFilename,
 		recordPlayListFilenameBak: recordPlaylistFilenameBak,
-		config:   config,
-		observer: observer,
-		frags:    frags,
+		config:                    config,
+		observer:                  observer,
+		frags:                     frags,
 	}
 	streamer := NewStreamer(m)
 	m.streamer = streamer

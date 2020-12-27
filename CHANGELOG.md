@@ -1,3 +1,26 @@
+#### v0.18.0 (2020-12-27)
+
+- [feat] 实现rtsp pull session
+- [feat] demo，增加`/app/demo/pullrtsp2pushrtmp`，可拉取rtsp流，并使用rtmp转推出去
+- [feat] demo，增加`/app/demo/pullrtsp`，可拉取rtsp流，存储为flv文件
+- [feat] rtsp interleaved(rtp over tcp)模式。pub, sub, pull都已支持
+- [feat] rtsp，pull支持auth digest验证
+- [feat] rtsp，pull支持定时发送`GET_PARAMETER` rtsp message进行保活（对端支持的情况下）
+- [feat] rtsp，输入流音频不是AAC格式时，保证视频流可正常remux成其他封装协议
+- [feat] rtsp，pull开始时发送dummy rtp/rtcp数据，保证对端能成功发送数据至本地
+- [feat] rtsp，修改rtsp.AVPacketQueue的行为：当音频或者视频数量队列满了后，直接出队而不是丢弃
+- [feat] logic，rtsp pub转发给rtsp sub
+- [feat] logic，rtsp pub转发给relay rtmp push
+- [feat] remux，用于处理协议转封装
+- [refactor] 重构所有client session解析url的地方
+- [refactor] 所有session实现ISessionStat接口，用于计算、获取bitrate等流相关的信息
+- [refactor] 所有session实现ISessionURLContext接口，用于获取流url相关的信息
+- [refactor] rtmp/httpflv/rtsp，统一所有PullSession：超时形式；Pull和Wait函数
+- [fix] rtsp，将以下包返回给上层：rtsp pub h265, single rtp packet, VPS, SPS, PPS, SEI
+- [fix] sdp，修复解析及使用sdp错误的一些case
+- [fix] aac，正确处理大于2字节的AudioSpecificConfig
+- [fix] avc，尝试解析scaling matrix
+
 #### v0.17.0 (2020-11-21)
 
 - [feat] 增加HTTP Notify事件回调功能，见 https://pengrl.com/p/20101
