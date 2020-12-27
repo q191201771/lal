@@ -11,7 +11,7 @@
 - [feat] rtsp，修改rtsp.AVPacketQueue的行为：当音频或者视频数量队列满了后，直接出队而不是丢弃
 - [feat] logic，rtsp pub转发给rtsp sub
 - [feat] logic，rtsp pub转发给relay rtmp push
-- [feat] remux，用于处理协议转封装
+- [feat] remux，新增package，用于处理协议转封装
 - [refactor] 重构所有client session解析url的地方
 - [refactor] 所有session实现ISessionStat接口，用于计算、获取bitrate等流相关的信息
 - [refactor] 所有session实现ISessionURLContext接口，用于获取流url相关的信息

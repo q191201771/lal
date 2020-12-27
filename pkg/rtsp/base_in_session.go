@@ -96,7 +96,7 @@ func (s *BaseInSession) InitWithSDP(rawSDP []byte, sdpLogicCtx sdp.LogicContext)
 	s.audioRRProducer = rtprtcp.NewRRProducer(s.sdpLogicCtx.AudioClockRate)
 	s.videoRRProducer = rtprtcp.NewRRProducer(s.sdpLogicCtx.VideoClockRate)
 
-	if s.sdpLogicCtx.HasAudio && s.sdpLogicCtx.HasVideo {
+	if isSupportType(s.sdpLogicCtx.AudioPayloadType) && isSupportType(s.sdpLogicCtx.VideoPayloadType) {
 		s.avPacketQueue = NewAVPacketQueue(s.onAVPacket)
 	}
 
