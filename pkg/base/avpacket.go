@@ -11,9 +11,10 @@ package base
 type AVPacketPT int
 
 const (
-	AVPacketPTAVC  AVPacketPT = RTPPacketTypeAVCOrHEVC
-	AVPacketPTAAC  AVPacketPT = RTPPacketTypeAAC
-	AVPacketPTHEVC AVPacketPT = 98
+	AVPacketPTUnknown AVPacketPT = -1
+	AVPacketPTAVC     AVPacketPT = RTPPacketTypeAVCOrHEVC
+	AVPacketPTHEVC    AVPacketPT = RTPPacketTypeHEVC
+	AVPacketPTAAC     AVPacketPT = RTPPacketTypeAAC
 )
 
 // 目前供package rtsp使用。以后可能被多个package使用。

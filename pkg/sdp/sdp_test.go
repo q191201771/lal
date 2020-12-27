@@ -10,6 +10,7 @@ package sdp_test
 
 import (
 	"encoding/hex"
+	"strings"
 	"testing"
 
 	"github.com/q191201771/lal/pkg/base"
@@ -44,17 +45,6 @@ var goldenSPS = []byte{
 
 var goldenPPS = []byte{
 	0x68, 0xEB, 0xEC, 0xB2, 0x2C,
-}
-
-func TestParseSDP2LogicContext(t *testing.T) {
-	ctx, err := sdp.ParseSDP2LogicContext([]byte(goldenSDP))
-	assert.Equal(t, nil, err)
-	assert.Equal(t, 44100, ctx.AudioClockRate)
-	assert.Equal(t, 90000, ctx.VideoClockRate)
-	assert.Equal(t, base.AVPacketPTAAC, ctx.AudioPayloadType)
-	assert.Equal(t, base.AVPacketPTAVC, ctx.VideoPayloadType)
-	assert.Equal(t, "streamid=1", ctx.AudioAControl)
-	assert.Equal(t, "streamid=0", ctx.VideoAControl)
 }
 
 func TestParseSDP2RawContext(t *testing.T) {
@@ -160,4 +150,171 @@ func TestParseVPSSPSPPS(t *testing.T) {
 	nazalog.Debugf("%s", hex.Dump(vps))
 	nazalog.Debugf("%s", hex.Dump(sps))
 	nazalog.Debugf("%s", hex.Dump(pps))
+}
+
+func TestParseSDP2LogicContext(t *testing.T) {
+	ctx, err := sdp.ParseSDP2LogicContext([]byte(goldenSDP))
+	assert.Equal(t, nil, err)
+	assert.Equal(t, true, ctx.HasAudio)
+	assert.Equal(t, true, ctx.HasVideo)
+	assert.Equal(t, 44100, ctx.AudioClockRate)
+	assert.Equal(t, 90000, ctx.VideoClockRate)
+	assert.Equal(t, 97, ctx.AudioPayloadTypeOrigin)
+	assert.Equal(t, 96, ctx.VideoPayloadTypeOrigin)
+	assert.Equal(t, base.AVPacketPTAAC, ctx.AudioPayloadType)
+	assert.Equal(t, base.AVPacketPTAVC, ctx.VideoPayloadType)
+	assert.Equal(t, "streamid=1", ctx.AudioAControl)
+	assert.Equal(t, "streamid=0", ctx.VideoAControl)
+	assert.IsNotNil(t, ctx.ASC)
+	assert.Equal(t, nil, ctx.VPS)
+	assert.IsNotNil(t, ctx.SPS)
+	assert.IsNotNil(t, ctx.PPS)
+}
+
+func TestCase2(t *testing.T) {
+	golden := `v=0
+o=- 2252316233 2252316233 IN IP4 0.0.0.0
+s=Media Server
+c=IN IP4 0.0.0.0
+t=0 0
+a=control:*
+a=packetization-supported:DH
+a=rtppayload-supported:DH
+a=range:npt=now-
+m=video 0 RTP/AVP 98
+a=control:trackID=0
+a=framerate:25.000000
+a=rtpmap:98 H265/90000
+a=fmtp:98 profile-id=1;sprop-sps=QgEBAWAAAAMAsAAAAwAAAwBaoAWCAJBY2uSTL5A=;sprop-pps=RAHA8vA8kA==;sprop-vps=QAEMAf//AWAAAAMAsAAAAwAAAwBarAk=
+a=recvonly`
+	golden = strings.ReplaceAll(golden, "\n", "\r\n")
+	ctx, err := sdp.ParseSDP2LogicContext([]byte(golden))
+	assert.Equal(t, nil, err)
+	assert.Equal(t, false, ctx.HasAudio)
+	assert.Equal(t, true, ctx.HasVideo)
+	assert.Equal(t, 90000, ctx.VideoClockRate)
+	assert.Equal(t, 98, ctx.VideoPayloadTypeOrigin)
+	assert.Equal(t, base.AVPacketPTHEVC, ctx.VideoPayloadType)
+	assert.Equal(t, "trackID=0", ctx.VideoAControl)
+	assert.Equal(t, nil, ctx.ASC)
+	assert.IsNotNil(t, ctx.VPS)
+	assert.IsNotNil(t, ctx.SPS)
+	assert.IsNotNil(t, ctx.PPS)
+	nazalog.Debugf("%+v", ctx)
+}
+
+func TestCase3(t *testing.T) {
+	golden := `v=0
+o=- 2252310609 2252310609 IN IP4 0.0.0.0
+s=Media Server
+c=IN IP4 0.0.0.0
+t=0 0
+a=control:*
+a=packetization-supported:DH
+a=rtppayload-supported:DH
+a=range:npt=now-
+m=video 0 RTP/AVP 96
+a=control:trackID=0
+a=framerate:25.000000
+a=rtpmap:96 H264/90000
+a=fmtp:96 packetization-mode=1;profile-level-id=4D002A;sprop-parameter-sets=Z00AKp2oHgCJ+WbgICAoAAAfQAAGGoQgAA==,aO48gAA=
+a=recvonly
+m=audio 0 RTP/AVP 97
+a=control:trackID=1
+a=rtpmap:97 MPEG4-GENERIC/48000
+a=fmtp:97 streamtype=5;profile-level-id=1;mode=AAC-hbr;sizelength=13;indexlength=3;indexdeltalength=3;config=1188
+a=recvonly`
+	golden = strings.ReplaceAll(golden, "\n", "\r\n")
+	ctx, err := sdp.ParseSDP2LogicContext([]byte(golden))
+	assert.Equal(t, nil, err)
+	assert.Equal(t, true, ctx.HasAudio)
+	assert.Equal(t, true, ctx.HasVideo)
+	assert.Equal(t, 48000, ctx.AudioClockRate)
+	assert.Equal(t, 90000, ctx.VideoClockRate)
+	assert.Equal(t, 97, ctx.AudioPayloadTypeOrigin)
+	assert.Equal(t, 96, ctx.VideoPayloadTypeOrigin)
+	assert.Equal(t, base.AVPacketPTAAC, ctx.AudioPayloadType)
+	assert.Equal(t, base.AVPacketPTAVC, ctx.VideoPayloadType)
+	assert.Equal(t, "trackID=1", ctx.AudioAControl)
+	assert.Equal(t, "trackID=0", ctx.VideoAControl)
+	assert.IsNotNil(t, ctx.ASC)
+	assert.Equal(t, nil, ctx.VPS)
+	assert.IsNotNil(t, ctx.SPS)
+	assert.IsNotNil(t, ctx.PPS)
+	nazalog.Debugf("%+v", ctx)
+}
+
+func TestCase4(t *testing.T) {
+	golden := `v=0
+o=- 1109162014219182 0 IN IP4 0.0.0.0
+s=HIK Media Server V3.4.103
+i=HIK Media Server Session Description : standard
+e=NONE
+c=IN IP4 0.0.0.0
+t=0 0
+a=control:*
+b=AS:1034
+a=range:npt=now-
+m=video 0 RTP/AVP 96
+i=Video Media
+a=rtpmap:96 H264/90000
+a=fmtp:96 profile-level-id=4D0014;packetization-mode=0;sprop-parameter-sets=Z2QAIK2EAQwgCGEAQwgCGEAQwgCEO1AoA803AQEBQAAAAwBAAAAMoQ==,aO48sA==
+a=control:trackID=video
+b=AS:1024
+m=audio 0 RTP/AVP 8
+i=Audio Media
+a=rtpmap:8 PCMA/8000
+a=control:trackID=audio
+b=AS:10
+a=Media_header:MEDIAINFO=494D4B48020100000400000111710110401F000000FA000000000000000000000000000000000000;
+a=appversion:1.0`
+	golden = strings.ReplaceAll(golden, "\n", "\r\n")
+	ctx, err := sdp.ParseSDP2LogicContext([]byte(golden))
+	assert.Equal(t, nil, err)
+	assert.Equal(t, true, ctx.HasAudio)
+	assert.Equal(t, true, ctx.HasVideo)
+	assert.Equal(t, 8000, ctx.AudioClockRate)
+	assert.Equal(t, 90000, ctx.VideoClockRate)
+	assert.Equal(t, 8, ctx.AudioPayloadTypeOrigin)
+	assert.Equal(t, 96, ctx.VideoPayloadTypeOrigin)
+	//assert.Equal(t, base.AVPacketPTAAC, ctx.AudioPayloadType)
+	assert.Equal(t, base.AVPacketPTAVC, ctx.VideoPayloadType)
+	assert.Equal(t, "trackID=audio", ctx.AudioAControl)
+	assert.Equal(t, "trackID=video", ctx.VideoAControl)
+	assert.Equal(t, nil, ctx.ASC)
+	assert.Equal(t, nil, ctx.VPS)
+	assert.IsNotNil(t, ctx.SPS)
+	assert.IsNotNil(t, ctx.PPS)
+	nazalog.Debugf("%+v", ctx)
+}
+
+func TestCase5(t *testing.T) {
+	golden := `v=0
+o=- 1001 1 IN IP4 192.168.0.221
+s=VCP IPC Realtime stream
+m=video 0 RTP/AVP 105
+c=IN IP4 192.168.0.221
+a=control:rtsp://192.168.0.221/media/video1/video
+a=rtpmap:105 H264/90000
+a=fmtp:105 profile-level-id=64002a; packetization-mode=1; sprop-parameter-sets=Z2QAKq2EAQwgCGEAQwgCGEAQwgCEO1A8ARPyzcBAQFAAAD6AAAnECEA=,aO4xshs=
+a=recvonly
+m=application 0 RTP/AVP 107
+c=IN IP4 192.168.0.221
+a=control:rtsp://192.168.0.221/media/video1/metadata
+a=rtpmap:107 vnd.onvif.metadata/90000
+a=fmtp:107 DecoderTag=h3c-v3 RTCP=0
+a=recvonly`
+	golden = strings.ReplaceAll(golden, "\n", "\r\n")
+	ctx, err := sdp.ParseSDP2LogicContext([]byte(golden))
+	assert.Equal(t, nil, err)
+	assert.Equal(t, false, ctx.HasAudio)
+	assert.Equal(t, true, ctx.HasVideo)
+	assert.Equal(t, 90000, ctx.VideoClockRate)
+	assert.Equal(t, 105, ctx.VideoPayloadTypeOrigin)
+	assert.Equal(t, base.AVPacketPTAVC, ctx.VideoPayloadType)
+	assert.Equal(t, "rtsp://192.168.0.221/media/video1/video", ctx.VideoAControl)
+	assert.Equal(t, nil, ctx.VPS)
+	assert.IsNotNil(t, ctx.SPS)
+	assert.IsNotNil(t, ctx.PPS)
+	nazalog.Debugf("%+v", ctx)
 }

@@ -74,11 +74,14 @@ type ISessionURLContext interface {
 // | UpdateStat()<all> | √       | √       | √       | √      | √     | √       | - | √        | √        | √       | √        |     |
 // | IsAlive()<all>    | √       | √       | √       | √      | √     | √       | - | √        | √        | √       | √        |     |
 
-// | RunLoop()         | √       | x√      | √       | √      | √     | x√      | - | x        | x        | x       | x        |     |
+// | RunLoop()         | √       | x√      | √       | √      | √     | x&√     | - | x        | x        | x       | x        |     |
 // | Dispose()         | √       | √       | √       | √      | √     | √       | - | √        | √        | √       | √        |     |
 
 // | RemoteAddr()      | √       | x       | √       | √      | x     | x       | - | x        | x        | x       | x        |     |
 // | SingleConn        | √       | x       | √       | √      | √     | √       | - | √        | √        | √       | x        |     |
+//
+// | Opt.PullTimeoutMS | -       | -       | -       | -      | -     | -       | - | -        | x        | √       | √        |     |
+// | Wait()            | -       | -       | -       | -      | -     | -       | - | -        | √        | √       | √        |     |
 //
 // Dispose由外部调用，表示主动关闭正常的session
 // 外部调用Dispose后，不应继续使用该session

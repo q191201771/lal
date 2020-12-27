@@ -9,7 +9,11 @@
 package base
 
 const (
-	// 注意，AVC和HEVC都可能使用96，所以不能直接通过96判断是AVC还是HEVC
+	// 注意，一般情况下，AVC使用96，AAC使用97，HEVC使用98
+	// 但是我还遇到过：
+	// HEVC使用96
+	// AVC使用105
 	RTPPacketTypeAVCOrHEVC = 96
 	RTPPacketTypeAAC       = 97
+	RTPPacketTypeHEVC      = 98
 )

@@ -12,6 +12,7 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"time"
 
 	"github.com/q191201771/lal/pkg/base"
 	"github.com/q191201771/lal/pkg/httpflv"
@@ -31,14 +32,18 @@ func (o *Observer) OnRTPPacket(pkt rtprtcp.RTPPacket) {
 }
 
 func (o *Observer) OnAVConfig(asc, vps, sps, pps []byte) {
-	metadata, vsh, ash, err := remux.AVConfig2FLVTag(asc, vps, sps, pps)
+	metadata, ash, vsh, err := remux.AVConfig2FLVTag(asc, vps, sps, pps)
 	nazalog.Assert(nil, err)
 	err = w.WriteTag(*metadata)
 	nazalog.Assert(nil, err)
-	err = w.WriteTag(*vsh)
-	nazalog.Assert(nil, err)
-	err = w.WriteTag(*ash)
-	nazalog.Assert(nil, err)
+	if ash != nil {
+		err = w.WriteTag(*ash)
+		nazalog.Assert(nil, err)
+	}
+	if vsh != nil {
+		err = w.WriteTag(*vsh)
+		nazalog.Assert(nil, err)
+	}
 }
 
 func (o *Observer) OnAVPacket(pkt base.AVPacket) {
@@ -49,7 +54,11 @@ func (o *Observer) OnAVPacket(pkt base.AVPacket) {
 }
 
 func main() {
-	inURL, outFilename := parseFlag()
+	_ = nazalog.Init(func(option *nazalog.Option) {
+		option.AssertBehavior = nazalog.AssertFatal
+	})
+	inURL, outFilename, overTCP := parseFlag()
+
 	err := w.Open(outFilename)
 	nazalog.Assert(nil, err)
 	defer w.Dispose()
@@ -57,23 +66,38 @@ func main() {
 	nazalog.Assert(nil, err)
 
 	o := &Observer{}
-	s := rtsp.NewPullSession(o, func(option *rtsp.PullSessionOption) {
+	rtspPullSession := rtsp.NewPullSession(o, func(option *rtsp.PullSessionOption) {
 		option.PullTimeoutMS = 5000
+		option.OverTCP = overTCP != 0
 	})
-	err = s.Pull(inURL)
-	nazalog.Error(err)
+
+	go func() {
+		for {
+			rtspPullSession.UpdateStat(1)
+			rtspStat := rtspPullSession.GetStat()
+			nazalog.Debugf("bitrate. rtsp pull=%dkbit/s", rtspStat.Bitrate)
+			time.Sleep(1 * time.Second)
+		}
+	}()
+
+	err = rtspPullSession.Pull(inURL)
+	nazalog.Assert(nil, err)
+	err = <-rtspPullSession.Wait()
+	nazalog.Infof("done. err=%+v", err)
 }
 
-func parseFlag() (inURL string, outFilename string) {
+func parseFlag() (inURL string, outFilename string, overTCP int) {
 	i := flag.String("i", "", "specify pull rtsp url")
 	o := flag.String("o", "", "specify ouput flv file")
+	t := flag.Int("t", 0, "specify interleaved mode(rtp/rtcp over tcp)")
 	flag.Parse()
 	if *i == "" || *o == "" {
 		flag.Usage()
 		_, _ = fmt.Fprintf(os.Stderr, `Example:
-  ./bin/pullrtsp -i rtsp://localhost:5544/live/test110 -o out.flv
+  ./bin/pullrtsp -i rtsp://localhost:5544/live/test110 -o out.flv -t 0
+  ./bin/pullrtsp -i rtsp://localhost:5544/live/test110 -o out.flv -t 1
 `)
 		os.Exit(1)
 	}
-	return *i, *o
+	return *i, *o, *t
 }

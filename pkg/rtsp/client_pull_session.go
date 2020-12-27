@@ -9,9 +9,11 @@
 package rtsp
 
 import (
+	"bufio"
 	"context"
 	"fmt"
 	"net"
+	"strings"
 	"time"
 
 	"github.com/q191201771/lal/pkg/base"
@@ -24,7 +26,8 @@ import (
 )
 
 const (
-	pullReadBufSize = 256
+	pullReadBufSize              = 256
+	writeGetParameterIntervalSec = 10
 )
 
 type PullSessionObserver interface {
@@ -32,11 +35,16 @@ type PullSessionObserver interface {
 }
 
 type PullSessionOption struct {
-	PullTimeoutMS int // 从调用Pull函数，到收到rtsp play response（接收音视频数据的前一步）的超时时间
+	// 从调用Pull函数，到接收音视频数据的前一步，也即收到rtsp play response的超时时间
+	// 如果为0，则没有超时时间
+	PullTimeoutMS int
+
+	OverTCP bool // 是否使用interleaved模式，也即是否通过rtsp command tcp连接传输rtp/rtcp数据
 }
 
 var defaultPullSessionOption = PullSessionOption{
 	PullTimeoutMS: 10000,
+	OverTCP:       false,
 }
 
 type PullSession struct {
@@ -48,9 +56,16 @@ type PullSession struct {
 
 	cseq      int
 	sessionID string
+	channel   int
 
 	rawURL string
 	urlCtx base.URLContext
+
+	waitErrChan chan error
+
+	methodGetParameterSupported bool
+
+	auth Auth
 }
 
 type ModPullSessionOption func(option *PullSessionOption)
@@ -63,8 +78,9 @@ func NewPullSession(observer PullSessionObserver, modOptions ...ModPullSessionOp
 
 	uk := base.GenUniqueKey(base.UKPRTSPPullSession)
 	s := &PullSession{
-		UniqueKey: uk,
-		option:    option,
+		UniqueKey:   uk,
+		option:      option,
+		waitErrChan: make(chan error, 1),
 	}
 	baseInSession := &BaseInSession{
 		UniqueKey: uk,
@@ -81,6 +97,7 @@ func NewPullSession(observer PullSessionObserver, modOptions ...ModPullSessionOp
 	return s
 }
 
+// 如果没有错误发生，阻塞直到接收音视频数据的前一步，也即收到rtsp play response
 func (session *PullSession) Pull(rawURL string) error {
 	var (
 		ctx    context.Context
@@ -95,9 +112,15 @@ func (session *PullSession) Pull(rawURL string) error {
 	return session.pullContext(ctx, rawURL)
 }
 
+// Pull成功后，调用该函数，可阻塞直到拉流结束
+func (session *PullSession) Wait() <-chan error {
+	return session.waitErrChan
+}
+
 func (session *PullSession) Write(channel int, b []byte) error {
 	return nil
 }
+
 func (session *PullSession) Dispose() error {
 	return nil
 }
@@ -105,9 +128,11 @@ func (session *PullSession) Dispose() error {
 func (session *PullSession) AppName() string {
 	return session.urlCtx.PathWithoutLastItem
 }
+
 func (session *PullSession) StreamName() string {
 	return session.urlCtx.LastItemOfPath
 }
+
 func (session *PullSession) RawQuery() string {
 	return session.urlCtx.RawQuery
 }
@@ -166,9 +191,91 @@ func (session *PullSession) pullContext(ctx context.Context, rawURL string) erro
 		}
 	}
 
-	dummy := make([]byte, 1) // 用于接收TCP对端关闭FIN信号
-	_, err := session.CmdConn.Read(dummy)
-	return err
+	go session.runReadLoop()
+	return nil
+}
+
+func (session *PullSession) runReadLoop() {
+	if !session.methodGetParameterSupported {
+		// TCP模式，需要收取数据进行处理
+		if session.option.OverTCP {
+			var r = bufio.NewReader(session.CmdConn)
+			for {
+				isInterleaved, packet, channel, err := readInterleaved(r)
+				if err != nil {
+					session.waitErrChan <- err
+					return
+				}
+				if isInterleaved {
+					session.baseInSession.HandleInterleavedPacket(packet, int(channel))
+				}
+			}
+		}
+
+		// not over tcp
+		// 接收TCP对端关闭FIN信号
+		dummy := make([]byte, 1)
+		_, err := session.CmdConn.Read(dummy)
+		session.waitErrChan <- err
+		return
+	}
+
+	// 对端支持get_parameter，需要定时向对端发送get_parameter进行保活
+
+	var r = bufio.NewReader(session.CmdConn)
+	t := time.NewTicker(writeGetParameterIntervalSec * time.Millisecond)
+	defer t.Stop()
+
+	if session.option.OverTCP {
+		for {
+			select {
+			case <-t.C:
+				session.cseq++
+				req := PackRequestGetParameter(session.urlCtx.RawURLWithoutUserInfo, session.cseq, session.sessionID)
+				if _, err := session.CmdConn.Write([]byte(req)); err != nil {
+					session.waitErrChan <- err
+					return
+				}
+			default:
+				// noop
+			}
+
+			isInterleaved, packet, channel, err := readInterleaved(r)
+			if err != nil {
+				session.waitErrChan <- err
+				return
+			}
+			if isInterleaved {
+				session.baseInSession.HandleInterleavedPacket(packet, int(channel))
+			} else {
+				if _, err := nazahttp.ReadHTTPResponseMessage(r); err != nil {
+					session.waitErrChan <- err
+					return
+				}
+			}
+		}
+	}
+
+	// not over tcp
+	for {
+		select {
+		case <-t.C:
+			session.cseq++
+			req := PackRequestGetParameter(session.urlCtx.RawURLWithoutUserInfo, session.cseq, session.sessionID)
+			if _, err := session.CmdConn.Write([]byte(req)); err != nil {
+				session.waitErrChan <- err
+				return
+			}
+
+			if _, err := nazahttp.ReadHTTPResponseMessage(r); err != nil {
+				session.waitErrChan <- err
+				return
+			}
+		default:
+			// noop
+		}
+
+	}
 }
 
 func (session *PullSession) connect(rawURL string) (err error) {
@@ -195,7 +302,7 @@ func (session *PullSession) connect(rawURL string) (err error) {
 
 func (session *PullSession) writeOptions() error {
 	session.cseq++
-	req := PackRequestOptions(session.rawURL, session.cseq)
+	req := PackRequestOptions(session.urlCtx.RawURLWithoutUserInfo, session.cseq, "")
 	nazalog.Debugf("[%s] > write options.", session.UniqueKey)
 	if _, err := session.CmdConn.Write([]byte(req)); err != nil {
 		return err
@@ -205,12 +312,19 @@ func (session *PullSession) writeOptions() error {
 		return err
 	}
 	nazalog.Debugf("[%s] < read response. %s", session.UniqueKey, ctx.StatusCode)
+
+	session.handleOptionMethods(ctx)
+	if err := session.handleAuth(ctx); err != nil {
+		return err
+	}
+
 	return nil
 }
 
 func (session *PullSession) writeDescribe() error {
 	session.cseq++
-	req := PackRequestDescribe(session.rawURL, session.cseq)
+	auth := session.auth.MakeAuthorization(MethodDescribe, session.urlCtx.RawURLWithoutUserInfo)
+	req := PackRequestDescribe(session.urlCtx.RawURLWithoutUserInfo, session.cseq, auth)
 	nazalog.Debugf("[%s] > write describe.", session.UniqueKey)
 	if _, err := session.CmdConn.Write([]byte(req)); err != nil {
 		return err
@@ -221,39 +335,52 @@ func (session *PullSession) writeDescribe() error {
 	}
 	nazalog.Debugf("[%s] < read response. code=%s, body=%s", session.UniqueKey, ctx.StatusCode, string(ctx.Body))
 
-	sdpCtx, err := sdp.ParseSDP2LogicContext(ctx.Body)
+	sdpLogicCtx, err := sdp.ParseSDP2LogicContext(ctx.Body)
 	if err != nil {
 		return err
 	}
 
-	session.baseInSession.InitWithSDP(ctx.Body, sdpCtx)
+	session.baseInSession.InitWithSDP(ctx.Body, sdpLogicCtx)
 
 	return nil
 }
 
 func (session *PullSession) writeSetup() error {
 	if session.baseInSession.sdpLogicCtx.VideoAControl != "" {
-		if err := session.writeOneSetup(session.baseInSession.sdpLogicCtx.VideoAControl); err != nil {
-			return err
+		if session.option.OverTCP {
+			if err := session.writeOneSetupTCP(session.baseInSession.sdpLogicCtx.VideoAControl); err != nil {
+				return err
+			}
+		} else {
+			if err := session.writeOneSetup(session.baseInSession.sdpLogicCtx.VideoAControl); err != nil {
+				return err
+			}
 		}
 	}
 	if session.baseInSession.sdpLogicCtx.AudioAControl != "" {
-		if err := session.writeOneSetup(session.baseInSession.sdpLogicCtx.AudioAControl); err != nil {
-			return err
+		if session.option.OverTCP {
+			if err := session.writeOneSetupTCP(session.baseInSession.sdpLogicCtx.AudioAControl); err != nil {
+				return err
+			}
+		} else {
+			if err := session.writeOneSetup(session.baseInSession.sdpLogicCtx.AudioAControl); err != nil {
+				return err
+			}
 		}
 	}
 	return nil
 }
 
 func (session *PullSession) writeOneSetup(aControl string) error {
-	setupURI := fmt.Sprintf("%s/%s", session.rawURL, aControl)
+	setupURI := makeSetupURI(session.urlCtx, aControl)
 	rtpC, rtpPort, rtcpC, rtcpPort, err := availUDPConnPool.Acquire2()
 	if err != nil {
 		return err
 	}
 
 	session.cseq++
-	req := PackRequestSetup(setupURI, session.cseq, session.sessionID, int(rtpPort), int(rtcpPort))
+	auth := session.auth.MakeAuthorization(MethodSetup, session.urlCtx.RawURLWithoutUserInfo)
+	req := PackRequestSetup(setupURI, session.cseq, int(rtpPort), int(rtcpPort), session.sessionID, auth)
 	nazalog.Debugf("[%s] > write setup.", session.UniqueKey)
 	if _, err := session.CmdConn.Write([]byte(req)); err != nil {
 		return err
@@ -264,7 +391,7 @@ func (session *PullSession) writeOneSetup(aControl string) error {
 	}
 	nazalog.Debugf("[%s] < read response. code=%s, ctx=%+v", session.UniqueKey, ctx.StatusCode, ctx)
 
-	session.sessionID = ctx.Headers[HeaderFieldSession]
+	session.sessionID = strings.Split(ctx.Headers[HeaderFieldSession], ";")[0]
 
 	srvRTPPort, srvRTCPPort, err := parseServerPort(ctx.Headers[HeaderFieldTransport])
 	if err != nil {
@@ -296,10 +423,76 @@ func (session *PullSession) writeOneSetup(aControl string) error {
 	return nil
 }
 
-func (session *PullSession) writePlay() error {
+func (session *PullSession) writeOneSetupTCP(aControl string) error {
+	setupURI := makeSetupURI(session.urlCtx, aControl)
+	rtpChannel := session.channel
+	rtcpChannel := session.channel + 1
+	session.channel += 2
+
 	session.cseq++
-	req := PackRequestPlay(session.rawURL, session.cseq, session.sessionID)
+	auth := session.auth.MakeAuthorization(MethodSetup, session.urlCtx.RawURLWithoutUserInfo)
+	req := PackRequestSetupTCP(setupURI, session.cseq, rtpChannel, rtcpChannel, session.sessionID, auth)
+	nazalog.Debugf("[%s] > write setup.", session.UniqueKey)
+	if _, err := session.CmdConn.Write([]byte(req)); err != nil {
+		return err
+	}
+	ctx, err := nazahttp.ReadHTTPResponseMessage(session.CmdConn)
+	if err != nil {
+		return err
+	}
+	nazalog.Debugf("[%s] < read response. code=%s, ctx=%+v", session.UniqueKey, ctx.StatusCode, ctx)
+
+	session.sessionID = strings.Split(ctx.Headers[HeaderFieldSession], ";")[0]
+
+	// TODO chef: 这里没有解析回传的channel id了，因为我假定了它和request中的是一致的
+
+	if err := session.baseInSession.SetupWithChannel(setupURI, rtpChannel, rtcpChannel); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (session *PullSession) writePlay() error {
+	session.baseInSession.WriteRTPRTCPDummy()
+
+	session.cseq++
+	auth := session.auth.MakeAuthorization(MethodPlay, session.urlCtx.RawURLWithoutUserInfo)
+	req := PackRequestPlay(session.urlCtx.RawURLWithoutUserInfo, session.cseq, session.sessionID, auth)
 	nazalog.Debugf("[%s] > write play.", session.UniqueKey)
+	if _, err := session.CmdConn.Write([]byte(req)); err != nil {
+		return err
+	}
+	ctx, err := nazahttp.ReadHTTPResponseMessage(session.CmdConn)
+	if err != nil {
+		return err
+	}
+	nazalog.Debugf("[%s] < read response. %s", session.UniqueKey, ctx.StatusCode)
+	return nil
+}
+
+func (session *PullSession) handleOptionMethods(ctx nazahttp.HTTPRespMsgCtx) {
+	methods := ctx.Headers["Public"]
+	if methods == "" {
+		return
+	}
+
+	if strings.Contains(methods, MethodGetParameter) {
+		session.methodGetParameterSupported = true
+	}
+}
+
+func (session *PullSession) handleAuth(ctx nazahttp.HTTPRespMsgCtx) error {
+	if ctx.Headers[HeaderWWWAuthenticate] == "" {
+		return nil
+	}
+
+	session.auth.FeedWWWAuthenticate(ctx.Headers[HeaderWWWAuthenticate], session.urlCtx.Username, session.urlCtx.Password)
+	auth := session.auth.MakeAuthorization(MethodOptions, session.urlCtx.RawURLWithoutUserInfo)
+
+	session.cseq++
+	req := PackRequestOptions(session.urlCtx.RawURLWithoutUserInfo, session.cseq, auth)
+	nazalog.Debugf("[%s] > write options.", session.UniqueKey)
 	if _, err := session.CmdConn.Write([]byte(req)); err != nil {
 		return err
 	}

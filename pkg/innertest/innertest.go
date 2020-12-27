@@ -114,7 +114,7 @@ func InnerTestEntry(t *testing.T) {
 		if err != nil {
 			nazalog.Error(err)
 		}
-		err = <-rtmpPullSession.Done()
+		err = <-rtmpPullSession.Wait()
 		nazalog.Debug(err)
 	}()
 

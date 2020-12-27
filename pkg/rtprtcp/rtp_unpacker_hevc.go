@@ -25,9 +25,17 @@ func calcPositionIfNeededHEVC(pkt *RTPPacket) {
 	outerNALUType := hevc.ParseNALUType(b[0])
 
 	switch outerNALUType {
-	case hevc.NALUTypeSliceIDRNLP:
+	case hevc.NALUTypeVPS:
+		fallthrough
+	case hevc.NALUTypeSPS:
+		fallthrough
+	case hevc.NALUTypePPS:
+		fallthrough
+	case hevc.NALUTypeSEI:
 		fallthrough
 	case hevc.NALUTypeSliceTrailR:
+		fallthrough
+	case hevc.NALUTypeSliceIDRNLP:
 		pkt.positionType = PositionTypeSingle
 		return
 	case NALUTypeHEVCFUA:

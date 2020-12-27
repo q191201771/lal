@@ -9,11 +9,9 @@
 package logic
 
 //var relayPushCheckIntervalMS = 1000
-var relayPushConnectTimeoutMS = 5000
 var relayPushTimeoutMS = 5000
 var relayPushWriteAVTimeoutMS = 5000
 
-var relayPullConnectTimeoutMS = 5000
 var relayPullTimeoutMS = 5000
 var relayPullReadAVTimeoutMS = 5000
 

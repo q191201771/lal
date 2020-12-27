@@ -15,6 +15,8 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/q191201771/lal/pkg/base"
+
 	"github.com/q191201771/lal/pkg/rtprtcp"
 	"github.com/q191201771/naza/pkg/nazalog"
 
@@ -29,25 +31,30 @@ import (
 // - stat
 // - pub和sub存在一些重复代码
 // - sub缺少主动发送sr
-// - queue的策略，当一条流没数据之后
-// - 用context重写其它pull session
+// - pull session回调有observer interface和on func回调两种方式，是否需要统一
 
 var ErrRTSP = errors.New("lal.rtsp: fxxk")
 
 const (
-	MethodOptions  = "OPTIONS"
-	MethodAnnounce = "ANNOUNCE"
-	MethodDescribe = "DESCRIBE"
-	MethodSetup    = "SETUP"
-	MethodRecord   = "RECORD"
-	MethodPlay     = "PLAY"
-	MethodTeardown = "TEARDOWN"
+	MethodOptions      = "OPTIONS"
+	MethodAnnounce     = "ANNOUNCE"
+	MethodDescribe     = "DESCRIBE"
+	MethodSetup        = "SETUP"
+	MethodRecord       = "RECORD"
+	MethodPlay         = "PLAY"
+	MethodTeardown     = "TEARDOWN"
+	MethodGetParameter = "GET_PARAMETER"
 )
 
 const (
-	HeaderFieldCSeq      = "CSeq"
-	HeaderFieldTransport = "Transport"
-	HeaderFieldSession   = "Session"
+	HeaderAccept          = "Accept"
+	HeaderUserAgent       = "User-Agent"
+	HeaderFieldCSeq       = "CSeq"
+	HeaderFieldTransport  = "Transport"
+	HeaderFieldSession    = "Session"
+	HeaderFieldRange      = "Range"
+	HeaderWWWAuthenticate = "WWW-Authenticate"
+	HeaderAuthorization   = "Authorization"
 )
 
 const (
@@ -64,12 +71,23 @@ var (
 	// TODO chef: 参考协议标准，不要使用固定值
 	sessionID = "191201771"
 
-	minServerPort = uint16(8000)
-	maxServerPort = uint16(16000)
+	minServerPort = uint16(30000)
+	maxServerPort = uint16(60000)
 
 	unpackerItemMaxSize = 1024
 
 	serverCommandSessionReadBufSize = 256
+
+	dummyRTPPacket = []byte{
+		0x80, 0x00, 0x00, 0x00,
+		0x00, 0x00, 0x00, 0x00,
+		0x00, 0x00, 0x00, 0x00,
+	}
+
+	dummyRTCPPacket = []byte{
+		0x80, 0xc9, 0x00, 0x01,
+		0x00, 0x00, 0x00, 0x00,
+	}
 )
 
 var availUDPConnPool *nazanet.AvailUDPConnPool
@@ -148,6 +166,25 @@ func parseTransport(setupTransport string, key string) (first, second uint16, er
 	return uint16(iFirst), uint16(iSecond), err
 }
 
+func isSupportType(t base.AVPacketPT) bool {
+	switch t {
+	case base.AVPacketPTAAC:
+		fallthrough
+	case base.AVPacketPTAVC:
+		fallthrough
+	case base.AVPacketPTHEVC:
+		return true
+	}
+	return false
+}
+
+func makeSetupURI(urlCtx base.URLContext, aControl string) string {
+	if strings.HasPrefix(aControl, "rtsp://") {
+		return aControl
+	}
+	return fmt.Sprintf("%s/%s", urlCtx.RawURLWithoutUserInfo, aControl)
+}
+
 func init() {
 	availUDPConnPool = nazanet.NewAvailUDPConnPool(minServerPort, maxServerPort)
 }
@@ -177,9 +214,6 @@ func init() {
 // read http request. method=SETUP, uri=rtsp://localhost:5544/live/test110/streamid=1, headers=map[CSeq:4 Session:191201771 Transport:RTP/AVP/UDP;unicast;client_port=32184-32185;mode=record User-Agent:Lavf57.83.100], body= - server.go:95
 // read http request. method=RECORD, uri=rtsp://localhost:5544/live/test110, headers=map[CSeq:5 Range:npt=0.000- Session:191201771 User-Agent:Lavf57.83.100], body= - server.go:95
 // read http request. method=TEARDOWN, uri=rtsp://localhost:5544/live/test110, headers=map[CSeq:6 Session:191201771 User-Agent:Lavf57.83.100], body= - server.go:95
-
-// read udp packet failed. err=read udp [::]:8002: use of closed network connection - server_pub_session.go:199
-// read udp packet failed. err=read udp [::]:8003: use of closed network connection - server_pub_session.go:199
 // ---------------------------------------------------------------------------------------------------------------------
 
 // ---------------------------------------------------------------------------------------------------------------------
@@ -221,6 +255,11 @@ func init() {
 // ---------------------------------------------------------------------------------------------------------------------
 // SUB(rtp over tcp)
 //
+// read http request. method=OPTIONS, uri=rtsp://localhost:5544/live/test110, headers=map[CSeq:1 User-Agent:Lavf57.83.100], body= - server_command_session.go:136
+// read http request. method=DESCRIBE, uri=rtsp://localhost:5544/live/test110, headers=map[Accept:application/sdp CSeq:2 User-Agent:Lavf57.83.100], body= - server_command_session.go:136
+// read http request. method=SETUP, uri=rtsp://localhost:5544/live/test110/streamid=0, headers=map[CSeq:3 Transport:RTP/AVP/TCP;unicast;interleaved=0-1 User-Agent:Lavf57.83.100], body= - server_command_session.go:136
+// read http request. method=SETUP, uri=rtsp://localhost:5544/live/test110/streamid=1, headers=map[CSeq:4 Session:191201771 Transport:RTP/AVP/TCP;unicast;interleaved=2-3 User-Agent:Lavf57.83.100], body= - server_command_session.go:136
+// read http request. method=PLAY, uri=rtsp://localhost:5544/live/test110, headers=map[CSeq:5 Range:npt=0.000- Session:191201771 User-Agent:Lavf57.83.100], body= - server_command_session.go:136
 // ---------------------------------------------------------------------------------------------------------------------
 
 // 8000 video rtp

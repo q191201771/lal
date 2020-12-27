@@ -848,7 +848,6 @@ func (group *Group) pullIfNeeded() {
 
 	go func() {
 		pullSession := rtmp.NewPullSession(func(option *rtmp.PullSessionOption) {
-			option.ConnectTimeoutMS = relayPullConnectTimeoutMS
 			option.PullTimeoutMS = relayPullTimeoutMS
 			option.ReadAVTimeoutMS = relayPullReadAVTimeoutMS
 		})
@@ -860,7 +859,7 @@ func (group *Group) pullIfNeeded() {
 		}
 		res := group.AddRTMPPullSession(pullSession)
 		if res {
-			err = <-pullSession.Done()
+			err = <-pullSession.Wait()
 			nazalog.Infof("[%s] relay pull done. err=%v", pullSession.UniqueKey(), err)
 			group.DelRTMPPullSession(pullSession)
 		} else {
@@ -901,7 +900,6 @@ func (group *Group) pushIfNeeded() {
 
 		go func(u, u2 string) {
 			pushSession := rtmp.NewPushSession(func(option *rtmp.PushSessionOption) {
-				option.ConnectTimeoutMS = relayPushConnectTimeoutMS
 				option.PushTimeoutMS = relayPushTimeoutMS
 				option.WriteAVTimeoutMS = relayPushWriteAVTimeoutMS
 			})
@@ -912,7 +910,7 @@ func (group *Group) pushIfNeeded() {
 				return
 			}
 			group.AddRTMPPushSession(u, pushSession)
-			err = <-pushSession.Done()
+			err = <-pushSession.Wait()
 			nazalog.Infof("[%s] relay push done. err=%v", pushSession.UniqueKey(), err)
 			group.DelRTMPPushSession(u, pushSession)
 		}(url, urlWithParam)

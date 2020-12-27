@@ -227,8 +227,8 @@ func (s *ServerCommandSession) handleDescribe(requestCtx nazahttp.HTTPReqMsgCtx)
 		return ErrRTSP
 	}
 
-	ctx, _ := sdp.ParseSDP2LogicContext(rawSDP)
-	s.subSession.InitWithSDP(rawSDP, ctx)
+	sdpLogicCtx, _ := sdp.ParseSDP2LogicContext(rawSDP)
+	s.subSession.InitWithSDP(rawSDP, sdpLogicCtx)
 
 	resp := PackResponseDescribe(requestCtx.Headers[HeaderFieldCSeq], string(rawSDP))
 	_, err = s.conn.Write([]byte(resp))

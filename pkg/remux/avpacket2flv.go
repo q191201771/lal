@@ -16,6 +16,7 @@ import (
 	"github.com/q191201771/lal/pkg/httpflv"
 	"github.com/q191201771/lal/pkg/rtmp"
 	"github.com/q191201771/naza/pkg/bele"
+	"github.com/q191201771/naza/pkg/nazalog"
 )
 
 // @param asc 如果为nil，则没有音频
@@ -46,11 +47,14 @@ func AVConfig2FLVTag(asc, vps, sps, pps []byte) (metadata, ash, vsh *httpflv.Tag
 		if isHEVC {
 			videocodecid = int(base.RTMPCodecIDHEVC)
 			var ctx hevc.Context
-			if err = hevc.ParseSPS(sps, &ctx); err != nil {
-				return
+			err = hevc.ParseSPS(sps, &ctx)
+			if err == nil {
+				width = int(ctx.PicWidthInLumaSamples)
+				height = int(ctx.PicHeightInLumaSamples)
+			} else {
+				// TODO chef: 如果解析错误，先忽略，将失败的case收集起来解决
+				nazalog.Warnf("parse sps failed.")
 			}
-			width = int(ctx.PicWidthInLumaSamples)
-			height = int(ctx.PicHeightInLumaSamples)
 			bVsh, err = hevc.BuildSeqHeaderFromVPSSPSPPS(vps, sps, pps)
 			if err != nil {
 				return
@@ -59,11 +63,13 @@ func AVConfig2FLVTag(asc, vps, sps, pps []byte) (metadata, ash, vsh *httpflv.Tag
 			videocodecid = int(base.RTMPCodecIDAVC)
 			var ctx avc.Context
 			ctx, err = avc.ParseSPS(sps)
-			if err != nil {
-				return
+			if err == nil {
+				width = int(ctx.Width)
+				height = int(ctx.Height)
+			} else {
+				// TODO chef: 如果解析错误，先忽略，将失败的case收集起来解决
+				nazalog.Warnf("parse sps failed.")
 			}
-			width = int(ctx.Width)
-			height = int(ctx.Height)
 			bVsh, err = avc.BuildSeqHeaderFromSPSPPS(sps, pps)
 			if err != nil {
 				return

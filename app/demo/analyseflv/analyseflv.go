@@ -121,6 +121,7 @@ func main() {
 				nazalog.Debugf("%+v", buf.String())
 			}
 		case httpflv.TagTypeAudio:
+			nazalog.Debugf("header=%+v, %+v", tag.Header, tag.IsAACSeqHeader())
 			brAudio.Add(len(tag.Raw))
 
 			if tag.IsAACSeqHeader() {

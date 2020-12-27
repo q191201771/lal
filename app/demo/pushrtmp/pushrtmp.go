@@ -131,7 +131,6 @@ func push(tags []httpflv.Tag, urls []string, isRecursive bool) {
 
 	for i := range urls {
 		ps := rtmp.NewPushSession(func(option *rtmp.PushSessionOption) {
-			option.ConnectTimeoutMS = 3000
 			option.PushTimeoutMS = 5000
 			option.WriteAVTimeoutMS = 10000
 		})

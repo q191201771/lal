@@ -62,9 +62,9 @@ func (a *ADTS) InitWithAACAudioSpecificConfig(asc []byte) error {
 	// <1.6.3.3 samplingFrequencyIndex>, <page 35/110>
 	// <1.6.3.4 channelConfiguration>
 	// --------------------------------------------------------
-	// audio object type      [5b] 2=AAC LC
-	// samplingFrequencyIndex [4b] 3=48000 4=44100
-	// channelConfiguration   [4b] 2=left, right front speakers
+	// audio object type      [5b] 1=AAC MAIN  2=AAC LC
+	// samplingFrequencyIndex [4b] 3=48000  4=44100  6=24000  5=32000  11=11025
+	// channelConfiguration   [4b] 1=center front speaker  2=left, right front speakers
 	br := nazabits.NewBitReader(asc)
 	a.audioObjectType, _ = br.ReadBits8(5)
 	a.samplingFrequencyIndex, _ = br.ReadBits8(4)

@@ -73,8 +73,7 @@ func pull(url string, filename string) {
 	}
 
 	session := rtmp.NewPullSession(func(option *rtmp.PullSessionOption) {
-		option.ConnectTimeoutMS = 3000
-		option.PullTimeoutMS = 3000
+		option.PullTimeoutMS = 30000
 		option.ReadAVTimeoutMS = 10000
 	})
 
@@ -89,7 +88,7 @@ func pull(url string, filename string) {
 			}
 		})
 	nazalog.Assert(nil, err)
-	err = <-session.Done()
+	err = <-session.Wait()
 	nazalog.Debug(err)
 }
 

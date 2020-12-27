@@ -19,15 +19,16 @@ type PullSession struct {
 }
 
 type PullSessionOption struct {
-	ConnectTimeoutMS int
-	PullTimeoutMS    int
-	ReadAVTimeoutMS  int
+	// 从调用Pull函数，到接收音视频数据的前一步，也即收到服务端返回的rtmp play对应结果的信令的超时时间
+	// 如果为0，则没有超时时间
+	PullTimeoutMS int
+
+	ReadAVTimeoutMS int
 }
 
 var defaultPullSessionOption = PullSessionOption{
-	ConnectTimeoutMS: 0,
-	PullTimeoutMS:    0,
-	ReadAVTimeoutMS:  0,
+	PullTimeoutMS:   0,
+	ReadAVTimeoutMS: 0,
 }
 
 type ModPullSessionOption func(option *PullSessionOption)
@@ -40,24 +41,23 @@ func NewPullSession(modOptions ...ModPullSessionOption) *PullSession {
 
 	return &PullSession{
 		core: NewClientSession(CSTPullSession, func(option *ClientSessionOption) {
-			option.ConnectTimeoutMS = opt.ConnectTimeoutMS
 			option.DoTimeoutMS = opt.PullTimeoutMS
 			option.ReadAVTimeoutMS = opt.ReadAVTimeoutMS
 		}),
 	}
 }
 
-// 建立rtmp play连接
-// 阻塞直到收到服务端返回的rtmp publish对应结果的信令，或发生错误
+// 如果没有发生错误，阻塞直到到接收音视频数据的前一步，也即收到服务端返回的rtmp play对应结果的信令
 //
 // @param onReadRTMPAVMsg: 注意，回调结束后，内存块会被PullSession重复使用
 func (s *PullSession) Pull(rawURL string, onReadRTMPAVMsg OnReadRTMPAVMsg) error {
 	s.core.onReadRTMPAVMsg = onReadRTMPAVMsg
-	return s.core.DoWithTimeout(rawURL)
+	return s.core.Do(rawURL)
 }
 
-func (s *PullSession) Done() <-chan error {
-	return s.core.Done()
+// Pull成功后，调用该函数，可阻塞直到拉流结束
+func (s *PullSession) Wait() <-chan error {
+	return s.core.Wait()
 }
 
 func (s *PullSession) Dispose() {

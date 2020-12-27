@@ -33,14 +33,18 @@ func (o *Observer) OnRTPPacket(pkt rtprtcp.RTPPacket) {
 }
 
 func (o *Observer) OnAVConfig(asc, vps, sps, pps []byte) {
-	metadata, vsh, ash, err := remux.AVConfig2RTMPMsg(asc, vps, sps, pps)
+	metadata, ash, vsh, err := remux.AVConfig2RTMPMsg(asc, vps, sps, pps)
 	nazalog.Assert(nil, err)
 	err = rtmpPushSession.AsyncWrite(rtmp.Message2Chunks(metadata.Payload, &metadata.Header))
 	nazalog.Assert(nil, err)
-	err = rtmpPushSession.AsyncWrite(rtmp.Message2Chunks(vsh.Payload, &vsh.Header))
-	nazalog.Assert(nil, err)
-	err = rtmpPushSession.AsyncWrite(rtmp.Message2Chunks(ash.Payload, &ash.Header))
-	nazalog.Assert(nil, err)
+	if ash != nil {
+		err = rtmpPushSession.AsyncWrite(rtmp.Message2Chunks(ash.Payload, &ash.Header))
+		nazalog.Assert(nil, err)
+	}
+	if vsh != nil {
+		err = rtmpPushSession.AsyncWrite(rtmp.Message2Chunks(vsh.Payload, &vsh.Header))
+		nazalog.Assert(nil, err)
+	}
 }
 
 func (o *Observer) OnAVPacket(pkt base.AVPacket) {
@@ -55,10 +59,9 @@ func main() {
 		option.AssertBehavior = nazalog.AssertFatal
 	})
 
-	inURL, outURL := parseFlag()
+	inURL, outURL, overTCP := parseFlag()
 
 	rtmpPushSession = rtmp.NewPushSession(func(option *rtmp.PushSessionOption) {
-		option.ConnectTimeoutMS = 5000
 		option.PushTimeoutMS = 5000
 		option.WriteAVTimeoutMS = 5000
 	})
@@ -67,13 +70,15 @@ func main() {
 	nazalog.Assert(nil, err)
 
 	go func() {
-		err := <-rtmpPushSession.Done()
-		nazalog.Assert(nil, err)
+		err := <-rtmpPushSession.Wait()
+		nazalog.Infof("push rtmp done. err=%+v", err)
+		os.Exit(1)
 	}()
 
 	o := &Observer{}
 	rtspPullSession := rtsp.NewPullSession(o, func(option *rtsp.PullSessionOption) {
 		option.PullTimeoutMS = 5000
+		option.OverTCP = overTCP != 0
 	})
 
 	go func() {
@@ -89,18 +94,22 @@ func main() {
 
 	err = rtspPullSession.Pull(inURL)
 	nazalog.Assert(nil, err)
+	err = <-rtspPullSession.Wait()
+	nazalog.Infof("pull rtsp done. err=%+v", err)
 }
 
-func parseFlag() (inURL string, outFilename string) {
+func parseFlag() (inURL string, outFilename string, overTCP int) {
 	i := flag.String("i", "", "specify pull rtsp url")
 	o := flag.String("o", "", "specify push rtmp url")
+	t := flag.Int("t", 0, "specify interleaved mode(rtp/rtcp over tcp)")
 	flag.Parse()
 	if *i == "" || *o == "" {
 		flag.Usage()
 		_, _ = fmt.Fprintf(os.Stderr, `Example:
-  ./bin/pullrtsp -i rtsp://localhost:5544/live/test110 -o rtmp://localhost:19350/live/test220
+  ./bin/pullrtsp -i rtsp://localhost:5544/live/test110 -o rtmp://localhost:19350/live/test220 -t 0
+  ./bin/pullrtsp -i rtsp://localhost:5544/live/test110 -o rtmp://localhost:19350/live/test220 -t 1
 `)
 		os.Exit(1)
 	}
-	return *i, *o
+	return *i, *o, *t
 }

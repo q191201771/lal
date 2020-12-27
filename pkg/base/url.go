@@ -19,6 +19,8 @@ import (
 
 // 见单元测试
 
+// TODO chef: 考虑部分内容移入naza中
+
 var ErrURL = errors.New("lal.url: fxxk")
 
 const (
@@ -37,6 +39,8 @@ type URLPathContext struct {
 
 type URLContext struct {
 	Scheme       string
+	Username     string
+	Password     string
 	StdHost      string // host or host:port
 	HostWithPort string
 	Host         string
@@ -48,6 +52,8 @@ type URLContext struct {
 	PathWithoutLastItem string // 注意，没有前面的'/'，也没有后面的'/'
 	LastItemOfPath      string // 注意，没有前面的'/'
 	RawQuery            string
+
+	RawURLWithoutUserInfo string
 }
 
 func ParseURLPath(path string) (ctx URLPathContext, err error) {
@@ -69,6 +75,8 @@ func ParseURL(rawURL string, defaultPort int) (ctx URLContext, err error) {
 
 	ctx.Scheme = stdURL.Scheme
 	ctx.StdHost = stdURL.Host
+	ctx.Username = stdURL.User.Username()
+	ctx.Password, _ = stdURL.User.Password()
 
 	h, p, err := net.SplitHostPort(stdURL.Host)
 	if err != nil {
@@ -102,6 +110,8 @@ func ParseURL(rawURL string, defaultPort int) (ctx URLContext, err error) {
 	ctx.PathWithoutLastItem = pathCtx.PathWithoutLastItem
 	ctx.LastItemOfPath = pathCtx.LastItemOfPath
 	ctx.RawQuery = pathCtx.RawQuery
+
+	ctx.RawURLWithoutUserInfo = fmt.Sprintf("%s://%s%s", ctx.Scheme, ctx.StdHost, ctx.PathWithRawQuery)
 	return ctx, nil
 }
 

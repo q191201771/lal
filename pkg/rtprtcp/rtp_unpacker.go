@@ -111,18 +111,14 @@ func (r *RTPUnpacker) isStale(seq uint16) bool {
 
 // 计算rtp包处于帧中的位置
 func (r *RTPUnpacker) calcPositionIfNeeded(pkt *RTPPacket) {
-	switch pkt.Header.PacketType {
-	case base.RTPPacketTypeAVCOrHEVC:
-		switch r.payloadType {
-		case base.AVPacketPTAVC:
-			calcPositionIfNeededAVC(pkt)
-		case base.AVPacketPTHEVC:
-			calcPositionIfNeededHEVC(pkt)
-		default:
-			// can't reach here
-		}
-	case base.RTPPacketTypeAAC:
+	switch r.payloadType {
+	case base.AVPacketPTAVC:
+		calcPositionIfNeededAVC(pkt)
+	case base.AVPacketPTHEVC:
+		calcPositionIfNeededHEVC(pkt)
+	case base.AVPacketPTAAC:
 		// noop
+		break
 	default:
 		// can't reach here
 	}

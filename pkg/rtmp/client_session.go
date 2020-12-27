@@ -9,6 +9,7 @@
 package rtmp
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"net"
@@ -56,14 +57,12 @@ const (
 
 type ClientSessionOption struct {
 	// 单位毫秒，如果为0，则没有超时
-	ConnectTimeoutMS int // 建立连接超时
 	DoTimeoutMS      int // 从发起连接（包含了建立连接的时间）到收到publish或play信令结果的超时
 	ReadAVTimeoutMS  int // 读取音视频数据的超时
 	WriteAVTimeoutMS int // 发送音视频数据的超时
 }
 
 var defaultClientSessOption = ClientSessionOption{
-	ConnectTimeoutMS: 0,
 	DoTimeoutMS:      0,
 	ReadAVTimeoutMS:  0,
 	WriteAVTimeoutMS: 0,
@@ -103,7 +102,23 @@ func NewClientSession(t ClientSessionType, modOptions ...ModClientSessionOption)
 	return s
 }
 
-func (s *ClientSession) Done() <-chan error {
+// 阻塞直到收到服务端返回的 publish / play 对应结果的信令或者发生错误
+func (s *ClientSession) Do(rawURL string) error {
+	var (
+		ctx    context.Context
+		cancel context.CancelFunc
+	)
+	if s.option.DoTimeoutMS == 0 {
+		ctx, cancel = context.WithCancel(context.Background())
+	} else {
+		ctx, cancel = context.WithTimeout(context.Background(), time.Duration(s.option.DoTimeoutMS)*time.Millisecond)
+	}
+	defer cancel()
+	return s.doContext(ctx, rawURL)
+}
+
+// Do成功后，调用该函数，可阻塞直到推流或拉流结束
+func (s *ClientSession) Wait() <-chan error {
 	return s.conn.Done()
 }
 
@@ -169,62 +184,45 @@ func (s *ClientSession) IsAlive() (readAlive, writeAlive bool) {
 	return
 }
 
-// 阻塞直到收到服务端返回的 publish / play 对应结果的信令或者发生错误
-func (s *ClientSession) DoWithTimeout(rawURL string) error {
-	if s.option.DoTimeoutMS == 0 {
-		err := <-s.do(rawURL)
-		return err
-	}
-	t := time.NewTimer(time.Duration(s.option.DoTimeoutMS) * time.Millisecond)
-	defer t.Stop()
-	select {
-	// TODO chef: 这种写法执行不到超时
-	case err := <-s.do(rawURL):
-		return err
-	case <-t.C:
-		return ErrClientSessionTimeout
-	}
-}
+func (s *ClientSession) doContext(ctx context.Context, rawURL string) error {
+	errChan := make(chan error, 1)
 
-func (s *ClientSession) do(rawURL string) <-chan error {
-	ch := make(chan error, 1)
-	if err := s.parseURL(rawURL); err != nil {
-		ch <- err
-		return ch
-	}
-	if err := s.tcpConnect(); err != nil {
-		ch <- err
-		return ch
-	}
+	go func() {
+		if err := s.parseURL(rawURL); err != nil {
+			errChan <- err
+			return
+		}
+		if err := s.tcpConnect(); err != nil {
+			errChan <- err
+			return
+		}
 
-	if err := s.handshake(); err != nil {
-		ch <- err
-		return ch
-	}
+		if err := s.handshake(); err != nil {
+			errChan <- err
+			return
+		}
 
-	log.Infof("[%s] > W SetChunkSize %d.", s.UniqueKey, LocalChunkSize)
-	if err := s.packer.writeChunkSize(s.conn, LocalChunkSize); err != nil {
-		ch <- err
-		return ch
-	}
+		log.Infof("[%s] > W SetChunkSize %d.", s.UniqueKey, LocalChunkSize)
+		if err := s.packer.writeChunkSize(s.conn, LocalChunkSize); err != nil {
+			errChan <- err
+			return
+		}
 
-	log.Infof("[%s] > W connect('%s').", s.UniqueKey, s.appName())
-	if err := s.packer.writeConnect(s.conn, s.appName(), s.tcURL(), s.t == CSTPushSession); err != nil {
-		ch <- err
-		return ch
-	}
+		log.Infof("[%s] > W connect('%s').", s.UniqueKey, s.appName())
+		if err := s.packer.writeConnect(s.conn, s.appName(), s.tcURL(), s.t == CSTPushSession); err != nil {
+			errChan <- err
+			return
+		}
 
-	go s.runReadLoop()
+		s.runReadLoop()
+	}()
 
 	select {
+	case <-ctx.Done():
+		return ctx.Err()
 	case <-s.doResultChan:
-		ch <- nil
-		break
-	case err := <-s.conn.Done():
-		ch <- err
-		break
+		return nil
 	}
-	return ch
 }
 
 func (s *ClientSession) parseURL(rawURL string) (err error) {
@@ -256,7 +254,7 @@ func (s *ClientSession) tcpConnect() error {
 	s.stat.RemoteAddr = s.urlCtx.HostWithPort
 
 	var conn net.Conn
-	if conn, err = net.DialTimeout("tcp", s.urlCtx.HostWithPort, time.Duration(s.option.ConnectTimeoutMS)*time.Millisecond); err != nil {
+	if conn, err = net.Dial("tcp", s.urlCtx.HostWithPort); err != nil {
 		return err
 	}
 
@@ -286,6 +284,7 @@ func (s *ClientSession) handshake() error {
 }
 
 func (s *ClientSession) runReadLoop() {
+	// TODO chef: 这里是否应该主动关闭conn，考虑对端发送非法协议数据，增加一个对应的测试看看
 	_ = s.chunkComposer.RunLoop(s.conn, s.doMsg)
 }
 

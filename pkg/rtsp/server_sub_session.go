@@ -178,14 +178,14 @@ func (s *SubSession) WriteRTPPacket(packet rtprtcp.RTPPacket) {
 	atomic.AddUint64(&s.currConnStat.WroteBytesSum, uint64(len(packet.Raw)))
 
 	switch packet.Header.PacketType {
-	case base.RTPPacketTypeAVCOrHEVC:
+	case uint8(s.sdpLogicCtx.VideoPayloadTypeOrigin):
 		if s.videoRTPConn != nil {
 			_ = s.videoRTPConn.Write(packet.Raw)
 		}
 		if s.videoRTPChannel != -1 {
 			_ = s.cmdSession.Write(s.videoRTPChannel, packet.Raw)
 		}
-	case base.RTPPacketTypeAAC:
+	case uint8(s.sdpLogicCtx.AudioPayloadTypeOrigin):
 		if s.audioRTPConn != nil {
 			_ = s.audioRTPConn.Write(packet.Raw)
 		}

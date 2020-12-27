@@ -22,26 +22,41 @@ import (
 var ErrSDP = errors.New("lal.sdp: fxxk")
 
 const (
-	ARTPMapEncodingName = "H265"
+	ARTPMapEncodingNameH265 = "H265"
+	ARTPMapEncodingNameH264 = "H264"
+	ARTPMapEncodingNameAAC  = "MPEG4-GENERIC"
 )
 
 type LogicContext struct {
-	AudioClockRate   int
-	VideoClockRate   int
-	AudioPayloadType base.AVPacketPT
-	VideoPayloadType base.AVPacketPT
-	AudioAControl    string
-	VideoAControl    string
-	ASC              []byte
-	VPS              []byte
-	SPS              []byte
-	PPS              []byte
+	HasAudio               bool
+	HasVideo               bool
+	AudioClockRate         int
+	VideoClockRate         int
+	AudioPayloadTypeOrigin int
+	VideoPayloadTypeOrigin int
+	AudioPayloadType       base.AVPacketPT
+	VideoPayloadType       base.AVPacketPT
+	AudioAControl          string
+	VideoAControl          string
+	ASC                    []byte
+	VPS                    []byte
+	SPS                    []byte
+	PPS                    []byte
+}
+
+type MediaDesc struct {
+	M        M
+	ARTPMap  ARTPMap
+	AFmtBase AFmtPBase
+	AControl AControl
 }
 
 type RawContext struct {
-	ARTPMapList   []ARTPMap
-	AFmtPBaseList []AFmtPBase
-	AControlList  []AControl
+	MediaDescList []MediaDesc
+}
+
+type M struct {
+	Media string
 }
 
 type ARTPMap struct {
@@ -68,47 +83,45 @@ func ParseSDP2LogicContext(b []byte) (LogicContext, error) {
 		return ret, err
 	}
 
-	for i, item := range c.ARTPMapList {
-		switch item.PayloadType {
-		case base.RTPPacketTypeAVCOrHEVC:
-			ret.VideoClockRate = item.ClockRate
-			if item.EncodingName == ARTPMapEncodingName {
-				ret.VideoPayloadType = base.AVPacketPTHEVC
-			} else {
-				ret.VideoPayloadType = base.AVPacketPTAVC
-			}
-			if i < len(c.AControlList) {
-				ret.VideoAControl = c.AControlList[i].Value
-			}
-		case base.RTPPacketTypeAAC:
-			ret.AudioClockRate = item.ClockRate
-			ret.AudioPayloadType = base.AVPacketPTAAC
-			if i < len(c.AControlList) {
-				ret.AudioAControl = c.AControlList[i].Value
-			}
-		default:
-			return ret, ErrSDP
-		}
-	}
+	for _, md := range c.MediaDescList {
+		switch md.M.Media {
+		case "audio":
+			ret.HasAudio = true
+			ret.AudioClockRate = md.ARTPMap.ClockRate
+			ret.AudioAControl = md.AControl.Value
 
-	for _, item := range c.AFmtPBaseList {
-		switch item.Format {
-		case base.RTPPacketTypeAVCOrHEVC:
-			if ret.VideoPayloadType == base.AVPacketPTHEVC {
-				ret.VPS, ret.SPS, ret.PPS, err = ParseVPSSPSPPS(item)
+			ret.AudioPayloadTypeOrigin = md.ARTPMap.PayloadType
+			if md.ARTPMap.EncodingName == ARTPMapEncodingNameAAC {
+				ret.AudioPayloadType = base.AVPacketPTAAC
+				ret.ASC, err = ParseASC(md.AFmtBase)
+				if err != nil {
+					return ret, err
+				}
 			} else {
-				ret.SPS, ret.PPS, err = ParseSPSPPS(item)
+				ret.AudioPayloadType = base.AVPacketPTUnknown
 			}
-			if err != nil {
-				return ret, err
+		case "video":
+			ret.HasVideo = true
+			ret.VideoClockRate = md.ARTPMap.ClockRate
+			ret.VideoAControl = md.AControl.Value
+
+			ret.VideoPayloadTypeOrigin = md.ARTPMap.PayloadType
+			switch md.ARTPMap.EncodingName {
+			case ARTPMapEncodingNameH264:
+				ret.VideoPayloadType = base.AVPacketPTAVC
+				ret.SPS, ret.PPS, err = ParseSPSPPS(md.AFmtBase)
+				if err != nil {
+					return ret, err
+				}
+			case ARTPMapEncodingNameH265:
+				ret.VideoPayloadType = base.AVPacketPTHEVC
+				ret.VPS, ret.SPS, ret.PPS, err = ParseVPSSPSPPS(md.AFmtBase)
+				if err != nil {
+					return ret, err
+				}
+			default:
+				ret.VideoPayloadType = base.AVPacketPTUnknown
 			}
-		case base.RTPPacketTypeAAC:
-			ret.ASC, err = ParseASC(item)
-			if err != nil {
-				return ret, err
-			}
-		default:
-			return ret, ErrSDP
 		}
 	}
 
@@ -117,35 +130,72 @@ func ParseSDP2LogicContext(b []byte) (LogicContext, error) {
 
 // 例子见单元测试
 func ParseSDP2RawContext(b []byte) (RawContext, error) {
-	var sdpCtx RawContext
+	var (
+		sdpCtx RawContext
+		md     *MediaDesc
+	)
 
 	s := string(b)
 	lines := strings.Split(s, "\r\n")
 	for _, line := range lines {
+		if strings.HasPrefix(line, "m=") {
+			m, err := ParseM(line)
+			if err != nil {
+				return sdpCtx, err
+			}
+			if md != nil {
+				sdpCtx.MediaDescList = append(sdpCtx.MediaDescList, *md)
+			}
+			md = &MediaDesc{
+				M: m,
+			}
+		}
 		if strings.HasPrefix(line, "a=rtpmap") {
 			aRTPMap, err := ParseARTPMap(line)
 			if err != nil {
 				return sdpCtx, err
 			}
-			sdpCtx.ARTPMapList = append(sdpCtx.ARTPMapList, aRTPMap)
+			if md == nil {
+				continue
+			}
+			md.ARTPMap = aRTPMap
 		}
 		if strings.HasPrefix(line, "a=fmtp") {
 			aFmtPBase, err := ParseAFmtPBase(line)
 			if err != nil {
 				return sdpCtx, err
 			}
-			sdpCtx.AFmtPBaseList = append(sdpCtx.AFmtPBaseList, aFmtPBase)
+			if md == nil {
+				continue
+			}
+			md.AFmtBase = aFmtPBase
 		}
 		if strings.HasPrefix(line, "a=control") {
 			aControl, err := ParseAControl(line)
 			if err != nil {
 				return sdpCtx, err
 			}
-			sdpCtx.AControlList = append(sdpCtx.AControlList, aControl)
+			if md == nil {
+				continue
+			}
+			md.AControl = aControl
 		}
+	}
+	if md != nil {
+		sdpCtx.MediaDescList = append(sdpCtx.MediaDescList, *md)
 	}
 
 	return sdpCtx, nil
+}
+
+func ParseM(s string) (ret M, err error) {
+	ss := strings.TrimPrefix(s, "m=")
+	items := strings.Split(ss, " ")
+	if len(items) < 1 {
+		return ret, ErrSDP
+	}
+	ret.Media = items[0]
+	return
 }
 
 // 例子见单元测试
@@ -262,10 +312,6 @@ func ParseASC(a AFmtPBase) ([]byte, error) {
 }
 
 func ParseVPSSPSPPS(a AFmtPBase) (vps, sps, pps []byte, err error) {
-	if a.Format != base.RTPPacketTypeAVCOrHEVC {
-		return nil, nil, nil, ErrSDP
-	}
-
 	v, ok := a.Parameters["sprop-vps"]
 	if !ok {
 		return nil, nil, nil, ErrSDP
@@ -296,10 +342,6 @@ func ParseVPSSPSPPS(a AFmtPBase) (vps, sps, pps []byte, err error) {
 // 解析AVC/H264的sps，pps
 // 例子见单元测试
 func ParseSPSPPS(a AFmtPBase) (sps, pps []byte, err error) {
-	if a.Format != base.RTPPacketTypeAVCOrHEVC {
-		return nil, nil, ErrSDP
-	}
-
 	v, ok := a.Parameters["sprop-parameter-sets"]
 	if !ok {
 		return nil, nil, ErrSDP

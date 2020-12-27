@@ -9,6 +9,7 @@
 package httpflv
 
 import (
+	"context"
 	"fmt"
 	"net"
 	"time"
@@ -22,13 +23,16 @@ import (
 )
 
 type PullSessionOption struct {
-	ConnectTimeoutMS int // TCP连接时超时，单位毫秒，如果为0，则不设置超时
-	ReadTimeoutMS    int // 接收数据超时，单位毫秒，如果为0，则不设置超时
+	// 从调用Pull函数，到接收音视频数据的前一步，也即发送完HTTP请求的超时时间
+	// 如果为0，则没有超时时间
+	PullTimeoutMS int
+
+	ReadTimeoutMS int // 接收数据超时，单位毫秒，如果为0，则不设置超时
 }
 
 var defaultPullSessionOption = PullSessionOption{
-	ConnectTimeoutMS: 0,
-	ReadTimeoutMS:    0,
+	PullTimeoutMS: 10000,
+	ReadTimeoutMS: 0,
 }
 
 type PullSession struct {
@@ -41,6 +45,8 @@ type PullSession struct {
 	stat         base.StatSession
 
 	urlCtx base.URLContext
+
+	waitErrChan chan error
 }
 
 type ModPullSessionOption func(option *PullSessionOption)
@@ -53,8 +59,9 @@ func NewPullSession(modOptions ...ModPullSessionOption) *PullSession {
 
 	uk := base.GenUniqueKey(base.UKPFLVPullSession)
 	s := &PullSession{
-		option:    option,
-		UniqueKey: uk,
+		UniqueKey:   uk,
+		option:      option,
+		waitErrChan: make(chan error, 1),
 	}
 	nazalog.Infof("[%s] lifecycle new httpflv PullSession. session=%p", uk, s)
 	return s
@@ -62,22 +69,59 @@ func NewPullSession(modOptions ...ModPullSessionOption) *PullSession {
 
 type OnReadFLVTag func(tag Tag)
 
-// 阻塞直到拉流失败
+// 如果没有错误发生，阻塞直到接收音视频数据的前一步，也即发送完HTTP请求
 //
 // @param rawURL 支持如下两种格式。（当然，关键点是对端支持）
-// http://{domain}/{app_name}/{stream_name}.flv
-// http://{ip}/{domain}/{app_name}/{stream_name}.flv
+//               http://{domain}/{app_name}/{stream_name}.flv
+//               http://{ip}/{domain}/{app_name}/{stream_name}.flv
 //
 // @param onReadFLVTag 读取到 flv tag 数据时回调。回调结束后，PullSession 不会再使用这块 <tag> 数据。
 func (session *PullSession) Pull(rawURL string, onReadFLVTag OnReadFLVTag) error {
-	if err := session.connect(rawURL); err != nil {
-		return err
+	var (
+		ctx    context.Context
+		cancel context.CancelFunc
+	)
+	if session.option.PullTimeoutMS == 0 {
+		ctx, cancel = context.WithCancel(context.Background())
+	} else {
+		ctx, cancel = context.WithTimeout(context.Background(), time.Duration(session.option.PullTimeoutMS)*time.Millisecond)
 	}
-	if err := session.writeHTTPRequest(); err != nil {
-		return err
+	defer cancel()
+	return session.pullContext(ctx, rawURL, onReadFLVTag)
+}
+
+// Pull成功后，调用该函数，可阻塞直到拉流结束
+func (session *PullSession) Wait() <-chan error {
+	return session.waitErrChan
+}
+
+func (session *PullSession) pullContext(ctx context.Context, rawURL string, onReadFLVTag OnReadFLVTag) error {
+	errChan := make(chan error, 1)
+
+	go func() {
+		if err := session.connect(rawURL); err != nil {
+			errChan <- err
+			return
+		}
+		if err := session.writeHTTPRequest(); err != nil {
+			errChan <- err
+			return
+		}
+
+		errChan <- nil
+	}()
+
+	select {
+	case <-ctx.Done():
+		return ctx.Err()
+	case err := <-errChan:
+		if err != nil {
+			return err
+		}
 	}
 
-	return session.runReadLoop(onReadFLVTag)
+	go session.runReadLoop(onReadFLVTag)
+	return nil
 }
 
 func (session *PullSession) Dispose() {
@@ -137,7 +181,7 @@ func (session *PullSession) connect(rawURL string) (err error) {
 	nazalog.Debugf("[%s] > tcp connect.", session.UniqueKey)
 
 	// # 建立连接
-	conn, err := net.DialTimeout("tcp", session.urlCtx.HostWithPort, time.Duration(session.option.ConnectTimeoutMS)*time.Millisecond)
+	conn, err := net.Dial("tcp", session.urlCtx.HostWithPort)
 	if err != nil {
 		return err
 	}
@@ -188,19 +232,22 @@ func (session *PullSession) readTag() (Tag, error) {
 	return readTag(session.conn)
 }
 
-func (session *PullSession) runReadLoop(onReadFLVTag OnReadFLVTag) error {
+func (session *PullSession) runReadLoop(onReadFLVTag OnReadFLVTag) {
 	if _, _, err := session.readHTTPRespHeader(); err != nil {
-		return err
+		session.waitErrChan <- err
+		return
 	}
 
 	if _, err := session.readFLVHeader(); err != nil {
-		return err
+		session.waitErrChan <- err
+		return
 	}
 
 	for {
 		tag, err := session.readTag()
 		if err != nil {
-			return err
+			session.waitErrChan <- err
+			return
 		}
 		onReadFLVTag(tag)
 	}

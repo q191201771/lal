@@ -65,7 +65,7 @@ func (s *PubSession) SetupWithConn(uri string, rtpConn, rtcpConn *nazanet.UDPCon
 }
 
 func (s *PubSession) SetupWithChannel(uri string, rtpChannel, rtcpChannel int, remoteAddr string) error {
-	return s.baseInSession.SetupWithChannel(uri, rtpChannel, rtcpChannel, remoteAddr)
+	return s.baseInSession.SetupWithChannel(uri, rtpChannel, rtcpChannel)
 }
 
 func (s *PubSession) Dispose() {
