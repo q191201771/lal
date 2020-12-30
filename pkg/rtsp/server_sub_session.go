@@ -76,10 +76,10 @@ func (s *SubSession) InitWithSDP(rawSDP []byte, sdpLogicCtx sdp.LogicContext) {
 }
 
 func (s *SubSession) SetupWithConn(uri string, rtpConn, rtcpConn *nazanet.UDPConnection) error {
-	if strings.HasSuffix(uri, s.sdpLogicCtx.AudioAControl) {
+	if s.sdpLogicCtx.AudioAControl != "" && strings.HasSuffix(uri, s.sdpLogicCtx.AudioAControl) {
 		s.audioRTPConn = rtpConn
 		s.audioRTCPConn = rtcpConn
-	} else if strings.HasSuffix(uri, s.sdpLogicCtx.VideoAControl) {
+	} else if s.sdpLogicCtx.VideoAControl != "" && strings.HasSuffix(uri, s.sdpLogicCtx.VideoAControl) {
 		s.videoRTPConn = rtpConn
 		s.videoRTCPConn = rtcpConn
 	} else {
@@ -95,12 +95,11 @@ func (s *SubSession) SetupWithConn(uri string, rtpConn, rtcpConn *nazanet.UDPCon
 func (s *SubSession) SetupWithChannel(uri string, rtpChannel, rtcpChannel int, remoteAddr string) error {
 	s.stat.RemoteAddr = remoteAddr
 
-	if strings.HasSuffix(uri, s.sdpLogicCtx.AudioAControl) {
+	if s.sdpLogicCtx.AudioAControl != "" && strings.HasSuffix(uri, s.sdpLogicCtx.AudioAControl) {
 		s.audioRTPChannel = rtpChannel
 		s.audioRTCPChannel = rtcpChannel
 		return nil
-	}
-	if strings.HasSuffix(uri, s.sdpLogicCtx.VideoAControl) {
+	} else if s.sdpLogicCtx.VideoAControl != "" && strings.HasSuffix(uri, s.sdpLogicCtx.VideoAControl) {
 		s.videoRTPChannel = rtpChannel
 		s.videoRTCPChannel = rtcpChannel
 		return nil
