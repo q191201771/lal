@@ -104,20 +104,34 @@ func PackRequestOptions(uri string, cseq int, auth string) string {
 	if auth != "" {
 		headers[HeaderAuthorization] = auth
 	}
-	return packRequest(MethodOptions, uri, headers)
+	return packRequest(MethodOptions, uri, headers, "")
+}
+
+// @param auth 可以为空，如果为空，则请求中不包含`Authorization`字段
+func PackRequestAnnounce(uri string, cseq int, sdp string, auth string) string {
+	headers := map[string]string{
+		HeaderFieldCSeq:          fmt.Sprintf("%d", cseq),
+		HeaderFieldContentLength: fmt.Sprintf("%d", len(sdp)),
+		HeaderAccept:             HeaderAcceptApplicationSDP,
+		HeaderUserAgent:          base.LALRTSPPullSessionUA,
+	}
+	if auth != "" {
+		headers[HeaderAuthorization] = auth
+	}
+	return packRequest(MethodAnnounce, uri, headers, sdp)
 }
 
 // @param auth 可以为空，如果为空，则请求中不包含`Authorization`字段
 func PackRequestDescribe(uri string, cseq int, auth string) string {
 	headers := map[string]string{
-		HeaderAccept:    "application/sdp",
+		HeaderAccept:    HeaderAcceptApplicationSDP,
 		HeaderFieldCSeq: fmt.Sprintf("%d", cseq),
 		HeaderUserAgent: base.LALRTSPPullSessionUA,
 	}
 	if auth != "" {
 		headers[HeaderAuthorization] = auth
 	}
-	return packRequest(MethodDescribe, uri, headers)
+	return packRequest(MethodDescribe, uri, headers, "")
 }
 
 // @param sessionID 可以为空，如果为空，则请求中不包含`Session`字段
@@ -134,7 +148,7 @@ func PackRequestSetup(uri string, cseq int, rtpClientPort int, rtcpClientPort in
 	if auth != "" {
 		headers[HeaderAuthorization] = auth
 	}
-	return packRequest(MethodSetup, uri, headers)
+	return packRequest(MethodSetup, uri, headers, "")
 }
 
 // @param sessionID 可以为空，如果为空，则请求中不包含`Session`字段
@@ -151,7 +165,20 @@ func PackRequestSetupTCP(uri string, cseq int, rtpChannel int, rtcpChannel int, 
 	if auth != "" {
 		headers[HeaderAuthorization] = auth
 	}
-	return packRequest(MethodSetup, uri, headers)
+	return packRequest(MethodSetup, uri, headers, "")
+}
+
+func PackRequestRecord(uri string, cseq int, sessionID string, auth string) string {
+	headers := map[string]string{
+		HeaderFieldCSeq:    fmt.Sprintf("%d", cseq),
+		HeaderFieldRange:   "npt=0.000-",
+		HeaderFieldSession: sessionID,
+		HeaderUserAgent:    base.LALRTSPPullSessionUA,
+	}
+	if auth != "" {
+		headers[HeaderAuthorization] = auth
+	}
+	return packRequest(MethodRecord, uri, headers, "")
 }
 
 func PackRequestPlay(uri string, cseq int, sessionID string, auth string) string {
@@ -164,7 +191,7 @@ func PackRequestPlay(uri string, cseq int, sessionID string, auth string) string
 	if auth != "" {
 		headers[HeaderAuthorization] = auth
 	}
-	return packRequest(MethodPlay, uri, headers)
+	return packRequest(MethodPlay, uri, headers, "")
 }
 
 func PackRequestGetParameter(uri string, cseq int, sessionID string) string {
@@ -215,11 +242,17 @@ func PackResponseTeardown(cseq string) string {
 	return fmt.Sprintf(ResponseTeardownTmpl, cseq)
 }
 
-func packRequest(method, uri string, headers map[string]string) (ret string) {
+// @param body 可以为空
+func packRequest(method, uri string, headers map[string]string, body string) (ret string) {
 	ret = method + " " + uri + " RTSP/1.0\r\n"
 	for k, v := range headers {
 		ret += k + ": " + v + "\r\n"
 	}
 	ret += "\r\n"
+
+	if body != "" {
+		ret += body
+	}
+
 	return ret
 }

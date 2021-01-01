@@ -46,15 +46,19 @@ const (
 	MethodGetParameter = "GET_PARAMETER"
 )
 
+// TODO chef: 这里有的有Field，有的没有，命名需要统一一下
 const (
-	HeaderAccept          = "Accept"
-	HeaderUserAgent       = "User-Agent"
-	HeaderFieldCSeq       = "CSeq"
-	HeaderFieldTransport  = "Transport"
-	HeaderFieldSession    = "Session"
-	HeaderFieldRange      = "Range"
-	HeaderWWWAuthenticate = "WWW-Authenticate"
-	HeaderAuthorization   = "Authorization"
+	HeaderAccept             = "Accept"
+	HeaderUserAgent          = "User-Agent"
+	HeaderFieldCSeq          = "CSeq"
+	HeaderFieldTransport     = "Transport"
+	HeaderFieldSession       = "Session"
+	HeaderFieldRange         = "Range"
+	HeaderFieldContentLength = "Content-Length"
+	HeaderWWWAuthenticate    = "WWW-Authenticate"
+	HeaderAuthorization      = "Authorization"
+
+	HeaderAcceptApplicationSDP = "application/sdp"
 )
 
 const (
@@ -164,18 +168,6 @@ func parseTransport(setupTransport string, key string) (first, second uint16, er
 		return 0, 0, err
 	}
 	return uint16(iFirst), uint16(iSecond), err
-}
-
-func isSupportType(t base.AVPacketPT) bool {
-	switch t {
-	case base.AVPacketPTAAC:
-		fallthrough
-	case base.AVPacketPTAVC:
-		fallthrough
-	case base.AVPacketPTHEVC:
-		return true
-	}
-	return false
 }
 
 func makeSetupURI(urlCtx base.URLContext, aControl string) string {

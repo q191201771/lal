@@ -82,6 +82,7 @@ func main() {
 	})
 
 	go func() {
+		time.Sleep(3 * time.Second)
 		for {
 			rtspPullSession.UpdateStat(1)
 			rtspStat := rtspPullSession.GetStat()

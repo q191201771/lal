@@ -77,6 +77,8 @@ type OnReadFLVTag func(tag Tag)
 //
 // @param onReadFLVTag 读取到 flv tag 数据时回调。回调结束后，PullSession 不会再使用这块 <tag> 数据。
 func (session *PullSession) Pull(rawURL string, onReadFLVTag OnReadFLVTag) error {
+	nazalog.Debugf("[%s] pull. url=%s", session.UniqueKey, rawURL)
+
 	var (
 		ctx    context.Context
 		cancel context.CancelFunc

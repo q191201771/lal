@@ -19,7 +19,7 @@ import (
 
 	"github.com/q191201771/naza/pkg/bele"
 	"github.com/q191201771/naza/pkg/connection"
-	log "github.com/q191201771/naza/pkg/nazalog"
+	"github.com/q191201771/naza/pkg/nazalog"
 )
 
 var ErrClientSessionTimeout = errors.New("lal.rtmp: client session timeout")
@@ -98,12 +98,14 @@ func NewClientSession(t ClientSessionType, modOptions ...ModClientSessionOption)
 			StartTime: time.Now().Format("2006-01-02 15:04:05.999"),
 		},
 	}
-	log.Infof("[%s] lifecycle new rtmp ClientSession. session=%p", uk, s)
+	nazalog.Infof("[%s] lifecycle new rtmp ClientSession. session=%p", uk, s)
 	return s
 }
 
 // 阻塞直到收到服务端返回的 publish / play 对应结果的信令或者发生错误
 func (s *ClientSession) Do(rawURL string) error {
+	nazalog.Debugf("[%s] Do. url=%s", s.UniqueKey, rawURL)
+
 	var (
 		ctx    context.Context
 		cancel context.CancelFunc
@@ -132,7 +134,7 @@ func (s *ClientSession) Flush() error {
 }
 
 func (s *ClientSession) Dispose() {
-	log.Infof("[%s] lifecycle dispose rtmp ClientSession.", s.UniqueKey)
+	nazalog.Infof("[%s] lifecycle dispose rtmp ClientSession.", s.UniqueKey)
 	_ = s.conn.Close()
 }
 
@@ -202,13 +204,13 @@ func (s *ClientSession) doContext(ctx context.Context, rawURL string) error {
 			return
 		}
 
-		log.Infof("[%s] > W SetChunkSize %d.", s.UniqueKey, LocalChunkSize)
+		nazalog.Infof("[%s] > W SetChunkSize %d.", s.UniqueKey, LocalChunkSize)
 		if err := s.packer.writeChunkSize(s.conn, LocalChunkSize); err != nil {
 			errChan <- err
 			return
 		}
 
-		log.Infof("[%s] > W connect('%s').", s.UniqueKey, s.appName())
+		nazalog.Infof("[%s] > W connect('%s').", s.UniqueKey, s.appName())
 		if err := s.packer.writeConnect(s.conn, s.appName(), s.tcURL(), s.t == CSTPushSession); err != nil {
 			errChan <- err
 			return
@@ -266,7 +268,7 @@ func (s *ClientSession) tcpConnect() error {
 }
 
 func (s *ClientSession) handshake() error {
-	log.Infof("[%s] > W Handshake C0+C1.", s.UniqueKey)
+	nazalog.Infof("[%s] > W Handshake C0+C1.", s.UniqueKey)
 	if err := s.hc.WriteC0C1(s.conn); err != nil {
 		return err
 	}
@@ -274,9 +276,9 @@ func (s *ClientSession) handshake() error {
 	if err := s.hc.ReadS0S1S2(s.conn); err != nil {
 		return err
 	}
-	log.Infof("[%s] < R Handshake S0+S1+S2.", s.UniqueKey)
+	nazalog.Infof("[%s] < R Handshake S0+S1+S2.", s.UniqueKey)
 
-	log.Infof("[%s] > W Handshake C2.", s.UniqueKey)
+	nazalog.Infof("[%s] > W Handshake C2.", s.UniqueKey)
 	if err := s.hc.WriteC2(s.conn); err != nil {
 		return err
 	}
@@ -303,13 +305,13 @@ func (s *ClientSession) doMsg(stream *Stream) error {
 	case base.RTMPTypeIDAck:
 		return s.doAck(stream)
 	case base.RTMPTypeIDUserControl:
-		log.Warnf("[%s] read user control message, ignore.", s.UniqueKey)
+		nazalog.Warnf("[%s] read user control message, ignore.", s.UniqueKey)
 	case base.RTMPTypeIDAudio:
 		fallthrough
 	case base.RTMPTypeIDVideo:
 		s.onReadRTMPAVMsg(stream.toAVMsg())
 	default:
-		log.Errorf("[%s] read unknown message. typeid=%d, %s", s.UniqueKey, stream.header.MsgTypeID, stream.toDebugString())
+		nazalog.Errorf("[%s] read unknown message. typeid=%d, %s", s.UniqueKey, stream.header.MsgTypeID, stream.toDebugString())
 		panic(0)
 	}
 	return nil
@@ -317,7 +319,7 @@ func (s *ClientSession) doMsg(stream *Stream) error {
 
 func (s *ClientSession) doAck(stream *Stream) error {
 	seqNum := bele.BEUint32(stream.msg.buf[stream.msg.b:stream.msg.e])
-	log.Infof("[%s] < R Acknowledgement. ignore. sequence number=%d.", s.UniqueKey, seqNum)
+	nazalog.Infof("[%s] < R Acknowledgement. ignore. sequence number=%d.", s.UniqueKey, seqNum)
 	return nil
 }
 
@@ -329,7 +331,7 @@ func (s *ClientSession) doDataMessageAMF0(stream *Stream) error {
 
 	switch val {
 	case "|RtmpSampleAccess":
-		log.Debugf("[%s] < R |RtmpSampleAccess, ignore.", s.UniqueKey)
+		nazalog.Debugf("[%s] < R |RtmpSampleAccess, ignore.", s.UniqueKey)
 		return nil
 	default:
 	}
@@ -350,13 +352,13 @@ func (s *ClientSession) doCommandMessage(stream *Stream) error {
 
 	switch cmd {
 	case "onBWDone":
-		log.Warnf("[%s] < R onBWDone. ignore.", s.UniqueKey)
+		nazalog.Warnf("[%s] < R onBWDone. ignore.", s.UniqueKey)
 	case "_result":
 		return s.doResultMessage(stream, tid)
 	case "onStatus":
 		return s.doOnStatusMessage(stream, tid)
 	default:
-		log.Errorf("[%s] read unknown command message. cmd=%s, %s", s.UniqueKey, cmd, stream.toDebugString())
+		nazalog.Errorf("[%s] read unknown command message. cmd=%s, %s", s.UniqueKey, cmd, stream.toDebugString())
 	}
 
 	return nil
@@ -378,18 +380,18 @@ func (s *ClientSession) doOnStatusMessage(stream *Stream, tid int) error {
 	case CSTPushSession:
 		switch code {
 		case "NetStream.Publish.Start":
-			log.Infof("[%s] < R onStatus('NetStream.Publish.Start').", s.UniqueKey)
+			nazalog.Infof("[%s] < R onStatus('NetStream.Publish.Start').", s.UniqueKey)
 			s.notifyDoResultSucc()
 		default:
-			log.Errorf("[%s] read on status message but code field unknown. code=%s", s.UniqueKey, code)
+			nazalog.Errorf("[%s] read on status message but code field unknown. code=%s", s.UniqueKey, code)
 		}
 	case CSTPullSession:
 		switch code {
 		case "NetStream.Play.Start":
-			log.Infof("[%s] < R onStatus('NetStream.Play.Start').", s.UniqueKey)
+			nazalog.Infof("[%s] < R onStatus('NetStream.Play.Start').", s.UniqueKey)
 			s.notifyDoResultSucc()
 		default:
-			log.Errorf("[%s] read on status message but code field unknown. code=%s", s.UniqueKey, code)
+			nazalog.Errorf("[%s] read on status message but code field unknown. code=%s", s.UniqueKey, code)
 		}
 	}
 
@@ -413,13 +415,13 @@ func (s *ClientSession) doResultMessage(stream *Stream, tid int) error {
 		}
 		switch code {
 		case "NetConnection.Connect.Success":
-			log.Infof("[%s] < R _result(\"NetConnection.Connect.Success\").", s.UniqueKey)
-			log.Infof("[%s] > W createStream().", s.UniqueKey)
+			nazalog.Infof("[%s] < R _result(\"NetConnection.Connect.Success\").", s.UniqueKey)
+			nazalog.Infof("[%s] > W createStream().", s.UniqueKey)
 			if err := s.packer.writeCreateStream(s.conn); err != nil {
 				return err
 			}
 		default:
-			log.Errorf("[%s] unknown code. code=%v", s.UniqueKey, code)
+			nazalog.Errorf("[%s] unknown code. code=%v", s.UniqueKey, code)
 		}
 	case tidClientCreateStream:
 		err := stream.msg.readNull()
@@ -430,21 +432,21 @@ func (s *ClientSession) doResultMessage(stream *Stream, tid int) error {
 		if err != nil {
 			return err
 		}
-		log.Infof("[%s] < R _result().", s.UniqueKey)
+		nazalog.Infof("[%s] < R _result().", s.UniqueKey)
 		switch s.t {
 		case CSTPullSession:
-			log.Infof("[%s] > W play('%s').", s.UniqueKey, s.streamNameWithRawQuery())
+			nazalog.Infof("[%s] > W play('%s').", s.UniqueKey, s.streamNameWithRawQuery())
 			if err := s.packer.writePlay(s.conn, s.streamNameWithRawQuery(), sid); err != nil {
 				return err
 			}
 		case CSTPushSession:
-			log.Infof("[%s] > W publish('%s').", s.UniqueKey, s.streamNameWithRawQuery())
+			nazalog.Infof("[%s] > W publish('%s').", s.UniqueKey, s.streamNameWithRawQuery())
 			if err := s.packer.writePublish(s.conn, s.appName(), s.streamNameWithRawQuery(), sid); err != nil {
 				return err
 			}
 		}
 	default:
-		log.Errorf("[%s] unknown tid. tid=%d", s.UniqueKey, tid)
+		nazalog.Errorf("[%s] unknown tid. tid=%d", s.UniqueKey, tid)
 	}
 	return nil
 }
@@ -458,15 +460,15 @@ func (s *ClientSession) doProtocolControlMessage(stream *Stream) error {
 	switch stream.header.MsgTypeID {
 	case base.RTMPTypeIDWinAckSize:
 		s.peerWinAckSize = val
-		log.Infof("[%s] < R Window Acknowledgement Size: %d", s.UniqueKey, s.peerWinAckSize)
+		nazalog.Infof("[%s] < R Window Acknowledgement Size: %d", s.UniqueKey, s.peerWinAckSize)
 	case base.RTMPTypeIDBandwidth:
 		// TODO chef: 是否需要关注这个信令
-		log.Debugf("[%s] < R Set Peer Bandwidth. ignore.", s.UniqueKey)
+		nazalog.Debugf("[%s] < R Set Peer Bandwidth. ignore.", s.UniqueKey)
 	case base.RTMPTypeIDSetChunkSize:
 		// composer内部会自动更新peer chunk size.
-		log.Infof("[%s] < R Set Chunk Size %d.", s.UniqueKey, val)
+		nazalog.Infof("[%s] < R Set Chunk Size %d.", s.UniqueKey, val)
 	default:
-		log.Errorf("[%s] read unknown protocol control message. typeid=%d, %s", s.UniqueKey, stream.header.MsgTypeID, stream.toDebugString())
+		nazalog.Errorf("[%s] read unknown protocol control message. typeid=%d, %s", s.UniqueKey, stream.header.MsgTypeID, stream.toDebugString())
 	}
 	return nil
 }

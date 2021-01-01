@@ -10,7 +10,6 @@ package rtsp
 
 import (
 	"net"
-	"strings"
 	"sync/atomic"
 	"time"
 
@@ -76,10 +75,10 @@ func (s *SubSession) InitWithSDP(rawSDP []byte, sdpLogicCtx sdp.LogicContext) {
 }
 
 func (s *SubSession) SetupWithConn(uri string, rtpConn, rtcpConn *nazanet.UDPConnection) error {
-	if s.sdpLogicCtx.AudioAControl != "" && strings.HasSuffix(uri, s.sdpLogicCtx.AudioAControl) {
+	if s.sdpLogicCtx.IsAudioURI(uri) {
 		s.audioRTPConn = rtpConn
 		s.audioRTCPConn = rtcpConn
-	} else if s.sdpLogicCtx.VideoAControl != "" && strings.HasSuffix(uri, s.sdpLogicCtx.VideoAControl) {
+	} else if s.sdpLogicCtx.IsVideoURI(uri) {
 		s.videoRTPConn = rtpConn
 		s.videoRTCPConn = rtcpConn
 	} else {
@@ -95,11 +94,11 @@ func (s *SubSession) SetupWithConn(uri string, rtpConn, rtcpConn *nazanet.UDPCon
 func (s *SubSession) SetupWithChannel(uri string, rtpChannel, rtcpChannel int, remoteAddr string) error {
 	s.stat.RemoteAddr = remoteAddr
 
-	if s.sdpLogicCtx.AudioAControl != "" && strings.HasSuffix(uri, s.sdpLogicCtx.AudioAControl) {
+	if s.sdpLogicCtx.IsAudioURI(uri) {
 		s.audioRTPChannel = rtpChannel
 		s.audioRTCPChannel = rtcpChannel
 		return nil
-	} else if s.sdpLogicCtx.VideoAControl != "" && strings.HasSuffix(uri, s.sdpLogicCtx.VideoAControl) {
+	} else if s.sdpLogicCtx.IsVideoURI(uri) {
 		s.videoRTPChannel = rtpChannel
 		s.videoRTCPChannel = rtcpChannel
 		return nil
@@ -176,23 +175,24 @@ func (s *SubSession) RawQuery() string {
 func (s *SubSession) WriteRTPPacket(packet rtprtcp.RTPPacket) {
 	atomic.AddUint64(&s.currConnStat.WroteBytesSum, uint64(len(packet.Raw)))
 
-	switch packet.Header.PacketType {
-	case uint8(s.sdpLogicCtx.VideoPayloadTypeOrigin):
-		if s.videoRTPConn != nil {
-			_ = s.videoRTPConn.Write(packet.Raw)
-		}
-		if s.videoRTPChannel != -1 {
-			_ = s.cmdSession.Write(s.videoRTPChannel, packet.Raw)
-		}
-	case uint8(s.sdpLogicCtx.AudioPayloadTypeOrigin):
+	// 发送数据时，保证和sdp的原始类型对应
+	t := int(packet.Header.PacketType)
+	if s.sdpLogicCtx.IsAudioPayloadTypeOrigin(t) {
 		if s.audioRTPConn != nil {
 			_ = s.audioRTPConn.Write(packet.Raw)
 		}
 		if s.audioRTPChannel != -1 {
 			_ = s.cmdSession.Write(s.audioRTPChannel, packet.Raw)
 		}
-	default:
-		nazalog.Errorf("[%s] write rtp packet but type invalid. type=%d", s.UniqueKey, packet.Header.PacketType)
+	} else if s.sdpLogicCtx.IsVideoPayloadTypeOrigin(t) {
+		if s.videoRTPConn != nil {
+			_ = s.videoRTPConn.Write(packet.Raw)
+		}
+		if s.videoRTPChannel != -1 {
+			_ = s.cmdSession.Write(s.videoRTPChannel, packet.Raw)
+		}
+	} else {
+		nazalog.Errorf("[%s] write rtp packet but type invalid. type=%d", s.UniqueKey, t)
 	}
 }
 

@@ -53,7 +53,7 @@
 - [x] **HTTP文件服务器**。比如HLS切片文件可直接播放，不需要额外的HTTP文件服务器
 - [x] **秒开播放**。GOP缓冲
 
-除了lalserver，还提供一些基于lal开发的demo： [《lal/app/demo》](https://github.com/q191201771/lal/blob/master/app/demo/README.md)
+除了lalserver，还提供一些基于lal开发的demo（比如客户端程序）： [《lal/app/demo》](https://github.com/q191201771/lal/blob/master/app/demo/README.md)
 
 <img alt="Wide" src="https://pengrl.com/images/other/lalmodule.jpg?date=0829">
 

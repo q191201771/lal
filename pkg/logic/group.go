@@ -481,7 +481,6 @@ func (group *Group) OnReadRTMPAVMsg(msg base.RTMPMsg) {
 	group.mutex.Lock()
 	defer group.mutex.Unlock()
 
-	//nazalog.Debugf("%+v, %02x, %02x", msg.Header, msg.Payload[0], msg.Payload[1])
 	group.broadcastRTMP(msg)
 }
 

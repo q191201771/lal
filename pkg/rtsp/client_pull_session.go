@@ -99,6 +99,8 @@ func NewPullSession(observer PullSessionObserver, modOptions ...ModPullSessionOp
 
 // 如果没有错误发生，阻塞直到接收音视频数据的前一步，也即收到rtsp play response
 func (session *PullSession) Pull(rawURL string) error {
+	nazalog.Debugf("[%s] pull. url=%s", session.UniqueKey, rawURL)
+
 	var (
 		ctx    context.Context
 		cancel context.CancelFunc
@@ -148,6 +150,10 @@ func (session *PullSession) UpdateStat(interval uint32) {
 
 func (session *PullSession) IsAlive() (readAlive, writeAlive bool) {
 	return session.baseInSession.IsAlive()
+}
+
+func (session *PullSession) GetSDP() ([]byte, sdp.LogicContext) {
+	return session.baseInSession.GetSDP()
 }
 
 func (session *PullSession) pullContext(ctx context.Context, rawURL string) error {
@@ -346,24 +352,27 @@ func (session *PullSession) writeDescribe() error {
 }
 
 func (session *PullSession) writeSetup() error {
-	if session.baseInSession.sdpLogicCtx.VideoAControl != "" {
+	if session.baseInSession.sdpLogicCtx.HasVideoAControl() {
+		uri := session.baseInSession.sdpLogicCtx.MakeVideoSetupURI(session.urlCtx.RawURLWithoutUserInfo)
 		if session.option.OverTCP {
-			if err := session.writeOneSetupTCP(session.baseInSession.sdpLogicCtx.VideoAControl); err != nil {
+			if err := session.writeOneSetupTCP(uri); err != nil {
 				return err
 			}
 		} else {
-			if err := session.writeOneSetup(session.baseInSession.sdpLogicCtx.VideoAControl); err != nil {
+			if err := session.writeOneSetup(uri); err != nil {
 				return err
 			}
 		}
 	}
-	if session.baseInSession.sdpLogicCtx.AudioAControl != "" {
+	// can't else if
+	if session.baseInSession.sdpLogicCtx.HasAudioAControl() {
+		uri := session.baseInSession.sdpLogicCtx.MakeAudioSetupURI(session.urlCtx.RawURLWithoutUserInfo)
 		if session.option.OverTCP {
-			if err := session.writeOneSetupTCP(session.baseInSession.sdpLogicCtx.AudioAControl); err != nil {
+			if err := session.writeOneSetupTCP(uri); err != nil {
 				return err
 			}
 		} else {
-			if err := session.writeOneSetup(session.baseInSession.sdpLogicCtx.AudioAControl); err != nil {
+			if err := session.writeOneSetup(uri); err != nil {
 				return err
 			}
 		}
@@ -371,8 +380,7 @@ func (session *PullSession) writeSetup() error {
 	return nil
 }
 
-func (session *PullSession) writeOneSetup(aControl string) error {
-	setupURI := makeSetupURI(session.urlCtx, aControl)
+func (session *PullSession) writeOneSetup(setupURI string) error {
 	rtpC, rtpPort, rtcpC, rtcpPort, err := availUDPConnPool.Acquire2()
 	if err != nil {
 		return err
@@ -423,8 +431,7 @@ func (session *PullSession) writeOneSetup(aControl string) error {
 	return nil
 }
 
-func (session *PullSession) writeOneSetupTCP(aControl string) error {
-	setupURI := makeSetupURI(session.urlCtx, aControl)
+func (session *PullSession) writeOneSetupTCP(setupURI string) error {
 	rtpChannel := session.channel
 	rtcpChannel := session.channel + 1
 	session.channel += 2

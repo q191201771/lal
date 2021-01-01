@@ -17,6 +17,7 @@ const (
 	UKPRTSPServerCommandSession = "RTSPSRVCMD"
 	UKPRTSPPubSession           = "RTSPPUB"
 	UKPRTSPSubSession           = "RTSPSUB"
+	UKPRTSPPushSession          = "RTSPPUSH"
 	UKPRTSPPullSession          = "RTSPPULL"
 	UKPFLVSubSession            = "FLVSUB"
 	UKPTSSubSession             = "TSSUB"

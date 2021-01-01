@@ -10,7 +10,6 @@ package rtsp
 
 import (
 	"net"
-	"strings"
 	"sync"
 	"sync/atomic"
 
@@ -35,8 +34,10 @@ type BaseCommandSession interface {
 type BaseInSessionObserver interface {
 	OnRTPPacket(pkt rtprtcp.RTPPacket)
 
-	// @param asc: AAC AudioSpecificConfig，注意，如果不存在音频，则为nil
-	// @param vps: 视频为H264时为nil，视频为H265时不为nil
+	// @param asc: AAC AudioSpecificConfig，注意，如果不存在音频或音频不为AAC，则为nil
+	// @param vps, sps, pps 如果都为nil，则没有视频，如果sps, pps不为nil，则vps不为nil是H265，vps为nil是H264
+	//
+	// 注意，4个参数可能同时为nil
 	OnAVConfig(asc, vps, sps, pps []byte)
 
 	// @param pkt: pkt结构体中字段含义见rtprtcp.OnAVPacket
@@ -82,21 +83,21 @@ func (s *BaseInSession) InitWithSDP(rawSDP []byte, sdpLogicCtx sdp.LogicContext)
 	s.sdpLogicCtx = sdpLogicCtx
 	s.m.Unlock()
 
-	if isSupportType(s.sdpLogicCtx.AudioPayloadType) {
-		s.audioUnpacker = rtprtcp.NewRTPUnpacker(s.sdpLogicCtx.AudioPayloadType, s.sdpLogicCtx.AudioClockRate, unpackerItemMaxSize, s.onAVPacketUnpacked)
+	if s.sdpLogicCtx.IsAudioUnpackable() {
+		s.audioUnpacker = rtprtcp.NewRTPUnpacker(s.sdpLogicCtx.GetAudioPayloadTypeBase(), s.sdpLogicCtx.AudioClockRate, unpackerItemMaxSize, s.onAVPacketUnpacked)
 	} else {
-		nazalog.Warnf("[%s] audio unpacker not support yet. origin type=%d", s.UniqueKey, s.sdpLogicCtx.AudioPayloadTypeOrigin)
+		nazalog.Warnf("[%s] audio unpacker not support for this type yet.", s.UniqueKey)
 	}
-	if isSupportType(s.sdpLogicCtx.VideoPayloadType) {
-		s.videoUnpacker = rtprtcp.NewRTPUnpacker(s.sdpLogicCtx.VideoPayloadType, s.sdpLogicCtx.VideoClockRate, unpackerItemMaxSize, s.onAVPacketUnpacked)
+	if s.sdpLogicCtx.IsVideoUnpackable() {
+		s.videoUnpacker = rtprtcp.NewRTPUnpacker(s.sdpLogicCtx.GetVideoPayloadTypeBase(), s.sdpLogicCtx.VideoClockRate, unpackerItemMaxSize, s.onAVPacketUnpacked)
 	} else {
-		nazalog.Warnf("[%s] video unpacker not support yet. origin type=%d", s.UniqueKey, s.sdpLogicCtx.AudioPayloadTypeOrigin)
+		nazalog.Warnf("[%s] video unpacker not support this type yet.", s.UniqueKey)
 	}
 
 	s.audioRRProducer = rtprtcp.NewRRProducer(s.sdpLogicCtx.AudioClockRate)
 	s.videoRRProducer = rtprtcp.NewRRProducer(s.sdpLogicCtx.VideoClockRate)
 
-	if isSupportType(s.sdpLogicCtx.AudioPayloadType) && isSupportType(s.sdpLogicCtx.VideoPayloadType) {
+	if s.sdpLogicCtx.IsAudioUnpackable() && s.sdpLogicCtx.IsVideoUnpackable() {
 		s.avPacketQueue = NewAVPacketQueue(s.onAVPacket)
 	}
 
@@ -109,17 +110,14 @@ func (s *BaseInSession) InitWithSDP(rawSDP []byte, sdpLogicCtx sdp.LogicContext)
 func (s *BaseInSession) SetObserver(observer BaseInSessionObserver) {
 	s.observer = observer
 
-	// TODO chef: 这里的判断应该去掉
-	if s.sdpLogicCtx.ASC != nil && s.sdpLogicCtx.SPS != nil {
-		s.observer.OnAVConfig(s.sdpLogicCtx.ASC, s.sdpLogicCtx.VPS, s.sdpLogicCtx.SPS, s.sdpLogicCtx.PPS)
-	}
+	s.observer.OnAVConfig(s.sdpLogicCtx.ASC, s.sdpLogicCtx.VPS, s.sdpLogicCtx.SPS, s.sdpLogicCtx.PPS)
 }
 
 func (s *BaseInSession) SetupWithConn(uri string, rtpConn, rtcpConn *nazanet.UDPConnection) error {
-	if s.sdpLogicCtx.AudioAControl != "" && strings.HasSuffix(uri, s.sdpLogicCtx.AudioAControl) {
+	if s.sdpLogicCtx.IsAudioURI(uri) {
 		s.audioRTPConn = rtpConn
 		s.audioRTCPConn = rtcpConn
-	} else if s.sdpLogicCtx.VideoAControl != "" && strings.HasSuffix(uri, s.sdpLogicCtx.VideoAControl) {
+	} else if s.sdpLogicCtx.IsVideoURI(uri) {
 		s.videoRTPConn = rtpConn
 		s.videoRTCPConn = rtcpConn
 	} else {
@@ -133,11 +131,11 @@ func (s *BaseInSession) SetupWithConn(uri string, rtpConn, rtcpConn *nazanet.UDP
 }
 
 func (s *BaseInSession) SetupWithChannel(uri string, rtpChannel, rtcpChannel int) error {
-	if s.sdpLogicCtx.AudioAControl != "" && strings.HasSuffix(uri, s.sdpLogicCtx.AudioAControl) {
+	if s.sdpLogicCtx.IsAudioURI(uri) {
 		s.audioRTPChannel = rtpChannel
 		s.audioRTCPChannel = rtcpChannel
 		return nil
-	} else if s.sdpLogicCtx.VideoAControl != "" && strings.HasSuffix(uri, s.sdpLogicCtx.VideoAControl) {
+	} else if s.sdpLogicCtx.IsVideoURI(uri) {
 		s.videoRTPChannel = rtpChannel
 		s.videoRTCPChannel = rtcpChannel
 		return nil
@@ -337,7 +335,7 @@ func (s *BaseInSession) handleRTPPacket(b []byte) error {
 	}
 
 	packetType := int(b[1] & 0x7F)
-	if packetType != s.sdpLogicCtx.AudioPayloadTypeOrigin && packetType != s.sdpLogicCtx.VideoPayloadTypeOrigin {
+	if !s.sdpLogicCtx.IsPayloadTypeOrigin(packetType) {
 		return ErrRTSP
 	}
 
@@ -352,16 +350,8 @@ func (s *BaseInSession) handleRTPPacket(b []byte) error {
 	pkt.Header = h
 	pkt.Raw = b
 
-	switch packetType {
-	case s.sdpLogicCtx.VideoPayloadTypeOrigin:
-		s.videoSSRC = h.SSRC
-		s.observer.OnRTPPacket(pkt)
-		s.videoRRProducer.FeedRTPPacket(h.Seq)
-
-		if s.videoUnpacker != nil {
-			s.videoUnpacker.Feed(pkt)
-		}
-	case s.sdpLogicCtx.AudioPayloadTypeOrigin:
+	// 接收数据时，保证了sdp的原始类型对应
+	if s.sdpLogicCtx.IsAudioPayloadTypeOrigin(packetType) {
 		s.audioSSRC = h.SSRC
 		s.observer.OnRTPPacket(pkt)
 		s.audioRRProducer.FeedRTPPacket(h.Seq)
@@ -369,7 +359,15 @@ func (s *BaseInSession) handleRTPPacket(b []byte) error {
 		if s.audioUnpacker != nil {
 			s.audioUnpacker.Feed(pkt)
 		}
-	default:
+	} else if s.sdpLogicCtx.IsVideoPayloadTypeOrigin(packetType) {
+		s.videoSSRC = h.SSRC
+		s.observer.OnRTPPacket(pkt)
+		s.videoRRProducer.FeedRTPPacket(h.Seq)
+
+		if s.videoUnpacker != nil {
+			s.videoUnpacker.Feed(pkt)
+		}
+	} else {
 		// 因为前面已经判断过type了，所以永远不会走到这
 	}
 
