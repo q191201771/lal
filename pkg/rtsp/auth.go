@@ -9,6 +9,7 @@
 package rtsp
 
 import (
+	"encoding/base64"
 	"fmt"
 	"strings"
 
@@ -17,10 +18,11 @@ import (
 )
 
 // TODO chef: 考虑部分内容移入naza中
-// TODO chef: 只支持Digest方式，不支持Basic方式
+// TODO chef: 只支持Digest方式，支持Basic方式
 
 const (
 	AuthTypeDigest = "Digest"
+	AuthTypeBasic  = "Basic"
 	AuthAlgorithm  = "MD5"
 )
 
@@ -42,6 +44,9 @@ func (a *Auth) FeedWWWAuthenticate(s, username, password string) {
 	s = strings.TrimSpace(s)
 	if strings.HasPrefix(s, AuthTypeDigest) {
 		a.Typ = AuthTypeDigest
+	} else {
+		a.Typ = AuthTypeBasic
+		return
 	}
 	a.Realm = a.getV(s, `realm="`)
 	a.Nonce = a.getV(s, `nonce="`)
@@ -62,14 +67,22 @@ func (a *Auth) FeedWWWAuthenticate(s, username, password string) {
 }
 
 func (a *Auth) MakeAuthorization(method, uri string) string {
-	if a.Username == "" || a.Nonce == "" {
+	if a.Username == "" {
 		return ""
 	}
+	if a.Typ == AuthTypeDigest {
+		if a.Nonce == "" {
+			return ""
+		}
+		ha1 := nazamd5.MD5([]byte(fmt.Sprintf("%s:%s:%s", a.Username, a.Realm, a.Password)))
+		ha2 := nazamd5.MD5([]byte(fmt.Sprintf("%s:%s", method, uri)))
+		response := nazamd5.MD5([]byte(fmt.Sprintf("%s:%s:%s", ha1, a.Nonce, ha2)))
+		return fmt.Sprintf(`%s username="%s", realm="%s", nonce="%s", uri="%s", response="%s", algorithm="%s"`, a.Typ, a.Username, a.Realm, a.Nonce, uri, response, a.Algorithm)
+	} else {
+		ha1 := base64.StdEncoding.EncodeToString([]byte(fmt.Sprintf(`%s:%s`, a.Username, a.Password)))
+		return fmt.Sprintf(`%s %s`, a.Typ, ha1)
+	}
 
-	ha1 := nazamd5.MD5([]byte(fmt.Sprintf("%s:%s:%s", a.Username, a.Realm, a.Password)))
-	ha2 := nazamd5.MD5([]byte(fmt.Sprintf("%s:%s", method, uri)))
-	response := nazamd5.MD5([]byte(fmt.Sprintf("%s:%s:%s", ha1, a.Nonce, ha2)))
-	return fmt.Sprintf(`%s username="%s", realm="%s", nonce="%s", uri="%s", response="%s", algorithm="%s"`, a.Typ, a.Username, a.Realm, a.Nonce, uri, response, a.Algorithm)
 }
 
 func (a *Auth) getV(s string, pre string) string {
