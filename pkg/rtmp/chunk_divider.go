@@ -25,7 +25,6 @@ var defaultChunkDivider = ChunkDivider{
 	localChunkSize: LocalChunkSize,
 }
 
-// @param  header 注意，内部使用TimestampAbs而非Timestamp
 // @return 返回的内存块由内部申请，不依赖参数<message>内存块
 func Message2Chunks(message []byte, header *base.RTMPHeader) []byte {
 	return defaultChunkDivider.Message2Chunks(message, header)

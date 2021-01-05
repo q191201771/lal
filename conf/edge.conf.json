@@ -1,13 +1,13 @@
 {
   "rtmp": {
     "enable": true,
-    "addr": ":19360",
+    "addr": ":19450",
     "gop_num": 2
   },
   "httpflv": {
     "enable": true,
-    "sub_listen_addr": ":8090",
-    "enable_https": true,
+    "sub_listen_addr": ":8180",
+    "enable_https": false,
     "https_addr": ":4443",
     "https_cert_file": "./conf/cert.pem",
     "https_key_file": "./conf/key.pem",
@@ -15,18 +15,19 @@
   },
   "hls": {
     "enable": true,
-    "sub_listen_addr": ":8091",
+    "sub_listen_addr": ":8181",
     "out_path": "/tmp/lal/edge/",
     "fragment_duration_ms": 3000,
-    "fragment_num": 6
+    "fragment_num": 6,
+    "cleanup_flag": true
   },
   "httpts": {
     "enable": true,
-    "sub_listen_addr": ":8092"
+    "sub_listen_addr": ":8182"
   },
   "rtsp": {
     "enable": true,
-    "addr": ":5554"
+    "addr": ":5644"
   },
   "relay_push": {
     "enable": true,
@@ -38,9 +39,13 @@
     "enable": true,
     "addr": "127.0.0.1:19350"
   },
+  "http_api": {
+    "enable": true,
+    "addr": ":8183"
+  },
   "pprof": {
     "enable": false,
-    "addr": ":10002"
+    "addr": ":8184"
   },
   "log": {
     "level": 1,

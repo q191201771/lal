@@ -100,6 +100,14 @@ func (c *HandshakeClientSimple) WriteC0C1(writer io.Writer) error {
 	c.c0c1 = make([]byte, c0c1Len)
 	c.c0c1[0] = version
 	bele.BEPutUint32(c.c0c1[1:5], uint32(time.Now().UnixNano()))
+	//c.c0c1[1] = 0
+	//c.c0c1[2] = 0
+	//c.c0c1[3] = 0
+	//c.c0c1[4] = 0
+	//c.c0c1[5] = 9
+	//c.c0c1[6] = 0
+	//c.c0c1[7] = 124
+	//c.c0c1[8] = 2
 	random1528(c.c0c1[9:])
 
 	_, err := writer.Write(c.c0c1)
@@ -288,5 +296,4 @@ func init() {
 	random1528Buf = make([]byte, 1528)
 	hack := fmt.Sprintf("random buf of rtmp handshake gen by %s", base.LALRTMPHandshakeWaterMark)
 	copy(random1528Buf, []byte(hack))
-	nazalog.Debug(len(random1528Buf))
 }

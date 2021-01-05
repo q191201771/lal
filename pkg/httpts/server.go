@@ -23,15 +23,15 @@ type ServerObserver interface {
 }
 
 type Server struct {
-	obs  ServerObserver
-	addr string
-	ln   net.Listener
+	observer ServerObserver
+	addr     string
+	ln       net.Listener
 }
 
-func NewServer(obs ServerObserver, addr string) *Server {
+func NewServer(observer ServerObserver, addr string) *Server {
 	return &Server{
-		obs:  obs,
-		addr: addr,
+		observer: observer,
+		addr:     addr,
 	}
 }
 
@@ -71,11 +71,11 @@ func (server *Server) handleConnect(conn net.Conn) {
 	}
 	log.Debugf("[%s] < read http request. uri=%s", session.UniqueKey, session.URI)
 
-	if !server.obs.OnNewHTTPTSSubSession(session) {
+	if !server.observer.OnNewHTTPTSSubSession(session) {
 		session.Dispose()
 	}
 
 	err := session.RunLoop()
 	log.Debugf("[%s] httpts sub session loop done. err=%v", session.UniqueKey, err)
-	server.obs.OnDelHTTPTSSubSession(session)
+	server.observer.OnDelHTTPTSSubSession(session)
 }

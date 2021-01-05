@@ -17,6 +17,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/q191201771/lal/pkg/remux"
+
 	"github.com/q191201771/lal/pkg/base"
 
 	"github.com/q191201771/naza/pkg/filebatch"
@@ -104,7 +106,7 @@ func InnerTestEntry(t *testing.T) {
 		err := rtmpPullSession.Pull(
 			rtmpPullURL,
 			func(msg base.RTMPMsg) {
-				tag := logic.Trans.RTMPMsg2FLVTag(msg)
+				tag := remux.RTMPMsg2FLVTag(msg)
 				err := rtmpWriter.WriteTag(*tag)
 				assert.Equal(tt, nil, err)
 				rtmpPullTagCount.Increment()
@@ -112,7 +114,7 @@ func InnerTestEntry(t *testing.T) {
 		if err != nil {
 			nazalog.Error(err)
 		}
-		err = <-rtmpPullSession.Done()
+		err = <-rtmpPullSession.Wait()
 		nazalog.Debug(err)
 	}()
 
@@ -141,7 +143,7 @@ func InnerTestEntry(t *testing.T) {
 		}
 		assert.Equal(t, nil, err)
 		fileTagCount.Increment()
-		msg := logic.Trans.FLVTag2RTMPMsg(tag)
+		msg := remux.FLVTag2RTMPMsg(tag)
 		chunks := rtmp.Message2Chunks(msg.Payload, &msg.Header)
 		err = pushSession.AsyncWrite(chunks)
 		assert.Equal(t, nil, err)

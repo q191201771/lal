@@ -63,3 +63,6 @@ func TestSubSeq(t *testing.T) {
 	assert.Equal(t, 3, rtprtcp.SubSeq(1, 65534))
 	assert.Equal(t, 2, rtprtcp.SubSeq(1, 65535))
 }
+
+func TestParseRTPPacket(t *testing.T) {
+}

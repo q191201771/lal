@@ -14,13 +14,21 @@ import (
 	"github.com/q191201771/lal/pkg/base"
 )
 
-// TODO chef: 见ServerSession::doDataMessageAMF0
 func ParseMetadata(b []byte) (ObjectPairArray, error) {
-	_, l, err := AMF0.ReadString(b)
+	pos := 0
+	v, l, err := AMF0.ReadString(b[pos:])
 	if err != nil {
 		return nil, err
 	}
-	opa, _, err := AMF0.ReadObjectOrArray(b[l:])
+	pos += l
+	if v == "@setDataFrame" {
+		_, l, err = AMF0.ReadString(b[pos:])
+		if err != nil {
+			return nil, err
+		}
+		pos += l
+	}
+	opa, _, err := AMF0.ReadObjectOrArray(b[pos:])
 	return opa, err
 }
 
@@ -38,16 +46,21 @@ func ParseMetadata(b []byte) (ObjectPairArray, error) {
 // - audiocodecid    DOUBLE
 // - filesize        DOUBLE, bytes
 //
-// - encoder
-// - server
-// - author
+// 目前包含的字段：
+// - width
+// - height
+// - audiocodecid
+// - videocodecid
 // - version
 //
-// @param width        如果为-1，则metadata中不写入width
-// @param height       如果为-1，则metadata中不写入height
-// @param audiocodecid AAC 10
-// @param videocodecid AVC 7
-//
+// @param width        如果为-1，则metadata中不写入该字段
+// @param height       如果为-1，则metadata中不写入该字段
+// @param audiocodecid 如果为-1，则metadata中不写入该字段
+//                     AAC 10
+// @param videocodecid 如果为-1，则metadata中不写入该字段
+//                     H264 7
+//                     H265 12
+// @return 返回的内存块为新申请的独立内存块
 func BuildMetadata(width int, height int, audiocodecid int, videocodecid int) ([]byte, error) {
 	buf := &bytes.Buffer{}
 	if err := AMF0.WriteString(buf, "onMetaData"); err != nil {
@@ -67,15 +80,18 @@ func BuildMetadata(width int, height int, audiocodecid int, videocodecid int) ([
 			Value: height,
 		})
 	}
-	opa = append(opa, ObjectPair{
-		Key:   "audiocodecid",
-		Value: audiocodecid,
-	})
-	opa = append(opa, ObjectPair{
-		Key:   "videocodecid",
-		Value: videocodecid,
-	})
-
+	if audiocodecid != -1 {
+		opa = append(opa, ObjectPair{
+			Key:   "audiocodecid",
+			Value: audiocodecid,
+		})
+	}
+	if videocodecid != -1 {
+		opa = append(opa, ObjectPair{
+			Key:   "videocodecid",
+			Value: videocodecid,
+		})
+	}
 	opa = append(opa, ObjectPair{
 		Key:   "version",
 		Value: base.LALRTMPBuildMetadataEncoder,

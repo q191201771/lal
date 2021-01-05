@@ -19,10 +19,12 @@ const (
 	RTMPTypeIDUserControl        uint8 = 4
 	RTMPTypeIDWinAckSize         uint8 = 5
 	RTMPTypeIDBandwidth          uint8 = 6
-	RTMPTypeIDStreamBegin        uint8 = 0
-	RTMPTypeIDStreamIsRecorded   uint8 = 4
-	RTMPTypeIDCommandMessageAMF0 uint8 = 20
 	RTMPTypeIDCommandMessageAMF3 uint8 = 17
+	RTMPTypeIDCommandMessageAMF0 uint8 = 20
+
+	// user control message type
+	RTMPUserControlStreamBegin uint8 = 0
+	RTMPUserControlRecorded    uint8 = 4
 
 	// spec-video_file_format_spec_v10.pdf
 	// Video tags
@@ -44,9 +46,10 @@ const (
 	RTMPHEVCPacketTypeSeqHeader       = RTMPAVCPacketTypeSeqHeader
 	RTMPHEVCPacketTypeNALU            = RTMPAVCPacketTypeNALU
 
-	RTMPAVCKeyFrame   = RTMPFrameTypeKey<<4 | RTMPCodecIDAVC
-	RTMPHEVCKeyFrame  = RTMPFrameTypeKey<<4 | RTMPCodecIDHEVC
-	RTMPAVCInterFrame = RTMPFrameTypeInter<<4 | RTMPCodecIDAVC
+	RTMPAVCKeyFrame    = RTMPFrameTypeKey<<4 | RTMPCodecIDAVC
+	RTMPHEVCKeyFrame   = RTMPFrameTypeKey<<4 | RTMPCodecIDHEVC
+	RTMPAVCInterFrame  = RTMPFrameTypeInter<<4 | RTMPCodecIDAVC
+	RTMPHEVCInterFrame = RTMPFrameTypeInter<<4 | RTMPCodecIDHEVC
 
 	// spec-video_file_format_spec_v10.pdf
 	// Audio tags
@@ -73,7 +76,7 @@ type RTMPHeader struct {
 
 type RTMPMsg struct {
 	Header  RTMPHeader
-	Payload []byte // 不包含 rtmp 头
+	Payload []byte // Payload不包含Header内容。如果需要将RTMPMsg序列化成RTMP chunk，可调用rtmp.ChunkDivider相关的函数
 }
 
 func (msg RTMPMsg) IsAVCKeySeqHeader() bool {

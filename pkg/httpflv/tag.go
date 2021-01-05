@@ -87,7 +87,7 @@ func (tag *Tag) ModTagTimestamp(timestamp uint32) {
 
 // 打包一个序列化后的 tag 二进制buffer，包含 tag header，body，prev tag size
 func PackHTTPFLVTag(t uint8, timestamp uint32, in []byte) []byte {
-	out := make([]byte, TagHeaderSize+len(in)+prevTagSizeFieldSize)
+	out := make([]byte, TagHeaderSize+len(in)+PrevTagSizeFieldSize)
 	out[0] = t
 	bele.BEPutUint24(out[1:], uint32(len(in)))
 	bele.BEPutUint24(out[4:], timestamp&0xFFFFFF)
@@ -115,7 +115,7 @@ func readTag(rd io.Reader) (tag Tag, err error) {
 	}
 	header := parseTagHeader(rawHeader)
 
-	needed := int(header.DataSize) + prevTagSizeFieldSize
+	needed := int(header.DataSize) + PrevTagSizeFieldSize
 	tag.Header = header
 	tag.Raw = make([]byte, TagHeaderSize+needed)
 	copy(tag.Raw, rawHeader)

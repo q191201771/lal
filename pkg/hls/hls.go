@@ -8,7 +8,9 @@
 
 package hls
 
-import "errors"
+import (
+	"errors"
+)
 
 // TODO chef:
 // - 支持HEVC
@@ -30,6 +32,8 @@ import "errors"
 // 进来的数据称为Frame帧，188字节的封装称为TSPacket包，TS文件称为Fragment
 
 var ErrHLS = errors.New("lal.hls: fxxk")
+
+var _ StreamerObserver = &Muxer{}
 
 var audNal = []byte{
 	0x00, 0x00, 0x00, 0x01, 0x09, 0xf0,

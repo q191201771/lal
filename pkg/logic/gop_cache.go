@@ -10,6 +10,7 @@ package logic
 
 import (
 	"github.com/q191201771/lal/pkg/base"
+	"github.com/q191201771/lal/pkg/remux"
 	"github.com/q191201771/lal/pkg/rtmp"
 	"github.com/q191201771/naza/pkg/nazalog"
 )
@@ -48,7 +49,7 @@ func (l *LazyRTMPMsg2FLVTag) Init(msg base.RTMPMsg) {
 
 func (l *LazyRTMPMsg2FLVTag) Get() []byte {
 	if l.tag == nil {
-		l.tag = Trans.RTMPMsg2FLVTag(l.msg).Raw
+		l.tag = remux.RTMPMsg2FLVTag(l.msg).Raw
 	}
 	return l.tag
 }

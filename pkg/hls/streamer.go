@@ -15,7 +15,6 @@ import (
 	"github.com/q191201771/lal/pkg/mpegts"
 	"github.com/q191201771/naza/pkg/bele"
 	"github.com/q191201771/naza/pkg/nazalog"
-	"github.com/q191201771/naza/pkg/unique"
 )
 
 type StreamerObserver interface {
@@ -42,7 +41,7 @@ type Streamer struct {
 }
 
 func NewStreamer(observer StreamerObserver) *Streamer {
-	uk := unique.GenUniqueKey("STREAMER")
+	uk := base.GenUniqueKey(base.UKPStreamer)
 	videoOut := make([]byte, 1024*1024)
 	videoOut = videoOut[0:0]
 	return &Streamer{

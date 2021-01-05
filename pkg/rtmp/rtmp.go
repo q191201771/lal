@@ -46,3 +46,22 @@ const (
 	//MSID0 = 0 // 所有除 publish、play、onStatus 之外的信令
 	MSID1 = 1 // publish、play、onStatus 以及 音视频数据
 )
+
+// ---------------------------------------------------------------------------------------------------------------------
+// ### rtmp connect message
+//
+// #### ffmpeg pub
+// app:      live
+// type:     nonprivate
+// flashVer: FMLE/3.0 (compatible; Lavf57.83.100)
+// tcUrl:    rtmp://127.0.0.1:19350/live
+//
+// #### ffplay sub & vlc sub
+// app:           live
+// flashVer:      LNX 9,0,124,2
+// tcUrl:         rtmp://127.0.0.1:19350/live
+// fpad:          false
+// capabilities:  15
+// audioCodecs:   4071
+// videoCodecs:   252
+// videoFunction: 1

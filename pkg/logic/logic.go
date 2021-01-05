@@ -26,6 +26,7 @@ var _ rtmp.ServerObserver = &ServerManager{}
 var _ httpflv.ServerObserver = &ServerManager{}
 var _ httpts.ServerObserver = &ServerManager{}
 var _ rtsp.ServerObserver = &ServerManager{}
+var _ HTTPAPIServerObserver = &ServerManager{}
 
 var _ rtmp.PubSessionObserver = &Group{}
 var _ rtsp.PubSessionObserver = &Group{}

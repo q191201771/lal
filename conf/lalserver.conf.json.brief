@@ -18,10 +18,12 @@
     "sub_listen_addr": ":8081",   // HLS监听地址
     "out_path": "/tmp/lal/hls/",  // HLS文件保存根目录
     "fragment_duration_ms": 3000, // 单个TS文件切片时长，单位毫秒
-    "fragment_num": 6             // M3U8文件列表中TS文件的数量
+    "fragment_num": 6,            // M3U8文件列表中TS文件的数量
+    "cleanup_flag": true          // 输入流结束后，是否清理hls的文件。
+                                  // 注意，如果为true，文件将在输入流结束后的 <fragment_duration_ms> * <fragment_num> * 2 的时间点清理
   },
   "httpts": {
-    "enable": true, // 是否开启HTTP-TS服务的监听。注意，这并不是HLS中的TS，而是在一条HTTP长连接上持续性传输TS流
+    "enable": true,            // 是否开启HTTP-TS服务的监听。注意，这并不是HLS中的TS，而是在一条HTTP长连接上持续性传输TS流
     "sub_listen_addr": ":8082" // HTTP-TS拉流地址
   },
   "rtsp": {
@@ -37,9 +39,25 @@
     "enable": false, // 是否开启回源拉流功能，开启后，当自身接收到拉流请求，而流不存在时，会从其他服务器拉取这个流到本地
     "addr": ""       // 回源拉流的地址。格式举例 "127.0.0.1:19351"
   },
+  "http_api": {
+    "enable": true, // 是否开启HTTP API接口
+    "addr": ":8083" // 监听地址
+  },
+  "server_id": "1", // 当前lalserver唯一ID。多个lalserver HTTP Notify同一个地址时，可通过该ID区分
+  "http_notify": {
+    "enable": true,                                              // 是否开启HTTP Notify事件回调
+    "update_interval_sec": 5,                                    // update事件回调间隔，单位毫秒
+    "on_server_start": "http://127.0.0.1:10101/on_server_start", // 各事件HTTP Notify事件回调地址
+    "on_update": "http://127.0.0.1:10101/on_update",
+    "on_pub_start": "http://127.0.0.1:10101/on_pub_start",
+    "on_pub_stop": "http://127.0.0.1:10101/on_pub_stop",
+    "on_sub_start": "http://127.0.0.1:10101/on_sub_start",
+    "on_sub_stop": "http://127.0.0.1:10101/on_sub_stop",
+    "on_rtmp_connect": "http://127.0.0.1:10101/on_rtmp_connect"
+  },
   "pprof": {
-    "enable": true,  // 是否开启Go pprof web服务的监听
-    "addr": ":10001" // Go pprof web地址
+    "enable": true, // 是否开启Go pprof web服务的监听
+    "addr": ":8084" // Go pprof web地址
   },
   "log": {
     "level": 1,                         // 日志级别，1 debug, 2 info, 3 warn, 4 error, 5 fatal

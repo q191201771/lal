@@ -18,11 +18,6 @@ GitStatus=`git status -s`
 BuildTime=`date +'%Y.%m.%d.%H%M%S'`
 BuildGoVersion=`go version`
 
-# 如果读取到git信息，最新tag是v开头，则修改代码 pkg/base/version.go 中的版本信息
-if [[ ${GitTag} == v* ]]; then
-  gsed -i "/^var LALVersion/cvar LALVersion = \"${GitTag}\"" pkg/base/version.go
-fi
-
 LDFlags=" \
     -X 'github.com/q191201771/naza/pkg/bininfo.GitTag=${GitTag}' \
     -X 'github.com/q191201771/naza/pkg/bininfo.GitCommitLog=${GitCommitLog}' \

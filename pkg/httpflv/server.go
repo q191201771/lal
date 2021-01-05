@@ -13,7 +13,7 @@ import (
 	"net"
 	"sync"
 
-	log "github.com/q191201771/naza/pkg/nazalog"
+	"github.com/q191201771/naza/pkg/nazalog"
 )
 
 type ServerObserver interface {
@@ -34,18 +34,18 @@ type ServerConfig struct {
 }
 
 type Server struct {
-	obs     ServerObserver
-	config  ServerConfig
-	ln      net.Listener
-	httpsLn net.Listener
+	observer ServerObserver
+	config   ServerConfig
+	ln       net.Listener
+	httpsLn  net.Listener
 }
 
 // TODO chef: 监听太难看了，考虑直接传入Listener对象，或直接路由进来，使得不同server可以共用端口
 
-func NewServer(obs ServerObserver, config ServerConfig) *Server {
+func NewServer(observer ServerObserver, config ServerConfig) *Server {
 	return &Server{
-		obs:    obs,
-		config: config,
+		observer: observer,
+		config:   config,
 	}
 }
 
@@ -54,7 +54,7 @@ func (server *Server) Listen() (err error) {
 		if server.ln, err = net.Listen("tcp", server.config.SubListenAddr); err != nil {
 			return
 		}
-		log.Infof("start httpflv server listen. addr=%s", server.config.SubListenAddr)
+		nazalog.Infof("start httpflv server listen. addr=%s", server.config.SubListenAddr)
 	}
 
 	if server.config.EnableHTTPS {
@@ -67,7 +67,7 @@ func (server *Server) Listen() (err error) {
 		if server.httpsLn, err = tls.Listen("tcp", server.config.HTTPSAddr, tlsConfig); err != nil {
 			return
 		}
-		log.Infof("start httpsflv server listen. addr=%s", server.config.HTTPSAddr)
+		nazalog.Infof("start httpsflv server listen. addr=%s", server.config.HTTPSAddr)
 	}
 
 	return
@@ -113,31 +113,31 @@ func (server *Server) RunLoop() error {
 func (server *Server) Dispose() {
 	if server.ln != nil {
 		if err := server.ln.Close(); err != nil {
-			log.Error(err)
+			nazalog.Error(err)
 		}
 	}
 
 	if server.httpsLn != nil {
 		if err := server.httpsLn.Close(); err != nil {
-			log.Error(err)
+			nazalog.Error(err)
 		}
 	}
 }
 
 func (server *Server) handleConnect(conn net.Conn) {
-	log.Infof("accept a httpflv connection. remoteAddr=%s", conn.RemoteAddr().String())
+	nazalog.Infof("accept a httpflv connection. remoteAddr=%s", conn.RemoteAddr().String())
 	session := NewSubSession(conn)
 	if err := session.ReadRequest(); err != nil {
-		log.Errorf("[%s] read httpflv SubSession request error. err=%v", session.UniqueKey, err)
+		nazalog.Errorf("[%s] read httpflv SubSession request error. err=%v", session.UniqueKey, err)
 		return
 	}
-	log.Debugf("[%s] < read http request. uri=%s", session.UniqueKey, session.URI)
+	nazalog.Debugf("[%s] < read http request.", session.UniqueKey)
 
-	if !server.obs.OnNewHTTPFLVSubSession(session) {
+	if !server.observer.OnNewHTTPFLVSubSession(session) {
 		session.Dispose()
 	}
 
 	err := session.RunLoop()
-	log.Debugf("[%s] httpflv sub session loop done. err=%v", session.UniqueKey, err)
-	server.obs.OnDelHTTPFLVSubSession(session)
+	nazalog.Debugf("[%s] httpflv sub session loop done. err=%v", session.UniqueKey, err)
+	server.observer.OnDelHTTPFLVSubSession(session)
 }

@@ -262,6 +262,7 @@ func ParseSPSPPSFromSeqHeader(payload []byte) (sps, pps []byte, err error) {
 	return
 }
 
+// 返回的内存块为新申请的独立内存块
 func BuildSeqHeaderFromSPSPPS(sps, pps []byte) ([]byte, error) {
 	var sh []byte
 	sh = make([]byte, 16+len(sps)+len(pps))
@@ -333,6 +334,7 @@ func CaptureAVCC2AnnexB(w io.Writer, payload []byte) error {
 	return nil
 }
 
+// TODO chef: hevc中，ctx作为参数传入，这里考虑统一一下
 // 尝试解析SPS所有字段，实验中，请勿直接使用该函数
 func ParseSPS(payload []byte) (Context, error) {
 	var sps SPS
@@ -423,8 +425,12 @@ func ParseSPS(payload []byte) (Context, error) {
 			return Context{}, err
 		}
 		if flag == 1 {
-			nazalog.Debugf("scaling matrix present, not impl yet.")
-			return Context{}, ErrAVC
+			nazalog.Debugf("scaling matrix present.")
+			// TODO chef: 还没有正确实现，只是针对特定case做了处理
+			_, err = br.ReadBits32(128)
+			if err != nil {
+				return Context{}, err
+			}
 		}
 	} else {
 		sps.ChromaFormatIdc = 1
@@ -436,10 +442,14 @@ func ParseSPS(payload []byte) (Context, error) {
 	if err != nil {
 		return Context{}, err
 	}
+	if sps.Log2MaxFrameNumMinus4 > 12 {
+		return Context{}, ErrAVC
+	}
 	sps.PicOrderCntType, err = br.ReadGolomb()
 	if err != nil {
 		return Context{}, err
 	}
+
 	if sps.PicOrderCntType == 0 {
 		sps.Log2MaxPicOrderCntLsb, err = br.ReadGolomb()
 		sps.Log2MaxPicOrderCntLsb += 4
@@ -577,3 +587,134 @@ func TryParseSeqHeader(payload []byte) error {
 
 	return err
 }
+
+//var defaultScaling4 = [][]uint8{
+//	{
+//		6, 13, 20, 28, 13, 20, 28, 32,
+//		20, 28, 32, 37, 28, 32, 37, 42,
+//	},
+//	{
+//		10, 14, 20, 24, 14, 20, 24, 27,
+//		20, 24, 27, 30, 24, 27, 30, 34,
+//	},
+//}
+//
+//var defaultScaling8 = [][]uint8{
+//	{
+//		6, 10, 13, 16, 18, 23, 25, 27,
+//		10, 11, 16, 18, 23, 25, 27, 29,
+//		13, 16, 18, 23, 25, 27, 29, 31,
+//		16, 18, 23, 25, 27, 29, 31, 33,
+//		18, 23, 25, 27, 29, 31, 33, 36,
+//		23, 25, 27, 29, 31, 33, 36, 38,
+//		25, 27, 29, 31, 33, 36, 38, 40,
+//		27, 29, 31, 33, 36, 38, 40, 42,
+//	},
+//	{
+//		9, 13, 15, 17, 19, 21, 22, 24,
+//		13, 13, 17, 19, 21, 22, 24, 25,
+//		15, 17, 19, 21, 22, 24, 25, 27,
+//		17, 19, 21, 22, 24, 25, 27, 28,
+//		19, 21, 22, 24, 25, 27, 28, 30,
+//		21, 22, 24, 25, 27, 28, 30, 32,
+//		22, 24, 25, 27, 28, 30, 32, 33,
+//		24, 25, 27, 28, 30, 32, 33, 35,
+//	},
+//}
+//
+//var ffZigzagDirect = []uint8{
+//	0, 1, 8, 16, 9, 2, 3, 10,
+//	17, 24, 32, 25, 18, 11, 4, 5,
+//	12, 19, 26, 33, 40, 48, 41, 34,
+//	27, 20, 13, 6, 7, 14, 21, 28,
+//	35, 42, 49, 56, 57, 50, 43, 36,
+//	29, 22, 15, 23, 30, 37, 44, 51,
+//	58, 59, 52, 45, 38, 31, 39, 46,
+//	53, 60, 61, 54, 47, 55, 62, 63,
+//}
+//
+//var ffZigzagScan = []uint8{
+//	0 + 0*4, 1 + 0*4, 0 + 1*4, 0 + 2*4,
+//	1 + 1*4, 2 + 0*4, 3 + 0*4, 2 + 1*4,
+//	1 + 2*4, 0 + 3*4, 1 + 3*4, 2 + 2*4,
+//	3 + 1*4, 3 + 2*4, 2 + 3*4, 3 + 3*4,
+//}
+//
+//func decodeScalingMatrices(reader *nazabits.BitReader) error {
+//	// 6 * 16
+//	var spsScalingMatrix4 = [][]uint8{
+//		{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+//		{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+//		{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+//		{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+//		{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+//		{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+//	}
+//	// 6 * 64
+//	var spsScalingMatrix8 = [][]uint8{
+//		{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+//		{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+//		{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+//		{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+//	}
+//
+//	fallback := [][]uint8{defaultScaling4[0], defaultScaling4[1], defaultScaling8[0], defaultScaling8[1]}
+//	decodeScalingList(reader, spsScalingMatrix4[0], 16, defaultScaling4[0], fallback[0])
+//	decodeScalingList(reader, spsScalingMatrix4[1], 16, defaultScaling4[0], spsScalingMatrix4[0])
+//	decodeScalingList(reader, spsScalingMatrix4[2], 16, defaultScaling4[0], spsScalingMatrix4[1])
+//	decodeScalingList(reader, spsScalingMatrix4[3], 16, defaultScaling4[1], fallback[1])
+//	decodeScalingList(reader, spsScalingMatrix4[4], 16, defaultScaling4[1], spsScalingMatrix4[3])
+//	decodeScalingList(reader, spsScalingMatrix4[4], 16, defaultScaling4[1], spsScalingMatrix4[3])
+//
+//	decodeScalingList(reader, spsScalingMatrix8[0], 64, defaultScaling8[0], fallback[2])
+//	decodeScalingList(reader, spsScalingMatrix8[3], 64, defaultScaling8[1], fallback[3])
+//
+//	return nil
+//}
+//
+//func decodeScalingList(reader *nazabits.BitReader, factors []uint8, size int, jvtList []uint8, fallbackList []uint8) error {
+//	var (
+//		i    = 0
+//		last = 8
+//		next = 8
+//		scan []uint8
+//	)
+//	if size == 16 {
+//		scan = ffZigzagScan
+//	} else {
+//		scan = ffZigzagDirect
+//	}
+//	flag, err := reader.ReadBit()
+//	if err != nil {
+//		return err
+//	}
+//	return nil
+//	if flag == 0 {
+//		for n := 0; n < size; n++ {
+//			factors[n] = fallbackList[n]
+//		}
+//	} else {
+//		for i = 0; i < size; i++ {
+//			if next != 0 {
+//				v, err := reader.ReadGolomb()
+//				if err != nil {
+//					return err
+//				}
+//				next = (last + int(v)) & 0xff
+//			}
+//			if i == 0 && next == 0 {
+//				for n := 0; n < size; n++ {
+//					factors[n] = jvtList[n]
+//				}
+//				break
+//			}
+//			if next != 0 {
+//				factors[scan[i]] = uint8(next)
+//				last = next
+//			} else {
+//				factors[scan[i]] = uint8(last)
+//			}
+//		}
+//	}
+//	return nil
+//}

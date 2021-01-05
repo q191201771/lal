@@ -48,7 +48,7 @@ func main() {
 		nazalog.Errorf("pull error. err=%+v", err)
 		os.Exit(-1)
 	}
-	err = <-pullSession.Done()
+	err = <-pullSession.Wait()
 	nazalog.Errorf("pull error. err=%+v", err)
 }
 

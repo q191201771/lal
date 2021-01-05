@@ -16,10 +16,11 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/q191201771/lal/pkg/remux"
+
 	"github.com/q191201771/lal/pkg/base"
 
 	"github.com/q191201771/lal/pkg/httpflv"
-	"github.com/q191201771/lal/pkg/logic"
 	"github.com/q191201771/lal/pkg/rtmp"
 	"github.com/q191201771/naza/pkg/nazalog"
 )
@@ -72,8 +73,7 @@ func pull(url string, filename string) {
 	}
 
 	session := rtmp.NewPullSession(func(option *rtmp.PullSessionOption) {
-		option.ConnectTimeoutMS = 3000
-		option.PullTimeoutMS = 3000
+		option.PullTimeoutMS = 30000
 		option.ReadAVTimeoutMS = 10000
 	})
 
@@ -82,13 +82,13 @@ func pull(url string, filename string) {
 		func(msg base.RTMPMsg) {
 			nazalog.Debugf("header=%+v", msg.Header)
 			if filename != "" {
-				tag := logic.Trans.RTMPMsg2FLVTag(msg)
+				tag := remux.RTMPMsg2FLVTag(msg)
 				err := w.WriteTag(*tag)
 				nazalog.Assert(nil, err)
 			}
 		})
 	nazalog.Assert(nil, err)
-	err = <-session.Done()
+	err = <-session.Wait()
 	nazalog.Debug(err)
 }
 

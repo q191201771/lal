@@ -10,13 +10,10 @@
 <a title="codeline" target="_blank" href="https://github.com/q191201771/lal"><img src="https://sloc.xyz/github/q191201771/lal/?category=code"></a>
 <a title="license" target="_blank" href="https://github.com/q191201771/lal/blob/master/LICENSE"><img src="https://img.shields.io/badge/license-MIT-brightgreen.svg?style=flat-square"></a>
 <a title="lastcommit" target="_blank" href="https://github.com/q191201771/lal/commits/master"><img src="https://img.shields.io/github/commit-activity/m/q191201771/lal.svg?style=flat-square"></a>
-<a title="commitactivity" target="_blank" href="https://github.com/q191201771/lal/graphs/commit-activity"><img src="https://img.shields.io/github/last-commit/q191201771/lal.svg?style=flat-square"></a>
 <br>
 <a title="pr" target="_blank" href="https://github.com/q191201771/lal/pulls"><img src="https://img.shields.io/github/issues-pr-closed/q191201771/lal.svg?style=flat-square&color=FF9966"></a>
 <a title="hits" target="_blank" href="https://github.com/q191201771/lal"><img src="https://hits.b3log.org/q191201771/lal.svg?style=flat-square"></a>
-<a title="language" target="_blank" href="https://github.com/q191201771/lal"><img src="https://img.shields.io/github/languages/count/q191201771/lal.svg?style=flat-square"></a>
 <a title="toplanguage" target="_blank" href="https://github.com/q191201771/lal"><img src="https://img.shields.io/github/languages/top/q191201771/lal.svg?style=flat-square"></a>
-<a title="godoc" target="_blank" href="https://godoc.org/github.com/q191201771/lal"><img src="http://img.shields.io/badge/godoc-reference-5272B4.svg?style=flat-square"></a>
 <br>
 </p>
 
@@ -26,35 +23,41 @@
 
 | - | sub rtmp | sub http(s)-flv | sub http-ts | sub hls | sub rtsp | relay push rtmp |
 | - | - | - | - | - | - | - |
-| pub rtmp        | ✔ | ✔ | ✔ | ✔ | - | ✔ |
-| pub rtsp        | ✔ | ✔ | ✔ | ✔ | - | ✔ |
-| relay pull rtmp | ✔ | ✔ | ✔ | ✔ | - | . |
+| pub rtmp        | ✔ | ✔ | ✔ | ✔ | X | ✔ |
+| pub rtsp        | ✔ | ✔ | ✔ | ✔ | ✔ | ✔ |
+| relay pull rtmp | ✔ | ✔ | ✔ | ✔ | X | . |
 
 | 编码类型 | rtmp | rtsp | hls | http(s)-flv | http-ts |
 | - | - | - | - | - | - |
 | aac       | ✔ | ✔ | ✔ | ✔ | ✔ |
 | avc/h264  | ✔ | ✔ | ✔ | ✔ | ✔ |
-| hevc/h265 | ✔ | - | - | ✔ | - |
+| hevc/h265 | ✔ | ✔ | X | ✔ | X |
 
 表格含义见： [《流媒体传输连接类型之session client, server, pub, sub, push, pull》](https://pengrl.com/p/20080)
 
 **`app/lalserver`功能特性：**
 
-- (依托Go语言)：支持`(linux/macOS/windows)`多平台开发、调试、运行。支持交叉编译。生成的可执行文件(无任何库依赖)可独立运行。(开放源码的同时)，提供各平台可执行文件，可(免编译)直接运行
-- 高性能，多核多线程扩展
-- 支持RTMP/RTSP/HTTP-FLV/HTTP-TS/HLS多种封装协议，不同封装协议支持相互转换
-- 支持HTTPS-FLV
-- HTTP类型的流支持CORS跨域请求
-- 支持HTTP服务器(比如HLS切片文件可直接播放，不需要额外的HTTP文件服务器)
-- 支持HLS录制(HLS直播与录制可同时开启)
-- 视频支持H264/AVC，H265/HEVC格式
-- 音频支持AAC格式
-- 支持静态回源、静态转推，可搭建基础的集群
-- 支持Gop缓冲，用于秒开播放
+- [x] **全平台**。(依托Go语言)：支持`(linux/macOS/windows)`多平台开发、调试、运行。支持交叉编译。生成的可执行文件(无任何库依赖)可独立运行。(开放源码的同时)提供各平台可执行文件，可(免编译)直接运行
+- [x] **高性能**。多核多线程扩展
+- [x] **多种直播流封装协议**。支持RTMP/RTSP/HTTP-FLV/HTTP-TS/HLS，不同封装协议支持相互转换
+- [x] **多种编码格式**。视频支持H264/AVC，H265/HEVC，音频支持AAC
+- [x] **录制**。支持HLS录制(HLS直播与录制可同时开启)
+- [x] **HTTPS**。支持HTTPS-FLV拉流
+- [x] **RTSP**。支持interleaved模式。支持digest auth验证。支持`GET_PARAMETER`。
+- [x] **HTTP API接口**。用于获取服务信息，向服务发送命令。见[《lal流媒体服务器的HTTP API接口》](https://pengrl.com/p/20100)
+- [x] **HTTP Notify事件回调**。见[《lal HTTP Notify(or Callback or Webhook)事件回调》](https://pengrl.com/p/20101)
+- [x] **分布式集群**。
+- [x] **静态pull回源**。通过配置文件配置回源地址
+- [x] **静态push转推**。支持转推多个地址。通过配置文件配置转推地址
+- [x] **CORS跨域**。支持HTTP-FLV，HTTP-TS，HLS跨域拉流
+- [x] **HTTP文件服务器**。比如HLS切片文件可直接播放，不需要额外的HTTP文件服务器
+- [x] **秒开播放**。GOP缓冲
 
-除了lalserver，还提供一些基于lal开发的demo： [《lal/app/demo》](https://github.com/q191201771/lal/blob/master/app/demo/README.md)
+除了lalserver，还提供一些基于lal开发的demo（比如客户端程序）： [《lal/app/demo》](https://github.com/q191201771/lal/blob/master/app/demo/README.md)
 
 <img alt="Wide" src="https://pengrl.com/images/other/lalmodule.jpg?date=0829">
+
+发行版本日志：[《CHANGELOG.md》](https://github.com/q191201771/lal/blob/master/CHANGELOG.md)
 
 ### 编译，运行，体验功能
 
@@ -110,7 +113,7 @@ lalserver详细配置见： [《配置注释文档》](https://github.com/q19120
 
 ### 性能测试，测试过的第三方客户端
 
-见[TEST.md](https://github.com/q191201771/lal/blob/master/TEST.md)
+见[《TEST.md》](https://github.com/q191201771/lal/blob/master/TEST.md)
 
 ### 项目star趋势图
 

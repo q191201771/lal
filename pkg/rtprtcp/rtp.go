@@ -53,17 +53,21 @@ const (
 // 30-31  undefined                                    -
 
 const (
-	NALUTypeSingleMax = 23
-	NALUTypeSTAPA     = 24 // one packet, multiple nals
-	NALUTypeFUA       = 28
+	NALUTypeAVCSingleMax = 23
+	NALUTypeAVCSTAPA     = 24 // one packet, multiple nals
+	NALUTypeAVCFUA       = 28
 )
 
 const (
-	PositionTypeSingle    uint8 = 1 // <= NALUTypeSingleMax
-	PositionTypeFUAStart  uint8 = 2 // NALUTypeFUA
-	PositionTypeFUAMiddle uint8 = 3 // NALUTypeFUA
-	PositionTypeFUAEnd    uint8 = 4 // NALUTypeFUA
-	PositionTypeSTAPA     uint8 = 5 // NALUTypeSTAPA
+	NALUTypeHEVCFUA = 49
+)
+
+const (
+	PositionTypeSingle    uint8 = 1
+	PositionTypeFUAStart  uint8 = 2
+	PositionTypeFUAMiddle uint8 = 3
+	PositionTypeFUAEnd    uint8 = 4
+	PositionTypeSTAPA     uint8 = 5
 )
 
 type RTPHeader struct {
@@ -75,7 +79,7 @@ type RTPHeader struct {
 	PacketType uint8  // 7b
 	Seq        uint16 // 16b **
 	Timestamp  uint32 // 32b ****
-	Ssrc       uint32 // 32b **** Synchronization source
+	SSRC       uint32 // 32b **** Synchronization source
 
 	payloadOffset uint32
 }
@@ -101,7 +105,7 @@ func ParseRTPPacket(b []byte) (h RTPHeader, err error) {
 	h.PacketType = b[1] & 0x7F
 	h.Seq = bele.BEUint16(b[2:])
 	h.Timestamp = bele.BEUint32(b[4:])
-	h.Ssrc = bele.BEUint32(b[8:])
+	h.SSRC = bele.BEUint32(b[8:])
 
 	h.payloadOffset = RTPFixedHeaderLength
 	return

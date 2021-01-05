@@ -20,9 +20,9 @@ echo ${v} >> ${ROOT_DIR}/${OUT_DIR}/${prefix}linux/VERSION.txt
 echo ${v} >> ${ROOT_DIR}/${OUT_DIR}/${prefix}macos/VERSION.txt
 echo ${v} >> ${ROOT_DIR}/${OUT_DIR}/${prefix}windows/VERSION.txt
 
-cp conf/lalserver.conf.json conf/edge.conf.json ${ROOT_DIR}/${OUT_DIR}/${prefix}linux/conf
-cp conf/lalserver.conf.json conf/edge.conf.json ${ROOT_DIR}/${OUT_DIR}/${prefix}macos/conf
-cp conf/lalserver.conf.json conf/edge.conf.json ${ROOT_DIR}/${OUT_DIR}/${prefix}windows/conf
+cp conf/lalserver.conf.json ${ROOT_DIR}/${OUT_DIR}/${prefix}linux/conf
+cp conf/lalserver.conf.json ${ROOT_DIR}/${OUT_DIR}/${prefix}macos/conf
+cp conf/lalserver.conf.json ${ROOT_DIR}/${OUT_DIR}/${prefix}windows/conf
 
 GitTag=`git tag --sort=version:refname | tail -n 1`
 GitCommitLog=`git log --pretty=oneline -n 1`

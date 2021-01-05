@@ -78,6 +78,17 @@ func (o ObjectPairArray) FindString(key string) (string, error) {
 	return "", ErrAMFNotExist
 }
 
+func (o ObjectPairArray) FindNumber(key string) (int, error) {
+	for _, op := range o {
+		if op.Key == key {
+			if s, ok := op.Value.(float64); ok {
+				return int(s), nil
+			}
+		}
+	}
+	return -1, ErrAMFNotExist
+}
+
 type amf0 struct{}
 
 var AMF0 amf0

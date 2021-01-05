@@ -11,7 +11,6 @@ package rtsp
 import (
 	"github.com/q191201771/lal/pkg/base"
 	"github.com/q191201771/naza/pkg/circularqueue"
-	"github.com/q191201771/naza/pkg/nazalog"
 )
 
 // 处理音频和视频的时间戳：
@@ -46,29 +45,37 @@ func NewAVPacketQueue(onAVPacket OnAVPacket) *AVPacketQueue {
 func (a *AVPacketQueue) Feed(pkt base.AVPacket) {
 	//nazalog.Debugf("AVQ feed. t=%d, ts=%d", pkt.PayloadType, pkt.Timestamp)
 	switch pkt.PayloadType {
-	case base.RTPPacketTypeAVC:
+	case base.AVPacketPTAVC:
+		fallthrough
+	case base.AVPacketPTHEVC:
 		if a.videoBaseTS == -1 {
 			a.videoBaseTS = int64(pkt.Timestamp)
 		}
 		pkt.Timestamp -= uint32(a.videoBaseTS)
+		_ = a.videoQueue.PushBack(pkt)
 
 		if a.videoQueue.Full() {
+			pkt, _ := a.videoQueue.Front()
 			_, _ = a.videoQueue.PopFront()
-			nazalog.Warnf("video queue full, drop front packet.")
+			ppkt := pkt.(base.AVPacket)
+			a.onAVPacket(ppkt)
+			return
 		}
-		_ = a.videoQueue.PushBack(pkt)
 		//nazalog.Debugf("AVQ v push. a=%d, v=%d", a.audioQueue.Size(), a.videoQueue.Size())
-	case base.RTPPacketTypeAAC:
+	case base.AVPacketPTAAC:
 		if a.audioBaseTS == -1 {
 			a.audioBaseTS = int64(pkt.Timestamp)
 		}
 		pkt.Timestamp -= uint32(a.audioBaseTS)
 
-		if a.audioQueue.Full() {
-			_, _ = a.audioQueue.PopFront()
-			nazalog.Warnf("audio queue full, drop front packet. a=%d, v=%d", a.audioQueue.Size(), a.videoQueue.Size())
-		}
 		_ = a.audioQueue.PushBack(pkt)
+		if a.audioQueue.Full() {
+			pkt, _ := a.audioQueue.Front()
+			_, _ = a.audioQueue.PopFront()
+			ppkt := pkt.(base.AVPacket)
+			a.onAVPacket(ppkt)
+			return
+		}
 		//nazalog.Debugf("AVQ a push. a=%d, v=%d", a.audioQueue.Size(), a.videoQueue.Size())
 	} //switch loop
 

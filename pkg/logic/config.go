@@ -10,7 +10,6 @@ package logic
 
 import (
 	"encoding/json"
-	"errors"
 	"io/ioutil"
 
 	"github.com/q191201771/lal/pkg/httpflv"
@@ -19,6 +18,8 @@ import (
 	"github.com/q191201771/naza/pkg/nazajson"
 	"github.com/q191201771/naza/pkg/nazalog"
 )
+
+const ConfigVersion = "0.0.1"
 
 type Config struct {
 	RTMPConfig      RTMPConfig      `json:"rtmp"`
@@ -29,8 +30,11 @@ type Config struct {
 	RelayPushConfig RelayPushConfig `json:"relay_push"`
 	RelayPullConfig RelayPullConfig `json:"relay_pull"`
 
-	PProfConfig PProfConfig    `json:"pprof"`
-	LogConfig   nazalog.Option `json:"log"`
+	HTTPAPIConfig    HTTPAPIConfig    `json:"http_api"`
+	ServerID         string           `json:"server_id"`
+	HTTPNotifyConfig HTTPNotifyConfig `json:"http_notify"`
+	PProfConfig      PProfConfig      `json:"pprof"`
+	LogConfig        nazalog.Option   `json:"log"`
 }
 
 type RTMPConfig struct {
@@ -52,6 +56,7 @@ type HTTPTSConfig struct {
 type HLSConfig struct {
 	SubListenAddr string `json:"sub_listen_addr"`
 	hls.MuxerConfig
+	CleanupFlag bool `json:"cleanup_flag"`
 }
 
 type RTSPConfig struct {
@@ -67,6 +72,23 @@ type RelayPushConfig struct {
 type RelayPullConfig struct {
 	Enable bool   `json:"enable"`
 	Addr   string `json:"addr"`
+}
+
+type HTTPAPIConfig struct {
+	Enable bool   `json:"enable"`
+	Addr   string `json:"addr"`
+}
+
+type HTTPNotifyConfig struct {
+	Enable            bool   `json:"enable"`
+	UpdateIntervalSec int    `json:"update_interval_sec"`
+	OnServerStart     string `json:"on_server_start"`
+	OnUpdate          string `json:"on_update"`
+	OnPubStart        string `json:"on_pub_start"`
+	OnPubStop         string `json:"on_pub_stop"`
+	OnSubStart        string `json:"on_sub_start"`
+	OnSubStop         string `json:"on_sub_stop"`
+	OnRTMPConnect     string `json:"on_rtmp_connect"`
 }
 
 type PProfConfig struct {
@@ -89,17 +111,24 @@ func LoadConf(confFile string) (*Config, error) {
 		return nil, err
 	}
 
-	// 检查配置必须项
-	if !j.Exist("rtmp") ||
-		!j.Exist("httpflv") ||
-		!j.Exist("hls") ||
-		!j.Exist("httpts") ||
-		!j.Exist("rtsp") ||
-		!j.Exist("relay_push") ||
-		!j.Exist("relay_pull") ||
-		!j.Exist("pprof") ||
-		!j.Exist("log") {
-		return &config, errors.New("missing key field in config file")
+	// 检查一级配置项
+	keyFieldList := []string{
+		"rtmp",
+		"httpflv",
+		"hls",
+		"httpts",
+		"rtsp",
+		"relay_push",
+		"relay_pull",
+		"http_api",
+		"http_notify",
+		"pprof",
+		"log",
+	}
+	for _, kf := range keyFieldList {
+		if !j.Exist(kf) {
+			nazalog.Warnf("missing config item %s", kf)
+		}
 	}
 
 	// 配置不存在时，设置默认值

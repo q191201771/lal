@@ -17,9 +17,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/q191201771/naza/pkg/bitrate"
+	"github.com/q191201771/lal/pkg/remux"
 
-	"github.com/q191201771/lal/pkg/logic"
+	"github.com/q191201771/naza/pkg/bitrate"
 
 	"github.com/q191201771/lal/pkg/httpflv"
 	"github.com/q191201771/lal/pkg/rtmp"
@@ -131,7 +131,6 @@ func push(tags []httpflv.Tag, urls []string, isRecursive bool) {
 
 	for i := range urls {
 		ps := rtmp.NewPushSession(func(option *rtmp.PushSessionOption) {
-			option.ConnectTimeoutMS = 3000
 			option.PushTimeoutMS = 5000
 			option.WriteAVTimeoutMS = 10000
 		})
@@ -167,7 +166,7 @@ func push(tags []httpflv.Tag, urls []string, isRecursive bool) {
 
 		// 一轮，遍历文件的所有tag数据
 		for _, tag := range tags {
-			h := logic.Trans.FLVTagHeader2RTMPHeader(tag.Header)
+			h := remux.FLVTagHeader2RTMPHeader(tag.Header)
 
 			// metadata只发送一次
 			if tag.IsMetadata() {

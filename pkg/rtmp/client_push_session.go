@@ -8,21 +8,25 @@
 
 package rtmp
 
+import (
+	"github.com/q191201771/lal/pkg/base"
+)
+
 type PushSession struct {
 	IsFresh bool
 
 	core *ClientSession
-	//status uint32
 }
 
 type PushSessionOption struct {
-	ConnectTimeoutMS int
-	PushTimeoutMS    int
+	// 从调用Push函数，到可以发送音视频数据的前一步，也即收到服务端返回的rtmp publish对应结果的信令的超时时间
+	// 如果为0，则没有超时时间
+	PushTimeoutMS int
+
 	WriteAVTimeoutMS int
 }
 
 var defaultPushSessionOption = PushSessionOption{
-	ConnectTimeoutMS: 0,
 	PushTimeoutMS:    0,
 	WriteAVTimeoutMS: 0,
 }
@@ -37,17 +41,15 @@ func NewPushSession(modOptions ...ModPushSessionOption) *PushSession {
 	return &PushSession{
 		IsFresh: true,
 		core: NewClientSession(CSTPushSession, func(option *ClientSessionOption) {
-			option.ConnectTimeoutMS = opt.ConnectTimeoutMS
 			option.DoTimeoutMS = opt.PushTimeoutMS
 			option.WriteAVTimeoutMS = opt.WriteAVTimeoutMS
 		}),
 	}
 }
 
-// 建立rtmp publish连接
-// 阻塞直到收到服务端返回的rtmp publish对应结果的信令，或发生错误
+// 如果没有错误发生，阻塞到接收音视频数据的前一步，也即收到服务端返回的rtmp publish对应结果的信令
 func (s *PushSession) Push(rawURL string) error {
-	return s.core.doWithTimeout(rawURL)
+	return s.core.Do(rawURL)
 }
 
 func (s *PushSession) AsyncWrite(msg []byte) error {
@@ -62,8 +64,32 @@ func (s *PushSession) Dispose() {
 	s.core.Dispose()
 }
 
-func (s *PushSession) Done() <-chan error {
-	return s.core.Done()
+func (s *PushSession) GetStat() base.StatSession {
+	return s.core.GetStat()
+}
+
+func (s *PushSession) UpdateStat(interval uint32) {
+	s.core.UpdateStat(interval)
+}
+
+func (s *PushSession) IsAlive() (readAlive, writeAlive bool) {
+	return s.core.IsAlive()
+}
+
+func (s *PushSession) AppName() string {
+	return s.core.AppName()
+}
+
+func (s *PushSession) StreamName() string {
+	return s.core.StreamName()
+}
+
+func (s *PushSession) RawQuery() string {
+	return s.core.RawQuery()
+}
+
+func (s *PushSession) Wait() <-chan error {
+	return s.core.Wait()
 }
 
 func (s *PushSession) UniqueKey() string {

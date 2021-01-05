@@ -15,10 +15,10 @@ import (
 var ErrHTTPFLV = errors.New("lal.httpflv: fxxk")
 
 const (
-	TagHeaderSize int = 11
+	TagHeaderSize        int = 11
+	PrevTagSizeFieldSize int = 4
 
-	flvHeaderSize        int = 13
-	prevTagSizeFieldSize int = 4
+	flvHeaderSize int = 13
 )
 
 const (
