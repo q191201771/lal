@@ -18,8 +18,6 @@ import (
 	"github.com/q191201771/lal/pkg/base"
 
 	"github.com/q191201771/lal/pkg/rtprtcp"
-	"github.com/q191201771/naza/pkg/nazalog"
-
 	"github.com/q191201771/naza/pkg/nazanet"
 )
 
@@ -57,6 +55,7 @@ const (
 	HeaderFieldContentLength = "Content-Length"
 	HeaderWWWAuthenticate    = "WWW-Authenticate"
 	HeaderAuthorization      = "Authorization"
+	HeaderPublic             = "Publish"
 
 	HeaderAcceptApplicationSDP = "application/sdp"
 )
@@ -94,6 +93,10 @@ var (
 	}
 )
 
+type IInterleavedPacketWriter interface {
+	WriteInterleavedPacket(packet []byte, channel int) error
+}
+
 var availUDPConnPool *nazanet.AvailUDPConnPool
 
 // 传入远端IP，RTPPort，RTCPPort，创建两个对应的RTP和RTCP的UDP连接对象，以及对应的本端端口
@@ -111,7 +114,6 @@ func initConnWithClientPort(rHost string, rRTPPort, rRTCPPort uint16) (rtpConn, 
 	if err != nil {
 		return
 	}
-	nazalog.Debugf("acquire udp conn. rtp port=%d, rtcp port=%d", lRTPPort, lRTCPPort)
 
 	rtpConn, err = nazanet.NewUDPConnection(func(option *nazanet.UDPConnectionOption) {
 		option.Conn = rtpc

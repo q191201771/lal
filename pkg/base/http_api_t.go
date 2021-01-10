@@ -10,7 +10,7 @@ package base
 
 // 文档见： https://pengrl.com/p/20100/
 
-const HTTPAPIVersion = "v0.1.3"
+const HTTPAPIVersion = "v0.1.4"
 
 const (
 	ErrorCodeSucc            = 0

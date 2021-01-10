@@ -58,188 +58,196 @@ func NewServerCommandSession(observer ServerCommandSessionObserver, conn net.Con
 		}),
 	}
 
-	nazalog.Infof("[%s] lifecycle new rtmp ServerSession. session=%p, remote addr=%s", uk, s, conn.RemoteAddr().String())
+	nazalog.Infof("[%s] lifecycle new rtsp ServerSession. session=%p, laddr=%s, raddr=%s", uk, s, conn.LocalAddr().String(), conn.RemoteAddr().String())
 	return s
 }
 
-func (s *ServerCommandSession) RunLoop() error {
-	return s.runCmdLoop()
+func (session *ServerCommandSession) RunLoop() error {
+	return session.runCmdLoop()
 }
 
-func (s *ServerCommandSession) Dispose() error {
-	return s.conn.Close()
-}
-
-func (s *ServerCommandSession) UpdateStat(interval uint32) {
-	currStat := s.conn.GetStat()
-	rDiff := currStat.ReadBytesSum - s.prevConnStat.ReadBytesSum
-	s.stat.Bitrate = int(rDiff * 8 / 1024 / uint64(interval))
-	wDiff := currStat.WroteBytesSum - s.prevConnStat.WroteBytesSum
-	s.stat.Bitrate = int(wDiff * 8 / 1024 / uint64(interval))
-	s.prevConnStat = currStat
-}
-
-func (s *ServerCommandSession) GetStat() base.StatSession {
-	connStat := s.conn.GetStat()
-	s.stat.ReadBytesSum = connStat.ReadBytesSum
-	s.stat.WroteBytesSum = connStat.WroteBytesSum
-	return s.stat
-}
-
-func (s *ServerCommandSession) IsAlive() (readAlive, writeAlive bool) {
-	currStat := s.conn.GetStat()
-	if s.staleStat == nil {
-		s.staleStat = new(connection.Stat)
-		*s.staleStat = currStat
-		return true, true
-	}
-
-	readAlive = !(currStat.ReadBytesSum-s.staleStat.ReadBytesSum == 0)
-	writeAlive = !(currStat.WroteBytesSum-s.staleStat.WroteBytesSum == 0)
-	*s.staleStat = currStat
-	return
+func (session *ServerCommandSession) Dispose() error {
+	nazalog.Infof("[%s] lifecycle dispose rtsp ServerCommandSession. session=%p", session.UniqueKey, session)
+	return session.conn.Close()
 }
 
 // 使用RTSP TCP命令连接，向对端发送RTP数据
-func (s *ServerCommandSession) Write(channel int, b []byte) error {
-	_, err := s.conn.Write(packInterleaved(channel, b))
+func (session *ServerCommandSession) WriteInterleavedPacket(packet []byte, channel int) error {
+	_, err := session.conn.Write(packInterleaved(channel, packet))
 	return err
 }
 
-func (s *ServerCommandSession) runCmdLoop() error {
-	var r = bufio.NewReader(s.conn)
+func (session *ServerCommandSession) RemoteAddr() string {
+	return session.conn.RemoteAddr().String()
+}
+
+func (session *ServerCommandSession) UpdateStat(interval uint32) {
+	currStat := session.conn.GetStat()
+	rDiff := currStat.ReadBytesSum - session.prevConnStat.ReadBytesSum
+	session.stat.Bitrate = int(rDiff * 8 / 1024 / uint64(interval))
+	wDiff := currStat.WroteBytesSum - session.prevConnStat.WroteBytesSum
+	session.stat.Bitrate = int(wDiff * 8 / 1024 / uint64(interval))
+	session.prevConnStat = currStat
+}
+
+func (session *ServerCommandSession) GetStat() base.StatSession {
+	connStat := session.conn.GetStat()
+	session.stat.ReadBytesSum = connStat.ReadBytesSum
+	session.stat.WroteBytesSum = connStat.WroteBytesSum
+	return session.stat
+}
+
+func (session *ServerCommandSession) IsAlive() (readAlive, writeAlive bool) {
+	currStat := session.conn.GetStat()
+	if session.staleStat == nil {
+		session.staleStat = new(connection.Stat)
+		*session.staleStat = currStat
+		return true, true
+	}
+
+	readAlive = !(currStat.ReadBytesSum-session.staleStat.ReadBytesSum == 0)
+	writeAlive = !(currStat.WroteBytesSum-session.staleStat.WroteBytesSum == 0)
+	*session.staleStat = currStat
+	return
+}
+
+func (session *ServerCommandSession) runCmdLoop() error {
+	var r = bufio.NewReader(session.conn)
 
 Loop:
 	for {
 		isInterleaved, packet, channel, err := readInterleaved(r)
 		if err != nil {
-			nazalog.Errorf("[%s] read interleaved error. err=%+v", s.UniqueKey, err)
+			nazalog.Errorf("[%s] read interleaved error. err=%+v", session.UniqueKey, err)
 			break Loop
 		}
 		if isInterleaved {
-			// TODO chef: 考虑subSession的情况
-			if s.pubSession == nil {
-				nazalog.Errorf("[%s] read interleaved packet but pubSession not exist.", s.UniqueKey)
+			if session.pubSession != nil {
+				session.pubSession.HandleInterleavedPacket(packet, int(channel))
+			} else if session.subSession != nil {
+				session.subSession.HandleInterleavedPacket(packet, int(channel))
+			} else {
+				nazalog.Errorf("[%s] read interleaved packet but pub or sub not exist.", session.UniqueKey)
 				break Loop
 			}
-			s.pubSession.HandleInterleavedPacket(packet, int(channel))
 			continue
 		}
 
 		// 读取一个message
 		requestCtx, err := nazahttp.ReadHTTPRequestMessage(r)
 		if err != nil {
-			nazalog.Errorf("[%s] read rtsp message error. err=%+v", s.UniqueKey, err)
+			nazalog.Errorf("[%s] read rtsp message error. err=%+v", session.UniqueKey, err)
 			break Loop
 		}
 
-		nazalog.Debugf("[%s] read http request. method=%s, uri=%s, headers=%+v, body=%s", s.UniqueKey, requestCtx.Method, requestCtx.URI, requestCtx.Headers, string(requestCtx.Body))
+		nazalog.Debugf("[%s] read http request. method=%s, uri=%s, version=%s, headers=%+v, body=%s",
+			session.UniqueKey, requestCtx.Method, requestCtx.URI, requestCtx.Version, requestCtx.Headers, string(requestCtx.Body))
 
 		var handleMsgErr error
 		switch requestCtx.Method {
 		case MethodOptions:
 			// pub, sub
-			handleMsgErr = s.handleOptions(requestCtx)
+			handleMsgErr = session.handleOptions(requestCtx)
 		case MethodAnnounce:
 			// pub
-			handleMsgErr = s.handleAnnounce(requestCtx)
+			handleMsgErr = session.handleAnnounce(requestCtx)
 		case MethodDescribe:
 			// sub
-			handleMsgErr = s.handleDescribe(requestCtx)
+			handleMsgErr = session.handleDescribe(requestCtx)
 		case MethodSetup:
 			// pub, sub
-			handleMsgErr = s.handleSetup(requestCtx)
+			handleMsgErr = session.handleSetup(requestCtx)
 		case MethodRecord:
 			// pub
-			handleMsgErr = s.handleRecord(requestCtx)
+			handleMsgErr = session.handleRecord(requestCtx)
 		case MethodPlay:
 			// sub
-			handleMsgErr = s.handlePlay(requestCtx)
+			handleMsgErr = session.handlePlay(requestCtx)
 		case MethodTeardown:
 			// pub
-			handleMsgErr = s.handleTeardown(requestCtx)
+			handleMsgErr = session.handleTeardown(requestCtx)
 			break Loop
 		default:
-			nazalog.Errorf("[%s] unknown rtsp message. method=%s", s.UniqueKey, requestCtx.Method)
+			nazalog.Errorf("[%s] unknown rtsp message. method=%s", session.UniqueKey, requestCtx.Method)
 		}
 		if handleMsgErr != nil {
-			nazalog.Errorf("[%s] handle rtsp message error. err=%+v", s.UniqueKey, handleMsgErr)
+			nazalog.Errorf("[%s] handle rtsp message error. err=%+v", session.UniqueKey, handleMsgErr)
 			break
 		}
 	}
 
-	_ = s.conn.Close()
-	nazalog.Debugf("[%s] < handleTCPConnect.", s.UniqueKey)
+	_ = session.conn.Close()
+	nazalog.Debugf("[%s] < handleTCPConnect.", session.UniqueKey)
 
 	return nil
 }
 
-func (s *ServerCommandSession) handleOptions(requestCtx nazahttp.HTTPReqMsgCtx) error {
-	nazalog.Infof("[%s] < R OPTIONS", s.UniqueKey)
+func (session *ServerCommandSession) handleOptions(requestCtx nazahttp.HTTPReqMsgCtx) error {
+	nazalog.Infof("[%s] < R OPTIONS", session.UniqueKey)
 	resp := PackResponseOptions(requestCtx.Headers[HeaderFieldCSeq])
-	_, err := s.conn.Write([]byte(resp))
+	_, err := session.conn.Write([]byte(resp))
 	return err
 }
 
-func (s *ServerCommandSession) handleAnnounce(requestCtx nazahttp.HTTPReqMsgCtx) error {
-	nazalog.Infof("[%s] < R ANNOUNCE", s.UniqueKey)
+func (session *ServerCommandSession) handleAnnounce(requestCtx nazahttp.HTTPReqMsgCtx) error {
+	nazalog.Infof("[%s] < R ANNOUNCE", session.UniqueKey)
 
 	urlCtx, err := base.ParseRTSPURL(requestCtx.URI)
 	if err != nil {
-		nazalog.Errorf("[%s] parse presentation failed. uri=%s", s.UniqueKey, requestCtx.URI)
+		nazalog.Errorf("[%s] parse presentation failed. uri=%s", session.UniqueKey, requestCtx.URI)
 		return err
 	}
 
 	sdpLogicCtx, err := sdp.ParseSDP2LogicContext(requestCtx.Body)
 	if err != nil {
-		nazalog.Errorf("[%s] parse sdp failed. err=%v", s.UniqueKey, err)
+		nazalog.Errorf("[%s] parse sdp failed. err=%v", session.UniqueKey, err)
 		return err
 	}
 
-	s.pubSession = NewPubSession(urlCtx, s)
-	nazalog.Infof("[%s] link new PubSession. [%s]", s.UniqueKey, s.pubSession.UniqueKey)
-	s.pubSession.InitWithSDP(requestCtx.Body, sdpLogicCtx)
+	session.pubSession = NewPubSession(urlCtx, session)
+	nazalog.Infof("[%s] link new PubSession. [%s]", session.UniqueKey, session.pubSession.UniqueKey)
+	session.pubSession.InitWithSDP(requestCtx.Body, sdpLogicCtx)
 
-	if ok := s.observer.OnNewRTSPPubSession(s.pubSession); !ok {
-		nazalog.Warnf("[%s] force close pubsession.", s.pubSession.UniqueKey)
+	if ok := session.observer.OnNewRTSPPubSession(session.pubSession); !ok {
+		nazalog.Warnf("[%s] force close pubsession.", session.pubSession.UniqueKey)
 		return ErrRTSP
 	}
 
 	resp := PackResponseAnnounce(requestCtx.Headers[HeaderFieldCSeq])
-	_, err = s.conn.Write([]byte(resp))
+	_, err = session.conn.Write([]byte(resp))
 	return err
 }
 
-func (s *ServerCommandSession) handleDescribe(requestCtx nazahttp.HTTPReqMsgCtx) error {
-	nazalog.Infof("[%s] < R DESCRIBE", s.UniqueKey)
+func (session *ServerCommandSession) handleDescribe(requestCtx nazahttp.HTTPReqMsgCtx) error {
+	nazalog.Infof("[%s] < R DESCRIBE", session.UniqueKey)
 
 	urlCtx, err := base.ParseRTSPURL(requestCtx.URI)
 	if err != nil {
-		nazalog.Errorf("[%s] parse presentation failed. uri=%s", s.UniqueKey, requestCtx.URI)
+		nazalog.Errorf("[%s] parse presentation failed. uri=%s", session.UniqueKey, requestCtx.URI)
 		return err
 	}
 
-	s.subSession = NewSubSession(urlCtx, s)
-	nazalog.Infof("[%s] link new SubSession. [%s]", s.UniqueKey, s.subSession.UniqueKey)
-	ok, rawSDP := s.observer.OnNewRTSPSubSessionDescribe(s.subSession)
+	session.subSession = NewSubSession(urlCtx, session)
+	nazalog.Infof("[%s] link new SubSession. [%s]", session.UniqueKey, session.subSession.UniqueKey)
+	ok, rawSDP := session.observer.OnNewRTSPSubSessionDescribe(session.subSession)
 	if !ok {
-		nazalog.Warnf("[%s] force close subSession.", s.UniqueKey)
+		nazalog.Warnf("[%s] force close subSession.", session.UniqueKey)
 		return ErrRTSP
 	}
 
 	sdpLogicCtx, _ := sdp.ParseSDP2LogicContext(rawSDP)
-	s.subSession.InitWithSDP(rawSDP, sdpLogicCtx)
+	session.subSession.InitWithSDP(rawSDP, sdpLogicCtx)
 
 	resp := PackResponseDescribe(requestCtx.Headers[HeaderFieldCSeq], string(rawSDP))
-	_, err = s.conn.Write([]byte(resp))
+	_, err = session.conn.Write([]byte(resp))
 	return err
 }
 
 // 一次SETUP对应一路流（音频或视频）
-func (s *ServerCommandSession) handleSetup(requestCtx nazahttp.HTTPReqMsgCtx) error {
-	nazalog.Infof("[%s] < R SETUP", s.UniqueKey)
+func (session *ServerCommandSession) handleSetup(requestCtx nazahttp.HTTPReqMsgCtx) error {
+	nazalog.Infof("[%s] < R SETUP", session.UniqueKey)
 
-	remoteAddr := s.conn.RemoteAddr().String()
+	remoteAddr := session.conn.RemoteAddr().String()
 	host, _, _ := net.SplitHostPort(remoteAddr)
 
 	// 是否为interleaved模式
@@ -247,80 +255,82 @@ func (s *ServerCommandSession) handleSetup(requestCtx nazahttp.HTTPReqMsgCtx) er
 	if strings.Contains(ts, TransportFieldInterleaved) {
 		rtpChannel, rtcpChannel, err := parseRTPRTCPChannel(ts)
 		if err != nil {
-			nazalog.Errorf("[%s] parse rtp rtcp channel error. err=%+v", s.UniqueKey, err)
+			nazalog.Errorf("[%s] parse rtp rtcp channel error. err=%+v", session.UniqueKey, err)
 			return err
 		}
-		if s.pubSession != nil {
-			if err := s.pubSession.SetupWithChannel(requestCtx.URI, int(rtpChannel), int(rtcpChannel), remoteAddr); err != nil {
-				nazalog.Errorf("[%s] setup channel error. err=%+v", s.UniqueKey, err)
+		if session.pubSession != nil {
+			if err := session.pubSession.SetupWithChannel(requestCtx.URI, int(rtpChannel), int(rtcpChannel)); err != nil {
+				nazalog.Errorf("[%s] setup channel error. err=%+v", session.UniqueKey, err)
 				return err
 			}
-		} else if s.subSession != nil {
-			if err := s.subSession.SetupWithChannel(requestCtx.URI, int(rtpChannel), int(rtcpChannel), remoteAddr); err != nil {
-				nazalog.Errorf("[%s] setup channel error. err=%+v", s.UniqueKey, err)
+		} else if session.subSession != nil {
+			if err := session.subSession.SetupWithChannel(requestCtx.URI, int(rtpChannel), int(rtcpChannel)); err != nil {
+				nazalog.Errorf("[%s] setup channel error. err=%+v", session.UniqueKey, err)
 				return err
 			}
 		} else {
-			nazalog.Errorf("[%s] setup but session not exist.", s.UniqueKey)
+			nazalog.Errorf("[%s] setup but session not exist.", session.UniqueKey)
 			return ErrRTSP
 		}
 
 		resp := PackResponseSetupTCP(requestCtx.Headers[HeaderFieldCSeq], ts)
-		_, err = s.conn.Write([]byte(resp))
+		_, err = session.conn.Write([]byte(resp))
 		return err
 	}
 
 	rRTPPort, rRTCPPort, err := parseClientPort(requestCtx.Headers[HeaderFieldTransport])
 	if err != nil {
-		nazalog.Errorf("[%s] parseClientPort failed. err=%+v", s.UniqueKey, err)
+		nazalog.Errorf("[%s] parseClientPort failed. err=%+v", session.UniqueKey, err)
 		return err
 	}
 	rtpConn, rtcpConn, lRTPPort, lRTCPPort, err := initConnWithClientPort(host, rRTPPort, rRTCPPort)
 	if err != nil {
-		nazalog.Errorf("[%s] initConnWithClientPort failed. err=%+v", s.UniqueKey, err)
+		nazalog.Errorf("[%s] initConnWithClientPort failed. err=%+v", session.UniqueKey, err)
 		return err
 	}
+	nazalog.Debugf("[%s] init conn. lRTPPort=%d, lRTCPPort=%d, rRTPPort=%d, rRTCPPort=%d",
+		session.UniqueKey, lRTPPort, lRTCPPort, rRTPPort, rRTCPPort)
 
-	if s.pubSession != nil {
-		if err = s.pubSession.SetupWithConn(requestCtx.URI, rtpConn, rtcpConn); err != nil {
-			nazalog.Errorf("[%s] setup conn error. err=%+v", s.UniqueKey, err)
+	if session.pubSession != nil {
+		if err = session.pubSession.SetupWithConn(requestCtx.URI, rtpConn, rtcpConn); err != nil {
+			nazalog.Errorf("[%s] setup conn error. err=%+v", session.UniqueKey, err)
 			return err
 		}
-	} else if s.subSession != nil {
-		if err = s.subSession.SetupWithConn(requestCtx.URI, rtpConn, rtcpConn); err != nil {
-			nazalog.Errorf("[%s] setup conn error. err=%+v", s.UniqueKey, err)
+	} else if session.subSession != nil {
+		if err = session.subSession.SetupWithConn(requestCtx.URI, rtpConn, rtcpConn); err != nil {
+			nazalog.Errorf("[%s] setup conn error. err=%+v", session.UniqueKey, err)
 			return err
 		}
 	} else {
-		nazalog.Errorf("[%s] setup but session not exist.", s.UniqueKey)
+		nazalog.Errorf("[%s] setup but session not exist.", session.UniqueKey)
 		return ErrRTSP
 	}
 
 	resp := PackResponseSetup(requestCtx.Headers[HeaderFieldCSeq], rRTPPort, rRTCPPort, lRTPPort, lRTCPPort)
-	_, err = s.conn.Write([]byte(resp))
+	_, err = session.conn.Write([]byte(resp))
 	return err
 }
 
-func (s *ServerCommandSession) handleRecord(requestCtx nazahttp.HTTPReqMsgCtx) error {
-	nazalog.Infof("[%s] < R RECORD", s.UniqueKey)
+func (session *ServerCommandSession) handleRecord(requestCtx nazahttp.HTTPReqMsgCtx) error {
+	nazalog.Infof("[%s] < R RECORD", session.UniqueKey)
 	resp := PackResponseRecord(requestCtx.Headers[HeaderFieldCSeq])
-	_, err := s.conn.Write([]byte(resp))
+	_, err := session.conn.Write([]byte(resp))
 	return err
 }
 
-func (s *ServerCommandSession) handlePlay(requestCtx nazahttp.HTTPReqMsgCtx) error {
-	nazalog.Infof("[%s] < R PLAY", s.UniqueKey)
-	if ok := s.observer.OnNewRTSPSubSessionPlay(s.subSession); !ok {
+func (session *ServerCommandSession) handlePlay(requestCtx nazahttp.HTTPReqMsgCtx) error {
+	nazalog.Infof("[%s] < R PLAY", session.UniqueKey)
+	if ok := session.observer.OnNewRTSPSubSessionPlay(session.subSession); !ok {
 		return ErrRTSP
 	}
 	resp := PackResponsePlay(requestCtx.Headers[HeaderFieldCSeq])
-	_, err := s.conn.Write([]byte(resp))
+	_, err := session.conn.Write([]byte(resp))
 	return err
 }
 
-func (s *ServerCommandSession) handleTeardown(requestCtx nazahttp.HTTPReqMsgCtx) error {
-	nazalog.Infof("[%s] < R TEARDOWN", s.UniqueKey)
+func (session *ServerCommandSession) handleTeardown(requestCtx nazahttp.HTTPReqMsgCtx) error {
+	nazalog.Infof("[%s] < R TEARDOWN", session.UniqueKey)
 	resp := PackResponseTeardown(requestCtx.Headers[HeaderFieldCSeq])
-	_, err := s.conn.Write([]byte(resp))
+	_, err := session.conn.Write([]byte(resp))
 	return err
 }

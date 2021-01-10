@@ -43,10 +43,10 @@ type ISessionURLContext interface {
 // | struct     | ServerSession     | ServerSession     | PushSession/ClientSession | PullSession/ClientSession |
 //
 //
-// | .          | rtsp pub                        | rtsp sub                                      | rtsp pull                 |
-// | -          | -                               | -                                             | -                         |
-// | file       | server_pub_session.go           | server_sub_session.go                         | client_pull_session.go    |
-// | struct     | PubSession/ServerCommandSession | SubSession/BaseInSession/ServerCommandSession | PullSession/BaseInSession |
+// | .          | rtsp pub                                      | rtsp sub                                      | rtsp pull                 | rtsp push |
+// | -          | -                                             | -                                             | -                         | -         |
+// | file       | server_pub_session.go                         | server_sub_session.go                         | client_pull_session.go    | client_push_session.go |
+// | struct     | PubSession/ServerCommandSession/BaseInSession | SubSession/ServerCommandSession | PullSession/BaseInSession | PushSession |
 //
 //
 // | .          | flv sub               | flv pull               |
@@ -90,3 +90,13 @@ type ISessionURLContext interface {
 // 对端关闭，或session内部关闭也会导致RunLoop结束阻塞
 //
 // RunLoop结束阻塞后，可通知上层，告知session生命周期结束
+//
+// ---
+//
+// 对于rtsp.PushSession和rtsp.PullSession
+// Push()或Pull成功后，可调用Dispose()主动关闭session
+// 当对端关闭导致Wait()触发时，也需要调用Dispose()
+//
+// 对于rtsp.PubSession和rtsp.SubSession
+// ServerCommandSession通知上层，上层调用session的Dispose()
+// 当然，session也支持主动调用Dispose()

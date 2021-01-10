@@ -532,7 +532,13 @@ func (group *Group) OnAVPacket(pkt base.AVPacket) {
 	group.broadcastRTMP(msg)
 }
 
-func (group *Group) StringifyStats() string {
+func (group *Group) StringifyDebugStats() string {
+	group.mutex.Lock()
+	subLen := len(group.rtmpSubSessionSet) + len(group.httpflvSubSessionSet) + len(group.httptsSubSessionSet) + len(group.rtspSubSessionSet)
+	if subLen > 10 {
+		return fmt.Sprintf("[%s] not log out all stats. subLen=%d", subLen)
+	}
+	group.mutex.Unlock()
 	b, _ := json.Marshal(group.GetStat())
 	return string(b)
 }
@@ -557,6 +563,9 @@ func (group *Group) GetStat() base.StatGroup {
 		group.stat.StatSubs = append(group.stat.StatSubs, base.StatSession2Sub(s.GetStat()))
 	}
 	for s := range group.httptsSubSessionSet {
+		group.stat.StatSubs = append(group.stat.StatSubs, base.StatSession2Sub(s.GetStat()))
+	}
+	for s := range group.rtspSubSessionSet {
 		group.stat.StatSubs = append(group.stat.StatSubs, base.StatSession2Sub(s.GetStat()))
 	}
 
@@ -642,6 +651,7 @@ func (group *Group) delRTSPPubSession(session *rtsp.PubSession) {
 		return
 	}
 
+	_ = group.rtspPubSession.Dispose()
 	group.rtspPubSession = nil
 	group.delIn()
 }

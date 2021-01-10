@@ -162,9 +162,12 @@ func (sm *ServerManager) RunLoop() {
 			if (count % 30) == 0 {
 				sm.mutex.Lock()
 				nazalog.Debugf("group size=%d", len(sm.groupMap))
-				//for _, g := range sm.groupMap {
-				//	nazalog.Debugf("%s", g.StringifyStats())
-				//}
+				// only for debug
+				if len(sm.groupMap) < 10 {
+					for _, g := range sm.groupMap {
+						nazalog.Debugf("%s", g.StringifyDebugStats())
+					}
+				}
 				sm.mutex.Unlock()
 			}
 
