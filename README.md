@@ -19,7 +19,7 @@
 
 ---
 
-lal是开源GoLang流媒体项目，包含三个主要组成部分：
+lal是一个开源GoLang流媒体项目，包含三个主要组成部分：
 
 - lalserver：接收客户端推流，转发给对应的拉流客户端，也即承担直播场景中的源站、CDN边缘分发等角色。类似于`nginx-rtmp-module`、crtmpserver等应用。
 - demo：一些小应用，比如推、拉流客户端，压测工具，流分析工具，调度示例程序等。类似于ffmpeg、ffprobe等应用，以及提供给业务方的使用示例。
@@ -61,7 +61,7 @@ lal是开源GoLang流媒体项目，包含三个主要组成部分：
 
 除了lalserver，还提供一些基于lal开发的demo（比如客户端程序）： [《lal/app/demo》](https://github.com/q191201771/lal/blob/master/app/demo/README.md)
 
-<img alt="Live And Live" src="https://pengrl.com/lal/_media/lal_src_fullview_frame.jpeg?date=0117">
+<img alt="Live And Live" src="https://pengrl.com/lal/_media/lal_src_fullview_frame.jpeg?date=01172">
 
 发行版本日志：[《CHANGELOG.md》](https://github.com/q191201771/lal/blob/master/CHANGELOG.md)
 
@@ -93,17 +93,9 @@ $./bin/lalserver -c conf/lalserver.conf.json
 
 lalserver详细配置见： [《配置注释文档》](https://github.com/q191201771/lal/blob/master/conf/lalserver.conf.json.brief)
 
-### 源码框架
+### 第三方依赖
 
-<br>
-
-简单来说，源码在`pkg/`，`app/lalserver/`，`app/demo/`三个目录下。
-
-- `pkg/`：存放各package包，供本repo的程序以及其他业务方使用
-- `app/lalserver`：基于lal编写的一个通用流媒体服务器程序入口
-- `app/demo/`：存放各种基于`lal/pkg`开发的小程序（小工具），一个子目录是一个程序，详情见各源码文件中头部的说明
-
-目前唯一的第三方依赖（我自己写的Go基础库）： [github.com/q191201771/naza](https://github.com/q191201771/naza)
+我自己写的Go基础库： [github.com/q191201771/naza](https://github.com/q191201771/naza)
 
 ### 联系我
 
