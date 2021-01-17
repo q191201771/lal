@@ -56,12 +56,16 @@ func AVConfig2RTMPMsg(asc, vps, sps, pps []byte) (metadata, ash, vsh *base.RTMPM
 		} else {
 			videocodecid = int(base.RTMPCodecIDAVC)
 			var ctx avc.Context
-			ctx, err = avc.ParseSPS(sps)
+			err = avc.ParseSPS(sps, &ctx)
 			if err != nil {
 				return
 			}
-			width = int(ctx.Width)
-			height = int(ctx.Height)
+			if ctx.Width != 0 {
+				width = int(ctx.Width)
+			}
+			if ctx.Height != 0 {
+				height = int(ctx.Height)
+			}
 			bVsh, err = avc.BuildSeqHeaderFromSPSPPS(sps, pps)
 			if err != nil {
 				return

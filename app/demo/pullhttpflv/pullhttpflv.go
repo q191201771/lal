@@ -11,8 +11,8 @@ package main
 import (
 	"encoding/hex"
 	"flag"
-	"os"
 
+	"github.com/q191201771/lal/pkg/base"
 	"github.com/q191201771/lal/pkg/httpflv"
 	log "github.com/q191201771/naza/pkg/nazalog"
 )
@@ -42,7 +42,7 @@ func parseFlag() string {
 	flag.Parse()
 	if *url == "" {
 		flag.Usage()
-		os.Exit(1)
+		base.OSExitAndWaitPressIfWindows(1)
 	}
 	return *url
 }

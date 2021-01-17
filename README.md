@@ -1,6 +1,6 @@
 <p align="center">
 <a title="logo" target="_blank" href="https://github.com/q191201771/lal">
-<img alt="Wide" src="https://pengrl.com/images/other/lallogo.png">
+<img alt="Live And Live" src="https://pengrl.com/images/other/lallogo.png">
 </a>
 <br>
 <a title="TravisCI" target="_blank" href="https://www.travis-ci.org/q191201771/lal"><img src="https://www.travis-ci.org/q191201771/lal.svg?branch=master"></a>
@@ -18,6 +18,12 @@
 </p>
 
 ---
+
+lal是开源GoLang流媒体项目，包含三个主要组成部分：
+
+- lalserver：接收客户端推流，转发给对应的拉流客户端，也即承担直播场景中的源站、CDN边缘分发等角色。类似于`nginx-rtmp-module`、crtmpserver等应用。
+- demo：一些小应用，比如推、拉流客户端，压测工具，流分析工具，调度示例程序等。类似于ffmpeg、ffprobe等应用，以及提供给业务方的使用示例。
+- pkg：流媒体协议部分，业务方可使用它编写自身的应用。类似于ffmpeg的libavformat等库。
 
 **`app/lalserver`服务器支持的协议：**
 
@@ -55,7 +61,7 @@
 
 除了lalserver，还提供一些基于lal开发的demo（比如客户端程序）： [《lal/app/demo》](https://github.com/q191201771/lal/blob/master/app/demo/README.md)
 
-<img alt="Wide" src="https://pengrl.com/images/other/lalmodule.jpg?date=0829">
+<img alt="Live And Live" src="https://pengrl.com/lal/_media/lal_src_fullview_frame.jpeg?date=0117">
 
 发行版本日志：[《CHANGELOG.md》](https://github.com/q191201771/lal/blob/master/CHANGELOG.md)
 
@@ -77,6 +83,7 @@ $make
 #### 运行
 
 ```shell
+# 注意，windows平台将路径分隔符`/`换成`\`
 $./bin/lalserver -c conf/lalserver.conf.json
 ```
 

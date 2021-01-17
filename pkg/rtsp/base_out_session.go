@@ -47,6 +47,7 @@ type BaseOutSession struct {
 	staleStat    *connection.Stat
 
 	// only for debug log
+	debugLogMaxCount         int
 	loggedWriteAudioRTPCount int
 	loggedWriteVideoRTPCount int
 	loggedReadUDPCount       int
@@ -61,8 +62,9 @@ func NewBaseOutSession(uniqueKey string, cmdSession IInterleavedPacketWriter) *B
 			SessionID: uniqueKey,
 			StartTime: time.Now().Format("2006-01-02 15:04:05.999"),
 		},
-		audioRTPChannel: -1,
-		videoRTPChannel: -1,
+		audioRTPChannel:  -1,
+		videoRTPChannel:  -1,
+		debugLogMaxCount: 3,
 	}
 	nazalog.Infof("[%s] lifecycle new rtsp BaseOutSession. session=%p", uniqueKey, s)
 	return s
@@ -143,7 +145,7 @@ func (session *BaseOutSession) WriteRTPPacket(packet rtprtcp.RTPPacket) {
 	// 发送数据时，保证和sdp的原始类型对应
 	t := int(packet.Header.PacketType)
 	if session.sdpLogicCtx.IsAudioPayloadTypeOrigin(t) {
-		if session.loggedWriteAudioRTPCount < 2 {
+		if session.loggedWriteAudioRTPCount < session.debugLogMaxCount {
 			nazalog.Debugf("[%s] LOGPACKET. write audio rtp=%+v", session.UniqueKey, packet.Header)
 			session.loggedWriteAudioRTPCount++
 		}
@@ -155,7 +157,7 @@ func (session *BaseOutSession) WriteRTPPacket(packet rtprtcp.RTPPacket) {
 			_ = session.cmdSession.WriteInterleavedPacket(packet.Raw, session.audioRTPChannel)
 		}
 	} else if session.sdpLogicCtx.IsVideoPayloadTypeOrigin(t) {
-		if session.loggedWriteVideoRTPCount < 2 {
+		if session.loggedWriteVideoRTPCount < session.debugLogMaxCount {
 			nazalog.Debugf("[%s] LOGPACKET. write video rtp=%+v", session.UniqueKey, packet.Header)
 			session.loggedWriteVideoRTPCount++
 		}
@@ -209,7 +211,7 @@ func (session *BaseOutSession) IsAlive() (readAlive, writeAlive bool) {
 func (session *BaseOutSession) onReadUDPPacket(b []byte, rAddr *net.UDPAddr, err error) bool {
 	// TODO chef: impl me
 
-	if session.loggedReadUDPCount < 2 {
+	if session.loggedReadUDPCount < session.debugLogMaxCount {
 		nazalog.Debugf("[%s] LOGPACKET. read udp=%s", session.UniqueKey, hex.Dump(nazastring.SubSliceSafety(b, 32)))
 		session.loggedReadUDPCount++
 	}

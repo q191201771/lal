@@ -10,11 +10,12 @@ package main
 
 import (
 	"flag"
-	"os"
 	"strconv"
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/q191201771/lal/pkg/base"
 
 	"github.com/q191201771/naza/pkg/lru"
 	"github.com/q191201771/naza/pkg/nazahttp"
@@ -121,7 +122,7 @@ func parseFlag() string {
 	flag.Parse()
 	if *url == "" {
 		flag.Usage()
-		os.Exit(1)
+		base.OSExitAndWaitPressIfWindows(1)
 	}
 	return *url
 }

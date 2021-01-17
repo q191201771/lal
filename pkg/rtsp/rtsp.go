@@ -22,13 +22,8 @@ import (
 )
 
 // TODO chef
-// - 所有client session需要defer dispose？
 // - lalserver接入pullrtsp，通过HTTP API的形式
-// - 超时
-// - 日志
-// - stat
-// - pub和sub存在一些重复代码
-// - sub缺少主动发送sr
+// - out缺少主动发送sr
 // - pull session回调有observer interface和on func回调两种方式，是否需要统一
 
 var ErrRTSP = errors.New("lal.rtsp: fxxk")
@@ -44,19 +39,20 @@ const (
 	MethodGetParameter = "GET_PARAMETER"
 )
 
-// TODO chef: 这里有的有Field，有的没有，命名需要统一一下
 const (
-	HeaderAccept             = "Accept"
-	HeaderUserAgent          = "User-Agent"
-	HeaderFieldCSeq          = "CSeq"
-	HeaderFieldTransport     = "Transport"
-	HeaderFieldSession       = "Session"
-	HeaderFieldRange         = "Range"
-	HeaderFieldContentLength = "Content-Length"
-	HeaderWWWAuthenticate    = "WWW-Authenticate"
-	HeaderAuthorization      = "Authorization"
-	HeaderPublic             = "Publish"
+	// header key
+	HeaderAccept          = "Accept"
+	HeaderUserAgent       = "User-Agent"
+	HeaderCSeq            = "CSeq"
+	HeaderTransport       = "Transport"
+	HeaderSession         = "Session"
+	HeaderRange           = "Range"
+	HeaderContentLength   = "Content-Length"
+	HeaderWWWAuthenticate = "WWW-Authenticate"
+	HeaderAuthorization   = "Authorization"
+	HeaderPublic          = "Public"
 
+	// header value
 	HeaderAcceptApplicationSDP = "application/sdp"
 )
 
@@ -96,6 +92,22 @@ var (
 type IInterleavedPacketWriter interface {
 	WriteInterleavedPacket(packet []byte, channel int) error
 }
+
+var _ ClientCommandSessionObserver = &PushSession{}
+var _ ClientCommandSessionObserver = &PullSession{}
+var _ IInterleavedPacketWriter = &ClientCommandSession{}
+var _ IInterleavedPacketWriter = &ServerCommandSession{}
+var _ base.ISessionStat = &BaseInSession{}
+var _ base.ISessionStat = &BaseOutSession{}
+var _ base.ISessionStat = &PubSession{}
+var _ base.ISessionStat = &SubSession{}
+var _ base.ISessionStat = &PushSession{}
+var _ base.ISessionStat = &PullSession{}
+var _ base.ISessionURLContext = &ClientCommandSession{}
+var _ base.ISessionURLContext = &PubSession{}
+var _ base.ISessionURLContext = &SubSession{}
+var _ base.ISessionURLContext = &PushSession{}
+var _ base.ISessionURLContext = &PullSession{}
 
 var availUDPConnPool *nazanet.AvailUDPConnPool
 

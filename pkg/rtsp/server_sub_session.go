@@ -18,8 +18,6 @@ import (
 	"github.com/q191201771/naza/pkg/nazanet"
 )
 
-// TODO chef: 主动发送SR
-
 type SubSession struct {
 	UniqueKey      string // const after ctor
 	urlCtx         base.URLContext

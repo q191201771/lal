@@ -12,6 +12,7 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"path/filepath"
 
 	"github.com/q191201771/lal/pkg/base"
 
@@ -39,9 +40,9 @@ func parseFlag() string {
 		flag.Usage()
 		_, _ = fmt.Fprintf(os.Stderr, `
 Example:
-  ./bin/lalserver -c ./conf/lalserver.conf.json
-`)
-		os.Exit(1)
+  %s -c %s
+`, os.Args[0], filepath.FromSlash("./conf/lalserver.conf.json"))
+		base.OSExitAndWaitPressIfWindows(1)
 	}
 	return *cf
 }

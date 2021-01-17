@@ -17,6 +17,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/q191201771/lal/pkg/base"
+
 	"github.com/q191201771/lal/pkg/remux"
 
 	"github.com/q191201771/naza/pkg/bitrate"
@@ -277,11 +279,11 @@ func parseFlag() (filename string, urlTmpl string, num int, isRecursive bool, lo
 	if *i == "" || *o == "" {
 		flag.Usage()
 		_, _ = fmt.Fprintf(os.Stderr, `Example:
-  ./bin/pushrtmp -i testdata/test.flv -o rtmp://127.0.0.1:19350/live/test
-  ./bin/pushrtmp -i testdata/test.flv -o rtmp://127.0.0.1:19350/live/test -r
-  ./bin/pushrtmp -i testdata/test.flv -o rtmp://127.0.0.1:19350/live/test_{i} -r -n 1000
-`)
-		os.Exit(1)
+  %s -i test.flv -o rtmp://127.0.0.1:19350/live/test
+  %s -i test.flv -o rtmp://127.0.0.1:19350/live/test -r
+  %s -i test.flv -o rtmp://127.0.0.1:19350/live/test_{i} -r -n 1000
+`, os.Args[0], os.Args[0], os.Args[0])
+		base.OSExitAndWaitPressIfWindows(1)
 	}
 	return *i, *o, *n, *r, *l
 }

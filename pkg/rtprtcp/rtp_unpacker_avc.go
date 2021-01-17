@@ -9,6 +9,7 @@
 package rtprtcp
 
 import (
+	"github.com/q191201771/lal/pkg/avc"
 	"github.com/q191201771/lal/pkg/base"
 	"github.com/q191201771/naza/pkg/bele"
 	"github.com/q191201771/naza/pkg/nazalog"
@@ -25,7 +26,7 @@ func calcPositionIfNeededAVC(pkt *RTPPacket) {
 	// |F|NRI|  Type   |
 	// +---------------+
 
-	outerNALUType := b[0] & 0x1F
+	outerNALUType := avc.ParseNALUType(b[0])
 	if outerNALUType <= NALUTypeAVCSingleMax {
 		pkt.positionType = PositionTypeSingle
 		return

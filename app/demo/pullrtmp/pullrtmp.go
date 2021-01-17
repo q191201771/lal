@@ -110,11 +110,11 @@ func parseFlag() (urlTmpl string, fileNameTmpl string, num int) {
 	if *i == "" {
 		flag.Usage()
 		_, _ = fmt.Fprintf(os.Stderr, `Example:
-  ./bin/pullrtmp -i rtmp://127.0.0.1:19350/live/test -o out.flv
-  ./bin/pullrtmp -i rtmp://127.0.0.1:19350/live/test -n 1000
-  ./bin/pullrtmp -i rtmp://127.0.0.1:19350/live/test_{i} -n 1000
-`)
-		os.Exit(1)
+  %s -i rtmp://127.0.0.1:19350/live/test -o out.flv
+  %s -i rtmp://127.0.0.1:19350/live/test -n 1000
+  %s -i rtmp://127.0.0.1:19350/live/test_{i} -n 1000
+`, os.Args[0], os.Args[0], os.Args[0])
+		base.OSExitAndWaitPressIfWindows(1)
 	}
 	return *i, *o, *n
 }

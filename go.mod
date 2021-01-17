@@ -1,5 +1,5 @@
 module github.com/q191201771/lal
 
-go 1.12
+go 1.13
 
-require github.com/q191201771/naza v0.16.1
+require github.com/q191201771/naza v0.17.0

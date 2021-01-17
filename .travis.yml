@@ -4,7 +4,7 @@ env:
     - GIMME_OS=linux GIMME_ARCH=amd64 GOOS=linux GOARCH=amd64
 
 go:
-  - 1.9.x
+  - 1.13.x
   - master
 
 script:

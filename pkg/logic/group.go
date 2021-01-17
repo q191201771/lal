@@ -536,7 +536,7 @@ func (group *Group) StringifyDebugStats() string {
 	group.mutex.Lock()
 	subLen := len(group.rtmpSubSessionSet) + len(group.httpflvSubSessionSet) + len(group.httptsSubSessionSet) + len(group.rtspSubSessionSet)
 	if subLen > 10 {
-		return fmt.Sprintf("[%s] not log out all stats. subLen=%d", subLen)
+		return fmt.Sprintf("[%s] not log out all stats. subLen=%d", group.UniqueKey, subLen)
 	}
 	group.mutex.Unlock()
 	b, _ := json.Marshal(group.GetStat())
@@ -809,7 +809,8 @@ func (group *Group) broadcastRTMP(msg base.RTMPMsg) {
 		if msg.IsAVCKeySeqHeader() {
 			sps, _, err := avc.ParseSPSPPSFromSeqHeader(msg.Payload)
 			if err == nil {
-				ctx, err := avc.ParseSPS(sps)
+				var ctx avc.Context
+				err = avc.ParseSPS(sps, &ctx)
 				if err == nil {
 					group.stat.VideoHeight = int(ctx.Height)
 					group.stat.VideoWidth = int(ctx.Width)

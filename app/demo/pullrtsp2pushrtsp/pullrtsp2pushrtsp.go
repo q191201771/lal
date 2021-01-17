@@ -41,59 +41,59 @@ func main() {
 	_ = nazalog.Init(func(option *nazalog.Option) {
 		option.AssertBehavior = nazalog.AssertFatal
 	})
+	defer nazalog.Sync()
 
 	inURL, outURL, pullOverTCP, pushOverTCP := parseFlag()
 
 	o := &Observer{}
-	rtspPullSession := rtsp.NewPullSession(o, func(option *rtsp.PullSessionOption) {
+	pullSession := rtsp.NewPullSession(o, func(option *rtsp.PullSessionOption) {
 		option.PullTimeoutMS = 5000
 		option.OverTCP = pullOverTCP != 0
 	})
 
-	rtspPushSession := rtsp.NewPushSession(func(option *rtsp.PushSessionOption) {
+	err := pullSession.Pull(inURL)
+	nazalog.Assert(nil, err)
+	defer pullSession.Dispose()
+	rawSDP, sdpLogicCtx := pullSession.GetSDP()
+
+	pushSession := rtsp.NewPushSession(func(option *rtsp.PushSessionOption) {
 		option.PushTimeoutMS = 5000
 		option.OverTCP = pushOverTCP != 0
 	})
 
+	err = pushSession.Push(outURL, rawSDP, sdpLogicCtx)
+	nazalog.Assert(nil, err)
+	defer pushSession.Dispose()
+
 	go func() {
-		time.Sleep(3 * time.Second)
 		for {
-			rtspPullSession.UpdateStat(1)
-			pullStat := rtspPullSession.GetStat()
-			rtspPushSession.UpdateStat(1)
-			pushStat := rtspPushSession.GetStat()
+			pullSession.UpdateStat(1)
+			pullStat := pullSession.GetStat()
+			pushSession.UpdateStat(1)
+			pushStat := pushSession.GetStat()
 			nazalog.Debugf("stat. pull=%+v, push=%+v", pullStat, pushStat)
 			time.Sleep(1 * time.Second)
 		}
 	}()
 
-	err := rtspPullSession.Pull(inURL)
-	nazalog.Assert(nil, err)
-	defer rtspPullSession.Dispose()
-	rawSDP, sdpLogicCtx := rtspPullSession.GetSDP()
-
-	err = rtspPushSession.Push(outURL, rawSDP, sdpLogicCtx)
-	nazalog.Assert(nil, err)
-	defer rtspPushSession.Dispose()
-
 	// 只是为了测试主动关闭session
 	//go func() {
 	//	time.Sleep(5 * time.Second)
-	//	rtspPullSession.Dispose()
+	//	pullSession.Dispose()
 	//}()
 
 	for {
 		select {
-		case err = <-rtspPullSession.Wait():
+		case err = <-pullSession.Wait():
 			nazalog.Infof("< pullSession.Wait(). err=%+v", err)
 			time.Sleep(1 * time.Second) // 不让程序立即退出，只是为了测试session内部资源是否正常及时释放
 			return
-		case err = <-rtspPushSession.Wait():
+		case err = <-pushSession.Wait():
 			nazalog.Infof("< pushSession.Wait(). err=%+v", err)
 			time.Sleep(1 * time.Second)
 			return
 		case pkt := <-rtpPacketChan:
-			rtspPushSession.WriteRTPPacket(pkt)
+			pushSession.WriteRTPPacket(pkt)
 		}
 	}
 
@@ -101,17 +101,17 @@ func main() {
 
 func parseFlag() (inURL string, outURL string, pullOverTCP int, pushOverTCP int) {
 	i := flag.String("i", "", "specify pull rtsp url")
-	o := flag.String("o", "", "specify push rtmp url")
+	o := flag.String("o", "", "specify push rtsp url")
 	t := flag.Int("t", 0, "specify pull interleaved mode(rtp/rtcp over tcp)")
 	y := flag.Int("y", 0, "specify push interleaved mode(rtp/rtcp over tcp)")
 	flag.Parse()
 	if *i == "" || *o == "" {
 		flag.Usage()
 		_, _ = fmt.Fprintf(os.Stderr, `Example:
-  ./bin/pullrtsp2pushrtsp -i rtsp://localhost:5544/live/test110 -o rtsp://localhost:5544/live/test220
-  ./bin/pullrtsp2pushrtsp -i rtsp://localhost:5544/live/test110 -o rtsp://localhost:5544/live/test220 -t 1 -y 1
-`)
-		os.Exit(1)
+  %s -i rtsp://localhost:5544/live/test110 -o rtsp://localhost:5544/live/test220
+  %s -i rtsp://localhost:5544/live/test110 -o rtsp://localhost:5544/live/test220 -t 1 -y 1
+`, os.Args[0], os.Args[0])
+		base.OSExitAndWaitPressIfWindows(1)
 	}
 	return *i, *o, *t, *y
 }

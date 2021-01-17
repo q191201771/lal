@@ -474,6 +474,7 @@ func (sm *ServerManager) OnCtrlStartPull(info base.APICtrlStartPullReq) {
 	defer sm.mutex.Unlock()
 	g := sm.getGroup(info.AppName, info.StreamName)
 	if g == nil {
+		nazalog.Warnf("group not exist, ignore start pull. streamName=%s", info.StreamName)
 		return
 	}
 	var url string

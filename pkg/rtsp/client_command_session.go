@@ -28,8 +28,8 @@ import (
 type ClientCommandSessionType int
 
 const (
-	readBufSize                  = 256
-	writeGetParameterIntervalSec = 10
+	readBufSize                   = 256
+	writeGetParameterIntervalMSec = 10000
 )
 
 const (
@@ -245,8 +245,9 @@ func (session *ClientCommandSession) runReadLoop() {
 
 	// 对端支持get_parameter，需要定时向对端发送get_parameter进行保活
 
+	nazalog.Debugf("[%s] start get_parameter timer.", session.UniqueKey)
 	var r = bufio.NewReader(session.conn)
-	t := time.NewTicker(writeGetParameterIntervalSec * time.Millisecond)
+	t := time.NewTicker(writeGetParameterIntervalMSec * time.Millisecond)
 	defer t.Stop()
 
 	if session.option.OverTCP {
@@ -254,8 +255,7 @@ func (session *ClientCommandSession) runReadLoop() {
 			select {
 			case <-t.C:
 				session.cseq++
-				req := PackRequestGetParameter(session.urlCtx.RawURLWithoutUserInfo, session.cseq, session.sessionID)
-				if _, err := session.conn.Write([]byte(req)); err != nil {
+				if err := session.writeCmd(MethodGetParameter, session.urlCtx.RawURLWithoutUserInfo, nil, ""); err != nil {
 					session.waitErrChan <- err
 					return
 				}
@@ -284,13 +284,7 @@ func (session *ClientCommandSession) runReadLoop() {
 		select {
 		case <-t.C:
 			session.cseq++
-			req := PackRequestGetParameter(session.urlCtx.RawURLWithoutUserInfo, session.cseq, session.sessionID)
-			if _, err := session.conn.Write([]byte(req)); err != nil {
-				session.waitErrChan <- err
-				return
-			}
-
-			if _, err := nazahttp.ReadHTTPResponseMessage(r); err != nil {
+			if _, err := session.writeCmdReadResp(MethodGetParameter, session.urlCtx.RawURLWithoutUserInfo, nil, ""); err != nil {
 				session.waitErrChan <- err
 				return
 			}
@@ -324,43 +318,30 @@ func (session *ClientCommandSession) connect(rawURL string) (err error) {
 	session.observer.OnConnectResult()
 	return nil
 }
-
 func (session *ClientCommandSession) writeOptions() error {
-	session.cseq++
-	req := PackRequestOptions(session.urlCtx.RawURLWithoutUserInfo, session.cseq, "")
-	nazalog.Debugf("[%s] > write options.", session.UniqueKey)
-	if _, err := session.conn.Write([]byte(req)); err != nil {
-		return err
-	}
-	ctx, err := nazahttp.ReadHTTPResponseMessage(session.conn)
+	ctx, err := session.writeCmdReadResp(MethodOptions, session.urlCtx.RawURLWithoutUserInfo, nil, "")
 	if err != nil {
 		return err
 	}
-	nazalog.Debugf("[%s] < read response. version=%s, code=%s, reason=%s, headers=%+v, body=%s",
-		session.UniqueKey, ctx.Version, ctx.StatusCode, ctx.Reason, ctx.Headers, string(ctx.Body))
 
-	session.handleOptionMethods(ctx)
-	if err := session.handleAuth(ctx); err != nil {
-		return err
+	methods := ctx.Headers[HeaderPublic]
+	if methods == "" {
+		return nil
 	}
-
+	if strings.Contains(methods, MethodGetParameter) {
+		session.methodGetParameterSupported = true
+	}
 	return nil
 }
 
 func (session *ClientCommandSession) writeDescribe() error {
-	session.cseq++
-	auth := session.auth.MakeAuthorization(MethodDescribe, session.urlCtx.RawURLWithoutUserInfo)
-	req := PackRequestDescribe(session.urlCtx.RawURLWithoutUserInfo, session.cseq, auth)
-	nazalog.Debugf("[%s] > write describe.", session.UniqueKey)
-	if _, err := session.conn.Write([]byte(req)); err != nil {
-		return err
+	headers := map[string]string{
+		HeaderAccept: HeaderAcceptApplicationSDP,
 	}
-	ctx, err := nazahttp.ReadHTTPResponseMessage(session.conn)
+	ctx, err := session.writeCmdReadResp(MethodDescribe, session.urlCtx.RawURLWithoutUserInfo, headers, "")
 	if err != nil {
 		return err
 	}
-	nazalog.Debugf("[%s] < read response. version=%s, code=%s, reason=%s, headers=%+v, body=%s",
-		session.UniqueKey, ctx.Version, ctx.StatusCode, ctx.Reason, ctx.Headers, string(ctx.Body))
 
 	sdpLogicCtx, err := sdp.ParseSDP2LogicContext(ctx.Body)
 	if err != nil {
@@ -373,21 +354,11 @@ func (session *ClientCommandSession) writeDescribe() error {
 }
 
 func (session *ClientCommandSession) writeAnnounce() error {
-	session.cseq++
-	auth := session.auth.MakeAuthorization(MethodDescribe, session.urlCtx.RawURLWithoutUserInfo)
-	req := PackRequestAnnounce(session.urlCtx.RawURLWithoutUserInfo, session.cseq, string(session.rawSDP), auth)
-	nazalog.Debugf("[%s] > write announce.", session.UniqueKey)
-	if _, err := session.conn.Write([]byte(req)); err != nil {
-		return err
+	headers := map[string]string{
+		HeaderAccept: HeaderAcceptApplicationSDP,
 	}
-	ctx, err := nazahttp.ReadHTTPResponseMessage(session.conn)
-	if err != nil {
-		return err
-	}
-	nazalog.Debugf("[%s] < read response. version=%s, code=%s, reason=%s, headers=%+v, body=%s",
-		session.UniqueKey, ctx.Version, ctx.StatusCode, ctx.Reason, ctx.Headers, string(ctx.Body))
-
-	return nil
+	_, err := session.writeCmdReadResp(MethodAnnounce, session.urlCtx.RawURLWithoutUserInfo, headers, string(session.rawSDP))
+	return err
 }
 
 func (session *ClientCommandSession) writeSetup() error {
@@ -425,23 +396,17 @@ func (session *ClientCommandSession) writeOneSetup(setupURI string) error {
 		return err
 	}
 
-	session.cseq++
-	auth := session.auth.MakeAuthorization(MethodSetup, session.urlCtx.RawURLWithoutUserInfo)
-	req := PackRequestSetup(setupURI, session.cseq, int(lRTPPort), int(lRTCPPort), session.sessionID, auth)
-	nazalog.Debugf("[%s] > write setup.", session.UniqueKey)
-	if _, err := session.conn.Write([]byte(req)); err != nil {
-		return err
+	headers := map[string]string{
+		HeaderTransport: fmt.Sprintf("RTP/AVP/UDP;unicast;client_port=%d-%d", lRTPPort, lRTCPPort),
 	}
-	ctx, err := nazahttp.ReadHTTPResponseMessage(session.conn)
+	ctx, err := session.writeCmdReadResp(MethodSetup, setupURI, headers, "")
 	if err != nil {
 		return err
 	}
-	nazalog.Debugf("[%s] < read response. version=%s, code=%s, reason=%s, headers=%+v, body=%s",
-		session.UniqueKey, ctx.Version, ctx.StatusCode, ctx.Reason, ctx.Headers, string(ctx.Body))
 
-	session.sessionID = strings.Split(ctx.Headers[HeaderFieldSession], ";")[0]
+	session.sessionID = strings.Split(ctx.Headers[HeaderSession], ";")[0]
 
-	rRTPPort, rRTCPPort, err := parseServerPort(ctx.Headers[HeaderFieldTransport])
+	rRTPPort, rRTCPPort, err := parseServerPort(ctx.Headers[HeaderTransport])
 	if err != nil {
 		return err
 	}
@@ -476,93 +441,87 @@ func (session *ClientCommandSession) writeOneSetupTCP(setupURI string) error {
 	rtcpChannel := session.channel + 1
 	session.channel += 2
 
-	session.cseq++
-	auth := session.auth.MakeAuthorization(MethodSetup, session.urlCtx.RawURLWithoutUserInfo)
-	req := PackRequestSetupTCP(setupURI, session.cseq, rtpChannel, rtcpChannel, session.sessionID, auth)
-	nazalog.Debugf("[%s] > write setup.", session.UniqueKey)
-	if _, err := session.conn.Write([]byte(req)); err != nil {
-		return err
+	headers := map[string]string{
+		HeaderTransport: fmt.Sprintf("RTP/AVP/TCP;unicast;interleaved=%d-%d", rtpChannel, rtcpChannel),
 	}
-	ctx, err := nazahttp.ReadHTTPResponseMessage(session.conn)
+	ctx, err := session.writeCmdReadResp(MethodSetup, setupURI, headers, "")
 	if err != nil {
 		return err
 	}
-	nazalog.Debugf("[%s] < read response. version=%s, code=%s, reason=%s, headers=%+v, body=%s",
-		session.UniqueKey, ctx.Version, ctx.StatusCode, ctx.Reason, ctx.Headers, string(ctx.Body))
 
-	session.sessionID = strings.Split(ctx.Headers[HeaderFieldSession], ";")[0]
+	session.sessionID = strings.Split(ctx.Headers[HeaderSession], ";")[0]
 
 	// TODO chef: 这里没有解析回传的channel id了，因为我假定了它和request中的是一致的
-
 	session.observer.OnSetupWithChannel(setupURI, rtpChannel, rtcpChannel)
 	return nil
 }
 
 func (session *ClientCommandSession) writePlay() error {
-	session.cseq++
-	auth := session.auth.MakeAuthorization(MethodPlay, session.urlCtx.RawURLWithoutUserInfo)
-	req := PackRequestPlay(session.urlCtx.RawURLWithoutUserInfo, session.cseq, session.sessionID, auth)
-	nazalog.Debugf("[%s] > write play.", session.UniqueKey)
-	if _, err := session.conn.Write([]byte(req)); err != nil {
-		return err
+	headers := map[string]string{
+		HeaderRange: "npt=0.000-",
 	}
-	ctx, err := nazahttp.ReadHTTPResponseMessage(session.conn)
-	if err != nil {
-		return err
-	}
-	nazalog.Debugf("[%s] < read response. version=%s, code=%s, reason=%s, headers=%+v, body=%s",
-		session.UniqueKey, ctx.Version, ctx.StatusCode, ctx.Reason, ctx.Headers, string(ctx.Body))
-	return nil
+	_, err := session.writeCmdReadResp(MethodPlay, session.urlCtx.RawURLWithoutUserInfo, headers, "")
+	return err
 }
 
 func (session *ClientCommandSession) writeRecord() error {
-	session.cseq++
-	auth := session.auth.MakeAuthorization(MethodRecord, session.urlCtx.RawURLWithoutUserInfo)
-	req := PackRequestRecord(session.urlCtx.RawURLWithoutUserInfo, session.cseq, session.sessionID, auth)
-	nazalog.Debugf("[%s] > write record.", session.UniqueKey)
-	if _, err := session.conn.Write([]byte(req)); err != nil {
-		return err
+	headers := map[string]string{
+		HeaderRange: "npt=0.000-",
 	}
-	ctx, err := nazahttp.ReadHTTPResponseMessage(session.conn)
-	if err != nil {
-		return err
-	}
-	nazalog.Debugf("[%s] < read response. version=%s, code=%s, reason=%s, headers=%+v, body=%s",
-		session.UniqueKey, ctx.Version, ctx.StatusCode, ctx.Reason, ctx.Headers, string(ctx.Body))
-
-	return nil
+	_, err := session.writeCmdReadResp(MethodRecord, session.urlCtx.RawURLWithoutUserInfo, headers, "")
+	return err
 }
 
-func (session *ClientCommandSession) handleOptionMethods(ctx nazahttp.HTTPRespMsgCtx) {
-	methods := ctx.Headers[HeaderPublic]
-	if methods == "" {
-		return
+func (session *ClientCommandSession) writeCmd(method, uri string, headers map[string]string, body string) error {
+	session.cseq++
+	if headers == nil {
+		headers = make(map[string]string)
+	}
+	headers[HeaderCSeq] = fmt.Sprintf("%d", session.cseq)
+	headers[HeaderUserAgent] = base.LALRTSPPullSessionUA
+	if body != "" {
+		headers[HeaderContentLength] = fmt.Sprintf("%d", len(body))
 	}
 
-	if strings.Contains(methods, MethodGetParameter) {
-		session.methodGetParameterSupported = true
+	// 鉴权时固定用RawURLWithoutUserInfo
+	auth := session.auth.MakeAuthorization(method, session.urlCtx.RawURLWithoutUserInfo)
+	if auth != "" {
+		headers[HeaderAuthorization] = auth
 	}
+
+	if session.sessionID != "" {
+		headers[HeaderSession] = session.sessionID
+	}
+
+	req := PackRequest(method, uri, headers, body)
+	nazalog.Debugf("[%s] > write %s.", session.UniqueKey, method)
+	//nazalog.Debugf("[%s] > write %s. req=%s", session.UniqueKey, method, req)
+	_, err := session.conn.Write([]byte(req))
+	return err
 }
 
-func (session *ClientCommandSession) handleAuth(ctx nazahttp.HTTPRespMsgCtx) error {
-	if ctx.Headers[HeaderWWWAuthenticate] == "" {
-		return nil
+// @param headers 可以为nil
+// @param body 可以为空
+func (session *ClientCommandSession) writeCmdReadResp(method, uri string, headers map[string]string, body string) (ctx nazahttp.HTTPRespMsgCtx, err error) {
+	for i := 0; i < 2; i++ {
+		if err = session.writeCmd(method, uri, headers, body); err != nil {
+			return
+		}
+
+		ctx, err = nazahttp.ReadHTTPResponseMessage(session.conn)
+		if err != nil {
+			return
+		}
+		nazalog.Debugf("[%s] < read response. version=%s, code=%s, reason=%s, headers=%+v, body=%s",
+			session.UniqueKey, ctx.Version, ctx.StatusCode, ctx.Reason, ctx.Headers, string(ctx.Body))
+
+		if ctx.StatusCode != "401" {
+			return
+		}
+
+		session.auth.FeedWWWAuthenticate(ctx.Headers[HeaderWWWAuthenticate], session.urlCtx.Username, session.urlCtx.Password)
 	}
 
-	session.auth.FeedWWWAuthenticate(ctx.Headers[HeaderWWWAuthenticate], session.urlCtx.Username, session.urlCtx.Password)
-	auth := session.auth.MakeAuthorization(MethodOptions, session.urlCtx.RawURLWithoutUserInfo)
-
-	session.cseq++
-	req := PackRequestOptions(session.urlCtx.RawURLWithoutUserInfo, session.cseq, auth)
-	nazalog.Debugf("[%s] > write options.", session.UniqueKey)
-	if _, err := session.conn.Write([]byte(req)); err != nil {
-		return err
-	}
-	ctx, err := nazahttp.ReadHTTPResponseMessage(session.conn)
-	if err != nil {
-		return err
-	}
-	nazalog.Debugf("[%s] < read response. version=%s, code=%s, reason=%s, headers=%+v, body=%s",
-		session.UniqueKey, ctx.Version, ctx.StatusCode, ctx.Reason, ctx.Headers, string(ctx.Body))
-	return nil
+	err = ErrRTSP
+	return
 }
