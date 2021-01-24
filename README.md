@@ -25,16 +25,16 @@ lal是一个开源GoLang直播流媒体网络传输项目，包含三个主要�
 
 **lal源码package架构图：**
 
-![lal源码package架构图](https://pengrl.com/lal/_media/lal_src_fullview_frame.jpeg)
+![lal源码package架构图](https://pengrl.com/lal/_media/lal_src_fullview_frame.jpeg?date=0124)
 
 **lalserver特性图：**
 
-![lalserver特性图](https://pengrl.com/lal/_media/lal_feature.jpeg)
+![lalserver特性图](https://pengrl.com/lal/_media/lal_feature.jpeg?date=0124)
 
 了解更多请访问：
 
-* [lal github地址](https://github.com/q191201771/lal): https://github.com/q191201771/lal
-* [lal 官方文档](https://pengrl.com/lal): https://pengrl.com/lal
+* lal github地址: https://github.com/q191201771/lal
+* lal 官方文档: https://pengrl.com/lal
   * **/lalserver/**
     * [简介](https://pengrl.com/lal/#/LALServer.md)
     * [编译、运行、体验功能](https://pengrl.com/lal/#/QuickStart.md)
