@@ -129,6 +129,9 @@ func (session *ClientCommandSession) Wait() <-chan error {
 
 func (session *ClientCommandSession) Dispose() error {
 	nazalog.Infof("[%s] lifecycle dispose rtsp ClientCommandSession. session=%p", session.UniqueKey, session)
+	if session.conn == nil {
+		return nil
+	}
 	return session.conn.Close()
 }
 
@@ -396,8 +399,15 @@ func (session *ClientCommandSession) writeOneSetup(setupURI string) error {
 		return err
 	}
 
+	var htv string
+	switch session.t {
+	case CCSTPushSession:
+		htv = fmt.Sprintf(HeaderTransportClientRecordTmpl, lRTPPort, lRTCPPort)
+	case CCSTPullSession:
+		htv = fmt.Sprintf(HeaderTransportClientPlayTmpl, lRTPPort, lRTCPPort)
+	}
 	headers := map[string]string{
-		HeaderTransport: fmt.Sprintf("RTP/AVP/UDP;unicast;client_port=%d-%d", lRTPPort, lRTCPPort),
+		HeaderTransport: htv,
 	}
 	ctx, err := session.writeCmdReadResp(MethodSetup, setupURI, headers, "")
 	if err != nil {
@@ -441,8 +451,15 @@ func (session *ClientCommandSession) writeOneSetupTCP(setupURI string) error {
 	rtcpChannel := session.channel + 1
 	session.channel += 2
 
+	var htv string
+	switch session.t {
+	case CCSTPushSession:
+		htv = fmt.Sprintf(HeaderTransportClientRecordTCPTmpl, rtpChannel, rtcpChannel)
+	case CCSTPullSession:
+		htv = fmt.Sprintf(HeaderTransportClientPlayTCPTmpl, rtpChannel, rtcpChannel)
+	}
 	headers := map[string]string{
-		HeaderTransport: fmt.Sprintf("RTP/AVP/TCP;unicast;interleaved=%d-%d", rtpChannel, rtcpChannel),
+		HeaderTransport: htv,
 	}
 	ctx, err := session.writeCmdReadResp(MethodSetup, setupURI, headers, "")
 	if err != nil {
@@ -458,7 +475,7 @@ func (session *ClientCommandSession) writeOneSetupTCP(setupURI string) error {
 
 func (session *ClientCommandSession) writePlay() error {
 	headers := map[string]string{
-		HeaderRange: "npt=0.000-",
+		HeaderRange: HeaderRangeDefault,
 	}
 	_, err := session.writeCmdReadResp(MethodPlay, session.urlCtx.RawURLWithoutUserInfo, headers, "")
 	return err
@@ -466,7 +483,7 @@ func (session *ClientCommandSession) writePlay() error {
 
 func (session *ClientCommandSession) writeRecord() error {
 	headers := map[string]string{
-		HeaderRange: "npt=0.000-",
+		HeaderRange: HeaderRangeDefault,
 	}
 	_, err := session.writeCmdReadResp(MethodRecord, session.urlCtx.RawURLWithoutUserInfo, headers, "")
 	return err

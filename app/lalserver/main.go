@@ -11,9 +11,10 @@ package main
 import (
 	"flag"
 	"fmt"
-	"github.com/q191201771/naza/pkg/nazalog"
 	"os"
 	"path/filepath"
+
+	"github.com/q191201771/naza/pkg/nazalog"
 
 	"github.com/q191201771/lal/pkg/base"
 
@@ -45,7 +46,7 @@ func parseFlag() string {
 	}
 
 	// 运行参数中没有配置文件，尝试从几个默认位置读取
-	nazalog.Warnf("config file not specify in command line, try to load some common config file in common path.")
+	nazalog.Warnf("config file did not specify in the command line, try to load it in the usual path.")
 	defaultConfigFileList := []string{
 		filepath.FromSlash("lalserver.conf.json"),
 		filepath.FromSlash("./conf/lalserver.conf.json"),
@@ -66,7 +67,10 @@ func parseFlag() string {
 	_, _ = fmt.Fprintf(os.Stderr, `
 Example:
   %s -c %s
-`, os.Args[0], filepath.FromSlash("./conf/lalserver.conf.json"))
-		base.OSExitAndWaitPressIfWindows(1)
+
+Github: %s
+Doc: %s
+`, os.Args[0], filepath.FromSlash("./conf/lalserver.conf.json"), base.LALGithubSite, base.LALDocSite)
+	base.OSExitAndWaitPressIfWindows(1)
 	return *cf
 }

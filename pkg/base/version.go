@@ -20,10 +20,12 @@ const LALVersion = "v0.18.0"
 
 var (
 	LALLibraryName = "lal"
-	LALGitHubRepo  = "github.com/q191201771/lal"
+	LALGithubRepo  = "github.com/q191201771/lal"
+	LALGithubSite  = "https://github.com/q191201771/lal"
+	LALDocSite     = "https://pengrl.com/lal"
 
 	// e.g. lal v0.12.3 (github.com/q191201771/lal)
-	LALFullInfo = LALLibraryName + " " + LALVersion + " (" + LALGitHubRepo + ")"
+	LALFullInfo = LALLibraryName + " " + LALVersion + " (" + LALGithubRepo + ")"
 
 	// e.g. 0.12.3
 	LALVersionDot string
@@ -35,7 +37,7 @@ var (
 var (
 	// 植入rtmp握手随机字符串中
 	// e.g. lal v0.12.3 (github.com/q191201771/lal)
-	LALRTMPHandshakeWaterMark string
+	//LALRTMPHandshakeWaterMark string
 
 	// 植入rtmp server中的connect result信令中
 	// 注意，有两个object，第一个object中的fmsVer我们保持通用公认的值，在第二个object中植入
@@ -121,5 +123,5 @@ func init() {
 	LALHTTPFLVPullSessionUA = LALLibraryName + "/" + LALVersionDot
 	LALRTSPPullSessionUA = LALLibraryName + "/" + LALVersionDot
 
-	LALRTMPHandshakeWaterMark = LALFullInfo
+	//LALRTMPHandshakeWaterMark = LALFullInfo
 }

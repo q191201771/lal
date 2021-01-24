@@ -330,7 +330,11 @@ func (s *ServerSession) doConnect(tid int, stream *Stream) error {
 	if err != nil {
 		return err
 	}
-	nazalog.Infof("[%s] < R connect('%s').", s.UniqueKey, s.appName)
+	tcUrl, err := val.FindString("tcUrl")
+	if err != nil {
+		nazalog.Warnf("[%s] tcUrl not exist.", s.UniqueKey)
+	}
+	nazalog.Infof("[%s] < R connect('%s'). tcUrl=%s", s.UniqueKey, s.appName, tcUrl)
 
 	s.observer.OnRTMPConnect(s, val)
 

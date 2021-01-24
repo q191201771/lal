@@ -1,7 +1,7 @@
 {
   "rtmp": {
     "enable": true,
-    "addr": ":19450",
+    "addr": ":1945",
     "gop_num": 2
   },
   "httpflv": {
@@ -32,12 +32,12 @@
   "relay_push": {
     "enable": true,
     "addr_list":[
-      "127.0.0.1:19350"
+      "127.0.0.1:1935"
     ]
   },
   "relay_pull": {
     "enable": true,
-    "addr": "127.0.0.1:19350"
+    "addr": "127.0.0.1:1935"
   },
   "http_api": {
     "enable": true,

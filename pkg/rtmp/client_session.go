@@ -135,7 +135,9 @@ func (s *ClientSession) Flush() error {
 
 func (s *ClientSession) Dispose() {
 	nazalog.Infof("[%s] lifecycle dispose rtmp ClientSession.", s.UniqueKey)
-	_ = s.conn.Close()
+	if s.conn != nil {
+		_ = s.conn.Close()
+	}
 }
 
 func (s *ClientSession) AppName() string {
@@ -210,7 +212,7 @@ func (s *ClientSession) doContext(ctx context.Context, rawURL string) error {
 			return
 		}
 
-		nazalog.Infof("[%s] > W connect('%s').", s.UniqueKey, s.appName())
+		nazalog.Infof("[%s] > W connect('%s'). tcUrl=%s", s.UniqueKey, s.appName(), s.tcURL())
 		if err := s.packer.writeConnect(s.conn, s.appName(), s.tcURL(), s.t == CSTPushSession); err != nil {
 			errChan <- err
 			return
@@ -251,6 +253,7 @@ func (s *ClientSession) streamNameWithRawQuery() string {
 }
 
 func (s *ClientSession) tcpConnect() error {
+	nazalog.Infof("[%s] > tcp connect.", s.UniqueKey)
 	var err error
 
 	s.stat.RemoteAddr = s.urlCtx.HostWithPort

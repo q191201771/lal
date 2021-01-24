@@ -44,18 +44,8 @@ var ResponseDescribeTmpl = "RTSP/1.0 200 OK\r\n" +
 	"%s"
 
 // rfc2326 10.4 SETUP
-// TODO chef: mode=record，这个是咋作用，是应该pub有sub没有吗，我的pack实现没有严格区分
-
-// CSeq, Date, Session, Transport(client_port, server_rtp_port, server_rtcp_port)
-var ResponseSetupTmpl = "RTSP/1.0 200 OK\r\n" +
-	"CSeq: %s\r\n" +
-	"Date: %s\r\n" +
-	"Session: %s\r\n" +
-	"Transport:RTP/AVP/UDP;unicast;client_port=%d-%d;server_port=%d-%d\r\n" +
-	"\r\n"
-
 // CSeq, Date, Session, Transport
-var ResponseSetupTCPTmpl = "RTSP/1.0 200 OK\r\n" +
+var ResponseSetupTmpl = "RTSP/1.0 200 OK\r\n" +
 	"CSeq: %s\r\n" +
 	"Date: %s\r\n" +
 	"Session: %s\r\n" +
@@ -100,22 +90,10 @@ func PackResponseDescribe(cseq, sdp string) string {
 	return fmt.Sprintf(ResponseDescribeTmpl, cseq, date, len(sdp), sdp)
 }
 
-// @param transportC:
-//   pub example:
-//   RTP/AVP/UDP;unicast;client_port=24254-24255;mode=record
-//   RTP/AVP/UDP;unicast;client_port=24256-24257;mode=record
-//   sub example:
-//   RTP/AVP/UDP;unicast;client_port=9420-9421
-func PackResponseSetup(cseq string, rRTPPort, rRTCPPort, lRTPPort, lRTCPPort uint16) string {
+func PackResponseSetup(cseq string, htv string) string {
 	date := time.Now().Format(time.RFC1123)
 
-	return fmt.Sprintf(ResponseSetupTmpl, cseq, date, sessionID, rRTPPort, rRTCPPort, lRTPPort, lRTCPPort)
-}
-
-func PackResponseSetupTCP(cseq string, ts string) string {
-	date := time.Now().Format(time.RFC1123)
-
-	return fmt.Sprintf(ResponseSetupTCPTmpl, cseq, date, sessionID, ts)
+	return fmt.Sprintf(ResponseSetupTmpl, cseq, date, sessionID, htv)
 }
 
 func PackResponseRecord(cseq string) string {

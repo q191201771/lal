@@ -30,6 +30,8 @@ func Entry(confFile string) {
 	initLog(config.LogConfig)
 	nazalog.Infof("bininfo: %s", bininfo.StringifySingleLine())
 	nazalog.Infof("version: %s", base.LALFullInfo)
+	nazalog.Infof("github: %s", base.LALGithubSite)
+	nazalog.Infof("doc: %s", base.LALDocSite)
 
 	sm = NewServerManager()
 

@@ -12,11 +12,8 @@ import (
 	"bytes"
 	"crypto/hmac"
 	"crypto/sha256"
-	"fmt"
 	"io"
 	"time"
-
-	"github.com/q191201771/lal/pkg/base"
 
 	"github.com/q191201771/naza/pkg/bele"
 	"github.com/q191201771/naza/pkg/nazalog"
@@ -294,6 +291,6 @@ func random1528(out []byte) {
 
 func init() {
 	random1528Buf = make([]byte, 1528)
-	hack := fmt.Sprintf("random buf of rtmp handshake gen by %s", base.LALRTMPHandshakeWaterMark)
-	copy(random1528Buf, []byte(hack))
+	//hack := fmt.Sprintf("random buf of rtmp handshake gen by %s", base.LALRTMPHandshakeWaterMark)
+	//copy(random1528Buf, []byte(hack))
 }

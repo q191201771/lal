@@ -44,16 +44,25 @@ const (
 	HeaderAccept          = "Accept"
 	HeaderUserAgent       = "User-Agent"
 	HeaderCSeq            = "CSeq"
+	HeaderContentLength   = "Content-Length"
 	HeaderTransport       = "Transport"
 	HeaderSession         = "Session"
 	HeaderRange           = "Range"
-	HeaderContentLength   = "Content-Length"
 	HeaderWWWAuthenticate = "WWW-Authenticate"
 	HeaderAuthorization   = "Authorization"
 	HeaderPublic          = "Public"
 
 	// header value
-	HeaderAcceptApplicationSDP = "application/sdp"
+	HeaderAcceptApplicationSDP         = "application/sdp"
+	HeaderRangeDefault                 = "npt=0.000-"
+	HeaderTransportClientPlayTmpl      = "RTP/AVP/UDP;unicast;client_port=%d-%d" // localRTPPort, localRTCPPort
+	HeaderTransportClientPlayTCPTmpl   = "RTP/AVP/TCP;unicast;interleaved=%d-%d" // rtpChannel, rtcpChannel
+	HeaderTransportClientRecordTmpl    = "RTP/AVP/UDP;unicast;client_port=%d-%d;mode=record"
+	HeaderTransportClientRecordTCPTmpl = "RTP/AVP/TCP;unicast;interleaved=%d-%d;mode=record"
+	HeaderTransportServerPlayTmpl      = "RTP/AVP/UDP;unicast;client_port=%d-%d;server_port=%d-%d"
+	//HeaderTransportServerPlayTCPTmpl   = "RTP/AVP/TCP;unicast;interleaved=%d-%d"
+	HeaderTransportServerRecordTmpl = "RTP/AVP/UDP;unicast;client_port=%d-%d;server_port=%d-%d;mode=record"
+	//HeaderTransportServerRecordTCPTmpl = "RTP/AVP/TCP;unicast;interleaved=%d-%d;mode=record"
 )
 
 const (

@@ -10,6 +10,7 @@ package rtsp
 
 import (
 	"bufio"
+	"fmt"
 	"net"
 	"strings"
 
@@ -251,9 +252,9 @@ func (session *ServerCommandSession) handleSetup(requestCtx nazahttp.HTTPReqMsgC
 	host, _, _ := net.SplitHostPort(remoteAddr)
 
 	// 是否为interleaved模式
-	ts := requestCtx.Headers[HeaderTransport]
-	if strings.Contains(ts, TransportFieldInterleaved) {
-		rtpChannel, rtcpChannel, err := parseRTPRTCPChannel(ts)
+	htv := requestCtx.Headers[HeaderTransport]
+	if strings.Contains(htv, TransportFieldInterleaved) {
+		rtpChannel, rtcpChannel, err := parseRTPRTCPChannel(htv)
 		if err != nil {
 			nazalog.Errorf("[%s] parse rtp rtcp channel error. err=%+v", session.UniqueKey, err)
 			return err
@@ -273,7 +274,7 @@ func (session *ServerCommandSession) handleSetup(requestCtx nazahttp.HTTPReqMsgC
 			return ErrRTSP
 		}
 
-		resp := PackResponseSetupTCP(requestCtx.Headers[HeaderCSeq], ts)
+		resp := PackResponseSetup(requestCtx.Headers[HeaderCSeq], htv)
 		_, err = session.conn.Write([]byte(resp))
 		return err
 	}
@@ -296,17 +297,19 @@ func (session *ServerCommandSession) handleSetup(requestCtx nazahttp.HTTPReqMsgC
 			nazalog.Errorf("[%s] setup conn error. err=%+v", session.UniqueKey, err)
 			return err
 		}
+		htv = fmt.Sprintf(HeaderTransportServerRecordTmpl, rRTPPort, rRTCPPort, lRTPPort, lRTCPPort)
 	} else if session.subSession != nil {
 		if err = session.subSession.SetupWithConn(requestCtx.URI, rtpConn, rtcpConn); err != nil {
 			nazalog.Errorf("[%s] setup conn error. err=%+v", session.UniqueKey, err)
 			return err
 		}
+		htv = fmt.Sprintf(HeaderTransportServerPlayTmpl, rRTPPort, rRTCPPort, lRTPPort, lRTCPPort)
 	} else {
 		nazalog.Errorf("[%s] setup but session not exist.", session.UniqueKey)
 		return ErrRTSP
 	}
 
-	resp := PackResponseSetup(requestCtx.Headers[HeaderCSeq], rRTPPort, rRTCPPort, lRTPPort, lRTCPPort)
+	resp := PackResponseSetup(requestCtx.Headers[HeaderCSeq], htv)
 	_, err = session.conn.Write([]byte(resp))
 	return err
 }

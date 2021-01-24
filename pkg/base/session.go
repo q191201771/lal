@@ -43,12 +43,6 @@ type ISessionURLContext interface {
 // | struct     | ServerSession     | ServerSession     | PushSession/ClientSession | PullSession/ClientSession |
 //
 //
-// | .          | rtsp pub                                      | rtsp sub                                      | rtsp pull                 | rtsp push |
-// | -          | -                                             | -                                             | -                         | -         |
-// | file       | server_pub_session.go                         | server_sub_session.go                         | client_pull_session.go    | client_push_session.go |
-// | struct     | PubSession/ServerCommandSession/BaseInSession | SubSession/ServerCommandSession | PullSession/BaseInSession | PushSession |
-//
-//
 // | .          | flv sub               | flv pull               |
 // | -          | -                     | -                      |
 // | file       | server_sub_session.go | client_pull_session.go |
@@ -61,27 +55,27 @@ type ISessionURLContext interface {
 // | struct     | SubSession            |
 //
 //
-// | .                 | rtmppub | rtsppub | rtmpsub | flvsub | tssub | rtspsub | - | rtmppush | rtmppull | flvpull | rtsppull | hls |
-// | -                 | -       | -       | -       | -      | -     | -       | - | -        | -        | -       | -        |     |
-// | x                 | x       | x       | x       | x      | x     | x       | - | x        | x        | x       | x        |     |
-// | UniqueKey<all>    | √       | √       | √       | √      | √     | √       | - | x√       | x√       | √       | √        |     |
+// | .                      | rtmppub | rtsppub | rtmpsub | flvsub | tssub | rtspsub | - | rtmppush | rtmppull | flvpull | rtsppull | rtsppush | hls |
+// | -                      | -       | -       | -       | -      | -     | -       | - | -        | -        | -       | -        |          |     |
+// | x                      | x       | x       | x       | x      | x     | x       | - | x        | x        | x       | x        |          |     |
+// | UniqueKey<all>         | √       | √       | √       | √      | √     | √       | - | x√       | x√       | √       | √        |          |     |
 
-// | AppName()<all>    | √       | √       | √       | √      | √     | √       | - | √        | √        | √       | √        |     |
-// | StreamName()<all> | √       | √       | √       | √      | √     | √       | - | √        | √        | √       | √        |     |
-// | RawQuery()<all>   | √       | √       | √       | √      | √     | √       | - | √        | √        | √       | √        |     |
+// | AppName()<all>         | √       | √       | √       | √      | √     | √       | - | √        | √        | √       | √        |          |     |
+// | StreamName()<all>      | √       | √       | √       | √      | √     | √       | - | √        | √        | √       | √        |          |     |
+// | RawQuery()<all>        | √       | √       | √       | √      | √     | √       | - | √        | √        | √       | √        |          |     |
 
-// | GetStat()<all>    | √       | √       | √       | √      | √     | √       | - | √        | √        | √       | √        |     |
-// | UpdateStat()<all> | √       | √       | √       | √      | √     | √       | - | √        | √        | √       | √        |     |
-// | IsAlive()<all>    | √       | √       | √       | √      | √     | √       | - | √        | √        | √       | √        |     |
+// | GetStat()<all>         | √       | √       | √       | √      | √     | √       | - | √        | √        | √       | √        |          |     |
+// | UpdateStat()<all>      | √       | √       | √       | √      | √     | √       | - | √        | √        | √       | √        |          |     |
+// | IsAlive()<all>         | √       | √       | √       | √      | √     | √       | - | √        | √        | √       | √        |          |     |
 
-// | RunLoop()         | √       | x√      | √       | √      | √     | x&√     | - | x        | x        | x       | x        |     |
-// | Dispose()         | √       | √       | √       | √      | √     | √       | - | √        | √        | √       | √        |     |
+// | RunLoop()              | √       | x√      | √       | √      | √     | x&√     | - | x        | x        | x       | x        |          |     |
+// | Dispose()              | √       | √       | √       | √      | √     | √       | - | √        | √        | √       | √        |          |     |
 
-// | RemoteAddr()      | √       | x       | √       | √      | x     | x       | - | x        | x        | x       | x        |     |
-// | SingleConn        | √       | x       | √       | √      | √     | √       | - | √        | √        | √       | x        |     |
+// | RemoteAddr()           | √       | x       | √       | √      | x     | x       | - | x        | x        | x       | x        |          |     |
+// | SingleConn             | √       | x       | √       | √      | √     | √       | - | √        | √        | √       | x        |          |     |
 //
-// | Opt.PullTimeoutMS | -       | -       | -       | -      | -     | -       | - | -        | x        | √       | √        |     |
-// | Wait()            | -       | -       | -       | -      | -     | -       | - | -        | √        | √       | √        |     |
+// | Opt.Push/PullTimeoutMS | -       | -       | -       | -      | -     | -       | - | √        | √        | √       | √        |  √       |     |
+// | Wait()                 | -       | -       | -       | -      | -     | -       | - | √        | √        | √       | √        |  √       |     |
 //
 // Dispose由外部调用，表示主动关闭正常的session
 // 外部调用Dispose后，不应继续使用该session

@@ -102,7 +102,7 @@ func parseFlag() (inURL string, outFilename string, overTCP int) {
 		_, _ = fmt.Fprintf(os.Stderr, `Example:
   %s -i rtsp://localhost:5544/live/test110 -o out.flv -t 0
   %s -i rtsp://localhost:5544/live/test110 -o out.flv -t 1
-`, os.Args[0], os.Args[1])
+`, os.Args[0], os.Args[0])
 		base.OSExitAndWaitPressIfWindows(1)
 	}
 	return *i, *o, *t
