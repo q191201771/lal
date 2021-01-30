@@ -102,22 +102,6 @@ type IInterleavedPacketWriter interface {
 	WriteInterleavedPacket(packet []byte, channel int) error
 }
 
-var _ ClientCommandSessionObserver = &PushSession{}
-var _ ClientCommandSessionObserver = &PullSession{}
-var _ IInterleavedPacketWriter = &ClientCommandSession{}
-var _ IInterleavedPacketWriter = &ServerCommandSession{}
-var _ base.ISessionStat = &BaseInSession{}
-var _ base.ISessionStat = &BaseOutSession{}
-var _ base.ISessionStat = &PubSession{}
-var _ base.ISessionStat = &SubSession{}
-var _ base.ISessionStat = &PushSession{}
-var _ base.ISessionStat = &PullSession{}
-var _ base.ISessionURLContext = &ClientCommandSession{}
-var _ base.ISessionURLContext = &PubSession{}
-var _ base.ISessionURLContext = &SubSession{}
-var _ base.ISessionURLContext = &PushSession{}
-var _ base.ISessionURLContext = &PullSession{}
-
 var availUDPConnPool *nazanet.AvailUDPConnPool
 
 // 传入远端IP，RTPPort，RTCPPort，创建两个对应的RTP和RTCP的UDP连接对象，以及对应的本端端口

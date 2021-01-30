@@ -177,7 +177,7 @@ func (session *PullSession) RawQuery() string {
 }
 
 func (session *PullSession) connect(rawURL string) (err error) {
-	session.urlCtx, err = base.ParseHTTPFLVURL(rawURL)
+	session.urlCtx, err = base.ParseHTTPFLVURL(rawURL, false)
 	if err != nil {
 		return
 	}

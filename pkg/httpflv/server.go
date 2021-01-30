@@ -86,7 +86,7 @@ func (server *Server) RunLoop() error {
 				if err != nil {
 					break
 				}
-				go server.handleConnect(conn)
+				go server.handleConnect(conn, "http")
 			}
 			wg.Done()
 		}()
@@ -100,7 +100,7 @@ func (server *Server) RunLoop() error {
 				if err != nil {
 					break
 				}
-				go server.handleConnect(conn)
+				go server.handleConnect(conn, "https")
 			}
 			wg.Done()
 		}()
@@ -124,14 +124,14 @@ func (server *Server) Dispose() {
 	}
 }
 
-func (server *Server) handleConnect(conn net.Conn) {
+func (server *Server) handleConnect(conn net.Conn, scheme string) {
 	nazalog.Infof("accept a httpflv connection. remoteAddr=%s", conn.RemoteAddr().String())
-	session := NewSubSession(conn)
+	session := NewSubSession(conn, scheme)
 	if err := session.ReadRequest(); err != nil {
 		nazalog.Errorf("[%s] read httpflv SubSession request error. err=%v", session.UniqueKey, err)
 		return
 	}
-	nazalog.Debugf("[%s] < read http request.", session.UniqueKey)
+	nazalog.Debugf("[%s] < read http request. url=%s", session.UniqueKey, session.URL())
 
 	if !server.observer.OnNewHTTPFLVSubSession(session) {
 		session.Dispose()

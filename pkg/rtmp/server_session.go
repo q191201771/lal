@@ -9,6 +9,7 @@
 package rtmp
 
 import (
+	"fmt"
 	"net"
 	"strings"
 	"time"
@@ -27,8 +28,6 @@ type ServerSessionObserver interface {
 	OnNewRTMPPubSession(session *ServerSession) // 上层代码应该在这个事件回调中注册音视频数据的监听
 	OnNewRTMPSubSession(session *ServerSession)
 }
-
-var _ ServerSessionObserver = &Server{}
 
 type PubSessionObserver interface {
 	// 注意，回调结束后，内部会复用Payload内存块
@@ -49,10 +48,12 @@ const (
 
 type ServerSession struct {
 	UniqueKey              string // const after ctor
+	url                    string
+	tcURL                  string
+	streamNameWithRawQuery string // const after set
 	appName                string // const after set
 	streamName             string // const after set
 	rawQuery               string //const after set
-	streamNameWithRawQuery string // const after set
 
 	observer      ServerSessionObserver
 	t             ServerSessionType
@@ -115,6 +116,10 @@ func (s *ServerSession) Flush() error {
 func (s *ServerSession) Dispose() {
 	nazalog.Infof("[%s] lifecycle dispose rtmp ServerSession.", s.UniqueKey)
 	_ = s.conn.Close()
+}
+
+func (s *ServerSession) URL() string {
+	return s.url
 }
 
 func (s *ServerSession) AppName() string {
@@ -330,11 +335,11 @@ func (s *ServerSession) doConnect(tid int, stream *Stream) error {
 	if err != nil {
 		return err
 	}
-	tcUrl, err := val.FindString("tcUrl")
+	s.tcURL, err = val.FindString("tcUrl")
 	if err != nil {
 		nazalog.Warnf("[%s] tcUrl not exist.", s.UniqueKey)
 	}
-	nazalog.Infof("[%s] < R connect('%s'). tcUrl=%s", s.UniqueKey, s.appName, tcUrl)
+	nazalog.Infof("[%s] < R connect('%s'). tcUrl=%s", s.UniqueKey, s.appName, s.tcURL)
 
 	s.observer.OnRTMPConnect(s, val)
 
@@ -387,6 +392,8 @@ func (s *ServerSession) doPublish(tid int, stream *Stream) (err error) {
 		s.rawQuery = ss[1]
 	}
 
+	s.url = fmt.Sprintf("%s/%s", s.tcURL, s.streamNameWithRawQuery)
+
 	pubType, err := stream.msg.readStringWithType()
 	if err != nil {
 		return err
@@ -421,6 +428,8 @@ func (s *ServerSession) doPlay(tid int, stream *Stream) (err error) {
 	if len(ss) == 2 {
 		s.rawQuery = ss[1]
 	}
+
+	s.url = fmt.Sprintf("%s/%s", s.tcURL, s.streamNameWithRawQuery)
 
 	nazalog.Infof("[%s] < R play('%s').", s.UniqueKey, s.streamNameWithRawQuery)
 	// TODO chef: start duration reset

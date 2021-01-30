@@ -75,9 +75,6 @@ type HandshakeClient interface {
 	WriteC2(writer io.Writer) error
 }
 
-var _ HandshakeClient = &HandshakeClientSimple{}
-var _ HandshakeClient = &HandshakeClientComplex{}
-
 type HandshakeClientSimple struct {
 	c0c1 []byte
 	c2   []byte

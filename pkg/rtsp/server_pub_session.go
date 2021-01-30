@@ -75,6 +75,10 @@ func (session *PubSession) HandleInterleavedPacket(b []byte, channel int) {
 	session.baseInSession.HandleInterleavedPacket(b, channel)
 }
 
+func (session *PubSession) URL() string {
+	return session.urlCtx.URL
+}
+
 func (session *PubSession) AppName() string {
 	return session.urlCtx.PathWithoutLastItem
 }
@@ -99,6 +103,10 @@ func (session *PubSession) UpdateStat(interval uint32) {
 
 func (session *PubSession) IsAlive() (readAlive, writeAlive bool) {
 	return session.baseInSession.IsAlive()
+}
+
+func (session *PubSession) RemoteAddr() string {
+	return session.cmdSession.RemoteAddr()
 }
 
 // IInterleavedPacketWriter, callback by BaseInSession

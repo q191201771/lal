@@ -9,8 +9,8 @@
 package httpts
 
 import (
+	"fmt"
 	"net"
-	"net/url"
 	"strings"
 	"time"
 
@@ -26,15 +26,13 @@ var tsHTTPResponseHeader []byte
 
 type SubSession struct {
 	UniqueKey string
+	IsFresh   bool
 
-	StartTick  int64
-	appName    string
-	streamName string
-	rawQuery   string
-	URI        string
-	Headers    map[string]string
+	scheme string
 
-	IsFresh bool
+	pathWithRawQuery string
+	headers          map[string]string
+	urlCtx           base.URLContext
 
 	conn         connection.Connection
 	prevConnStat connection.Stat
@@ -42,10 +40,11 @@ type SubSession struct {
 	stat         base.StatSession
 }
 
-func NewSubSession(conn net.Conn) *SubSession {
+func NewSubSession(conn net.Conn, scheme string) *SubSession {
 	uk := base.GenUniqueKey(base.UKPTSSubSession)
 	s := &SubSession{
 		UniqueKey: uk,
+		scheme:    scheme,
 		IsFresh:   true,
 		conn: connection.New(conn, func(option *connection.Option) {
 			option.ReadBufSize = readBufSize
@@ -65,53 +64,25 @@ func NewSubSession(conn net.Conn) *SubSession {
 
 // TODO chef: read request timeout
 func (session *SubSession) ReadRequest() (err error) {
-	session.StartTick = time.Now().Unix()
-
 	defer func() {
 		if err != nil {
 			session.Dispose()
 		}
 	}()
 
-	var (
-		requestLine string
-		method      string
-	)
-	if requestLine, session.Headers, err = nazahttp.ReadHTTPHeader(session.conn); err != nil {
+	var requestLine string
+	if requestLine, session.headers, err = nazahttp.ReadHTTPHeader(session.conn); err != nil {
 		return
 	}
-	if method, session.URI, _, err = nazahttp.ParseHTTPRequestLine(requestLine); err != nil {
-		return
-	}
-	if method != "GET" {
-		err = ErrHTTPTS
+	if _, session.pathWithRawQuery, _, err = nazahttp.ParseHTTPRequestLine(requestLine); err != nil {
 		return
 	}
 
-	var urlObj *url.URL
-	if urlObj, err = url.Parse(session.URI); err != nil {
-		return
-	}
-	if !strings.HasSuffix(urlObj.Path, ".ts") {
-		err = ErrHTTPTS
-		return
-	}
+	rawURL := fmt.Sprintf("%s://%s%s", session.scheme, session.headers["Host"], session.pathWithRawQuery)
+	_ = rawURL
 
-	items := strings.Split(urlObj.Path, "/")
-	if len(items) != 3 {
-		err = ErrHTTPTS
-		return
-	}
-	session.appName = items[1]
-	items = strings.Split(items[2], ".")
-	if len(items) < 2 {
-		err = ErrHTTPTS
-		return
-	}
-	session.streamName = items[0]
-	session.rawQuery = urlObj.RawQuery
-
-	return nil
+	session.urlCtx, err = base.ParseHTTPTSURL(rawURL, session.scheme == "https")
+	return
 }
 
 func (session *SubSession) RunLoop() error {
@@ -170,16 +141,24 @@ func (session *SubSession) IsAlive() (readAlive, writeAlive bool) {
 	return
 }
 
+func (session *SubSession) URL() string {
+	return session.urlCtx.URL
+}
+
 func (session *SubSession) AppName() string {
-	return session.appName
+	return session.urlCtx.PathWithoutLastItem
 }
 
 func (session *SubSession) StreamName() string {
-	return session.streamName
+	return strings.TrimSuffix(session.urlCtx.LastItemOfPath, ".ts")
 }
 
 func (session *SubSession) RawQuery() string {
-	return session.rawQuery
+	return session.urlCtx.RawQuery
+}
+
+func (session *SubSession) RemoteAddr() string {
+	return session.conn.RemoteAddr().String()
 }
 
 func init() {

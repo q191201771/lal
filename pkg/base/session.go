@@ -8,6 +8,13 @@
 
 package base
 
+type ISessionURLContext interface {
+	URL() string
+	AppName() string
+	StreamName() string
+	RawQuery() string
+}
+
 type ISessionStat interface {
 	// 周期性调用该函数，用于计算bitrate
 	//
@@ -28,10 +35,8 @@ type ISessionStat interface {
 	IsAlive() (readAlive, writeAlive bool)
 }
 
-type ISessionURLContext interface {
-	AppName() string
-	StreamName() string
-	RawQuery() string
+type ISession interface {
+	RemoteAddr() string
 }
 
 // TODO chef: rtmp.ClientSession修改为BaseClientSession更好些

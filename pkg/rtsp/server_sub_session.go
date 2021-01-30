@@ -65,6 +65,10 @@ func (session *SubSession) HandleInterleavedPacket(b []byte, channel int) {
 	session.baseOutSession.HandleInterleavedPacket(b, channel)
 }
 
+func (session *SubSession) URL() string {
+	return session.urlCtx.URL
+}
+
 func (session *SubSession) AppName() string {
 	return session.urlCtx.PathWithoutLastItem
 }
@@ -85,6 +89,10 @@ func (session *SubSession) GetStat() base.StatSession {
 
 func (session *SubSession) UpdateStat(interval uint32) {
 	session.baseOutSession.UpdateStat(interval)
+}
+
+func (session *SubSession) RemoteAddr() string {
+	return session.cmdSession.RemoteAddr()
 }
 
 func (session *SubSession) IsAlive() (readAlive, writeAlive bool) {

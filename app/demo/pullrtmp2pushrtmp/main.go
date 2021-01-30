@@ -31,8 +31,19 @@ func main() {
 	}
 
 	ol := strings.Split(*o, ",")
-	PullRTMP2PushRTMP(*i, ol)
+	for i := range ol {
+		ol[i] = strings.TrimSpace(ol[i])
+	}
 
-	nazalog.Info("done.")
+	t := NewTunnel(*i, ol)
+	ec := t.Start()
+	if ec.err != nil {
+		nazalog.Errorf("tunnel start failed. err=%+v", ec)
+		return
+	}
+	defer t.Close()
+	ec = <-t.Wait()
+	nazalog.Errorf("< tunnel wait. err=%+v", ec)
+
 	time.Sleep(60 * time.Second)
 }

@@ -10,11 +10,12 @@ package base
 
 // 文档见： https://pengrl.com/p/20101/
 
-const HTTPNotifyVersion = "v0.0.6"
+const HTTPNotifyVersion = "v0.1.0"
 
 type SessionEventCommonInfo struct {
 	ServerID      string `json:"server_id"`
 	Protocol      string `json:"protocol"`
+	URL           string `json:"url"`
 	AppName       string `json:"app_name"`
 	StreamName    string `json:"stream_name"`
 	URLParam      string `json:"url_param"`
