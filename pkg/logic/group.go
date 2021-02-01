@@ -535,10 +535,10 @@ func (group *Group) OnAVPacket(pkt base.AVPacket) {
 func (group *Group) StringifyDebugStats() string {
 	group.mutex.Lock()
 	subLen := len(group.rtmpSubSessionSet) + len(group.httpflvSubSessionSet) + len(group.httptsSubSessionSet) + len(group.rtspSubSessionSet)
+	group.mutex.Unlock()
 	if subLen > 10 {
 		return fmt.Sprintf("[%s] not log out all stats. subLen=%d", group.UniqueKey, subLen)
 	}
-	group.mutex.Unlock()
 	b, _ := json.Marshal(group.GetStat())
 	return string(b)
 }
