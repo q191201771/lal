@@ -1,3 +1,7 @@
+#### v0.19.1 (2021-02-01)
+
+- [fix] 获取group中播放者数量时锁没有释放，导致后续无法转发数据
+
 #### v0.19.0 (2021-01-24)
 
 - [feat] demo，新增app/demo/pullrtsp2pushrtsp，可拉取rtsp流，并使用rtsp转推出去
