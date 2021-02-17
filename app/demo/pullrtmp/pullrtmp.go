@@ -80,7 +80,7 @@ func pull(url string, filename string) {
 	err = session.Pull(
 		url,
 		func(msg base.RTMPMsg) {
-			nazalog.Debugf("header=%+v", msg.Header)
+			//nazalog.Debugf("header=%+v", msg.Header)
 			if filename != "" {
 				tag := remux.RTMPMsg2FLVTag(msg)
 				err := w.WriteTag(*tag)

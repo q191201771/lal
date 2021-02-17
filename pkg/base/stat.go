@@ -49,8 +49,8 @@ type StatPull struct {
 type StatSession struct {
 	Protocol      string `json:"protocol"`
 	SessionID     string `json:"session_id"`
-	StartTime     string `json:"start_time"`
 	RemoteAddr    string `json:"remote_addr"`
+	StartTime     string `json:"start_time"`
 	ReadBytesSum  uint64 `json:"read_bytes_sum"`
 	WroteBytesSum uint64 `json:"wrote_bytes_sum"`
 	Bitrate       int    `json:"bitrate"`

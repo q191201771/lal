@@ -13,14 +13,14 @@ package base
 const HTTPNotifyVersion = "v0.1.0"
 
 type SessionEventCommonInfo struct {
-	ServerID      string `json:"server_id"`
 	Protocol      string `json:"protocol"`
+	SessionID     string `json:"session_id"`
+	RemoteAddr    string `json:"remote_addr"`
+	ServerID      string `json:"server_id"`
 	URL           string `json:"url"`
 	AppName       string `json:"app_name"`
 	StreamName    string `json:"stream_name"`
 	URLParam      string `json:"url_param"`
-	SessionID     string `json:"session_id"`
-	RemoteAddr    string `json:"remote_addr"`
 	HasInSession  bool   `json:"has_in_session"`
 	HasOutSession bool   `json:"has_out_session"`
 }

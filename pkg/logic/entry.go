@@ -18,6 +18,7 @@ import (
 
 	"github.com/q191201771/naza/pkg/bininfo"
 	"github.com/q191201771/naza/pkg/nazalog"
+	//"github.com/felixge/fgprof"
 )
 
 var (
@@ -71,6 +72,9 @@ func initLog(opt nazalog.Option) {
 
 func runWebPProf(addr string) {
 	nazalog.Infof("start web pprof listen. addr=%s", addr)
+
+	//http.DefaultServeMux.Handle("/debug/fgprof", fgprof.Handler())
+
 	if err := http.ListenAndServe(addr, nil); err != nil {
 		nazalog.Error(err)
 		return
