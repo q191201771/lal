@@ -50,6 +50,7 @@ lal是一个开源GoLang直播流媒体网络传输项目，包含三个主要�
     * [常见推拉流客户端使用方式](https://pengrl.com/lal/#/CommonClient.md)
     * [连接类型之session pub/sub/push/pull](https://pengrl.com/lal/#/Session.md)
     * [rtmp url，以及vhost](https://pengrl.com/lal/#/RTMPURLVhost.md)
+    * [ffplay播放rtsp花屏](https://pengrl.com/lal/#/RTSPFFPlayBlur.md)
     * [FAQ](https://pengrl.com/lal/#/FAQ.md)
   * **/待整理/**
     * [性能测试](https://pengrl.com/lal/#/Test.md)
