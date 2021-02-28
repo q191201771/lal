@@ -11,7 +11,6 @@ package main
 import (
 	"flag"
 	"fmt"
-	"io"
 	"os"
 	"strconv"
 	"strings"
@@ -68,7 +67,12 @@ func main() {
 
 	urls := collect(urlTmpl, num)
 
-	tags := readAllTag(filename)
+	tags, err := httpflv.ReadAllTagsFromFLVFile(filename)
+	if err != nil {
+		nazalog.Errorf("read tags from flv file failed. err=%+v", err)
+		os.Exit(0)
+	}
+	nazalog.Infof("read all tag done. tag num=%d", len(tags))
 
 	go func() {
 		for {
@@ -89,41 +93,6 @@ func main() {
 	wg.Wait()
 	time.Sleep(1 * time.Second)
 	nazalog.Info("bye.")
-}
-
-// readAllTag 预读取 flv 文件中的所有 tag，缓存在内存中
-func readAllTag(filename string) (ret []httpflv.Tag) {
-	var ffr httpflv.FLVFileReader
-	err := ffr.Open(filename)
-	if err != nil {
-		nazalog.Errorf("open file failed. file=%s, err=%v", filename, err)
-		os.Exit(1)
-	}
-	nazalog.Infof("open succ. filename=%s", filename)
-
-	for {
-		tag, err := ffr.ReadTag()
-		if err == io.EOF {
-			nazalog.Info("EOF")
-			break
-		}
-		if err != nil {
-			nazalog.Errorf("read file tag error. tag num=%d, err=%v", len(ret), err)
-			break
-		}
-		if tag.IsMetadata() {
-			nazalog.Debugf("M %d", tag.Header.Timestamp)
-		} else if tag.IsVideoKeySeqHeader() {
-			nazalog.Debugf("V SH %d", tag.Header.Timestamp)
-		} else if tag.IsVideoKeyNALU() {
-			nazalog.Debugf("V K %d", tag.Header.Timestamp)
-		} else if tag.IsAACSeqHeader() {
-			nazalog.Debugf("A SH %d", tag.Header.Timestamp)
-		}
-		ret = append(ret, tag)
-	}
-	nazalog.Infof("read all tag done. tag num=%d", len(ret))
-	return
 }
 
 func push(tags []httpflv.Tag, urls []string, isRecursive bool) {
@@ -282,9 +251,9 @@ func parseFlag() (filename string, urlTmpl string, num int, isRecursive bool, lo
 	if *i == "" || *o == "" {
 		flag.Usage()
 		_, _ = fmt.Fprintf(os.Stderr, `Example:
-  %s -i test.flv -o rtmp://127.0.0.1:19350/live/test
-  %s -i test.flv -o rtmp://127.0.0.1:19350/live/test -r
-  %s -i test.flv -o rtmp://127.0.0.1:19350/live/test_{i} -r -n 1000
+  %s -i test.flv -o rtmp://127.0.0.1:1935/live/test
+  %s -i test.flv -o rtmp://127.0.0.1:1935/live/test -r
+  %s -i test.flv -o rtmp://127.0.0.1:1935/live/test_{i} -r -n 1000
 `, os.Args[0], os.Args[0], os.Args[0])
 		base.OSExitAndWaitPressIfWindows(1)
 	}
