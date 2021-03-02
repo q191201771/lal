@@ -44,18 +44,8 @@ var ResponseDescribeTmpl = "RTSP/1.0 200 OK\r\n" +
 	"%s"
 
 // rfc2326 10.4 SETUP
-// TODO chef: mode=record，这个是咋作用，是应该pub有sub没有吗，我的pack实现没有严格区分
-
-// CSeq, Date, Session, Transport(client_port, server_rtp_port, server_rtcp_port)
-var ResponseSetupTmpl = "RTSP/1.0 200 OK\r\n" +
-	"CSeq: %s\r\n" +
-	"Date: %s\r\n" +
-	"Session: %s\r\n" +
-	"Transport:RTP/AVP/UDP;unicast;client_port=%d-%d;server_port=%d-%d\r\n" +
-	"\r\n"
-
 // CSeq, Date, Session, Transport
-var ResponseSetupTCPTmpl = "RTSP/1.0 200 OK\r\n" +
+var ResponseSetupTmpl = "RTSP/1.0 200 OK\r\n" +
 	"CSeq: %s\r\n" +
 	"Date: %s\r\n" +
 	"Session: %s\r\n" +
@@ -79,14 +69,6 @@ var ResponsePlayTmpl = "RTSP/1.0 200 OK\r\n" +
 	"Date: %s\r\n" +
 	"\r\n"
 
-// rfc2326 10.8 GET_PARAMETER
-// uri CSeq Session
-var RequestGetParameterTmpl = "GET_PARAMETER %s RTSP/1.0\r\n" +
-	"CSeq: %d\r\n" +
-	"Session: %s\r\n" +
-	"User-Agent: " + base.LALRTSPPullSessionUA + "\r\n" +
-	"\r\n"
-
 // rfc2326 10.7 TEARDOWN
 //var RequestTeardownTmpl = "not impl"
 
@@ -94,109 +76,6 @@ var RequestGetParameterTmpl = "GET_PARAMETER %s RTSP/1.0\r\n" +
 var ResponseTeardownTmpl = "RTSP/1.0 200 OK\r\n" +
 	"CSeq: %s\r\n" +
 	"\r\n"
-
-// @param auth 可以为空，如果为空，则请求中不包含`Authorization`字段
-func PackRequestOptions(uri string, cseq int, auth string) string {
-	headers := map[string]string{
-		HeaderFieldCSeq: fmt.Sprintf("%d", cseq),
-		HeaderUserAgent: base.LALRTSPPullSessionUA,
-	}
-	if auth != "" {
-		headers[HeaderAuthorization] = auth
-	}
-	return packRequest(MethodOptions, uri, headers, "")
-}
-
-// @param auth 可以为空，如果为空，则请求中不包含`Authorization`字段
-func PackRequestAnnounce(uri string, cseq int, sdp string, auth string) string {
-	headers := map[string]string{
-		HeaderFieldCSeq:          fmt.Sprintf("%d", cseq),
-		HeaderFieldContentLength: fmt.Sprintf("%d", len(sdp)),
-		HeaderAccept:             HeaderAcceptApplicationSDP,
-		HeaderUserAgent:          base.LALRTSPPullSessionUA,
-	}
-	if auth != "" {
-		headers[HeaderAuthorization] = auth
-	}
-	return packRequest(MethodAnnounce, uri, headers, sdp)
-}
-
-// @param auth 可以为空，如果为空，则请求中不包含`Authorization`字段
-func PackRequestDescribe(uri string, cseq int, auth string) string {
-	headers := map[string]string{
-		HeaderAccept:    HeaderAcceptApplicationSDP,
-		HeaderFieldCSeq: fmt.Sprintf("%d", cseq),
-		HeaderUserAgent: base.LALRTSPPullSessionUA,
-	}
-	if auth != "" {
-		headers[HeaderAuthorization] = auth
-	}
-	return packRequest(MethodDescribe, uri, headers, "")
-}
-
-// @param sessionID 可以为空，如果为空，则请求中不包含`Session`字段
-// @param auth      可以为空，如果为空，则请求中不包含`Authorization`字段
-func PackRequestSetup(uri string, cseq int, rtpClientPort int, rtcpClientPort int, sessionID string, auth string) string {
-	headers := map[string]string{
-		HeaderFieldTransport: fmt.Sprintf("RTP/AVP/UDP;unicast;client_port=%d-%d", rtpClientPort, rtcpClientPort),
-		HeaderFieldCSeq:      fmt.Sprintf("%d", cseq),
-		HeaderUserAgent:      base.LALRTSPPullSessionUA,
-	}
-	if sessionID != "" {
-		headers[HeaderFieldSession] = sessionID
-	}
-	if auth != "" {
-		headers[HeaderAuthorization] = auth
-	}
-	return packRequest(MethodSetup, uri, headers, "")
-}
-
-// @param sessionID 可以为空，如果为空，则请求中不包含`Session`字段
-// @param auth      可以为空，如果为空，则请求中不包含`Authorization`字段
-func PackRequestSetupTCP(uri string, cseq int, rtpChannel int, rtcpChannel int, sessionID string, auth string) string {
-	headers := map[string]string{
-		HeaderFieldCSeq:      fmt.Sprintf("%d", cseq),
-		HeaderFieldTransport: fmt.Sprintf("RTP/AVP/TCP;unicast;interleaved=%d-%d", rtpChannel, rtcpChannel),
-		HeaderUserAgent:      base.LALRTSPPullSessionUA,
-	}
-	if sessionID != "" {
-		headers[HeaderFieldSession] = sessionID
-	}
-	if auth != "" {
-		headers[HeaderAuthorization] = auth
-	}
-	return packRequest(MethodSetup, uri, headers, "")
-}
-
-func PackRequestRecord(uri string, cseq int, sessionID string, auth string) string {
-	headers := map[string]string{
-		HeaderFieldCSeq:    fmt.Sprintf("%d", cseq),
-		HeaderFieldRange:   "npt=0.000-",
-		HeaderFieldSession: sessionID,
-		HeaderUserAgent:    base.LALRTSPPullSessionUA,
-	}
-	if auth != "" {
-		headers[HeaderAuthorization] = auth
-	}
-	return packRequest(MethodRecord, uri, headers, "")
-}
-
-func PackRequestPlay(uri string, cseq int, sessionID string, auth string) string {
-	headers := map[string]string{
-		HeaderFieldCSeq:    fmt.Sprintf("%d", cseq),
-		HeaderFieldRange:   "npt=0.000-",
-		HeaderFieldSession: sessionID,
-		HeaderUserAgent:    base.LALRTSPPullSessionUA,
-	}
-	if auth != "" {
-		headers[HeaderAuthorization] = auth
-	}
-	return packRequest(MethodPlay, uri, headers, "")
-}
-
-func PackRequestGetParameter(uri string, cseq int, sessionID string) string {
-	return fmt.Sprintf(RequestGetParameterTmpl, uri, cseq, sessionID)
-}
 
 func PackResponseOptions(cseq string) string {
 	return fmt.Sprintf(ResponseOptionsTmpl, cseq)
@@ -211,22 +90,10 @@ func PackResponseDescribe(cseq, sdp string) string {
 	return fmt.Sprintf(ResponseDescribeTmpl, cseq, date, len(sdp), sdp)
 }
 
-// @param transportC:
-//   pub example:
-//   RTP/AVP/UDP;unicast;client_port=24254-24255;mode=record
-//   RTP/AVP/UDP;unicast;client_port=24256-24257;mode=record
-//   sub example:
-//   RTP/AVP/UDP;unicast;client_port=9420-9421
-func PackResponseSetup(cseq string, rRTPPort, rRTCPPort, lRTPPort, lRTCPPort uint16) string {
+func PackResponseSetup(cseq string, htv string) string {
 	date := time.Now().Format(time.RFC1123)
 
-	return fmt.Sprintf(ResponseSetupTmpl, cseq, date, sessionID, rRTPPort, rRTCPPort, lRTPPort, lRTCPPort)
-}
-
-func PackResponseSetupTCP(cseq string, ts string) string {
-	date := time.Now().Format(time.RFC1123)
-
-	return fmt.Sprintf(ResponseSetupTCPTmpl, cseq, date, sessionID, ts)
+	return fmt.Sprintf(ResponseSetupTmpl, cseq, date, sessionID, htv)
 }
 
 func PackResponseRecord(cseq string) string {
@@ -243,7 +110,7 @@ func PackResponseTeardown(cseq string) string {
 }
 
 // @param body 可以为空
-func packRequest(method, uri string, headers map[string]string, body string) (ret string) {
+func PackRequest(method, uri string, headers map[string]string, body string) (ret string) {
 	ret = method + " " + uri + " RTSP/1.0\r\n"
 	for k, v := range headers {
 		ret += k + ": " + v + "\r\n"

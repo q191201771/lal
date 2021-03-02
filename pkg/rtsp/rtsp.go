@@ -18,19 +18,12 @@ import (
 	"github.com/q191201771/lal/pkg/base"
 
 	"github.com/q191201771/lal/pkg/rtprtcp"
-	"github.com/q191201771/naza/pkg/nazalog"
-
 	"github.com/q191201771/naza/pkg/nazanet"
 )
 
 // TODO chef
-// - 所有client session需要defer dispose？
 // - lalserver接入pullrtsp，通过HTTP API的形式
-// - 超时
-// - 日志
-// - stat
-// - pub和sub存在一些重复代码
-// - sub缺少主动发送sr
+// - out缺少主动发送sr
 // - pull session回调有observer interface和on func回调两种方式，是否需要统一
 
 var ErrRTSP = errors.New("lal.rtsp: fxxk")
@@ -46,19 +39,30 @@ const (
 	MethodGetParameter = "GET_PARAMETER"
 )
 
-// TODO chef: 这里有的有Field，有的没有，命名需要统一一下
 const (
-	HeaderAccept             = "Accept"
-	HeaderUserAgent          = "User-Agent"
-	HeaderFieldCSeq          = "CSeq"
-	HeaderFieldTransport     = "Transport"
-	HeaderFieldSession       = "Session"
-	HeaderFieldRange         = "Range"
-	HeaderFieldContentLength = "Content-Length"
-	HeaderWWWAuthenticate    = "WWW-Authenticate"
-	HeaderAuthorization      = "Authorization"
+	// header key
+	HeaderAccept          = "Accept"
+	HeaderUserAgent       = "User-Agent"
+	HeaderCSeq            = "CSeq"
+	HeaderContentLength   = "Content-Length"
+	HeaderTransport       = "Transport"
+	HeaderSession         = "Session"
+	HeaderRange           = "Range"
+	HeaderWWWAuthenticate = "WWW-Authenticate"
+	HeaderAuthorization   = "Authorization"
+	HeaderPublic          = "Public"
 
-	HeaderAcceptApplicationSDP = "application/sdp"
+	// header value
+	HeaderAcceptApplicationSDP         = "application/sdp"
+	HeaderRangeDefault                 = "npt=0.000-"
+	HeaderTransportClientPlayTmpl      = "RTP/AVP/UDP;unicast;client_port=%d-%d" // localRTPPort, localRTCPPort
+	HeaderTransportClientPlayTCPTmpl   = "RTP/AVP/TCP;unicast;interleaved=%d-%d" // rtpChannel, rtcpChannel
+	HeaderTransportClientRecordTmpl    = "RTP/AVP/UDP;unicast;client_port=%d-%d;mode=record"
+	HeaderTransportClientRecordTCPTmpl = "RTP/AVP/TCP;unicast;interleaved=%d-%d;mode=record"
+	HeaderTransportServerPlayTmpl      = "RTP/AVP/UDP;unicast;client_port=%d-%d;server_port=%d-%d"
+	//HeaderTransportServerPlayTCPTmpl   = "RTP/AVP/TCP;unicast;interleaved=%d-%d"
+	HeaderTransportServerRecordTmpl = "RTP/AVP/UDP;unicast;client_port=%d-%d;server_port=%d-%d;mode=record"
+	//HeaderTransportServerRecordTCPTmpl = "RTP/AVP/TCP;unicast;interleaved=%d-%d;mode=record"
 )
 
 const (
@@ -94,6 +98,10 @@ var (
 	}
 )
 
+type IInterleavedPacketWriter interface {
+	WriteInterleavedPacket(packet []byte, channel int) error
+}
+
 var availUDPConnPool *nazanet.AvailUDPConnPool
 
 // 传入远端IP，RTPPort，RTCPPort，创建两个对应的RTP和RTCP的UDP连接对象，以及对应的本端端口
@@ -111,7 +119,6 @@ func initConnWithClientPort(rHost string, rRTPPort, rRTCPPort uint16) (rtpConn, 
 	if err != nil {
 		return
 	}
-	nazalog.Debugf("acquire udp conn. rtp port=%d, rtcp port=%d", lRTPPort, lRTCPPort)
 
 	rtpConn, err = nazanet.NewUDPConnection(func(option *nazanet.UDPConnectionOption) {
 		option.Conn = rtpc

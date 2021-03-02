@@ -11,15 +11,16 @@ package main
 import (
 	"flag"
 	"fmt"
-	"io"
 	"os"
 	"strconv"
 	"strings"
+	"sync"
+	"sync/atomic"
 	"time"
 
-	"github.com/q191201771/lal/pkg/remux"
+	"github.com/q191201771/lal/pkg/base"
 
-	"github.com/q191201771/naza/pkg/bitrate"
+	"github.com/q191201771/lal/pkg/remux"
 
 	"github.com/q191201771/lal/pkg/httpflv"
 	"github.com/q191201771/lal/pkg/rtmp"
@@ -48,8 +49,7 @@ import (
 // ./bin/pushrtmp -i testdata/test.flv -o rtmp://127.0.0.1:19350/live/test -r
 // ./bin/pushrtmp -i testdata/test.flv -o rtmp://127.0.0.1:19350/live/test_{i} -r -n 1000
 
-var pss []*rtmp.PushSession
-var br bitrate.Bitrate
+var aliveSessionCount int32
 
 func main() {
 	filename, urlTmpl, num, isRecursive, logfile := parseFlag()
@@ -67,62 +67,37 @@ func main() {
 
 	urls := collect(urlTmpl, num)
 
-	tags := readAllTag(filename)
-
-	br = bitrate.New()
+	tags, err := httpflv.ReadAllTagsFromFLVFile(filename)
+	if err != nil {
+		nazalog.Errorf("read tags from flv file failed. err=%+v", err)
+		os.Exit(0)
+	}
+	nazalog.Infof("read all tag done. tag num=%d", len(tags))
 
 	go func() {
 		for {
+			nazalog.Debugf("alive session:%d", atomic.LoadInt32(&aliveSessionCount))
 			time.Sleep(1 * time.Second)
-			rate := br.Rate()
-			nazalog.Debugf("bitrate=%.3fkbit/s", rate)
-			if rate > 1024*10 {
-				nazalog.Errorf("bitrate too large. bitrate=%.3fkbit/s", rate)
-				os.Exit(1)
-			}
 		}
 	}()
 
-	push(tags, urls, isRecursive)
+	var wg sync.WaitGroup
+	wg.Add(len(urls))
+	for _, url := range urls {
+		go func(u string) {
+			push(tags, []string{u}, isRecursive)
+			wg.Done()
+			atomic.AddInt32(&aliveSessionCount, -1)
+		}(url)
+	}
+	wg.Wait()
+	time.Sleep(1 * time.Second)
 	nazalog.Info("bye.")
 }
 
-// readAllTag 预读取 flv 文件中的所有 tag，缓存在内存中
-func readAllTag(filename string) (ret []httpflv.Tag) {
-	var ffr httpflv.FLVFileReader
-	err := ffr.Open(filename)
-	if err != nil {
-		nazalog.Errorf("open file failed. file=%s, err=%v", filename, err)
-		os.Exit(1)
-	}
-	nazalog.Infof("open succ. filename=%s", filename)
-
-	for {
-		tag, err := ffr.ReadTag()
-		if err == io.EOF {
-			nazalog.Info("EOF")
-			break
-		}
-		if err != nil {
-			nazalog.Errorf("read file tag error. tag num=%d, err=%v", len(ret), err)
-			break
-		}
-		if tag.IsMetadata() {
-			nazalog.Debugf("M %d", tag.Header.Timestamp)
-		} else if tag.IsVideoKeySeqHeader() {
-			nazalog.Debugf("V SH %d", tag.Header.Timestamp)
-		} else if tag.IsVideoKeyNALU() {
-			nazalog.Debugf("V K %d", tag.Header.Timestamp)
-		} else if tag.IsAACSeqHeader() {
-			nazalog.Debugf("A SH %d", tag.Header.Timestamp)
-		}
-		ret = append(ret, tag)
-	}
-	nazalog.Infof("read all tag done. tag num=%d", len(ret))
-	return
-}
-
 func push(tags []httpflv.Tag, urls []string, isRecursive bool) {
+	var sessionList []*rtmp.PushSession
+
 	if len(tags) == 0 || len(urls) == 0 {
 		return
 	}
@@ -140,11 +115,12 @@ func push(tags []httpflv.Tag, urls []string, isRecursive bool) {
 			nazalog.Errorf("push failed. err=%v", err)
 			continue
 		}
+		atomic.AddInt32(&aliveSessionCount, 1)
 
 		nazalog.Infof("push succ. url=%s", urls[i])
-		pss = append(pss, ps)
+		sessionList = append(sessionList, ps)
 	}
-	check()
+	check(sessionList)
 
 	var totalBaseTS uint32 // 每轮最后更新
 	var prevTS uint32      // 上一个tag
@@ -173,7 +149,7 @@ func push(tags []httpflv.Tag, urls []string, isRecursive bool) {
 				if totalBaseTS == 0 {
 					h.TimestampAbs = 0
 					chunks := rtmp.Message2Chunks(tag.Raw[11:11+h.MsgLen], &h)
-					send(chunks)
+					send(sessionList, chunks)
 				} else {
 					// noop
 				}
@@ -222,7 +198,7 @@ func push(tags []httpflv.Tag, urls []string, isRecursive bool) {
 				hasTraceFirstTagTS = true
 			}
 
-			send(chunks)
+			send(sessionList, chunks)
 
 			prevTS = h.TimestampAbs
 		} // tags for loop
@@ -235,24 +211,22 @@ func push(tags []httpflv.Tag, urls []string, isRecursive bool) {
 	}
 }
 
-func send(b []byte) {
-	br.Add(len(b))
-
+func send(sessionList []*rtmp.PushSession, b []byte) {
 	var s []*rtmp.PushSession
-	for _, ps := range pss {
+	for _, ps := range sessionList {
 		if err := ps.AsyncWrite(b); err != nil {
 			nazalog.Errorf("write data error. err=%v", err)
 			continue
 		}
 		s = append(s, ps)
 	}
-	pss = s
+	sessionList = s
 
-	check()
+	check(sessionList)
 }
 
-func check() {
-	if len(pss) == 0 {
+func check(sessionList []*rtmp.PushSession) {
+	if len(sessionList) == 0 {
 		nazalog.Errorf("all push session dead.")
 		os.Exit(1)
 	}
@@ -277,11 +251,11 @@ func parseFlag() (filename string, urlTmpl string, num int, isRecursive bool, lo
 	if *i == "" || *o == "" {
 		flag.Usage()
 		_, _ = fmt.Fprintf(os.Stderr, `Example:
-  ./bin/pushrtmp -i testdata/test.flv -o rtmp://127.0.0.1:19350/live/test
-  ./bin/pushrtmp -i testdata/test.flv -o rtmp://127.0.0.1:19350/live/test -r
-  ./bin/pushrtmp -i testdata/test.flv -o rtmp://127.0.0.1:19350/live/test_{i} -r -n 1000
-`)
-		os.Exit(1)
+  %s -i test.flv -o rtmp://127.0.0.1:1935/live/test
+  %s -i test.flv -o rtmp://127.0.0.1:1935/live/test -r
+  %s -i test.flv -o rtmp://127.0.0.1:1935/live/test_{i} -r -n 1000
+`, os.Args[0], os.Args[0], os.Args[0])
+		base.OSExitAndWaitPressIfWindows(1)
 	}
 	return *i, *o, *n, *r, *l
 }

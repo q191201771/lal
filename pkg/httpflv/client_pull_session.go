@@ -128,7 +128,9 @@ func (session *PullSession) pullContext(ctx context.Context, rawURL string, onRe
 
 func (session *PullSession) Dispose() {
 	nazalog.Infof("[%s] lifecycle dispose httpflv PullSession.", session.UniqueKey)
-	_ = session.conn.Close()
+	if session.conn != nil {
+		_ = session.conn.Close()
+	}
 }
 
 func (session *PullSession) UpdateStat(interval uint32) {
@@ -175,7 +177,7 @@ func (session *PullSession) RawQuery() string {
 }
 
 func (session *PullSession) connect(rawURL string) (err error) {
-	session.urlCtx, err = base.ParseHTTPFLVURL(rawURL)
+	session.urlCtx, err = base.ParseHTTPFLVURL(rawURL, false)
 	if err != nil {
 		return
 	}

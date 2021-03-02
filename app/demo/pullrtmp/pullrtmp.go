@@ -15,6 +15,8 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"sync/atomic"
+	"time"
 
 	"github.com/q191201771/lal/pkg/remux"
 
@@ -39,13 +41,22 @@ import (
 //   -o string
 //     	specify ouput flv file
 // Example:
-//   ./bin/pullrtmp -i rtmp://127.0.0.1:19350/live/test -o out.flv
-//   ./bin/pullrtmp -i rtmp://127.0.0.1:19350/live/test -n 1000
-//   ./bin/pullrtmp -i rtmp://127.0.0.1:19350/live/test_{i} -n 1000
+//   ./bin/pullrtmp -i rtmp://127.0.0.1:1935/live/test -o out.flv
+//   ./bin/pullrtmp -i rtmp://127.0.0.1:1935/live/test -n 1000
+//   ./bin/pullrtmp -i rtmp://127.0.0.1:1935/live/test_{i} -n 1000
+
+var aliveSessionCount int32
 
 func main() {
 	urlTmpl, fileNameTmpl, num := parseFlag()
-	urls, filenames := connect(urlTmpl, fileNameTmpl, num)
+	urls, filenames := collect(urlTmpl, fileNameTmpl, num)
+
+	go func() {
+		for {
+			nazalog.Debugf("alive session:%d", atomic.LoadInt32(&aliveSessionCount))
+			time.Sleep(1 * time.Second)
+		}
+	}()
 
 	var wg sync.WaitGroup
 	wg.Add(num)
@@ -53,9 +64,12 @@ func main() {
 		go func(index int) {
 			pull(urls[index], filenames[index])
 			wg.Done()
+			atomic.AddInt32(&aliveSessionCount, -1)
 		}(i)
 	}
 	wg.Wait()
+	time.Sleep(1 * time.Second)
+	nazalog.Info("bye.")
 }
 
 func pull(url string, filename string) {
@@ -80,19 +94,24 @@ func pull(url string, filename string) {
 	err = session.Pull(
 		url,
 		func(msg base.RTMPMsg) {
-			nazalog.Debugf("header=%+v", msg.Header)
+			//nazalog.Debugf("header=%+v", msg.Header)
 			if filename != "" {
 				tag := remux.RTMPMsg2FLVTag(msg)
 				err := w.WriteTag(*tag)
 				nazalog.Assert(nil, err)
 			}
 		})
-	nazalog.Assert(nil, err)
+	if err != nil {
+		nazalog.Errorf("pull failed. err=%v", err)
+		return
+	}
+	atomic.AddInt32(&aliveSessionCount, 1)
+
 	err = <-session.Wait()
 	nazalog.Debug(err)
 }
 
-func connect(urlTmpl string, fileNameTmpl string, num int) (urls []string, filenames []string) {
+func collect(urlTmpl string, fileNameTmpl string, num int) (urls []string, filenames []string) {
 	for i := 0; i < num; i++ {
 		url := strings.Replace(urlTmpl, "{i}", strconv.Itoa(i), -1)
 		urls = append(urls, url)
@@ -105,16 +124,16 @@ func connect(urlTmpl string, fileNameTmpl string, num int) (urls []string, filen
 func parseFlag() (urlTmpl string, fileNameTmpl string, num int) {
 	i := flag.String("i", "", "specify pull rtmp url")
 	o := flag.String("o", "", "specify ouput flv file")
-	n := flag.Int("n", 1, "num of pull connection")
+	n := flag.Int("n", 1, "specify num of pull connection")
 	flag.Parse()
 	if *i == "" {
 		flag.Usage()
 		_, _ = fmt.Fprintf(os.Stderr, `Example:
-  ./bin/pullrtmp -i rtmp://127.0.0.1:19350/live/test -o out.flv
-  ./bin/pullrtmp -i rtmp://127.0.0.1:19350/live/test -n 1000
-  ./bin/pullrtmp -i rtmp://127.0.0.1:19350/live/test_{i} -n 1000
-`)
-		os.Exit(1)
+  %s -i rtmp://127.0.0.1:1935/live/test -o out.flv
+  %s -i rtmp://127.0.0.1:1935/live/test -n 1000
+  %s -i rtmp://127.0.0.1:1935/live/test_{i} -n 1000
+`, os.Args[0], os.Args[0], os.Args[0])
+		base.OSExitAndWaitPressIfWindows(1)
 	}
 	return *i, *o, *n
 }

@@ -1,3 +1,30 @@
+#### v0.19.1 (2021-02-01)
+
+- [fix] 获取group中播放者数量时锁没有释放，导致后续无法转发数据
+
+#### v0.19.0 (2021-01-24)
+
+- [feat] demo，新增app/demo/pullrtsp2pushrtsp，可拉取rtsp流，并使用rtsp转推出去
+- [feat] demo，新增/app/demo/pullrtmp2pushrtmp，从远端服务器拉取RTMP流，并使用RTMP转推出去，支持1对n转推
+- [feat] lalserver，运行参数中没指定配置文件时，尝试从几个常见位置读取
+- [feat] windows平台下，执行程序缺少运行参数时，等待用户键入回车再退出程序，避免用户双击打开程序时程序闪退，看不到提示信息
+- [feat] rtsp，支持auth basic验证
+- [feat] rtsp，实现PushSession
+- [feat] rtsp，所有Session类型都支持auth，interleaved
+- [fix] rtsp，只有输入流中的音频和视频格式都支持时才使用queue，避免只有音频或视频时造成延迟增加
+- [fix] rtsp，输入流只有单路音频或视频时，接收对象设置错误导致崩溃
+- [fix] rtsp，client session的所有信令都处理401 auth
+- [fix] rtsp，in session使用rtp over tcp时，收到sr回复rr
+- [fix] rtsp，setup信令header中的transport字段区分record和play，record时添加mode=record
+- [fix] avc，整体解析sps数据失败时，只解析最基础部分
+- [refactor] rtsp，重构部分逻辑，聚合至sdp.LogicContext中
+- [refactor] rtsp，新增ClientCommandSession，将PushSession和PullSession中共用的信令部分抽离出来
+- [refactor] rtsp，新增BaseOutSession，将PushSession和SubSession中共用的发送数据部分抽离出来
+- [refactor] rtsp，整理所有session，包含生命周期，ISessionStat、IURLContext、Interleaved收发等函数，整理debug日志
+- [doc] 启动lal官方文档页： https://pengrl.com/lal
+- [doc] 新增文档《rtmp url，以及vhost》： http://pengrl.com/lal/#/RTMPURLVhost
+- [chore] Go最低版本要求从1.9上升到1.13
+
 #### v0.18.0 (2020-12-27)
 
 - [feat] 实现rtsp pull session

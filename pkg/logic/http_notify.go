@@ -36,6 +36,7 @@ type HTTPNotify struct {
 
 var httpNotify *HTTPNotify
 
+// 注意，这里的函数命名以On开头并不是因为是回调函数，而是notify给业务方的接口叫做on_server_start
 func (h *HTTPNotify) OnServerStart() {
 	var info base.LALInfo
 	info.BinInfo = bininfo.StringifySingleLine()
@@ -71,7 +72,20 @@ func (h *HTTPNotify) OnRTMPConnect(info base.RTMPConnectInfo) {
 	h.asyncPost(config.HTTPNotifyConfig.OnRTMPConnect, info)
 }
 
+func (h *HTTPNotify) RunLoop() {
+	for {
+		select {
+		case t := <-h.taskQueue:
+			h.post(t.url, t.info)
+		}
+	}
+}
+
 func (h *HTTPNotify) asyncPost(url string, info interface{}) {
+	if !config.HTTPNotifyConfig.Enable || url == "" {
+		return
+	}
+
 	select {
 	case h.taskQueue <- PostTask{url: url, info: info}:
 		// noop
@@ -81,21 +95,8 @@ func (h *HTTPNotify) asyncPost(url string, info interface{}) {
 }
 
 func (h *HTTPNotify) post(url string, info interface{}) {
-	if !config.HTTPNotifyConfig.Enable || url == "" {
-		return
-	}
-
 	if _, err := nazahttp.PostJson(url, info, h.client); err != nil {
 		nazalog.Errorf("http notify post error. err=%+v", err)
-	}
-}
-
-func (h *HTTPNotify) RunLoop() {
-	for {
-		select {
-		case t := <-h.taskQueue:
-			h.post(t.url, t.info)
-		}
 	}
 }
 

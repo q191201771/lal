@@ -532,7 +532,13 @@ func (group *Group) OnAVPacket(pkt base.AVPacket) {
 	group.broadcastRTMP(msg)
 }
 
-func (group *Group) StringifyStats() string {
+func (group *Group) StringifyDebugStats() string {
+	group.mutex.Lock()
+	subLen := len(group.rtmpSubSessionSet) + len(group.httpflvSubSessionSet) + len(group.httptsSubSessionSet) + len(group.rtspSubSessionSet)
+	group.mutex.Unlock()
+	if subLen > 10 {
+		return fmt.Sprintf("[%s] not log out all stats. subLen=%d", group.UniqueKey, subLen)
+	}
 	b, _ := json.Marshal(group.GetStat())
 	return string(b)
 }
@@ -557,6 +563,9 @@ func (group *Group) GetStat() base.StatGroup {
 		group.stat.StatSubs = append(group.stat.StatSubs, base.StatSession2Sub(s.GetStat()))
 	}
 	for s := range group.httptsSubSessionSet {
+		group.stat.StatSubs = append(group.stat.StatSubs, base.StatSession2Sub(s.GetStat()))
+	}
+	for s := range group.rtspSubSessionSet {
 		group.stat.StatSubs = append(group.stat.StatSubs, base.StatSession2Sub(s.GetStat()))
 	}
 
@@ -642,6 +651,7 @@ func (group *Group) delRTSPPubSession(session *rtsp.PubSession) {
 		return
 	}
 
+	_ = group.rtspPubSession.Dispose()
 	group.rtspPubSession = nil
 	group.delIn()
 }
@@ -677,6 +687,8 @@ func (group *Group) broadcastRTMP(msg base.RTMPMsg) {
 		lrm2ft LazyRTMPMsg2FLVTag
 	)
 
+	//nazalog.Debugf("[%s] broadcaseRTMP. header=%+v, %s", group.UniqueKey, msg.Header, hex.Dump(nazastring.SubSliceSafety(msg.Payload, 7)))
+
 	// # 0. hls
 	if config.HLSConfig.Enable && group.hlsMuxer != nil {
 		group.hlsMuxer.FeedRTMPMessage(msg)
@@ -685,7 +697,7 @@ func (group *Group) broadcastRTMP(msg base.RTMPMsg) {
 	// # 1. 设置好用于发送的 rtmp 头部信息
 	currHeader := remux.MakeDefaultRTMPHeader(msg.Header)
 	if currHeader.MsgLen != uint32(len(msg.Payload)) {
-		nazalog.Errorf("diff. msgLen=%d, payload len=%d, %+v", currHeader.MsgLen, len(msg.Payload), msg.Header)
+		nazalog.Errorf("[%s] diff. msgLen=%d, payload len=%d, %+v", group.UniqueKey, currHeader.MsgLen, len(msg.Payload), msg.Header)
 	}
 
 	// # 2. 懒初始化rtmp chunk切片，以及httpflv转换
@@ -698,12 +710,15 @@ func (group *Group) broadcastRTMP(msg base.RTMPMsg) {
 		if session.IsFresh {
 			// TODO chef: 头信息和full gop也可以在SubSession刚加入时发送
 			if group.gopCache.Metadata != nil {
+				//nazalog.Debugf("[%s] [%s] write metadata", group.UniqueKey, session.UniqueKey)
 				_ = session.AsyncWrite(group.gopCache.Metadata)
 			}
 			if group.gopCache.VideoSeqHeader != nil {
+				//nazalog.Debugf("[%s] [%s] write vsh", group.UniqueKey, session.UniqueKey)
 				_ = session.AsyncWrite(group.gopCache.VideoSeqHeader)
 			}
 			if group.gopCache.AACSeqHeader != nil {
+				//nazalog.Debugf("[%s] [%s] write ash", group.UniqueKey, session.UniqueKey)
 				_ = session.AsyncWrite(group.gopCache.AACSeqHeader)
 			}
 			for i := 0; i < group.gopCache.GetGOPCount(); i++ {
@@ -799,7 +814,8 @@ func (group *Group) broadcastRTMP(msg base.RTMPMsg) {
 		if msg.IsAVCKeySeqHeader() {
 			sps, _, err := avc.ParseSPSPPSFromSeqHeader(msg.Payload)
 			if err == nil {
-				ctx, err := avc.ParseSPS(sps)
+				var ctx avc.Context
+				err = avc.ParseSPS(sps, &ctx)
 				if err == nil {
 					group.stat.VideoHeight = int(ctx.Height)
 					group.stat.VideoWidth = int(ctx.Width)

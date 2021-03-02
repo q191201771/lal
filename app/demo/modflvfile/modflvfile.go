@@ -11,8 +11,9 @@ package main
 import (
 	"flag"
 	"io"
-	"os"
 	"time"
+
+	"github.com/q191201771/lal/pkg/base"
 
 	"github.com/q191201771/lal/pkg/httpflv"
 	log "github.com/q191201771/naza/pkg/nazalog"
@@ -75,7 +76,7 @@ func parseFlag() (string, string) {
 	flag.Parse()
 	if *i == "" || *o == "" {
 		flag.Usage()
-		os.Exit(1)
+		base.OSExitAndWaitPressIfWindows(1)
 	}
 	return *i, *o
 }

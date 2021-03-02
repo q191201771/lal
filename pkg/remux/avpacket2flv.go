@@ -52,8 +52,7 @@ func AVConfig2FLVTag(asc, vps, sps, pps []byte) (metadata, ash, vsh *httpflv.Tag
 				width = int(ctx.PicWidthInLumaSamples)
 				height = int(ctx.PicHeightInLumaSamples)
 			} else {
-				// TODO chef: 如果解析错误，先忽略，将失败的case收集起来解决
-				nazalog.Warnf("parse sps failed.")
+				nazalog.Warnf("parse hevc sps failed. err=%+v", err)
 			}
 			bVsh, err = hevc.BuildSeqHeaderFromVPSSPSPPS(vps, sps, pps)
 			if err != nil {
@@ -62,14 +61,17 @@ func AVConfig2FLVTag(asc, vps, sps, pps []byte) (metadata, ash, vsh *httpflv.Tag
 		} else {
 			videocodecid = int(base.RTMPCodecIDAVC)
 			var ctx avc.Context
-			ctx, err = avc.ParseSPS(sps)
-			if err == nil {
-				width = int(ctx.Width)
-				height = int(ctx.Height)
-			} else {
-				// TODO chef: 如果解析错误，先忽略，将失败的case收集起来解决
-				nazalog.Warnf("parse sps failed.")
+			err = avc.ParseSPS(sps, &ctx)
+			if err != nil {
+				return
 			}
+			if ctx.Width != 0 {
+				width = int(ctx.Width)
+			}
+			if ctx.Height != 0 {
+				height = int(ctx.Height)
+			}
+
 			bVsh, err = avc.BuildSeqHeaderFromSPSPPS(sps, pps)
 			if err != nil {
 				return

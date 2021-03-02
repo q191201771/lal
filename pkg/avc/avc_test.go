@@ -12,6 +12,9 @@ import (
 	"bytes"
 	"testing"
 
+	"github.com/q191201771/naza/pkg/nazabits"
+	"github.com/q191201771/naza/pkg/nazaerrors"
+
 	"github.com/q191201771/naza/pkg/nazalog"
 
 	"github.com/q191201771/lal/pkg/avc"
@@ -110,12 +113,17 @@ func TestCaptureAVC(t *testing.T) {
 }
 
 func TestParseSPS(t *testing.T) {
-	ctx, err := avc.ParseSPS(goldenSPS)
+	var ctx avc.Context
+	err := avc.ParseSPS(goldenSPS, &ctx)
 	assert.Equal(t, nil, err)
 	assert.Equal(t, uint8(100), ctx.Profile)
 	assert.Equal(t, uint8(32), ctx.Level)
 	assert.Equal(t, uint32(768), ctx.Width)
 	assert.Equal(t, uint32(320), ctx.Height)
+
+	err = avc.ParseSPS(nil, &ctx)
+	assert.Equal(t, true, nazaerrors.Is(err, nazabits.ErrNazaBits))
+	nazalog.Debugf("%+v", err)
 }
 
 func TestTry(t *testing.T) {
@@ -137,7 +145,8 @@ func TestCorner(t *testing.T) {
 
 func TestParsePPS_Case2(t *testing.T) {
 	in := []byte{0x67, 0x64, 0x00, 0x20, 0xad, 0x84, 0x01, 0x0c, 0x20, 0x08, 0x61, 0x00, 0x43, 0x08, 0x02, 0x18, 0x40, 0x10, 0xc2, 0x00, 0x84, 0x3b, 0x50, 0x28, 0x03, 0xcd, 0x37, 0x01, 0x01, 0x01, 0x40, 0x00, 0x00, 0x03, 0x00, 0x40, 0x00, 0x00, 0x0c, 0xa1}
-	ctx, err := avc.ParseSPS(in)
+	var ctx avc.Context
+	err := avc.ParseSPS(in, &ctx)
 	assert.Equal(t, nil, err)
 	assert.Equal(t, uint8(100), ctx.Profile)
 	assert.Equal(t, uint8(32), ctx.Level)

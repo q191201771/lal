@@ -12,6 +12,7 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"path/filepath"
 	"strings"
 
 	"github.com/q191201771/lal/pkg/base"
@@ -33,7 +34,7 @@ func main() {
 	index := strings.LastIndexByte(url, '/')
 	if index == -1 {
 		nazalog.Error("rtmp url invalid.")
-		os.Exit(-1)
+		os.Exit(1)
 	}
 	streamName := url[index:]
 
@@ -46,7 +47,7 @@ func main() {
 	})
 	if err != nil {
 		nazalog.Errorf("pull error. err=%+v", err)
-		os.Exit(-1)
+		os.Exit(1)
 	}
 	err = <-pullSession.Wait()
 	nazalog.Errorf("pull error. err=%+v", err)
@@ -60,11 +61,12 @@ func parseFlag() (url string, hlsOutPath string, fragmentDurationMS int, fragmen
 	flag.Parse()
 	if *i == "" {
 		flag.Usage()
+		eo := filepath.FromSlash("./pullrtmp2hls/")
 		_, _ = fmt.Fprintf(os.Stderr, `Example:
-  ./bin/pullrtmp2hls -i rtmp://127.0.0.1:19350/live/test110 -o /tmp/pullrtmp2hls/
-  ./bin/pullrtmp2hls -i rtmp://127.0.0.1:19350/live/test110 -o /tmp/pullrtmp2hls/ -d 5000 -n 5
-`)
-		os.Exit(1)
+  %s -i rtmp://127.0.0.1:19350/live/test110 -o %s
+  %s -i rtmp://127.0.0.1:19350/live/test110 -o %s -d 5000 -n 5
+`, os.Args[0], eo, os.Args[0], eo)
+		base.OSExitAndWaitPressIfWindows(1)
 	}
 	return *i, *o, *d, *n
 }

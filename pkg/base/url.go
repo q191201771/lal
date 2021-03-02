@@ -24,9 +24,10 @@ import (
 var ErrURL = errors.New("lal.url: fxxk")
 
 const (
-	DefaultRTMPPort = 1935
-	DefaultHTTPPort = 80
-	DefaultRTSPPort = 554
+	DefaultRTMPPort  = 1935
+	DefaultHTTPPort  = 80
+	DefaultHTTPSPort = 443
+	DefaultRTSPPort  = 554
 )
 
 type URLPathContext struct {
@@ -37,7 +38,10 @@ type URLPathContext struct {
 	RawQuery            string
 }
 
+// TODO chef: 考虑把rawURL也放入其中
 type URLContext struct {
+	URL string
+
 	Scheme       string
 	Username     string
 	Password     string
@@ -56,15 +60,9 @@ type URLContext struct {
 	RawURLWithoutUserInfo string
 }
 
-func ParseURLPath(path string) (ctx URLPathContext, err error) {
-	stdURL, err := url.Parse(path)
-	if err != nil {
-		return ctx, err
-	}
-	return parseURLPath(stdURL)
-}
-
 func ParseURL(rawURL string, defaultPort int) (ctx URLContext, err error) {
+	ctx.URL = rawURL
+
 	stdURL, err := url.Parse(rawURL)
 	if err != nil {
 		return ctx, err
@@ -135,16 +133,12 @@ func ParseRTMPURL(rawURL string) (ctx URLContext, err error) {
 	return
 }
 
-func ParseHTTPFLVURL(rawURL string) (ctx URLContext, err error) {
-	ctx, err = ParseURL(rawURL, DefaultHTTPPort)
-	if err != nil {
-		return
-	}
-	if (ctx.Scheme != "http" && ctx.Scheme != "https") || ctx.Host == "" || ctx.Path == "" || !strings.HasSuffix(ctx.LastItemOfPath, ".flv") {
-		return ctx, ErrURL
-	}
+func ParseHTTPFLVURL(rawURL string, isHTTPS bool) (ctx URLContext, err error) {
+	return parsehttpURL(rawURL, isHTTPS, ".flv")
+}
 
-	return
+func ParseHTTPTSURL(rawURL string, isHTTPS bool) (ctx URLContext, err error) {
+	return parsehttpURL(rawURL, isHTTPS, ".ts")
 }
 
 func ParseRTSPURL(rawURL string) (ctx URLContext, err error) {
@@ -188,4 +182,23 @@ func parseURLPath(stdURL *url.URL) (ctx URLPathContext, err error) {
 	}
 
 	return ctx, nil
+}
+
+func parsehttpURL(rawURL string, isHTTPS bool, suffix string) (ctx URLContext, err error) {
+	var defaultPort int
+	if isHTTPS {
+		defaultPort = DefaultHTTPSPort
+	} else {
+		defaultPort = DefaultHTTPPort
+	}
+
+	ctx, err = ParseURL(rawURL, defaultPort)
+	if err != nil {
+		return
+	}
+	if (ctx.Scheme != "http" && ctx.Scheme != "https") || ctx.Host == "" || ctx.Path == "" || !strings.HasSuffix(ctx.LastItemOfPath, suffix) {
+		return ctx, ErrURL
+	}
+
+	return
 }

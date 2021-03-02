@@ -106,3 +106,10 @@ func (msg RTMPMsg) IsVideoKeyNALU() bool {
 func (msg RTMPMsg) IsAACSeqHeader() bool {
 	return msg.Header.MsgTypeID == RTMPTypeIDAudio && (msg.Payload[0]>>4) == RTMPSoundFormatAAC && msg.Payload[1] == RTMPAACPacketTypeSeqHeader
 }
+
+func (msg RTMPMsg) Clone() (ret RTMPMsg) {
+	ret.Header = msg.Header
+	ret.Payload = make([]byte, len(msg.Payload))
+	copy(ret.Payload, msg.Payload)
+	return
+}

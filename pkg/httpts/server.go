@@ -64,12 +64,12 @@ func (server *Server) Dispose() {
 
 func (server *Server) handleConnect(conn net.Conn) {
 	log.Infof("accept a httpts connection. remoteAddr=%s", conn.RemoteAddr().String())
-	session := NewSubSession(conn)
+	session := NewSubSession(conn, "http")
 	if err := session.ReadRequest(); err != nil {
 		log.Errorf("[%s] read httpts SubSession request error. err=%v", session.UniqueKey, err)
 		return
 	}
-	log.Debugf("[%s] < read http request. uri=%s", session.UniqueKey, session.URI)
+	log.Debugf("[%s] < read http request. url=%s", session.UniqueKey, session.URL())
 
 	if !server.observer.OnNewHTTPTSSubSession(session) {
 		session.Dispose()

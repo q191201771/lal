@@ -162,9 +162,12 @@ func (sm *ServerManager) RunLoop() {
 			if (count % 30) == 0 {
 				sm.mutex.Lock()
 				nazalog.Debugf("group size=%d", len(sm.groupMap))
-				//for _, g := range sm.groupMap {
-				//	nazalog.Debugf("%s", g.StringifyStats())
-				//}
+				// only for debug
+				if len(sm.groupMap) < 10 {
+					for _, g := range sm.groupMap {
+						nazalog.Debugf("%s", g.StringifyDebugStats())
+					}
+				}
 				sm.mutex.Unlock()
 			}
 
@@ -237,9 +240,11 @@ func (sm *ServerManager) OnNewRTMPPubSession(session *rtmp.ServerSession) bool {
 	res := group.AddRTMPPubSession(session)
 
 	// TODO chef: res值为false时，可以考虑不回调
+	// TODO chef: 每次赋值都逐个拼，代码冗余，考虑直接用ISession抽离一下代码
 	var info base.PubStartInfo
 	info.ServerID = config.ServerID
 	info.Protocol = base.ProtocolRTMP
+	info.URL = session.URL()
 	info.AppName = session.AppName()
 	info.StreamName = session.StreamName()
 	info.URLParam = session.RawQuery()
@@ -248,7 +253,6 @@ func (sm *ServerManager) OnNewRTMPPubSession(session *rtmp.ServerSession) bool {
 	info.HasInSession = group.HasInSession()
 	info.HasOutSession = group.HasOutSession()
 	httpNotify.OnPubStart(info)
-
 	return res
 }
 
@@ -266,6 +270,7 @@ func (sm *ServerManager) OnDelRTMPPubSession(session *rtmp.ServerSession) {
 	var info base.PubStopInfo
 	info.ServerID = config.ServerID
 	info.Protocol = base.ProtocolRTMP
+	info.URL = session.URL()
 	info.AppName = session.AppName()
 	info.StreamName = session.StreamName()
 	info.URLParam = session.RawQuery()
@@ -286,6 +291,7 @@ func (sm *ServerManager) OnNewRTMPSubSession(session *rtmp.ServerSession) bool {
 	var info base.SubStartInfo
 	info.ServerID = config.ServerID
 	info.Protocol = base.ProtocolRTMP
+	info.Protocol = session.URL()
 	info.AppName = session.AppName()
 	info.StreamName = session.StreamName()
 	info.URLParam = session.RawQuery()
@@ -332,6 +338,7 @@ func (sm *ServerManager) OnNewHTTPFLVSubSession(session *httpflv.SubSession) boo
 	var info base.SubStartInfo
 	info.ServerID = config.ServerID
 	info.Protocol = base.ProtocolHTTPFLV
+	info.URL = session.URL()
 	info.AppName = session.AppName()
 	info.StreamName = session.StreamName()
 	info.URLParam = session.RawQuery()
@@ -340,7 +347,6 @@ func (sm *ServerManager) OnNewHTTPFLVSubSession(session *httpflv.SubSession) boo
 	info.HasInSession = group.HasInSession()
 	info.HasOutSession = group.HasOutSession()
 	httpNotify.OnSubStart(info)
-
 	return true
 }
 
@@ -358,6 +364,7 @@ func (sm *ServerManager) OnDelHTTPFLVSubSession(session *httpflv.SubSession) {
 	var info base.SubStopInfo
 	info.ServerID = config.ServerID
 	info.Protocol = base.ProtocolHTTPFLV
+	info.URL = session.URL()
 	info.AppName = session.AppName()
 	info.StreamName = session.StreamName()
 	info.URLParam = session.RawQuery()
@@ -375,8 +382,18 @@ func (sm *ServerManager) OnNewHTTPTSSubSession(session *httpts.SubSession) bool 
 	group := sm.getOrCreateGroup(session.AppName(), session.StreamName())
 	group.AddHTTPTSSubSession(session)
 
-	// TODO chef: 部分session没有Notify
-
+	var info base.SubStartInfo
+	info.ServerID = config.ServerID
+	info.Protocol = base.ProtocolHTTPTS
+	info.URL = session.URL()
+	info.AppName = session.AppName()
+	info.StreamName = session.StreamName()
+	info.URLParam = session.RawQuery()
+	info.SessionID = session.UniqueKey
+	info.RemoteAddr = session.RemoteAddr()
+	info.HasInSession = group.HasInSession()
+	info.HasOutSession = group.HasOutSession()
+	httpNotify.OnSubStart(info)
 	return true
 }
 
@@ -385,9 +402,24 @@ func (sm *ServerManager) OnDelHTTPTSSubSession(session *httpts.SubSession) {
 	sm.mutex.Lock()
 	defer sm.mutex.Unlock()
 	group := sm.getGroup(session.AppName(), session.StreamName())
-	if group != nil {
-		group.DelHTTPTSSubSession(session)
+	if group == nil {
+		return
 	}
+
+	group.DelHTTPTSSubSession(session)
+
+	var info base.SubStopInfo
+	info.ServerID = config.ServerID
+	info.Protocol = base.ProtocolHTTPTS
+	info.URL = session.URL()
+	info.AppName = session.AppName()
+	info.StreamName = session.StreamName()
+	info.URLParam = session.RawQuery()
+	info.SessionID = session.UniqueKey
+	info.RemoteAddr = session.RemoteAddr()
+	info.HasInSession = group.HasInSession()
+	info.HasOutSession = group.HasOutSession()
+	httpNotify.OnSubStop(info)
 }
 
 // ServerObserver of rtsp.Server
@@ -405,7 +437,22 @@ func (sm *ServerManager) OnNewRTSPPubSession(session *rtsp.PubSession) bool {
 	sm.mutex.Lock()
 	defer sm.mutex.Unlock()
 	group := sm.getOrCreateGroup("", session.StreamName())
-	return group.AddRTSPPubSession(session)
+	res := group.AddRTSPPubSession(session)
+
+	var info base.PubStartInfo
+	info.ServerID = config.ServerID
+	info.Protocol = base.ProtocolRTSP
+	info.URL = session.URL()
+	info.AppName = session.AppName()
+	info.StreamName = session.StreamName()
+	info.URLParam = session.RawQuery()
+	info.SessionID = session.UniqueKey
+	info.RemoteAddr = session.RemoteAddr()
+	info.HasInSession = group.HasInSession()
+	info.HasOutSession = group.HasOutSession()
+	httpNotify.OnPubStart(info)
+
+	return res
 }
 
 // ServerObserver of rtsp.Server
@@ -414,9 +461,24 @@ func (sm *ServerManager) OnDelRTSPPubSession(session *rtsp.PubSession) {
 	sm.mutex.Lock()
 	defer sm.mutex.Unlock()
 	group := sm.getGroup("", session.StreamName())
-	if group != nil {
-		group.DelRTSPPubSession(session)
+	if group == nil {
+		return
 	}
+
+	group.DelRTSPPubSession(session)
+
+	var info base.PubStopInfo
+	info.ServerID = config.ServerID
+	info.Protocol = base.ProtocolRTSP
+	info.URL = session.URL()
+	info.AppName = session.AppName()
+	info.StreamName = session.StreamName()
+	info.URLParam = session.RawQuery()
+	info.SessionID = session.UniqueKey
+	info.RemoteAddr = session.RemoteAddr()
+	info.HasInSession = group.HasInSession()
+	info.HasOutSession = group.HasOutSession()
+	httpNotify.OnPubStop(info)
 }
 
 // ServerObserver of rtsp.Server
@@ -432,7 +494,23 @@ func (sm *ServerManager) OnNewRTSPSubSessionPlay(session *rtsp.SubSession) bool 
 	sm.mutex.Lock()
 	defer sm.mutex.Unlock()
 	group := sm.getOrCreateGroup("", session.StreamName())
-	return group.HandleNewRTSPSubSessionPlay(session)
+
+	res := group.HandleNewRTSPSubSessionPlay(session)
+
+	var info base.SubStartInfo
+	info.ServerID = config.ServerID
+	info.Protocol = base.ProtocolRTSP
+	info.URL = session.URL()
+	info.AppName = session.AppName()
+	info.StreamName = session.StreamName()
+	info.URLParam = session.RawQuery()
+	info.SessionID = session.UniqueKey
+	info.RemoteAddr = session.RemoteAddr()
+	info.HasInSession = group.HasInSession()
+	info.HasOutSession = group.HasOutSession()
+	httpNotify.OnSubStart(info)
+
+	return res
 }
 
 // ServerObserver of rtsp.Server
@@ -441,9 +519,24 @@ func (sm *ServerManager) OnDelRTSPSubSession(session *rtsp.SubSession) {
 	sm.mutex.Lock()
 	defer sm.mutex.Unlock()
 	group := sm.getGroup("", session.StreamName())
-	if group != nil {
-		group.DelRTSPSubSession(session)
+	if group == nil {
+		return
 	}
+
+	group.DelRTSPSubSession(session)
+
+	var info base.SubStopInfo
+	info.ServerID = config.ServerID
+	info.Protocol = base.ProtocolRTSP
+	info.URL = session.URL()
+	info.AppName = session.AppName()
+	info.StreamName = session.StreamName()
+	info.URLParam = session.RawQuery()
+	info.SessionID = session.UniqueKey
+	info.RemoteAddr = session.RemoteAddr()
+	info.HasInSession = group.HasInSession()
+	info.HasOutSession = group.HasOutSession()
+	httpNotify.OnSubStop(info)
 }
 
 // HTTPAPIServerObserver
@@ -471,6 +564,7 @@ func (sm *ServerManager) OnCtrlStartPull(info base.APICtrlStartPullReq) {
 	defer sm.mutex.Unlock()
 	g := sm.getGroup(info.AppName, info.StreamName)
 	if g == nil {
+		nazalog.Warnf("group not exist, ignore start pull. streamName=%s", info.StreamName)
 		return
 	}
 	var url string

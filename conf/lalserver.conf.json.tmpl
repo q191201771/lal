@@ -1,7 +1,7 @@
 {
   "rtmp": {
     "enable": true,
-    "addr": ":19350",
+    "addr": ":1935",
     "gop_num": 2
   },
   "httpflv": {
@@ -9,8 +9,8 @@
     "sub_listen_addr": ":8080",
     "enable_https": false,
     "https_addr": ":4433",
-    "https_cert_file": "./testdata/conf/cert.pem",
-    "https_key_file": "./testdata/conf/key.pem",
+    "https_cert_file": "./conf/cert.pem",
+    "https_key_file": "./conf/key.pem",
     "gop_num": 2
   },
   "hls": {
@@ -43,9 +43,20 @@
     "addr": ":8083"
   },
   "server_id": "1",
+  "http_notify": {
+    "enable": false,
+    "update_interval_sec": 5,
+    "on_server_start": "http://127.0.0.1:10101/on_server_start",
+    "on_update": "http://127.0.0.1:10101/on_update",
+    "on_pub_start": "http://127.0.0.1:10101/on_pub_start",
+    "on_pub_stop": "http://127.0.0.1:10101/on_pub_stop",
+    "on_sub_start": "http://127.0.0.1:10101/on_sub_start",
+    "on_sub_stop": "http://127.0.0.1:10101/on_sub_stop",
+    "on_rtmp_connect": "http://127.0.0.1:10101/on_rtmp_connect"
+  },
   "pprof": {
     "enable": true,
-    "addr": ":10001"
+    "addr": ":8084"
   },
   "log": {
     "level": 1,

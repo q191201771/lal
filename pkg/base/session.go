@@ -8,11 +8,18 @@
 
 package base
 
+type ISessionURLContext interface {
+	URL() string
+	AppName() string
+	StreamName() string
+	RawQuery() string
+}
+
 type ISessionStat interface {
 	// 周期性调用该函数，用于计算bitrate
 	//
 	// @param intervalSec 距离上次调用的时间间隔，单位毫秒
-	UpdateStat(intervalSec int)
+	UpdateStat(intervalSec uint32)
 
 	// 获取session状态
 	//
@@ -28,10 +35,8 @@ type ISessionStat interface {
 	IsAlive() (readAlive, writeAlive bool)
 }
 
-type ISessionURLContext interface {
-	AppName() string
-	StreamName() string
-	RawQuery() string
+type ISession interface {
+	RemoteAddr() string
 }
 
 // TODO chef: rtmp.ClientSession修改为BaseClientSession更好些
@@ -41,12 +46,6 @@ type ISessionURLContext interface {
 // | -          | -                 | -                 | -                         | -                         |
 // | file       | server_session.go | server_session.go | client_push_session.go    | client_pull_session.go    |
 // | struct     | ServerSession     | ServerSession     | PushSession/ClientSession | PullSession/ClientSession |
-//
-//
-// | .          | rtsp pub                        | rtsp sub                                      | rtsp pull                 |
-// | -          | -                               | -                                             | -                         |
-// | file       | server_pub_session.go           | server_sub_session.go                         | client_pull_session.go    |
-// | struct     | PubSession/ServerCommandSession | SubSession/BaseInSession/ServerCommandSession | PullSession/BaseInSession |
 //
 //
 // | .          | flv sub               | flv pull               |
@@ -61,27 +60,27 @@ type ISessionURLContext interface {
 // | struct     | SubSession            |
 //
 //
-// | .                 | rtmppub | rtsppub | rtmpsub | flvsub | tssub | rtspsub | - | rtmppush | rtmppull | flvpull | rtsppull | hls |
-// | -                 | -       | -       | -       | -      | -     | -       | - | -        | -        | -       | -        |     |
-// | x                 | x       | x       | x       | x      | x     | x       | - | x        | x        | x       | x        |     |
-// | UniqueKey<all>    | √       | √       | √       | √      | √     | √       | - | x√       | x√       | √       | √        |     |
+// | .                      | rtmppub | rtsppub | rtmpsub | flvsub | tssub | rtspsub | - | rtmppush | rtmppull | flvpull | rtsppull | rtsppush | hls |
+// | -                      | -       | -       | -       | -      | -     | -       | - | -        | -        | -       | -        |          |     |
+// | x                      | x       | x       | x       | x      | x     | x       | - | x        | x        | x       | x        |          |     |
+// | UniqueKey<all>         | √       | √       | √       | √      | √     | √       | - | x√       | x√       | √       | √        |          |     |
 
-// | AppName()<all>    | √       | √       | √       | √      | √     | √       | - | √        | √        | √       | √        |     |
-// | StreamName()<all> | √       | √       | √       | √      | √     | √       | - | √        | √        | √       | √        |     |
-// | RawQuery()<all>   | √       | √       | √       | √      | √     | √       | - | √        | √        | √       | √        |     |
+// | AppName()<all>         | √       | √       | √       | √      | √     | √       | - | √        | √        | √       | √        |          |     |
+// | StreamName()<all>      | √       | √       | √       | √      | √     | √       | - | √        | √        | √       | √        |          |     |
+// | RawQuery()<all>        | √       | √       | √       | √      | √     | √       | - | √        | √        | √       | √        |          |     |
 
-// | GetStat()<all>    | √       | √       | √       | √      | √     | √       | - | √        | √        | √       | √        |     |
-// | UpdateStat()<all> | √       | √       | √       | √      | √     | √       | - | √        | √        | √       | √        |     |
-// | IsAlive()<all>    | √       | √       | √       | √      | √     | √       | - | √        | √        | √       | √        |     |
+// | GetStat()<all>         | √       | √       | √       | √      | √     | √       | - | √        | √        | √       | √        |          |     |
+// | UpdateStat()<all>      | √       | √       | √       | √      | √     | √       | - | √        | √        | √       | √        |          |     |
+// | IsAlive()<all>         | √       | √       | √       | √      | √     | √       | - | √        | √        | √       | √        |          |     |
 
-// | RunLoop()         | √       | x√      | √       | √      | √     | x&√     | - | x        | x        | x       | x        |     |
-// | Dispose()         | √       | √       | √       | √      | √     | √       | - | √        | √        | √       | √        |     |
+// | RunLoop()              | √       | x√      | √       | √      | √     | x&√     | - | x        | x        | x       | x        |          |     |
+// | Dispose()              | √       | √       | √       | √      | √     | √       | - | √        | √        | √       | √        |          |     |
 
-// | RemoteAddr()      | √       | x       | √       | √      | x     | x       | - | x        | x        | x       | x        |     |
-// | SingleConn        | √       | x       | √       | √      | √     | √       | - | √        | √        | √       | x        |     |
+// | RemoteAddr()           | √       | x       | √       | √      | x     | x       | - | x        | x        | x       | x        |          |     |
+// | SingleConn             | √       | x       | √       | √      | √     | √       | - | √        | √        | √       | x        |          |     |
 //
-// | Opt.PullTimeoutMS | -       | -       | -       | -      | -     | -       | - | -        | x        | √       | √        |     |
-// | Wait()            | -       | -       | -       | -      | -     | -       | - | -        | √        | √       | √        |     |
+// | Opt.Push/PullTimeoutMS | -       | -       | -       | -      | -     | -       | - | √        | √        | √       | √        |  √       |     |
+// | Wait()                 | -       | -       | -       | -      | -     | -       | - | √        | √        | √       | √        |  √       |     |
 //
 // Dispose由外部调用，表示主动关闭正常的session
 // 外部调用Dispose后，不应继续使用该session
@@ -90,3 +89,13 @@ type ISessionURLContext interface {
 // 对端关闭，或session内部关闭也会导致RunLoop结束阻塞
 //
 // RunLoop结束阻塞后，可通知上层，告知session生命周期结束
+//
+// ---
+//
+// 对于rtsp.PushSession和rtsp.PullSession
+// Push()或Pull成功后，可调用Dispose()主动关闭session
+// 当对端关闭导致Wait()触发时，也需要调用Dispose()
+//
+// 对于rtsp.PubSession和rtsp.SubSession
+// ServerCommandSession通知上层，上层调用session的Dispose()
+// 当然，session也支持主动调用Dispose()
