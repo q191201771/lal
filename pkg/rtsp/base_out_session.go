@@ -11,7 +11,6 @@ package rtsp
 import (
 	"encoding/hex"
 	"net"
-	"sync/atomic"
 	"time"
 
 	"github.com/q191201771/lal/pkg/rtprtcp"
@@ -42,7 +41,7 @@ type BaseOutSession struct {
 	videoRTCPChannel int
 
 	stat         base.StatSession
-	currConnStat connection.Stat
+	currConnStat connection.StatAtomic
 	prevConnStat connection.Stat
 	staleStat    *connection.Stat
 
@@ -140,7 +139,7 @@ func (session *BaseOutSession) HandleInterleavedPacket(b []byte, channel int) {
 }
 
 func (session *BaseOutSession) WriteRTPPacket(packet rtprtcp.RTPPacket) {
-	atomic.AddUint64(&session.currConnStat.WroteBytesSum, uint64(len(packet.Raw)))
+	session.currConnStat.WroteBytesSum.Add(uint64(len(packet.Raw)))
 
 	// 发送数据时，保证和sdp的原始类型对应
 	t := int(packet.Header.PacketType)
@@ -174,14 +173,14 @@ func (session *BaseOutSession) WriteRTPPacket(packet rtprtcp.RTPPacket) {
 }
 
 func (session *BaseOutSession) GetStat() base.StatSession {
-	session.stat.ReadBytesSum = atomic.LoadUint64(&session.currConnStat.ReadBytesSum)
-	session.stat.WroteBytesSum = atomic.LoadUint64(&session.currConnStat.WroteBytesSum)
+	session.stat.ReadBytesSum = session.currConnStat.ReadBytesSum.Load()
+	session.stat.WroteBytesSum = session.currConnStat.WroteBytesSum.Load()
 	return session.stat
 }
 
 func (session *BaseOutSession) UpdateStat(interval uint32) {
-	readBytesSum := atomic.LoadUint64(&session.currConnStat.ReadBytesSum)
-	wroteBytesSum := atomic.LoadUint64(&session.currConnStat.WroteBytesSum)
+	readBytesSum := session.currConnStat.ReadBytesSum.Load()
+	wroteBytesSum := session.currConnStat.WroteBytesSum.Load()
 	rDiff := readBytesSum - session.prevConnStat.ReadBytesSum
 	session.stat.ReadBitrate = int(rDiff * 8 / 1024 / uint64(interval))
 	wDiff := wroteBytesSum - session.prevConnStat.WroteBytesSum
@@ -192,8 +191,8 @@ func (session *BaseOutSession) UpdateStat(interval uint32) {
 }
 
 func (session *BaseOutSession) IsAlive() (readAlive, writeAlive bool) {
-	readBytesSum := atomic.LoadUint64(&session.currConnStat.ReadBytesSum)
-	wroteBytesSum := atomic.LoadUint64(&session.currConnStat.WroteBytesSum)
+	readBytesSum := session.currConnStat.ReadBytesSum.Load()
+	wroteBytesSum := session.currConnStat.WroteBytesSum.Load()
 	if session.staleStat == nil {
 		session.staleStat = new(connection.Stat)
 		session.staleStat.ReadBytesSum = readBytesSum

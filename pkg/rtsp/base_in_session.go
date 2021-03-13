@@ -12,7 +12,6 @@ import (
 	"encoding/hex"
 	"net"
 	"sync"
-	"sync/atomic"
 	"time"
 
 	"github.com/q191201771/naza/pkg/nazaerrors"
@@ -59,7 +58,7 @@ type BaseInSession struct {
 	videoRTPChannel  int
 	videoRTCPChannel int
 
-	currConnStat connection.Stat
+	currConnStat connection.StatAtomic
 	prevConnStat connection.Stat
 	staleStat    *connection.Stat
 	stat         base.StatSession
@@ -227,14 +226,14 @@ func (session *BaseInSession) WriteRTPRTCPDummy() {
 }
 
 func (session *BaseInSession) GetStat() base.StatSession {
-	session.stat.ReadBytesSum = atomic.LoadUint64(&session.currConnStat.ReadBytesSum)
-	session.stat.WroteBytesSum = atomic.LoadUint64(&session.currConnStat.WroteBytesSum)
+	session.stat.ReadBytesSum = session.currConnStat.ReadBytesSum.Load()
+	session.stat.WroteBytesSum = session.currConnStat.WroteBytesSum.Load()
 	return session.stat
 }
 
 func (session *BaseInSession) UpdateStat(interval uint32) {
-	readBytesSum := atomic.LoadUint64(&session.currConnStat.ReadBytesSum)
-	wroteBytesSum := atomic.LoadUint64(&session.currConnStat.WroteBytesSum)
+	readBytesSum := session.currConnStat.ReadBytesSum.Load()
+	wroteBytesSum := session.currConnStat.WroteBytesSum.Load()
 	rDiff := readBytesSum - session.prevConnStat.ReadBytesSum
 	session.stat.ReadBitrate = int(rDiff * 8 / 1024 / uint64(interval))
 	wDiff := wroteBytesSum - session.prevConnStat.WroteBytesSum
@@ -245,8 +244,8 @@ func (session *BaseInSession) UpdateStat(interval uint32) {
 }
 
 func (session *BaseInSession) IsAlive() (readAlive, writeAlive bool) {
-	readBytesSum := atomic.LoadUint64(&session.currConnStat.ReadBytesSum)
-	wroteBytesSum := atomic.LoadUint64(&session.currConnStat.WroteBytesSum)
+	readBytesSum := session.currConnStat.ReadBytesSum.Load()
+	wroteBytesSum := session.currConnStat.WroteBytesSum.Load()
 	if session.staleStat == nil {
 		session.staleStat = new(connection.Stat)
 		session.staleStat.ReadBytesSum = readBytesSum
@@ -299,7 +298,7 @@ func (session *BaseInSession) onReadRTCPPacket(b []byte, rAddr *net.UDPAddr, err
 
 // @param rAddr 对端地址，往对端发送数据时使用，注意，如果nil，则表示是interleaved模式，我们直接往TCP连接发数据
 func (session *BaseInSession) handleRTCPPacket(b []byte, rAddr *net.UDPAddr) error {
-	atomic.AddUint64(&session.currConnStat.ReadBytesSum, uint64(len(b)))
+	session.currConnStat.ReadBytesSum.Add(uint64(len(b)))
 
 	if len(b) <= 0 {
 		nazalog.Errorf("[%s] handleRTCPPacket but length invalid. len=%d", session.UniqueKey, len(b))
@@ -330,7 +329,7 @@ func (session *BaseInSession) handleRTCPPacket(b []byte, rAddr *net.UDPAddr) err
 				} else {
 					_ = session.cmdSession.WriteInterleavedPacket(rrBuf, session.audioRTCPChannel)
 				}
-				atomic.AddUint64(&session.currConnStat.WroteBytesSum, uint64(len(b)))
+				session.currConnStat.WroteBytesSum.Add(uint64(len(b)))
 			}
 		case session.videoSSRC:
 			rrBuf = session.videoRRProducer.Produce(sr.GetMiddleNTP())
@@ -340,7 +339,7 @@ func (session *BaseInSession) handleRTCPPacket(b []byte, rAddr *net.UDPAddr) err
 				} else {
 					_ = session.cmdSession.WriteInterleavedPacket(rrBuf, session.videoRTCPChannel)
 				}
-				atomic.AddUint64(&session.currConnStat.WroteBytesSum, uint64(len(b)))
+				session.currConnStat.WroteBytesSum.Add(uint64(len(b)))
 			}
 		default:
 			// ffmpeg推流时，会在发送第一个RTP包之前就发送一个SR，所以关闭这个警告日志
@@ -357,7 +356,7 @@ func (session *BaseInSession) handleRTCPPacket(b []byte, rAddr *net.UDPAddr) err
 }
 
 func (session *BaseInSession) handleRTPPacket(b []byte) error {
-	atomic.AddUint64(&session.currConnStat.ReadBytesSum, uint64(len(b)))
+	session.currConnStat.ReadBytesSum.Add(uint64(len(b)))
 
 	if len(b) < rtprtcp.RTPFixedHeaderLength {
 		nazalog.Errorf("[%s] handleRTPPacket but length invalid. len=%d", session.UniqueKey, len(b))
