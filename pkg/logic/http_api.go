@@ -1,5 +1,5 @@
 // Copyright 2020, Chef.  All rights reserved.
-// https://github.com/q191201771/lal
+// https://github.com/cfeeling/lal
 //
 // Use of this source code is governed by a MIT-style license
 // that can be found in the License file.
@@ -16,7 +16,7 @@ import (
 
 	"github.com/q191201771/naza/pkg/nazahttp"
 
-	"github.com/q191201771/lal/pkg/base"
+	"github.com/cfeeling/lal/pkg/base"
 	"github.com/q191201771/naza/pkg/bininfo"
 	"github.com/q191201771/naza/pkg/nazalog"
 )
@@ -88,7 +88,7 @@ func (h *HTTPAPIServer) apiListHandler(w http.ResponseWriter, req *http.Request)
 <p>其他链接：</p>
 <ul>
 	<li><a href="https://pengrl.com/p/20100/">lal http api接口说明文档</a></li>
-	<li><a href="https://github.com/q191201771/lal">lal github地址</a></li>
+	<li><a href="https://github.com/cfeeling/lal">lal github地址</a></li>
 </ul>
 </body>
 </html>

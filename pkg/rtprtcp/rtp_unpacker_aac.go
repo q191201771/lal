@@ -1,5 +1,5 @@
 // Copyright 2020, Chef.  All rights reserved.
-// https://github.com/q191201771/lal
+// https://github.com/cfeeling/lal
 //
 // Use of this source code is governed by a MIT-style license
 // that can be found in the License file.
@@ -8,7 +8,7 @@
 
 package rtprtcp
 
-import "github.com/q191201771/lal/pkg/base"
+import "github.com/cfeeling/lal/pkg/base"
 
 // AAC格式的流，尝试合成一个完整的帧
 func (r *RTPUnpacker) unpackOneAAC() bool {

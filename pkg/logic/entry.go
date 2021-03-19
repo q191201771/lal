@@ -1,5 +1,5 @@
 // Copyright 2020, Chef.  All rights reserved.
-// https://github.com/q191201771/lal
+// https://github.com/cfeeling/lal
 //
 // Use of this source code is governed by a MIT-style license
 // that can be found in the License file.
@@ -14,7 +14,7 @@ import (
 	_ "net/http/pprof"
 	"os"
 
-	"github.com/q191201771/lal/pkg/base"
+	"github.com/cfeeling/lal/pkg/base"
 
 	"github.com/q191201771/naza/pkg/bininfo"
 	"github.com/q191201771/naza/pkg/nazalog"
@@ -27,8 +27,13 @@ var (
 )
 
 func Entry(confFile string) {
-	config = loadConf(confFile)
-	initLog(config.LogConfig)
+	configTmp := loadConf(confFile)
+	RunServer(configTmp)
+}
+
+func RunServer(c *Config) {
+	config = c
+	initLog(c.LogConfig)
 	nazalog.Infof("bininfo: %s", bininfo.StringifySingleLine())
 	nazalog.Infof("version: %s", base.LALFullInfo)
 	nazalog.Infof("github: %s", base.LALGithubSite)
@@ -36,8 +41,8 @@ func Entry(confFile string) {
 
 	sm = NewServerManager()
 
-	if config.PProfConfig.Enable {
-		go runWebPProf(config.PProfConfig.Addr)
+	if c.PProfConfig.Enable {
+		go runWebPProf(c.PProfConfig.Addr)
 	}
 	go runSignalHandler(func() {
 		sm.Dispose()

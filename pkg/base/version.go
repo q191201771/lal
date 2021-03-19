@@ -1,5 +1,5 @@
 // Copyright 2020, Chef.  All rights reserved.
-// https://github.com/q191201771/lal
+// https://github.com/cfeeling/lal
 //
 // Use of this source code is governed by a MIT-style license
 // that can be found in the License file.
@@ -20,11 +20,11 @@ const LALVersion = "v0.19.1"
 
 var (
 	LALLibraryName = "lal"
-	LALGithubRepo  = "github.com/q191201771/lal"
-	LALGithubSite  = "https://github.com/q191201771/lal"
+	LALGithubRepo  = "github.com/cfeeling/lal"
+	LALGithubSite  = "https://github.com/cfeeling/lal"
 	LALDocSite     = "https://pengrl.com/lal"
 
-	// e.g. lal v0.12.3 (github.com/q191201771/lal)
+	// e.g. lal v0.12.3 (github.com/cfeeling/lal)
 	LALFullInfo = LALLibraryName + " " + LALVersion + " (" + LALGithubRepo + ")"
 
 	// e.g. 0.12.3
@@ -36,7 +36,7 @@ var (
 
 var (
 	// 植入rtmp握手随机字符串中
-	// e.g. lal v0.12.3 (github.com/q191201771/lal)
+	// e.g. lal v0.12.3 (github.com/cfeeling/lal)
 	//LALRTMPHandshakeWaterMark string
 
 	// 植入rtmp server中的connect result信令中
