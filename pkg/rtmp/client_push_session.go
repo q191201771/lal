@@ -8,9 +8,7 @@
 
 package rtmp
 
-import (
-	"github.com/q191201771/lal/pkg/base"
-)
+import "github.com/q191201771/lal/pkg/base"
 
 type PushSession struct {
 	IsFresh bool
@@ -27,7 +25,7 @@ type PushSessionOption struct {
 }
 
 var defaultPushSessionOption = PushSessionOption{
-	PushTimeoutMS:    0,
+	PushTimeoutMS:    10000,
 	WriteAVTimeoutMS: 0,
 }
 
@@ -47,51 +45,69 @@ func NewPushSession(modOptions ...ModPushSessionOption) *PushSession {
 	}
 }
 
-// 如果没有错误发生，阻塞到接收音视频数据的前一步，也即收到服务端返回的rtmp publish对应结果的信令
+// 阻塞直到和对端完成推流前，握手部分的工作（也即收到RTMP Publish response），或者发生错误
 func (s *PushSession) Push(rawURL string) error {
 	return s.core.Do(rawURL)
 }
 
-func (s *PushSession) AsyncWrite(msg []byte) error {
-	return s.core.AsyncWrite(msg)
+// 发送数据
+// 注意，业务方需将数据打包成rtmp chunk格式后，再调用该函数发送
+func (s *PushSession) Write(msg []byte) error {
+	return s.core.Write(msg)
 }
 
+// 将缓存的数据立即刷新发送
+// 是否有缓存策略，请参见配置及内部实现
 func (s *PushSession) Flush() error {
 	return s.core.Flush()
 }
 
-func (s *PushSession) Dispose() {
-	s.core.Dispose()
+// 文档请参考： interface IClientSessionLifecycle
+func (s *PushSession) Dispose() error {
+	return s.core.Dispose()
 }
 
-func (s *PushSession) GetStat() base.StatSession {
-	return s.core.GetStat()
+// 文档请参考： interface IClientSessionLifecycle
+func (s *PushSession) WaitChan() <-chan error {
+	return s.core.WaitChan()
 }
 
-func (s *PushSession) UpdateStat(interval uint32) {
-	s.core.UpdateStat(interval)
+// 文档请参考： interface ISessionURLContext
+func (s *PushSession) URL() string {
+	return s.core.URL()
 }
 
-func (s *PushSession) IsAlive() (readAlive, writeAlive bool) {
-	return s.core.IsAlive()
-}
-
+// 文档请参考： interface ISessionURLContext
 func (s *PushSession) AppName() string {
 	return s.core.AppName()
 }
 
+// 文档请参考： interface ISessionURLContext
 func (s *PushSession) StreamName() string {
 	return s.core.StreamName()
 }
 
+// 文档请参考： interface ISessionURLContext
 func (s *PushSession) RawQuery() string {
 	return s.core.RawQuery()
 }
 
-func (s *PushSession) Wait() <-chan error {
-	return s.core.Wait()
+// 文档请参考： interface IObject
+func (s *PushSession) UniqueKey() string {
+	return s.core.uniqueKey
 }
 
-func (s *PushSession) UniqueKey() string {
-	return s.core.UniqueKey
+// 文档请参考： interface ISessionStat
+func (s *PushSession) GetStat() base.StatSession {
+	return s.core.GetStat()
+}
+
+// 文档请参考： interface ISessionStat
+func (s *PushSession) UpdateStat(intervalSec uint32) {
+	s.core.UpdateStat(intervalSec)
+}
+
+// 文档请参考： interface ISessionStat
+func (s *PushSession) IsAlive() (readAlive, writeAlive bool) {
+	return s.core.IsAlive()
 }

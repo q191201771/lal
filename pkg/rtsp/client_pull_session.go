@@ -34,7 +34,7 @@ var defaultPullSessionOption = PullSessionOption{
 }
 
 type PullSession struct {
-	UniqueKey     string // const after ctor
+	uniqueKey     string // const after ctor
 	cmdSession    *ClientCommandSession
 	baseInSession *BaseInSession
 }
@@ -47,9 +47,9 @@ func NewPullSession(observer PullSessionObserver, modOptions ...ModPullSessionOp
 		fn(&option)
 	}
 
-	uk := base.GenUniqueKey(base.UKPRTSPPullSession)
+	uk := base.GenUKRTSPPullSession()
 	s := &PullSession{
-		UniqueKey: uk,
+		uniqueKey: uk,
 	}
 	cmdSession := NewClientCommandSession(CCSTPullSession, uk, s, func(opt *ClientCommandSessionOption) {
 		opt.DoTimeoutMS = option.PullTimeoutMS
@@ -62,50 +62,67 @@ func NewPullSession(observer PullSessionObserver, modOptions ...ModPullSessionOp
 	return s
 }
 
-// 如果没有错误发生，阻塞直到接收音视频数据的前一步，也即收到rtsp play response
+// 阻塞直到和对端完成拉流前，握手部分的工作（也即收到RTSP Play response），或者发生错误
 func (session *PullSession) Pull(rawURL string) error {
-	nazalog.Debugf("[%s] pull. url=%s", session.UniqueKey, rawURL)
+	nazalog.Debugf("[%s] pull. url=%s", session.uniqueKey, rawURL)
 	return session.cmdSession.Do(rawURL)
-}
-
-// Pull成功后，调用该函数，可阻塞直到拉流结束
-func (session *PullSession) Wait() <-chan error {
-	return session.cmdSession.Wait()
-}
-
-func (session *PullSession) Dispose() error {
-	nazalog.Infof("[%s] lifecycle dispose rtsp PullSession. session=%p", session.UniqueKey, session)
-	e1 := session.cmdSession.Dispose()
-	e2 := session.baseInSession.Dispose()
-	return nazaerrors.CombineErrors(e1, e2)
 }
 
 func (session *PullSession) GetSDP() ([]byte, sdp.LogicContext) {
 	return session.baseInSession.GetSDP()
 }
 
+// 文档请参考： interface IClientSessionLifecycle
+func (session *PullSession) Dispose() error {
+	nazalog.Infof("[%s] lifecycle dispose rtsp PullSession. session=%p", session.uniqueKey, session)
+	e1 := session.cmdSession.Dispose()
+	e2 := session.baseInSession.Dispose()
+	return nazaerrors.CombineErrors(e1, e2)
+}
+
+// 文档请参考： interface IClientSessionLifecycle
+func (session *PullSession) WaitChan() <-chan error {
+	return session.cmdSession.WaitChan()
+}
+
+// 文档请参考： interface ISessionURLContext
+func (session *PullSession) URL() string {
+	return session.cmdSession.URL()
+}
+
+// 文档请参考： interface ISessionURLContext
 func (session *PullSession) AppName() string {
 	return session.cmdSession.AppName()
 }
 
+// 文档请参考： interface ISessionURLContext
 func (session *PullSession) StreamName() string {
 	return session.cmdSession.StreamName()
 }
 
+// 文档请参考： interface ISessionURLContext
 func (session *PullSession) RawQuery() string {
 	return session.cmdSession.RawQuery()
 }
 
+// 文档请参考： interface IObject
+func (session *PullSession) UniqueKey() string {
+	return session.uniqueKey
+}
+
+// 文档请参考： interface ISessionStat
 func (session *PullSession) GetStat() base.StatSession {
 	stat := session.baseInSession.GetStat()
 	stat.RemoteAddr = session.cmdSession.RemoteAddr()
 	return stat
 }
 
-func (session *PullSession) UpdateStat(interval uint32) {
-	session.baseInSession.UpdateStat(interval)
+// 文档请参考： interface ISessionStat
+func (session *PullSession) UpdateStat(intervalSec uint32) {
+	session.baseInSession.UpdateStat(intervalSec)
 }
 
+// 文档请参考： interface ISessionStat
 func (session *PullSession) IsAlive() (readAlive, writeAlive bool) {
 	return session.baseInSession.IsAlive()
 }

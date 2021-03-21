@@ -66,7 +66,7 @@ func (server *Server) handleTCPConnect(conn net.Conn) {
 	log.Infof("accept a rtmp connection. remoteAddr=%s", conn.RemoteAddr().String())
 	session := NewServerSession(server, conn)
 	err := session.RunLoop()
-	log.Infof("[%s] rtmp loop done. err=%v", session.UniqueKey, err)
+	log.Infof("[%s] rtmp loop done. err=%v", session.uniqueKey, err)
 	switch session.t {
 	case ServerSessionTypeUnknown:
 	// noop

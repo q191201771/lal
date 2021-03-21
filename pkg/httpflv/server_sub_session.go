@@ -26,7 +26,7 @@ import (
 var flvHTTPResponseHeader []byte
 
 type SubSession struct {
-	UniqueKey string
+	uniqueKey string
 	IsFresh   bool
 
 	scheme string
@@ -42,9 +42,9 @@ type SubSession struct {
 }
 
 func NewSubSession(conn net.Conn, scheme string) *SubSession {
-	uk := base.GenUniqueKey(base.UKPFLVSubSession)
+	uk := base.GenUKFLVSubSession()
 	s := &SubSession{
-		UniqueKey: uk,
+		uniqueKey: uk,
 		scheme:    scheme,
 		IsFresh:   true,
 		conn: connection.New(conn, func(option *connection.Option) {
@@ -93,12 +93,12 @@ func (session *SubSession) RunLoop() error {
 }
 
 func (session *SubSession) WriteHTTPResponseHeader() {
-	nazalog.Debugf("[%s] > W http response header.", session.UniqueKey)
+	nazalog.Debugf("[%s] > W http response header.", session.uniqueKey)
 	session.WriteRawPacket(flvHTTPResponseHeader)
 }
 
 func (session *SubSession) WriteFLVHeader() {
-	nazalog.Debugf("[%s] > W http flv header.", session.UniqueKey)
+	nazalog.Debugf("[%s] > W http flv header.", session.uniqueKey)
 	session.WriteRawPacket(FLVHeader)
 }
 
@@ -110,9 +110,9 @@ func (session *SubSession) WriteRawPacket(pkt []byte) {
 	_, _ = session.conn.Write(pkt)
 }
 
-func (session *SubSession) Dispose() {
-	nazalog.Infof("[%s] lifecycle dispose httpflv SubSession.", session.UniqueKey)
-	_ = session.conn.Close()
+func (session *SubSession) Dispose() error {
+	nazalog.Infof("[%s] lifecycle dispose httpflv SubSession.", session.uniqueKey)
+	return session.conn.Close()
 }
 
 func (session *SubSession) URL() string {
@@ -131,6 +131,10 @@ func (session *SubSession) RawQuery() string {
 	return session.urlCtx.RawQuery
 }
 
+func (session *SubSession) UniqueKey() string {
+	return session.uniqueKey
+}
+
 func (session *SubSession) GetStat() base.StatSession {
 	currStat := session.conn.GetStat()
 	session.stat.ReadBytesSum = currStat.ReadBytesSum
@@ -138,12 +142,12 @@ func (session *SubSession) GetStat() base.StatSession {
 	return session.stat
 }
 
-func (session *SubSession) UpdateStat(interval uint32) {
+func (session *SubSession) UpdateStat(intervalSec uint32) {
 	currStat := session.conn.GetStat()
 	rDiff := currStat.ReadBytesSum - session.prevConnStat.ReadBytesSum
-	session.stat.ReadBitrate = int(rDiff * 8 / 1024 / uint64(interval))
+	session.stat.ReadBitrate = int(rDiff * 8 / 1024 / uint64(intervalSec))
 	wDiff := currStat.WroteBytesSum - session.prevConnStat.WroteBytesSum
-	session.stat.WriteBitrate = int(wDiff * 8 / 1024 / uint64(interval))
+	session.stat.WriteBitrate = int(wDiff * 8 / 1024 / uint64(intervalSec))
 	session.stat.Bitrate = session.stat.WriteBitrate
 	session.prevConnStat = currStat
 }
@@ -160,10 +164,6 @@ func (session *SubSession) IsAlive() (readAlive, writeAlive bool) {
 	writeAlive = !(currStat.WroteBytesSum-session.staleStat.WroteBytesSum == 0)
 	*session.staleStat = currStat
 	return
-}
-
-func (session *SubSession) RemoteAddr() string {
-	return session.conn.RemoteAddr().String()
 }
 
 func init() {

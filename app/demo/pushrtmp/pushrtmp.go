@@ -52,27 +52,17 @@ import (
 var aliveSessionCount int32
 
 func main() {
+	defer nazalog.Sync()
 	filename, urlTmpl, num, isRecursive, logfile := parseFlag()
-	if logfile != "" {
-		err := nazalog.Init(func(option *nazalog.Option) {
-			option.IsRotateDaily = false
-			option.Filename = logfile
-			option.IsToStdout = false
-		})
-		if err != nil {
-			_, _ = fmt.Fprintf(os.Stderr, "init nazalog failed. err=%+v", err)
-			os.Exit(1)
-		}
-	}
+	initLog(logfile)
 
 	urls := collect(urlTmpl, num)
 
 	tags, err := httpflv.ReadAllTagsFromFLVFile(filename)
 	if err != nil {
-		nazalog.Errorf("read tags from flv file failed. err=%+v", err)
-		os.Exit(0)
+		nazalog.Fatalf("read tags from flv file failed. err=%+v", err)
 	}
-	nazalog.Infof("read all tag done. tag num=%d", len(tags))
+	nazalog.Infof("read tags from flv file succ. len of tags=%d", len(tags))
 
 	go func() {
 		for {
@@ -92,7 +82,7 @@ func main() {
 	}
 	wg.Wait()
 	time.Sleep(1 * time.Second)
-	nazalog.Info("bye.")
+	nazalog.Info("< main.")
 }
 
 func push(tags []httpflv.Tag, urls []string, isRecursive bool) {
@@ -214,7 +204,7 @@ func push(tags []httpflv.Tag, urls []string, isRecursive bool) {
 func send(sessionList []*rtmp.PushSession, b []byte) {
 	var s []*rtmp.PushSession
 	for _, ps := range sessionList {
-		if err := ps.AsyncWrite(b); err != nil {
+		if err := ps.Write(b); err != nil {
 			nazalog.Errorf("write data error. err=%v", err)
 			continue
 		}
@@ -238,6 +228,24 @@ func collect(urlTmpl string, num int) (urls []string) {
 		urls = append(urls, url)
 	}
 	return
+}
+
+func initLog(logfile string) {
+	if logfile != "" {
+		err := nazalog.Init(func(option *nazalog.Option) {
+			option.IsRotateDaily = false
+			option.Filename = logfile
+			option.IsToStdout = false
+		})
+		if err != nil {
+			_, _ = fmt.Fprintf(os.Stderr, "init nazalog failed. err=%+v", err)
+			os.Exit(1)
+		}
+	} else {
+		_ = nazalog.Init(func(option *nazalog.Option) {
+			option.AssertBehavior = nazalog.AssertFatal
+		})
+	}
 }
 
 func parseFlag() (filename string, urlTmpl string, num int, isRecursive bool, logfile string) {

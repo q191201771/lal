@@ -76,7 +76,7 @@ type fragmentInfo struct {
 
 // @param observer 可以为nil，如果不为nil，TS流将回调给上层
 func NewMuxer(streamName string, config *MuxerConfig, observer MuxerObserver) *Muxer {
-	uk := base.GenUniqueKey(base.UKPHLSMuxer)
+	uk := base.GenUKHLSMuxer()
 	op := getMuxerOutPath(config.OutPath, streamName)
 	playlistFilename := getM3U8Filename(op, streamName)
 	playlistFilenameBak := fmt.Sprintf("%s.bak", playlistFilename)

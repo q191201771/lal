@@ -71,6 +71,11 @@ var (
 )
 
 func main() {
+	_ = nazalog.Init(func(option *nazalog.Option) {
+		option.AssertBehavior = nazalog.AssertFatal
+	})
+	defer nazalog.Sync()
+
 	url := parseFlag()
 	session := httpflv.NewPullSession()
 

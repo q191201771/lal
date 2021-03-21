@@ -128,16 +128,16 @@ func (server *Server) handleConnect(conn net.Conn, scheme string) {
 	nazalog.Infof("accept a httpflv connection. remoteAddr=%s", conn.RemoteAddr().String())
 	session := NewSubSession(conn, scheme)
 	if err := session.ReadRequest(); err != nil {
-		nazalog.Errorf("[%s] read httpflv SubSession request error. err=%v", session.UniqueKey, err)
+		nazalog.Errorf("[%s] read httpflv SubSession request error. err=%v", session.uniqueKey, err)
 		return
 	}
-	nazalog.Debugf("[%s] < read http request. url=%s", session.UniqueKey, session.URL())
+	nazalog.Debugf("[%s] < read http request. url=%s", session.uniqueKey, session.URL())
 
 	if !server.observer.OnNewHTTPFLVSubSession(session) {
 		session.Dispose()
 	}
 
 	err := session.RunLoop()
-	nazalog.Debugf("[%s] httpflv sub session loop done. err=%v", session.UniqueKey, err)
+	nazalog.Debugf("[%s] httpflv sub session loop done. err=%v", session.uniqueKey, err)
 	server.observer.OnDelHTTPFLVSubSession(session)
 }

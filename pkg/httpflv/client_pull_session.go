@@ -36,7 +36,7 @@ var defaultPullSessionOption = PullSessionOption{
 }
 
 type PullSession struct {
-	UniqueKey string            // const after ctor
+	uniqueKey string            // const after ctor
 	option    PullSessionOption // const after ctor
 
 	conn         connection.Connection
@@ -46,7 +46,7 @@ type PullSession struct {
 
 	urlCtx base.URLContext
 
-	waitErrChan chan error
+	waitChan chan error
 }
 
 type ModPullSessionOption func(option *PullSessionOption)
@@ -57,11 +57,11 @@ func NewPullSession(modOptions ...ModPullSessionOption) *PullSession {
 		fn(&option)
 	}
 
-	uk := base.GenUniqueKey(base.UKPFLVPullSession)
+	uk := base.GenUKFLVPullSession()
 	s := &PullSession{
-		UniqueKey:   uk,
-		option:      option,
-		waitErrChan: make(chan error, 1),
+		uniqueKey: uk,
+		option:    option,
+		waitChan:  make(chan error, 1),
 	}
 	nazalog.Infof("[%s] lifecycle new httpflv PullSession. session=%p", uk, s)
 	return s
@@ -69,7 +69,7 @@ func NewPullSession(modOptions ...ModPullSessionOption) *PullSession {
 
 type OnReadFLVTag func(tag Tag)
 
-// 如果没有错误发生，阻塞直到接收音视频数据的前一步，也即发送完HTTP请求
+// 阻塞直到和对端完成拉流前，握手部分的工作（也即发送完HTTP Request），或者发生错误
 //
 // @param rawURL 支持如下两种格式。（当然，关键点是对端支持）
 //               http://{domain}/{app_name}/{stream_name}.flv
@@ -77,7 +77,7 @@ type OnReadFLVTag func(tag Tag)
 //
 // @param onReadFLVTag 读取到 flv tag 数据时回调。回调结束后，PullSession 不会再使用这块 <tag> 数据。
 func (session *PullSession) Pull(rawURL string, onReadFLVTag OnReadFLVTag) error {
-	nazalog.Debugf("[%s] pull. url=%s", session.UniqueKey, rawURL)
+	nazalog.Debugf("[%s] pull. url=%s", session.uniqueKey, rawURL)
 
 	var (
 		ctx    context.Context
@@ -92,9 +92,77 @@ func (session *PullSession) Pull(rawURL string, onReadFLVTag OnReadFLVTag) error
 	return session.pullContext(ctx, rawURL, onReadFLVTag)
 }
 
-// Pull成功后，调用该函数，可阻塞直到拉流结束
-func (session *PullSession) Wait() <-chan error {
-	return session.waitErrChan
+// 文档请参考： interface IClientSessionLifecycle
+func (session *PullSession) Dispose() error {
+	nazalog.Infof("[%s] lifecycle dispose httpflv PullSession.", session.uniqueKey)
+	if session.conn == nil {
+		return base.ErrSessionNotStarted
+	}
+	return session.conn.Close()
+}
+
+// 文档请参考： interface IClientSessionLifecycle
+func (session *PullSession) WaitChan() <-chan error {
+	return session.waitChan
+}
+
+// 文档请参考： interface ISessionURLContext
+func (session *PullSession) URL() string {
+	return session.urlCtx.URL
+}
+
+// 文档请参考： interface ISessionURLContext
+func (session *PullSession) AppName() string {
+	return session.urlCtx.PathWithoutLastItem
+}
+
+// 文档请参考： interface ISessionURLContext
+func (session *PullSession) StreamName() string {
+	return session.urlCtx.LastItemOfPath
+}
+
+// 文档请参考： interface ISessionURLContext
+func (session *PullSession) RawQuery() string {
+	return session.urlCtx.RawQuery
+}
+
+// 文档请参考： interface IObject
+func (session *PullSession) UniqueKey() string {
+	return session.uniqueKey
+}
+
+// 文档请参考： interface ISessionStat
+func (session *PullSession) UpdateStat(intervalSec uint32) {
+	currStat := session.conn.GetStat()
+	rDiff := currStat.ReadBytesSum - session.prevConnStat.ReadBytesSum
+	session.stat.ReadBitrate = int(rDiff * 8 / 1024 / uint64(intervalSec))
+	wDiff := currStat.WroteBytesSum - session.prevConnStat.WroteBytesSum
+	session.stat.WriteBitrate = int(wDiff * 8 / 1024 / uint64(intervalSec))
+	session.stat.Bitrate = session.stat.ReadBitrate
+	session.prevConnStat = currStat
+}
+
+// 文档请参考： interface ISessionStat
+func (session *PullSession) GetStat() base.StatSession {
+	connStat := session.conn.GetStat()
+	session.stat.ReadBytesSum = connStat.ReadBytesSum
+	session.stat.WroteBytesSum = connStat.WroteBytesSum
+	return session.stat
+}
+
+// 文档请参考： interface ISessionStat
+func (session *PullSession) IsAlive() (readAlive, writeAlive bool) {
+	currStat := session.conn.GetStat()
+	if session.staleStat == nil {
+		session.staleStat = new(connection.Stat)
+		*session.staleStat = currStat
+		return true, true
+	}
+
+	readAlive = !(currStat.ReadBytesSum-session.staleStat.ReadBytesSum == 0)
+	writeAlive = !(currStat.WroteBytesSum-session.staleStat.WroteBytesSum == 0)
+	*session.staleStat = currStat
+	return
 }
 
 func (session *PullSession) pullContext(ctx context.Context, rawURL string, onReadFLVTag OnReadFLVTag) error {
@@ -126,63 +194,13 @@ func (session *PullSession) pullContext(ctx context.Context, rawURL string, onRe
 	return nil
 }
 
-func (session *PullSession) Dispose() {
-	nazalog.Infof("[%s] lifecycle dispose httpflv PullSession.", session.UniqueKey)
-	if session.conn != nil {
-		_ = session.conn.Close()
-	}
-}
-
-func (session *PullSession) UpdateStat(interval uint32) {
-	currStat := session.conn.GetStat()
-	rDiff := currStat.ReadBytesSum - session.prevConnStat.ReadBytesSum
-	session.stat.ReadBitrate = int(rDiff * 8 / 1024 / uint64(interval))
-	wDiff := currStat.WroteBytesSum - session.prevConnStat.WroteBytesSum
-	session.stat.WriteBitrate = int(wDiff * 8 / 1024 / uint64(interval))
-	session.stat.Bitrate = session.stat.ReadBitrate
-	session.prevConnStat = currStat
-}
-
-func (session *PullSession) GetStat() base.StatSession {
-	connStat := session.conn.GetStat()
-	session.stat.ReadBytesSum = connStat.ReadBytesSum
-	session.stat.WroteBytesSum = connStat.WroteBytesSum
-	return session.stat
-}
-
-func (session *PullSession) IsAlive() (readAlive, writeAlive bool) {
-	currStat := session.conn.GetStat()
-	if session.staleStat == nil {
-		session.staleStat = new(connection.Stat)
-		*session.staleStat = currStat
-		return true, true
-	}
-
-	readAlive = !(currStat.ReadBytesSum-session.staleStat.ReadBytesSum == 0)
-	writeAlive = !(currStat.WroteBytesSum-session.staleStat.WroteBytesSum == 0)
-	*session.staleStat = currStat
-	return
-}
-
-func (session *PullSession) AppName() string {
-	return session.urlCtx.PathWithoutLastItem
-}
-
-func (session *PullSession) StreamName() string {
-	return session.urlCtx.LastItemOfPath
-}
-
-func (session *PullSession) RawQuery() string {
-	return session.urlCtx.RawQuery
-}
-
 func (session *PullSession) connect(rawURL string) (err error) {
 	session.urlCtx, err = base.ParseHTTPFLVURL(rawURL, false)
 	if err != nil {
 		return
 	}
 
-	nazalog.Debugf("[%s] > tcp connect.", session.UniqueKey)
+	nazalog.Debugf("[%s] > tcp connect.", session.uniqueKey)
 
 	// # 建立连接
 	conn, err := net.Dial("tcp", session.urlCtx.HostWithPort)
@@ -199,7 +217,7 @@ func (session *PullSession) connect(rawURL string) (err error) {
 
 func (session *PullSession) writeHTTPRequest() error {
 	// # 发送 http GET 请求
-	nazalog.Debugf("[%s] > W http request. GET %s", session.UniqueKey, session.urlCtx.PathWithRawQuery)
+	nazalog.Debugf("[%s] > W http request. GET %s", session.uniqueKey, session.urlCtx.PathWithRawQuery)
 	req := fmt.Sprintf("GET %s HTTP/1.0\r\nUser-Agent: %s\r\nAccept: */*\r\nRange: byte=0-\r\nConnection: close\r\nHost: %s\r\nIcy-MetaData: 1\r\n\r\n",
 		session.urlCtx.PathWithRawQuery, base.LALHTTPFLVPullSessionUA, session.urlCtx.StdHost)
 	_, err := session.conn.Write([]byte(req))
@@ -216,7 +234,7 @@ func (session *PullSession) readHTTPRespHeader() (statusLine string, headers map
 		return
 	}
 
-	nazalog.Debugf("[%s] < R http response header. code=%s", session.UniqueKey, code)
+	nazalog.Debugf("[%s] < R http response header. code=%s", session.uniqueKey, code)
 	return
 }
 
@@ -226,7 +244,7 @@ func (session *PullSession) readFLVHeader() ([]byte, error) {
 	if err != nil {
 		return flvHeader, err
 	}
-	nazalog.Debugf("[%s] < R http flv header.", session.UniqueKey)
+	nazalog.Debugf("[%s] < R http flv header.", session.uniqueKey)
 
 	// TODO chef: check flv header's value
 	return flvHeader, nil
@@ -238,19 +256,19 @@ func (session *PullSession) readTag() (Tag, error) {
 
 func (session *PullSession) runReadLoop(onReadFLVTag OnReadFLVTag) {
 	if _, _, err := session.readHTTPRespHeader(); err != nil {
-		session.waitErrChan <- err
+		session.waitChan <- err
 		return
 	}
 
 	if _, err := session.readFLVHeader(); err != nil {
-		session.waitErrChan <- err
+		session.waitChan <- err
 		return
 	}
 
 	for {
 		tag, err := session.readTag()
 		if err != nil {
-			session.waitErrChan <- err
+			session.waitChan <- err
 			return
 		}
 		onReadFLVTag(tag)

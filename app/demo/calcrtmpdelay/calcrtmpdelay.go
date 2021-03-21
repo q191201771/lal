@@ -34,25 +34,49 @@ const (
 	PullTypeHTTPFLV
 )
 
+func (pt PullType) Readable() string {
+	switch pt {
+	case PullTypeUnknown:
+		return "unknown"
+	case PullTypeRTMP:
+		return "rtmp"
+	case PullTypeHTTPFLV:
+		return "httpflv"
+	}
+
+	// never reach here
+	return "fxxk"
+}
+
 func main() {
+	_ = nazalog.Init(func(option *nazalog.Option) {
+		option.AssertBehavior = nazalog.AssertFatal
+	})
+	defer nazalog.Sync()
+
 	tagKey2writeTime := make(map[string]time.Time)
 	var delays []int64
 	var mu sync.Mutex
 
-	_ = nazalog.Init(func(option *nazalog.Option) {
-		option.AssertBehavior = nazalog.AssertFatal
-	})
 	filename, pushURL, pullURL, pullType := parseFlag()
+	nazalog.Infof("parse flag succ. filename=%s, pushURL=%s, pullURL=%s, pullType=%s",
+		filename, pushURL, pullURL, pullType.Readable())
 
 	tags, err := httpflv.ReadAllTagsFromFLVFile(filename)
-	nazalog.Assert(nil, err)
+	if err != nil {
+		nazalog.Fatalf("read tags from flv file failed. err=%+v", err)
+	}
 	nazalog.Infof("read tags from flv file succ. len of tags=%d", len(tags))
 
-	pushSession := rtmp.NewPushSession()
+	pushSession := rtmp.NewPushSession(func(option *rtmp.PushSessionOption) {
+		option.PushTimeoutMS = 10000
+	})
 	err = pushSession.Push(pushURL)
-	nazalog.Assert(nil, err)
-	nazalog.Info("push succ.")
-	//defer pushSession.Dispose()
+	if err != nil {
+		nazalog.Fatalf("push rtmp failed. url=%s, err=%+v", pushURL, err)
+	}
+	nazalog.Info("push rtmp succ.")
+	defer pushSession.Dispose()
 
 	var rtmpPullSession *rtmp.PullSession
 	var httpflvPullSession *httpflv.PullSession
@@ -77,17 +101,22 @@ func main() {
 		err = httpflvPullSession.Pull(pullURL, func(tag httpflv.Tag) {
 			handleReadPayloadFn(tag.Payload())
 		})
-		nazalog.Assert(nil, err)
+		if err != nil {
+			nazalog.Fatalf("pull flv failed. err=%+v", err)
+		}
+		nazalog.Info("pull flv succ.")
+		defer httpflvPullSession.Dispose()
 	case PullTypeRTMP:
 		rtmpPullSession = rtmp.NewPullSession()
 		err = rtmpPullSession.Pull(pullURL, func(msg base.RTMPMsg) {
 			handleReadPayloadFn(msg.Payload)
 		})
-		nazalog.Assert(nil, err)
-		//defer pullSession.Dispose()
+		if err != nil {
+			nazalog.Fatalf("pull rtmp failed. err=%+v", err)
+		}
+		nazalog.Info("pull rtmp succ.")
+		defer rtmpPullSession.Dispose()
 	}
-
-	nazalog.Info("pull succ.")
 
 	go func() {
 		for {
@@ -125,10 +154,14 @@ func main() {
 		tagKey2writeTime[tagKey] = time.Now()
 		mu.Unlock()
 
-		err = pushSession.AsyncWrite(chunks)
-		nazalog.Assert(nil, err)
+		err = pushSession.Write(chunks)
+		if err != nil {
+			nazalog.Fatalf("write failed. err=%+v", err)
+		}
 		//nazalog.Debugf("sent. %d", i)
 	}
+	_ = pushSession.Flush()
+	time.Sleep(300 * time.Millisecond)
 
 	min := int64(2147483647)
 	max := int64(0)

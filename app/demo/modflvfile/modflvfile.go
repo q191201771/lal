@@ -16,7 +16,7 @@ import (
 	"github.com/q191201771/lal/pkg/base"
 
 	"github.com/q191201771/lal/pkg/httpflv"
-	log "github.com/q191201771/naza/pkg/nazalog"
+	"github.com/q191201771/naza/pkg/nazalog"
 )
 
 // 修改flv文件的一些信息（比如某些tag的时间戳）后另存文件
@@ -29,44 +29,49 @@ var countV int
 var exitFlag bool
 
 func hookTag(tag *httpflv.Tag) {
-	log.Infof("%+v", tag.Header)
+	nazalog.Infof("%+v", tag.Header)
 	if tag.Header.Timestamp != 0 {
 		tag.ModTagTimestamp(tag.Header.Timestamp + uint32(time.Now().Unix()/1e6))
 	}
 }
 
 func main() {
+	_ = nazalog.Init(func(option *nazalog.Option) {
+		option.AssertBehavior = nazalog.AssertFatal
+	})
+	defer nazalog.Sync()
+
 	var err error
 	inFileName, outFileName := parseFlag()
 
 	var ffr httpflv.FLVFileReader
 	err = ffr.Open(inFileName)
-	log.Assert(nil, err)
+	nazalog.Assert(nil, err)
 	defer ffr.Dispose()
-	log.Infof("open input flv file succ.")
+	nazalog.Infof("open input flv file succ.")
 
 	var ffw httpflv.FLVFileWriter
 	err = ffw.Open(outFileName)
-	log.Assert(nil, err)
+	nazalog.Assert(nil, err)
 	defer ffw.Dispose()
-	log.Infof("open output flv file succ.")
+	nazalog.Infof("open output flv file succ.")
 
 	flvHeader, err := ffr.ReadFLVHeader()
-	log.Assert(nil, err)
+	nazalog.Assert(nil, err)
 
 	err = ffw.WriteRaw(flvHeader)
-	log.Assert(nil, err)
+	nazalog.Assert(nil, err)
 
 	for {
 		tag, err := ffr.ReadTag()
 		if err == io.EOF {
-			log.Infof("EOF.")
+			nazalog.Infof("EOF.")
 			break
 		}
-		log.Assert(nil, err)
+		nazalog.Assert(nil, err)
 		hookTag(&tag)
 		err = ffw.WriteRaw(tag.Raw)
-		log.Assert(nil, err)
+		nazalog.Assert(nil, err)
 	}
 }
 

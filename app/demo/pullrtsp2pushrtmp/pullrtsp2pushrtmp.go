@@ -36,16 +36,16 @@ func (o *Observer) OnAVConfig(asc, vps, sps, pps []byte) {
 	metadata, ash, vsh, err := remux.AVConfig2RTMPMsg(asc, vps, sps, pps)
 	nazalog.Assert(nil, err)
 
-	err = pushSession.AsyncWrite(rtmp.Message2Chunks(metadata.Payload, &metadata.Header))
+	err = pushSession.Write(rtmp.Message2Chunks(metadata.Payload, &metadata.Header))
 	nazalog.Assert(nil, err)
 
 	if ash != nil {
-		err = pushSession.AsyncWrite(rtmp.Message2Chunks(ash.Payload, &ash.Header))
+		err = pushSession.Write(rtmp.Message2Chunks(ash.Payload, &ash.Header))
 		nazalog.Assert(nil, err)
 	}
 
 	if vsh != nil {
-		err = pushSession.AsyncWrite(rtmp.Message2Chunks(vsh.Payload, &vsh.Header))
+		err = pushSession.Write(rtmp.Message2Chunks(vsh.Payload, &vsh.Header))
 		nazalog.Assert(nil, err)
 	}
 }
@@ -53,7 +53,7 @@ func (o *Observer) OnAVConfig(asc, vps, sps, pps []byte) {
 func (o *Observer) OnAVPacket(pkt base.AVPacket) {
 	msg, err := remux.AVPacket2RTMPMsg(pkt)
 	nazalog.Assert(nil, err)
-	err = pushSession.AsyncWrite(rtmp.Message2Chunks(msg.Payload, &msg.Header))
+	err = pushSession.Write(rtmp.Message2Chunks(msg.Payload, &msg.Header))
 	nazalog.Assert(nil, err)
 }
 
@@ -96,11 +96,11 @@ func main() {
 	}()
 
 	select {
-	case err = <-pullSession.Wait():
+	case err = <-pullSession.WaitChan():
 		nazalog.Infof("< pullSession.Wait(). err=%+v", err)
 		time.Sleep(1 * time.Second)
 		return
-	case err = <-pushSession.Wait():
+	case err = <-pushSession.WaitChan():
 		nazalog.Infof("< pushSession.Wait(). err=%+v", err)
 		time.Sleep(1 * time.Second)
 		return

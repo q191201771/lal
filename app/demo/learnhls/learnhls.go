@@ -62,6 +62,11 @@ func getTSURL(m3u8URL string, tsFilename string) string {
 }
 
 func main() {
+	_ = nazalog.Init(func(option *nazalog.Option) {
+		option.AssertBehavior = nazalog.AssertFatal
+	})
+	defer nazalog.Sync()
+
 	m3u8URL := parseFlag()
 	nazalog.Infof("m3u8 url=%s", m3u8URL)
 

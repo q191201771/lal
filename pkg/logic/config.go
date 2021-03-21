@@ -147,6 +147,15 @@ func LoadConf(confFile string) (*Config, error) {
 	if !j.Exist("log.short_file_flag") {
 		config.LogConfig.ShortFileFlag = true
 	}
+	if !j.Exist("log.timestamp_flag") {
+		config.LogConfig.TimestampFlag = true
+	}
+	if !j.Exist("log.timestamp_with_ms_flag") {
+		config.LogConfig.TimestampWithMSFlag = true
+	}
+	if !j.Exist("log.level_flag") {
+		config.LogConfig.LevelFlag = true
+	}
 	if !j.Exist("log.assert_behavior") {
 		config.LogConfig.AssertBehavior = nazalog.AssertError
 	}

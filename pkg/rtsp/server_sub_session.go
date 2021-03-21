@@ -19,16 +19,16 @@ import (
 )
 
 type SubSession struct {
-	UniqueKey      string // const after ctor
+	uniqueKey      string // const after ctor
 	urlCtx         base.URLContext
 	cmdSession     *ServerCommandSession
 	baseOutSession *BaseOutSession
 }
 
 func NewSubSession(urlCtx base.URLContext, cmdSession *ServerCommandSession) *SubSession {
-	uk := base.GenUniqueKey(base.UKPRTSPSubSession)
+	uk := base.GenUKRTSPSubSession()
 	s := &SubSession{
-		UniqueKey:  uk,
+		uniqueKey:  uk,
 		urlCtx:     urlCtx,
 		cmdSession: cmdSession,
 	}
@@ -55,7 +55,7 @@ func (session *SubSession) WriteRTPPacket(packet rtprtcp.RTPPacket) {
 }
 
 func (session *SubSession) Dispose() error {
-	nazalog.Infof("[%s] lifecycle dispose rtsp SubSession. session=%p", session.UniqueKey, session)
+	nazalog.Infof("[%s] lifecycle dispose rtsp SubSession. session=%p", session.uniqueKey, session)
 	e1 := session.baseOutSession.Dispose()
 	e2 := session.cmdSession.Dispose()
 	return nazaerrors.CombineErrors(e1, e2)
@@ -81,18 +81,18 @@ func (session *SubSession) RawQuery() string {
 	return session.urlCtx.RawQuery
 }
 
+func (session *SubSession) UniqueKey() string {
+	return session.uniqueKey
+}
+
 func (session *SubSession) GetStat() base.StatSession {
 	stat := session.baseOutSession.GetStat()
 	stat.RemoteAddr = session.cmdSession.RemoteAddr()
 	return stat
 }
 
-func (session *SubSession) UpdateStat(interval uint32) {
-	session.baseOutSession.UpdateStat(interval)
-}
-
-func (session *SubSession) RemoteAddr() string {
-	return session.cmdSession.RemoteAddr()
+func (session *SubSession) UpdateStat(intervalSec uint32) {
+	session.baseOutSession.UpdateStat(intervalSec)
 }
 
 func (session *SubSession) IsAlive() (readAlive, writeAlive bool) {

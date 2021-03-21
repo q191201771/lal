@@ -88,7 +88,7 @@ func main() {
 		}
 	}()
 
-	err = <-pullSession.Wait()
+	err = <-pullSession.WaitChan()
 	nazalog.Infof("< pullSession.Wait(). err=%+v", err)
 }
 

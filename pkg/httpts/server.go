@@ -66,16 +66,16 @@ func (server *Server) handleConnect(conn net.Conn) {
 	log.Infof("accept a httpts connection. remoteAddr=%s", conn.RemoteAddr().String())
 	session := NewSubSession(conn, "http")
 	if err := session.ReadRequest(); err != nil {
-		log.Errorf("[%s] read httpts SubSession request error. err=%v", session.UniqueKey, err)
+		log.Errorf("[%s] read httpts SubSession request error. err=%v", session.uniqueKey, err)
 		return
 	}
-	log.Debugf("[%s] < read http request. url=%s", session.UniqueKey, session.URL())
+	log.Debugf("[%s] < read http request. url=%s", session.uniqueKey, session.URL())
 
 	if !server.observer.OnNewHTTPTSSubSession(session) {
 		session.Dispose()
 	}
 
 	err := session.RunLoop()
-	log.Debugf("[%s] httpts sub session loop done. err=%v", session.UniqueKey, err)
+	log.Debugf("[%s] httpts sub session loop done. err=%v", session.uniqueKey, err)
 	server.observer.OnDelHTTPTSSubSession(session)
 }

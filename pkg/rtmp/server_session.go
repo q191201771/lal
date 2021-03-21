@@ -47,7 +47,7 @@ const (
 )
 
 type ServerSession struct {
-	UniqueKey              string // const after ctor
+	uniqueKey              string // const after ctor
 	url                    string
 	tcURL                  string
 	streamNameWithRawQuery string // const after set
@@ -74,7 +74,7 @@ type ServerSession struct {
 }
 
 func NewServerSession(observer ServerSessionObserver, conn net.Conn) *ServerSession {
-	uk := base.GenUniqueKey(base.UKPRTMPServerSession)
+	uk := base.GenUKRTMPServerSession()
 	s := &ServerSession{
 		conn: connection.New(conn, func(option *connection.Option) {
 			option.ReadBufSize = readBufSize
@@ -85,7 +85,7 @@ func NewServerSession(observer ServerSessionObserver, conn net.Conn) *ServerSess
 			StartTime:  time.Now().Format("2006-01-02 15:04:05.999"),
 			RemoteAddr: conn.RemoteAddr().String(),
 		},
-		UniqueKey:     uk,
+		uniqueKey:     uk,
 		observer:      observer,
 		t:             ServerSessionTypeUnknown,
 		chunkComposer: NewChunkComposer(),
@@ -104,7 +104,7 @@ func (s *ServerSession) RunLoop() (err error) {
 	return s.runReadLoop()
 }
 
-func (s *ServerSession) AsyncWrite(msg []byte) error {
+func (s *ServerSession) Write(msg []byte) error {
 	_, err := s.conn.Write(msg)
 	return err
 }
@@ -113,9 +113,9 @@ func (s *ServerSession) Flush() error {
 	return s.conn.Flush()
 }
 
-func (s *ServerSession) Dispose() {
-	nazalog.Infof("[%s] lifecycle dispose rtmp ServerSession.", s.UniqueKey)
-	_ = s.conn.Close()
+func (s *ServerSession) Dispose() error {
+	nazalog.Infof("[%s] lifecycle dispose rtmp ServerSession.", s.uniqueKey)
+	return s.conn.Close()
 }
 
 func (s *ServerSession) URL() string {
@@ -134,12 +134,16 @@ func (s *ServerSession) RawQuery() string {
 	return s.rawQuery
 }
 
-func (s *ServerSession) UpdateStat(interval uint32) {
+func (s *ServerSession) UniqueKey() string {
+	return s.uniqueKey
+}
+
+func (s *ServerSession) UpdateStat(intervalSec uint32) {
 	currStat := s.conn.GetStat()
 	rDiff := currStat.ReadBytesSum - s.prevConnStat.ReadBytesSum
-	s.stat.ReadBitrate = int(rDiff * 8 / 1024 / uint64(interval))
+	s.stat.ReadBitrate = int(rDiff * 8 / 1024 / uint64(intervalSec))
 	wDiff := currStat.WroteBytesSum - s.prevConnStat.WroteBytesSum
-	s.stat.WriteBitrate = int(wDiff * 8 / 1024 / uint64(interval))
+	s.stat.WriteBitrate = int(wDiff * 8 / 1024 / uint64(intervalSec))
 	switch s.t {
 	case ServerSessionTypePub:
 		s.stat.Bitrate = s.stat.ReadBitrate
@@ -170,10 +174,6 @@ func (s *ServerSession) IsAlive() (readAlive, writeAlive bool) {
 	return
 }
 
-func (s *ServerSession) RemoteAddr() string {
-	return s.conn.RemoteAddr().String()
-}
-
 func (s *ServerSession) runReadLoop() error {
 	return s.chunkComposer.RunLoop(s.conn, s.doMsg)
 }
@@ -182,9 +182,9 @@ func (s *ServerSession) handshake() error {
 	if err := s.hs.ReadC0C1(s.conn); err != nil {
 		return err
 	}
-	nazalog.Infof("[%s] < R Handshake C0+C1.", s.UniqueKey)
+	nazalog.Infof("[%s] < R Handshake C0+C1.", s.uniqueKey)
 
-	nazalog.Infof("[%s] > W Handshake S0+S1+S2.", s.UniqueKey)
+	nazalog.Infof("[%s] > W Handshake S0+S1+S2.", s.uniqueKey)
 	if err := s.hs.WriteS0S1S2(s.conn); err != nil {
 		return err
 	}
@@ -192,7 +192,7 @@ func (s *ServerSession) handshake() error {
 	if err := s.hs.ReadC2(s.conn); err != nil {
 		return err
 	}
-	nazalog.Infof("[%s] < R Handshake C2.", s.UniqueKey)
+	nazalog.Infof("[%s] < R Handshake C2.", s.uniqueKey)
 	return nil
 }
 
@@ -214,12 +214,12 @@ func (s *ServerSession) doMsg(stream *Stream) error {
 		fallthrough
 	case base.RTMPTypeIDVideo:
 		if s.t != ServerSessionTypePub {
-			nazalog.Errorf("[%s] read audio/video message but server session not pub type.", s.UniqueKey)
+			nazalog.Errorf("[%s] read audio/video message but server session not pub type.", s.uniqueKey)
 			return ErrRTMP
 		}
 		s.avObserver.OnReadRTMPAVMsg(stream.toAVMsg())
 	default:
-		nazalog.Warnf("[%s] read unknown message. typeid=%d, %s", s.UniqueKey, stream.header.MsgTypeID, stream.toDebugString())
+		nazalog.Warnf("[%s] read unknown message. typeid=%d, %s", s.uniqueKey, stream.header.MsgTypeID, stream.toDebugString())
 
 	}
 	return nil
@@ -227,13 +227,13 @@ func (s *ServerSession) doMsg(stream *Stream) error {
 
 func (s *ServerSession) doACK(stream *Stream) error {
 	seqNum := bele.BEUint32(stream.msg.buf[stream.msg.b:stream.msg.e])
-	nazalog.Infof("[%s] < R Acknowledgement. ignore. sequence number=%d.", s.UniqueKey, seqNum)
+	nazalog.Infof("[%s] < R Acknowledgement. ignore. sequence number=%d.", s.uniqueKey, seqNum)
 	return nil
 }
 
 func (s *ServerSession) doDataMessageAMF0(stream *Stream) error {
 	if s.t != ServerSessionTypePub {
-		nazalog.Errorf("[%s] read audio/video message but server session not pub type.", s.UniqueKey)
+		nazalog.Errorf("[%s] read audio/video message but server session not pub type.", s.uniqueKey)
 		return ErrRTMP
 	}
 
@@ -244,7 +244,7 @@ func (s *ServerSession) doDataMessageAMF0(stream *Stream) error {
 
 	switch val {
 	case "|RtmpSampleAccess":
-		nazalog.Debugf("[%s] < R |RtmpSampleAccess, ignore.", s.UniqueKey)
+		nazalog.Debugf("[%s] < R |RtmpSampleAccess, ignore.", s.uniqueKey)
 		return nil
 	default:
 	}
@@ -259,7 +259,7 @@ func (s *ServerSession) doDataMessageAMF0(stream *Stream) error {
 	//
 	//switch val {
 	//case "|RtmpSampleAccess":
-	//	nazalog.Warnf("[%s] read data message, ignore it. val=%s", s.UniqueKey, val)
+	//	nazalog.Warnf("[%s] read data message, ignore it. val=%s", s.uniqueKey, val)
 	//	return nil
 	//case "@setDataFrame":
 	//	// macos obs and ffmpeg
@@ -271,13 +271,13 @@ func (s *ServerSession) doDataMessageAMF0(stream *Stream) error {
 	//		return err
 	//	}
 	//	if val != "onMetaData" {
-	//		nazalog.Errorf("[%s] read unknown data message. val=%s, %s", s.UniqueKey, val, stream.toDebugString())
+	//		nazalog.Errorf("[%s] read unknown data message. val=%s, %s", s.uniqueKey, val, stream.toDebugString())
 	//		return ErrRTMP
 	//	}
 	//case "onMetaData":
 	//	// noop
 	//default:
-	//	nazalog.Errorf("[%s] read unknown data message. val=%s, %s", s.UniqueKey, val, stream.toDebugString())
+	//	nazalog.Errorf("[%s] read unknown data message. val=%s, %s", s.uniqueKey, val, stream.toDebugString())
 	//	return nil
 	//}
 	//
@@ -313,9 +313,9 @@ func (s *ServerSession) doCommandMessage(stream *Stream) error {
 	case "getStreamLength":
 		fallthrough
 	case "deleteStream":
-		nazalog.Debugf("[%s] read command message, ignore it. cmd=%s, %s", s.UniqueKey, cmd, stream.toDebugString())
+		nazalog.Debugf("[%s] read command message, ignore it. cmd=%s, %s", s.uniqueKey, cmd, stream.toDebugString())
 	default:
-		nazalog.Errorf("[%s] read unknown command message. cmd=%s, %s", s.UniqueKey, cmd, stream.toDebugString())
+		nazalog.Errorf("[%s] read unknown command message. cmd=%s, %s", s.uniqueKey, cmd, stream.toDebugString())
 	}
 	return nil
 }
@@ -337,28 +337,28 @@ func (s *ServerSession) doConnect(tid int, stream *Stream) error {
 	}
 	s.tcURL, err = val.FindString("tcUrl")
 	if err != nil {
-		nazalog.Warnf("[%s] tcUrl not exist.", s.UniqueKey)
+		nazalog.Warnf("[%s] tcUrl not exist.", s.uniqueKey)
 	}
-	nazalog.Infof("[%s] < R connect('%s'). tcUrl=%s", s.UniqueKey, s.appName, s.tcURL)
+	nazalog.Infof("[%s] < R connect('%s'). tcUrl=%s", s.uniqueKey, s.appName, s.tcURL)
 
 	s.observer.OnRTMPConnect(s, val)
 
-	nazalog.Infof("[%s] > W Window Acknowledgement Size %d.", s.UniqueKey, windowAcknowledgementSize)
+	nazalog.Infof("[%s] > W Window Acknowledgement Size %d.", s.uniqueKey, windowAcknowledgementSize)
 	if err := s.packer.writeWinAckSize(s.conn, windowAcknowledgementSize); err != nil {
 		return err
 	}
 
-	nazalog.Infof("[%s] > W Set Peer Bandwidth.", s.UniqueKey)
+	nazalog.Infof("[%s] > W Set Peer Bandwidth.", s.uniqueKey)
 	if err := s.packer.writePeerBandwidth(s.conn, peerBandwidth, peerBandwidthLimitTypeDynamic); err != nil {
 		return err
 	}
 
-	nazalog.Infof("[%s] > W SetChunkSize %d.", s.UniqueKey, LocalChunkSize)
+	nazalog.Infof("[%s] > W SetChunkSize %d.", s.uniqueKey, LocalChunkSize)
 	if err := s.packer.writeChunkSize(s.conn, LocalChunkSize); err != nil {
 		return err
 	}
 
-	nazalog.Infof("[%s] > W _result('NetConnection.Connect.Success').", s.UniqueKey)
+	nazalog.Infof("[%s] > W _result('NetConnection.Connect.Success').", s.uniqueKey)
 	oe, err := val.FindNumber("objectEncoding")
 	if oe != 0 && oe != 3 {
 		oe = 0
@@ -370,8 +370,8 @@ func (s *ServerSession) doConnect(tid int, stream *Stream) error {
 }
 
 func (s *ServerSession) doCreateStream(tid int, stream *Stream) error {
-	nazalog.Infof("[%s] < R createStream().", s.UniqueKey)
-	nazalog.Infof("[%s] > W _result().", s.UniqueKey)
+	nazalog.Infof("[%s] < R createStream().", s.uniqueKey)
+	nazalog.Infof("[%s] > W _result().", s.uniqueKey)
 	if err := s.packer.writeCreateStreamResult(s.conn, tid); err != nil {
 		return err
 	}
@@ -398,10 +398,10 @@ func (s *ServerSession) doPublish(tid int, stream *Stream) (err error) {
 	if err != nil {
 		return err
 	}
-	nazalog.Debugf("[%s] pubType=%s", s.UniqueKey, pubType)
-	nazalog.Infof("[%s] < R publish('%s')", s.UniqueKey, s.streamNameWithRawQuery)
+	nazalog.Debugf("[%s] pubType=%s", s.uniqueKey, pubType)
+	nazalog.Infof("[%s] < R publish('%s')", s.uniqueKey, s.streamNameWithRawQuery)
 
-	nazalog.Infof("[%s] > W onStatus('NetStream.Publish.Start').", s.UniqueKey)
+	nazalog.Infof("[%s] > W onStatus('NetStream.Publish.Start').", s.uniqueKey)
 	if err := s.packer.writeOnStatusPublish(s.conn, MSID1); err != nil {
 		return err
 	}
@@ -431,7 +431,7 @@ func (s *ServerSession) doPlay(tid int, stream *Stream) (err error) {
 
 	s.url = fmt.Sprintf("%s/%s", s.tcURL, s.streamNameWithRawQuery)
 
-	nazalog.Infof("[%s] < R play('%s').", s.UniqueKey, s.streamNameWithRawQuery)
+	nazalog.Infof("[%s] < R play('%s').", s.uniqueKey, s.streamNameWithRawQuery)
 	// TODO chef: start duration reset
 
 	if err := s.packer.writeStreamIsRecorded(s.conn, MSID1); err != nil {
@@ -441,7 +441,7 @@ func (s *ServerSession) doPlay(tid int, stream *Stream) (err error) {
 		return err
 	}
 
-	nazalog.Infof("[%s] > W onStatus('NetStream.Play.Start').", s.UniqueKey)
+	nazalog.Infof("[%s] > W onStatus('NetStream.Play.Start').", s.uniqueKey)
 	if err := s.packer.writeOnStatusPlay(s.conn, MSID1); err != nil {
 		return err
 	}

@@ -27,6 +27,11 @@ import (
 // TODO chef 做HEVC的支持
 
 func main() {
+	_ = nazalog.Init(func(option *nazalog.Option) {
+		option.AssertBehavior = nazalog.AssertFatal
+	})
+	defer nazalog.Sync()
+
 	var err error
 	flvFileName, aacFileName, avcFileName := parseFlag()
 

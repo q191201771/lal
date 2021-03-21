@@ -59,6 +59,11 @@ func parsePacket(packet []byte) {
 }
 
 func main() {
+	_ = nazalog.Init(func(option *nazalog.Option) {
+		option.AssertBehavior = nazalog.AssertFatal
+	})
+	defer nazalog.Sync()
+
 	content1, err := ioutil.ReadFile(filename1)
 	nazalog.Assert(nil, err)
 

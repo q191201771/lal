@@ -48,7 +48,13 @@ import (
 var aliveSessionCount int32
 
 func main() {
+	_ = nazalog.Init(func(option *nazalog.Option) {
+		option.AssertBehavior = nazalog.AssertFatal
+	})
+	defer nazalog.Sync()
+
 	urlTmpl, fileNameTmpl, num := parseFlag()
+	nazalog.Infof("parse flag succ. urlTmpl=%s, fileNameTmpl=%s, num=%d", urlTmpl, fileNameTmpl, num)
 	urls, filenames := collect(urlTmpl, fileNameTmpl, num)
 
 	go func() {
@@ -69,7 +75,7 @@ func main() {
 	}
 	wg.Wait()
 	time.Sleep(1 * time.Second)
-	nazalog.Info("bye.")
+	nazalog.Info("< main.")
 }
 
 func pull(url string, filename string) {
@@ -87,28 +93,25 @@ func pull(url string, filename string) {
 	}
 
 	session := rtmp.NewPullSession(func(option *rtmp.PullSessionOption) {
-		option.PullTimeoutMS = 30000
+		option.PullTimeoutMS = 10000
 		option.ReadAVTimeoutMS = 10000
 	})
 
-	err = session.Pull(
-		url,
-		func(msg base.RTMPMsg) {
-			//nazalog.Debugf("header=%+v", msg.Header)
-			if filename != "" {
-				tag := remux.RTMPMsg2FLVTag(msg)
-				err := w.WriteTag(*tag)
-				nazalog.Assert(nil, err)
-			}
-		})
+	err = session.Pull(url, func(msg base.RTMPMsg) {
+		if filename != "" {
+			tag := remux.RTMPMsg2FLVTag(msg)
+			err := w.WriteTag(*tag)
+			nazalog.Assert(nil, err)
+		}
+	})
 	if err != nil {
-		nazalog.Errorf("pull failed. err=%v", err)
+		nazalog.Errorf("pull failed. err=%+v", err)
 		return
 	}
 	atomic.AddInt32(&aliveSessionCount, 1)
 
-	err = <-session.Wait()
-	nazalog.Debug(err)
+	err = <-session.WaitChan()
+	nazalog.Debugf("< session.WaitChan. [%s] err=%+v", session.UniqueKey(), err)
 }
 
 func collect(urlTmpl string, fileNameTmpl string, num int) (urls []string, filenames []string) {

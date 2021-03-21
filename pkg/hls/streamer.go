@@ -41,7 +41,7 @@ type Streamer struct {
 }
 
 func NewStreamer(observer StreamerObserver) *Streamer {
-	uk := base.GenUniqueKey(base.UKPStreamer)
+	uk := base.GenUKStreamer()
 	videoOut := make([]byte, 1024*1024)
 	videoOut = videoOut[0:0]
 	return &Streamer{

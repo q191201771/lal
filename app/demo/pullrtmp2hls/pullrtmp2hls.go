@@ -13,7 +13,6 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"strings"
 
 	"github.com/q191201771/lal/pkg/base"
 	"github.com/q191201771/lal/pkg/hls"
@@ -22,7 +21,14 @@ import (
 )
 
 func main() {
+	_ = nazalog.Init(func(option *nazalog.Option) {
+		option.AssertBehavior = nazalog.AssertFatal
+	})
+	defer nazalog.Sync()
+
 	url, hlsOutPath, fragmentDurationMS, fragmentNum := parseFlag()
+	nazalog.Infof("parse flag succ. url=%s, hlsOutPath=%s, fragmentDurationMS=%d, fragmentNum=%d",
+		url, hlsOutPath, fragmentDurationMS, fragmentNum)
 
 	hlsMuxerConfig := hls.MuxerConfig{
 		Enable:             true,
@@ -31,26 +37,28 @@ func main() {
 		FragmentNum:        fragmentNum,
 	}
 
-	index := strings.LastIndexByte(url, '/')
-	if index == -1 {
-		nazalog.Error("rtmp url invalid.")
-		os.Exit(1)
+	ctx, err := base.ParseRTMPURL(url)
+	if err != nil {
+		nazalog.Fatalf("parse rtmp url failed. url=%s, err=%+v", url, err)
 	}
-	streamName := url[index:]
+	streamName := ctx.LastItemOfPath
 
-	pullSession := rtmp.NewPullSession()
 	hlsMuexer := hls.NewMuxer(streamName, &hlsMuxerConfig, nil)
 	hlsMuexer.Start()
 
-	err := pullSession.Pull(url, func(msg base.RTMPMsg) {
+	pullSession := rtmp.NewPullSession(func(option *rtmp.PullSessionOption) {
+		option.PullTimeoutMS = 10000
+		option.ReadAVTimeoutMS = 10000
+	})
+	err = pullSession.Pull(url, func(msg base.RTMPMsg) {
 		hlsMuexer.FeedRTMPMessage(msg)
 	})
+
 	if err != nil {
-		nazalog.Errorf("pull error. err=%+v", err)
-		os.Exit(1)
+		nazalog.Fatalf("pull rtmp failed. err=%+v", err)
 	}
-	err = <-pullSession.Wait()
-	nazalog.Errorf("pull error. err=%+v", err)
+	err = <-pullSession.WaitChan()
+	nazalog.Errorf("< session.Wait [%s] err=%+v", pullSession.UniqueKey(), err)
 }
 
 func parseFlag() (url string, hlsOutPath string, fragmentDurationMS int, fragmentNum int) {

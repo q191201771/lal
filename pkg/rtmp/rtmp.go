@@ -12,7 +12,9 @@ import (
 	"errors"
 )
 
-var ErrRTMP = errors.New("lal.rtmp: fxxk")
+var (
+	ErrRTMP = errors.New("lal.rtmp: fxxk")
+)
 
 const (
 	CSIDAMF   = 5

@@ -16,9 +16,15 @@ mkdir -p ${ROOT_DIR}/${OUT_DIR}/${prefix}macos/conf
 mkdir -p ${ROOT_DIR}/${OUT_DIR}/${prefix}windows/bin
 mkdir -p ${ROOT_DIR}/${OUT_DIR}/${prefix}windows/conf
 
-echo ${v} >> ${ROOT_DIR}/${OUT_DIR}/${prefix}linux/VERSION.txt
-echo ${v} >> ${ROOT_DIR}/${OUT_DIR}/${prefix}macos/VERSION.txt
-echo ${v} >> ${ROOT_DIR}/${OUT_DIR}/${prefix}windows/VERSION.txt
+echo ${v} >> ${ROOT_DIR}/${OUT_DIR}/${prefix}linux/README.txt
+echo ${v} >> ${ROOT_DIR}/${OUT_DIR}/${prefix}macos/README.txt
+echo ${v} >> ${ROOT_DIR}/${OUT_DIR}/${prefix}windows/README.txt
+echo 'github: https://github.com/q191201771/lal' >> ${ROOT_DIR}/${OUT_DIR}/${prefix}linux/README.txt
+echo 'github: https://github.com/q191201771/lal' >> ${ROOT_DIR}/${OUT_DIR}/${prefix}macos/README.txt
+echo 'github: https://github.com/q191201771/lal' >> ${ROOT_DIR}/${OUT_DIR}/${prefix}windows/README.txt
+echo 'doc: https://pengrl.com/lal' >> ${ROOT_DIR}/${OUT_DIR}/${prefix}linux/README.txt
+echo 'doc: https://pengrl.com/lal' >> ${ROOT_DIR}/${OUT_DIR}/${prefix}macos/README.txt
+echo 'doc: https://pengrl.com/lal' >> ${ROOT_DIR}/${OUT_DIR}/${prefix}windows/README.txt
 
 cp conf/lalserver.conf.json ${ROOT_DIR}/${OUT_DIR}/${prefix}linux/conf
 cp conf/lalserver.conf.json ${ROOT_DIR}/${OUT_DIR}/${prefix}macos/conf
