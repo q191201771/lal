@@ -971,7 +971,7 @@ func (group *Group) addIn() {
 		if group.hlsMuxer != nil {
 			nazalog.Errorf("[%s] hls muxer exist while addIn. muxer=%+v", group.UniqueKey, group.hlsMuxer)
 		}
-		group.hlsMuxer = hls.NewMuxer(group.streamName, &config.HLSConfig.MuxerConfig, group)
+		group.hlsMuxer = hls.NewMuxer(group.streamName, &config.HLSConfig.MuxerConfig, nil, config.HLSConfig.EventObserverConfig)
 		group.hlsMuxer.Start()
 	}
 

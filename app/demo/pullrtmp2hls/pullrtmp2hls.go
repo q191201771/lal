@@ -39,7 +39,7 @@ func main() {
 	streamName := url[index:]
 
 	pullSession := rtmp.NewPullSession()
-	hlsMuexer := hls.NewMuxer(streamName, &hlsMuxerConfig, nil)
+	hlsMuexer := hls.NewMuxer(streamName, &hlsMuxerConfig, nil, nil)
 	hlsMuexer.Start()
 
 	err := pullSession.Pull(url, func(msg base.RTMPMsg) {

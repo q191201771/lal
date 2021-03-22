@@ -32,6 +32,17 @@ type MuxerObserver interface {
 	OnTSPackets(rawFrame []byte, boundary bool)
 }
 
+type MuxerEventObserver interface {
+	// @param ts 新建立fragment时的时间戳，毫秒 * 90
+	// @param id fragment的自增序号
+	// @param discont 不连续标志，会在m3u8文件的fragment前增加`#EXT-X-DISCONTINUITY`
+	// @pram fileName fragment 文件名
+	OnOpenFragment(ts uint64, id int, discont bool, fileName string)
+	// @param id fragment的自增序号
+	// @param duration 当前fragment中数据的时长，单位秒
+	OnCloseFragment(id int, duration float64)
+}
+
 type MuxerConfig struct {
 	Enable             bool   `json:"enable"`   // 如果false，说明hls功能没开，也即不写磁盘，但是MuxerObserver依然会回调
 	OutPath            string `json:"out_path"` // m3u8和ts文件的输出根目录，注意，末尾需已'/'结束
@@ -51,6 +62,7 @@ type Muxer struct {
 
 	config   *MuxerConfig
 	observer MuxerObserver
+	event    MuxerEventObserver
 
 	fragment Fragment
 	opened   bool
@@ -75,7 +87,8 @@ type fragmentInfo struct {
 }
 
 // @param observer 可以为nil，如果不为nil，TS流将回调给上层
-func NewMuxer(streamName string, config *MuxerConfig, observer MuxerObserver) *Muxer {
+// @param eventObserver 可以为nil，主要用于触发新增 frag 和关闭 frag 事件给外部
+func NewMuxer(streamName string, config *MuxerConfig, observer MuxerObserver, eventObserver MuxerEventObserver) *Muxer {
 	uk := base.GenUniqueKey(base.UKPHLSMuxer)
 	op := getMuxerOutPath(config.OutPath, streamName)
 	playlistFilename := getM3U8Filename(op, streamName)
@@ -94,6 +107,7 @@ func NewMuxer(streamName string, config *MuxerConfig, observer MuxerObserver) *M
 		config:                    config,
 		observer:                  observer,
 		frags:                     frags,
+		event:                     eventObserver,
 	}
 	streamer := NewStreamer(m)
 	m.streamer = streamer
@@ -268,6 +282,10 @@ func (m *Muxer) openFragment(ts uint64, discont bool) error {
 	// nrm said: start fragment with audio to make iPhone happy
 	m.streamer.FlushAudio()
 
+	if m.event != nil {
+		m.event.OnOpenFragment(ts, id, discont, filename)
+	}
+
 	return nil
 }
 
@@ -281,6 +299,10 @@ func (m *Muxer) closeFragment(isLast bool) error {
 		if err := m.fragment.CloseFile(); err != nil {
 			return err
 		}
+	}
+
+	if m.event != nil {
+		m.event.OnCloseFragment(m.getCurrFrag().id, m.getCurrFrag().duration)
 	}
 
 	m.opened = false
