@@ -33,11 +33,12 @@ type MuxerObserver interface {
 }
 
 type MuxerEventObserver interface {
+	// @param rightNow 记录发生时间
 	// @param ts 新建立fragment时的时间戳，毫秒 * 90
 	// @param id fragment的自增序号
 	// @param discont 不连续标志，会在m3u8文件的fragment前增加`#EXT-X-DISCONTINUITY`
 	// @pram fileName fragment 文件名
-	OnOpenFragment(ts uint64, id int, discont bool, fileName string)
+	OnOpenFragment(rightNow time.Time, ts uint64, id int, discont bool, fileName string)
 	// @param id fragment的自增序号
 	// @param duration 当前fragment中数据的时长，单位秒
 	OnCloseFragment(id int, duration float64)
@@ -262,7 +263,9 @@ func (m *Muxer) openFragment(ts uint64, discont bool) error {
 
 	id := m.getFragmentID()
 
-	filename := getTSFilename(m.streamName, id, int(time.Now().Unix()))
+	rightNow := time.Now()
+
+	filename := getTSFilename(m.streamName, id, int(rightNow.Unix()))
 	filenameWithPath := getTSFilenameWithPath(m.outPath, filename)
 	if m.config.Enable {
 		if err := m.fragment.OpenFile(filenameWithPath); err != nil {
@@ -283,7 +286,7 @@ func (m *Muxer) openFragment(ts uint64, discont bool) error {
 	m.streamer.FlushAudio()
 
 	if m.event != nil {
-		m.event.OnOpenFragment(ts, id, discont, filename)
+		m.event.OnOpenFragment(rightNow, ts, id, discont, filename)
 	}
 
 	return nil
