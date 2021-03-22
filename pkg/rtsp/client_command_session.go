@@ -517,8 +517,8 @@ func (session *ClientCommandSession) writeCmd(method, uri string, headers map[st
 	return err
 }
 
-// @param headers 可以为nil
-// @param body 可以为空
+// headers 可以为nil
+// body 可以为空
 func (session *ClientCommandSession) writeCmdReadResp(method, uri string, headers map[string]string, body string) (ctx nazahttp.HTTPRespMsgCtx, err error) {
 	for i := 0; i < 2; i++ {
 		if err = session.writeCmd(method, uri, headers, body); err != nil {

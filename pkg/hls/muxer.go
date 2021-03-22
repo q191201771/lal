@@ -26,23 +26,23 @@ import (
 //            后续从架构上考虑，packet hls,mpegts,logic的分工
 
 type MuxerObserver interface {
-	// @param rawFrame TS流，回调结束后，内部不再使用该内存块
-	// @param boundary 新的TS流接收者，应该从该标志为true时开始发送数据
+	// rawFrame TS流，回调结束后，内部不再使用该内存块
+	// boundary 新的TS流接收者，应该从该标志为true时开始发送数据
 	//
 	OnTSPackets(rawFrame []byte, boundary bool)
 }
 
 type MuxerEventObserver interface {
-	// @param rightNow 记录发生时间
-	// @param ts 新建立fragment时的时间戳，毫秒 * 90
-	// @param id fragment的自增序号
-	// @param discont 不连续标志，会在m3u8文件的fragment前增加`#EXT-X-DISCONTINUITY`
-	// @param fileName fragment 文件名
-	// @param streamName 流名称
+	// rightNow 记录发生时间
+	// ts 新建立fragment时的时间戳，毫秒 * 90
+	// id fragment的自增序号
+	// discont 不连续标志，会在m3u8文件的fragment前增加`#EXT-X-DISCONTINUITY`
+	// fileName fragment 文件名
+	// streamName 流名称
 	OnOpenFragment(rightNow time.Time, ts uint64, id int, discont bool, fileName string, streamName string)
-	// @param id fragment的自增序号
-	// @param duration 当前fragment中数据的时长，单位秒
-	// @param streamName 流名称
+	// id fragment的自增序号
+	// duration 当前fragment中数据的时长，单位秒
+	// streamName 流名称
 	OnCloseFragment(id int, duration float64, streamName string)
 }
 
@@ -89,8 +89,8 @@ type fragmentInfo struct {
 	filename string
 }
 
-// @param observer 可以为nil，如果不为nil，TS流将回调给上层
-// @param eventObserver 可以为nil，主要用于触发新增 frag 和关闭 frag 事件给外部
+// observer 可以为nil，如果不为nil，TS流将回调给上层
+// eventObserver 可以为nil，主要用于触发新增 frag 和关闭 frag 事件给外部
 func NewMuxer(streamName string, config *MuxerConfig, observer MuxerObserver, eventObserver MuxerEventObserver) *Muxer {
 	uk := base.GenUniqueKey(base.UKPHLSMuxer)
 	op := getMuxerOutPath(config.OutPath, streamName)
@@ -131,7 +131,7 @@ func (m *Muxer) Dispose() {
 	}
 }
 
-// @param msg 函数调用结束后，内部不持有msg中的内存块
+// msg 函数调用结束后，内部不持有msg中的内存块
 //
 func (m *Muxer) FeedRTMPMessage(msg base.RTMPMsg) {
 	m.streamer.FeedRTMPMessage(msg)
@@ -198,7 +198,7 @@ func (m *Muxer) OutPath() string {
 
 // 决定是否开启新的TS切片文件（注意，可能已经有TS切片，也可能没有，这是第一个切片）
 //
-// @param boundary 调用方认为可能是开启新TS切片的时间点
+// boundary 调用方认为可能是开启新TS切片的时间点
 //
 func (m *Muxer) updateFragment(ts uint64, boundary bool) error {
 	discont := true
@@ -256,7 +256,7 @@ func (m *Muxer) updateFragment(ts uint64, boundary bool) error {
 	return nil
 }
 
-// @param discont 不连续标志，会在m3u8文件的fragment前增加`#EXT-X-DISCONTINUITY`
+// discont 不连续标志，会在m3u8文件的fragment前增加`#EXT-X-DISCONTINUITY`
 //
 func (m *Muxer) openFragment(ts uint64, discont bool) error {
 	if m.opened {

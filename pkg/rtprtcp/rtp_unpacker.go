@@ -37,7 +37,7 @@ type RTPUnpacker struct {
 	unpackedSeq  uint16
 }
 
-// @param pkt: pkt.Timestamp   RTP包头中的时间戳(pts)经过clockrate换算后的时间戳，单位毫秒
+// pkt: pkt.Timestamp   RTP包头中的时间戳(pts)经过clockrate换算后的时间戳，单位毫秒
 //                             注意，不支持带B帧的视频流，pts和dts永远相同
 //             pkt.PayloadType base.AVPacketPTXXX
 //             pkt.Payload     如果是AAC，返回的是raw frame，一个AVPacket只包含一帧

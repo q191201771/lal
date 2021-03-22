@@ -27,7 +27,7 @@ const (
 	DMTMemory DataManagerType = iota
 )
 
-// @param serverTimeoutSec 超过该时间间隔没有Update，则清空对应节点的所有信息
+// erverTimeoutSec 超过该时间间隔没有Update，则清空对应节点的所有信息
 func NewDataManager(t DataManagerType, serverTimeoutSec int) DataManger {
 	switch t {
 	case DMTMemory:

@@ -77,7 +77,7 @@ func (packer *MessagePacker) writePeerBandwidth(writer io.Writer, val int, limit
 	return err
 }
 
-// @param isPush: 推流为true，拉流为false
+// isPush: 推流为true，拉流为false
 func (packer *MessagePacker) writeConnect(writer io.Writer, appName, tcURL string, isPush bool) error {
 	packer.writeMessageHeader(csidOverConnection, 0, base.RTMPTypeIDCommandMessageAMF0, 0)
 	_ = AMF0.WriteString(packer.b, "connect")
@@ -101,7 +101,7 @@ func (packer *MessagePacker) writeConnect(writer io.Writer, appName, tcURL strin
 	return err
 }
 
-// @param objectEncoding 设置0或者3，表示是AMF0或AMF3，上层可根据connect信令中的objectEncoding值设置该值
+// objectEncoding 设置0或者3，表示是AMF0或AMF3，上层可根据connect信令中的objectEncoding值设置该值
 func (packer *MessagePacker) writeConnectResult(writer io.Writer, tid int, objectEncoding int) error {
 	packer.writeMessageHeader(csidOverConnection, 0, base.RTMPTypeIDCommandMessageAMF0, 0)
 	_ = AMF0.WriteString(packer.b, "_result")

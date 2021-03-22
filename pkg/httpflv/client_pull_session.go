@@ -71,11 +71,11 @@ type OnReadFLVTag func(tag Tag)
 
 // 如果没有错误发生，阻塞直到接收音视频数据的前一步，也即发送完HTTP请求
 //
-// @param rawURL 支持如下两种格式。（当然，关键点是对端支持）
+// rawURL 支持如下两种格式。（当然，关键点是对端支持）
 //               http://{domain}/{app_name}/{stream_name}.flv
 //               http://{ip}/{domain}/{app_name}/{stream_name}.flv
 //
-// @param onReadFLVTag 读取到 flv tag 数据时回调。回调结束后，PullSession 不会再使用这块 <tag> 数据。
+// onReadFLVTag 读取到 flv tag 数据时回调。回调结束后，PullSession 不会再使用这块 <tag> 数据。
 func (session *PullSession) Pull(rawURL string, onReadFLVTag OnReadFLVTag) error {
 	nazalog.Debugf("[%s] pull. url=%s", session.UniqueKey, rawURL)
 

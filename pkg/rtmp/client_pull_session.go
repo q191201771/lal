@@ -49,7 +49,7 @@ func NewPullSession(modOptions ...ModPullSessionOption) *PullSession {
 
 // 如果没有发生错误，阻塞直到到接收音视频数据的前一步，也即收到服务端返回的rtmp play对应结果的信令
 //
-// @param onReadRTMPAVMsg: 注意，回调结束后，内存块会被PullSession重复使用
+// onReadRTMPAVMsg: 注意，回调结束后，内存块会被PullSession重复使用
 func (s *PullSession) Pull(rawURL string, onReadRTMPAVMsg OnReadRTMPAVMsg) error {
 	s.core.onReadRTMPAVMsg = onReadRTMPAVMsg
 	return s.core.Do(rawURL)

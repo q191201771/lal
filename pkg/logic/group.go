@@ -680,7 +680,7 @@ func (group *Group) delHTTPTSSubSession(session *httpts.SubSession) {
 }
 
 // TODO chef: 目前相当于其他类型往rtmp.AVMsg转了，考虑统一往一个通用类型转
-// @param msg 调用结束后，内部不持有msg.Payload内存块
+// msg 调用结束后，内部不持有msg.Payload内存块
 func (group *Group) broadcastRTMP(msg base.RTMPMsg) {
 	var (
 		lcd    LazyChunkDivider

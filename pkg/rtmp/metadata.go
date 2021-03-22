@@ -53,11 +53,11 @@ func ParseMetadata(b []byte) (ObjectPairArray, error) {
 // - videocodecid
 // - version
 //
-// @param width        如果为-1，则metadata中不写入该字段
-// @param height       如果为-1，则metadata中不写入该字段
-// @param audiocodecid 如果为-1，则metadata中不写入该字段
+// width        如果为-1，则metadata中不写入该字段
+// height       如果为-1，则metadata中不写入该字段
+// audiocodecid 如果为-1，则metadata中不写入该字段
 //                     AAC 10
-// @param videocodecid 如果为-1，则metadata中不写入该字段
+// videocodecid 如果为-1，则metadata中不写入该字段
 //                     H264 7
 //                     H265 12
 // @return 返回的内存块为新申请的独立内存块

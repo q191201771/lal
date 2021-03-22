@@ -122,7 +122,7 @@ func ParseRTCPHeader(b []byte) RTCPHeader {
 
 // rfc3550 6.4.1
 //
-// @param b rtcp包，包含包头
+// b rtcp包，包含包头
 func ParseSR(b []byte) SR {
 	var s SR
 	s.SenderSSRC = bele.BEUint32(b[4:])
@@ -134,7 +134,7 @@ func ParseSR(b []byte) SR {
 	return s
 }
 
-// @param out 传出参数，注意，调用方保证长度>=4
+// out 传出参数，注意，调用方保证长度>=4
 func (r *RTCPHeader) PackTo(out []byte) {
 	out[0] = r.Version<<6 | r.Padding<<5 | r.CountOrFormat
 	out[1] = r.PacketType

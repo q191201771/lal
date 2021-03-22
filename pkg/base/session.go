@@ -18,7 +18,7 @@ type ISessionURLContext interface {
 type ISessionStat interface {
 	// 周期性调用该函数，用于计算bitrate
 	//
-	// @param intervalSec 距离上次调用的时间间隔，单位毫秒
+	// intervalSec 距离上次调用的时间间隔，单位毫秒
 	UpdateStat(intervalSec uint32)
 
 	// 获取session状态

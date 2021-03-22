@@ -33,13 +33,13 @@ import (
 type BaseInSessionObserver interface {
 	OnRTPPacket(pkt rtprtcp.RTPPacket)
 
-	// @param asc: AAC AudioSpecificConfig，注意，如果不存在音频或音频不为AAC，则为nil
-	// @param vps, sps, pps 如果都为nil，则没有视频，如果sps, pps不为nil，则vps不为nil是H265，vps为nil是H264
+	// asc: AAC AudioSpecificConfig，注意，如果不存在音频或音频不为AAC，则为nil
+	// vps, sps, pps 如果都为nil，则没有视频，如果sps, pps不为nil，则vps不为nil是H265，vps为nil是H264
 	//
 	// 注意，4个参数可能同时为nil
 	OnAVConfig(asc, vps, sps, pps []byte)
 
-	// @param pkt: pkt结构体中字段含义见rtprtcp.OnAVPacket
+	// pkt: pkt结构体中字段含义见rtprtcp.OnAVPacket
 	OnAVPacket(pkt base.AVPacket)
 }
 
@@ -296,7 +296,7 @@ func (session *BaseInSession) onReadRTCPPacket(b []byte, rAddr *net.UDPAddr, err
 	return true
 }
 
-// @param rAddr 对端地址，往对端发送数据时使用，注意，如果nil，则表示是interleaved模式，我们直接往TCP连接发数据
+// rAddr 对端地址，往对端发送数据时使用，注意，如果nil，则表示是interleaved模式，我们直接往TCP连接发数据
 func (session *BaseInSession) handleRTCPPacket(b []byte, rAddr *net.UDPAddr) error {
 	session.currConnStat.ReadBytesSum.Add(uint64(len(b)))
 

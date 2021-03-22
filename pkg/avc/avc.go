@@ -208,7 +208,7 @@ func SPSPPSSeqHeader2AnnexB(payload []byte) ([]byte, error) {
 
 // 从AVCC格式的Seq Header中得到SPS和PPS内存块
 //
-// @param <payload> rtmp message的payload部分或者flv tag的payload部分
+// <payload> rtmp message的payload部分或者flv tag的payload部分
 //                  注意，包含了头部2字节类型以及3字节的cts
 //
 // @return 注意，返回的sps，pps内存块指向的是传入参数<payload>内存块的内存
@@ -307,7 +307,7 @@ func BuildSeqHeaderFromSPSPPS(sps, pps []byte) ([]byte, error) {
 
 // AVCC -> AnnexB
 //
-// @param <payload> rtmp message的payload部分或者flv tag的payload部分
+// <payload> rtmp message的payload部分或者flv tag的payload部分
 //                  注意，包含了头部2字节类型以及3字节的cts
 //
 func CaptureAVCC2AnnexB(w io.Writer, payload []byte) error {

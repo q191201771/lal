@@ -76,7 +76,7 @@ var defaultClientSessOption = ClientSessionOption{
 
 type ModClientSessionOption func(option *ClientSessionOption)
 
-// @param t: session的类型，只能是推或者拉
+// t: session的类型，只能是推或者拉
 func NewClientSession(t ClientSessionType, modOptions ...ModClientSessionOption) *ClientSession {
 	var uk string
 	switch t {

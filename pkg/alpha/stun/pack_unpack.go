@@ -52,7 +52,7 @@ func PackBindingResponse(ip []byte, port int) ([]byte, error) {
 	return b, nil
 }
 
-// @param out 输出参数，需保证len(b)>=8
+// out 输出参数，需保证len(b)>=8
 //
 // @return ip 4字节格式
 func packAttrXORMappedAddressTo(out []byte, ip []byte, port int) {

@@ -64,7 +64,7 @@ func (r *RRProducer) FeedRTPPacket(seq uint16) {
 
 // 收到sr包时，产生rr包
 //
-// @param lsr: 从sr包中获取，见func SR.GetMiddleNTP
+// lsr: 从sr包中获取，见func SR.GetMiddleNTP
 // @return:    rr包的二进制数据
 //
 func (r *RRProducer) Produce(lsr uint32) []byte {
@@ -105,7 +105,7 @@ func (r *RRProducer) Produce(lsr uint32) []byte {
 	return rr.Pack()
 }
 
-// @param timestamp 当前收到的rtp包头中的时间戳
+// timestamp 当前收到的rtp包头中的时间戳
 func (r *RRProducer) updateJitter(timestamp uint32) {
 	// rfc3550 6.4.1 SR: Sender Report RTCP Packet
 	// rfc3550 A.8 Estimating the Interarrival Jitter

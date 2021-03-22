@@ -19,8 +19,8 @@ import (
 	"github.com/q191201771/naza/pkg/nazalog"
 )
 
-// @param asc 如果为nil，则没有音频
-// @param vps 如果为nil，则是H264，如果不为nil，则是H265
+// asc 如果为nil，则没有音频
+// vps 如果为nil，则是H264，如果不为nil，则是H265
 // @return 返回的内存块为新申请的独立内存块
 func AVConfig2FLVTag(asc, vps, sps, pps []byte) (metadata, ash, vsh *httpflv.Tag, err error) {
 	var bMetadata []byte

@@ -47,8 +47,8 @@ type ErrorCode struct {
 	err  error
 }
 
-// @param inURL      拉流rtmp url地址
-// @param outURLList 推流rtmp url地址列表
+// inURL      拉流rtmp url地址
+// outURLList 推流rtmp url地址列表
 //
 func NewTunnel(inURL string, outURLList []string) *Tunnel {
 	var streamName string

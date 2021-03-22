@@ -32,15 +32,15 @@ type Frame struct {
 	Raw []byte
 }
 
-// @param packet: 188字节大小的TS包，注意，一次Pack对应的多个TSPacket，复用的是一块内存
+// packet: 188字节大小的TS包，注意，一次Pack对应的多个TSPacket，复用的是一块内存
 //
 type OnTSPacket func(packet []byte)
 
-// @param frame: 各字段含义见mpegts.Frame结构体定义
+// frame: 各字段含义见mpegts.Frame结构体定义
 //               frame.CC  注意，内部会修改frame.CC的值，外部在调用结束后，可保存CC的值，供下次调用时使用
 //               frame.Raw 函数调用结束后，内部不会持有该内存块
 //
-// @param onTSPacket: 注意，一次函数调用，可能对应多次回调
+// onTSPacket: 注意，一次函数调用，可能对应多次回调
 //
 func PackTSPacket(frame *Frame, onTSPacket OnTSPacket) {
 	wpos := 0              // 当前packet的写入位置

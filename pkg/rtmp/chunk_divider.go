@@ -35,7 +35,7 @@ func (d *ChunkDivider) Message2Chunks(message []byte, header *base.RTMPHeader) [
 	return message2Chunks(message, header, nil, d.localChunkSize)
 }
 
-// @param 返回头的大小
+// 返回头的大小
 func calcHeader(header *base.RTMPHeader, prevHeader *base.RTMPHeader, out []byte) int {
 	var index int
 

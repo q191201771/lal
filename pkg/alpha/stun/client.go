@@ -21,7 +21,7 @@ import (
 type Client struct {
 }
 
-// @param addr 填入server地址，如果不包含端口，则使用默认端口3478
+// addr 填入server地址，如果不包含端口，则使用默认端口3478
 func (c *Client) Query(addr string, timeoutMS int) (ip string, port int, err error) {
 	if !strings.Contains(addr, ":") {
 		addr = fmt.Sprintf("%s:%d", addr, DefaultPort)

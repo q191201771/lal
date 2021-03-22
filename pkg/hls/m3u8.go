@@ -15,9 +15,9 @@ import (
 	"strconv"
 )
 
-// @param content     需写入文件的内容
-// @param filename    m3u8文件名
-// @param filenameBak m3u8临时文件名
+// content     需写入文件的内容
+// filename    m3u8文件名
+// filenameBak m3u8临时文件名
 //
 func writeM3U8File(content []byte, filename string, filenameBak string) error {
 	var fp *os.File
@@ -39,8 +39,8 @@ func writeM3U8File(content []byte, filename string, filenameBak string) error {
 
 // 如果当前duration比原m3u8文件的`EXT-X-TARGETDURATION`大，则更新`EXT-X-TARGETDURATION`的值
 //
-// @param content      原m3u8文件的内容
-// @param currDuration 当前duration
+// content      原m3u8文件的内容
+// currDuration 当前duration
 //
 // @return 处理后的m3u8文件内容
 func updateTargetDurationInM3U8(content []byte, currDuration int) ([]byte, error) {
@@ -67,7 +67,7 @@ func updateTargetDurationInM3U8(content []byte, currDuration int) ([]byte, error
 	return content, nil
 }
 
-// @param content 传入m3u8文件内容
+// content 传入m3u8文件内容
 //
 // @return durationSec m3u8中所有ts的时间总和。注意，使用的是m3u8文件中描述的ts时间，而不是读取ts文件中实际音视频数据的时间。
 //

@@ -18,9 +18,9 @@ import (
 )
 
 type StreamerObserver interface {
-	// @param streamer: 供上层获取streamer内部的一些状态，比如spspps是否已缓存，音频缓存队列是否有数据等
+	// streamer: 供上层获取streamer内部的一些状态，比如spspps是否已缓存，音频缓存队列是否有数据等
 	//
-	// @param frame:    各字段含义见mpegts.Frame结构体定义
+	// frame:    各字段含义见mpegts.Frame结构体定义
 	//                  frame.CC  注意，回调结束后，Streamer会保存frame.CC，上层在TS打包完成后，可通过frame.CC将cc值传递给Streamer
 	//                  frame.Raw 回调结束后，这块内存可能会被内部重复使用
 	//
@@ -51,7 +51,7 @@ func NewStreamer(observer StreamerObserver) *Streamer {
 	}
 }
 
-// @param msg msg.Payload 调用结束后，函数内部不会持有这块内存
+// msg msg.Payload 调用结束后，函数内部不会持有这块内存
 //
 // TODO chef: 可以考虑数据有问题时，返回给上层，直接主动关闭输入流的连接
 func (s *Streamer) FeedRTMPMessage(msg base.RTMPMsg) {

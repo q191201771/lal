@@ -84,7 +84,7 @@ func ParseNALUTypeReadable(v uint8) string {
 	return b
 }
 
-// @param v 第一个字节
+// v 第一个字节
 func ParseNALUType(v uint8) uint8 {
 	// 6 bit in middle
 	// 0*** ***0
@@ -112,7 +112,7 @@ func VPSSPSPPSSeqHeader2AnnexB(payload []byte) ([]byte, error) {
 
 // 从HVCC格式的Seq Header中得到VPS，SPS，PPS内存块
 //
-// @param <payload> rtmp message的payload部分或者flv tag的payload部分
+// <payload> rtmp message的payload部分或者flv tag的payload部分
 //                  注意，包含了头部2字节类型以及3字节的cts
 //
 // @return 注意，返回的vps，sps，pps内存块指向的是传入参数<payload>内存块的内存

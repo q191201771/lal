@@ -46,7 +46,7 @@ type SequenceHeader struct {
 	aacPacketType uint8
 }
 
-// @param <asc> 2字节的AAC Audio Specifc Config
+// <asc> 2字节的AAC Audio Specifc Config
 //              函数调用结束后，内部不持有<asc>内存块
 //              注意，如果是rtmp/flv的message/tag，应去除Seq Header头部的2个字节
 //
@@ -80,7 +80,7 @@ func (a *ADTS) InitWithAACAudioSpecificConfig(asc []byte) error {
 
 // 获取ADTS头，由于ADTS头中的字段依赖包的长度，而每个包的长度不同，所以生成的每个包的ADTS头也不同
 //
-// @param <length> raw aac frame的大小
+// <length> raw aac frame的大小
 //                 注意，如果是rtmp/flv的message/tag，应去除Seq Header头部的2个字节
 // @return 返回的内存块，内部会继续持有，重复使用
 //
@@ -145,7 +145,7 @@ func (a *ADTS) HasInited() bool {
 	return a.adtsHeader != nil
 }
 
-// @param <b> rtmp/flv的message/tag的payload部分，包含前面2个字节
+// <b> rtmp/flv的message/tag的payload部分，包含前面2个字节
 //            函数调用结束后，内部不持有<b>内存块
 func ParseAACSeqHeader(b []byte) (sh SequenceHeader, adts ADTS, err error) {
 	if len(b) < 4 {
@@ -173,7 +173,7 @@ func ParseAACSeqHeader(b []byte) (sh SequenceHeader, adts ADTS, err error) {
 	return
 }
 
-// @param <asc> 函数调用结束后，内部不继续持有<asc>内存块
+// <asc> 函数调用结束后，内部不继续持有<asc>内存块
 //
 // @return      返回的内存块为新申请的独立内存块
 //
