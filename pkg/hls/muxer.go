@@ -42,7 +42,8 @@ type MuxerEventObserver interface {
 	OnOpenFragment(rightNow time.Time, ts uint64, id int, discont bool, fileName string, streamName string)
 	// @param id fragment的自增序号
 	// @param duration 当前fragment中数据的时长，单位秒
-	OnCloseFragment(id int, duration float64)
+	// @param streamName 流名称
+	OnCloseFragment(id int, duration float64, streamName string)
 }
 
 type MuxerConfig struct {
@@ -306,7 +307,7 @@ func (m *Muxer) closeFragment(isLast bool) error {
 	}
 
 	if m.event != nil {
-		m.event.OnCloseFragment(m.getCurrFrag().id, m.getCurrFrag().duration)
+		m.event.OnCloseFragment(m.getCurrFrag().id, m.getCurrFrag().duration, m.streamName)
 	}
 
 	m.opened = false
