@@ -19,7 +19,7 @@ import (
 
 	"github.com/cfeeling/lal/pkg/base"
 
-	"github.com/q191201771/naza/pkg/nazalog"
+	"github.com/cfeeling/naza/pkg/nazalog"
 )
 
 // TODO chef: 转换TS流的功能（通过回调供httpts使用）也放在了Muxer中，好处是hls和httpts可以共用一份TS流。

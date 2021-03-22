@@ -19,10 +19,10 @@ import (
 	"github.com/cfeeling/lal/pkg/base"
 	"github.com/cfeeling/lal/pkg/rtprtcp"
 	"github.com/cfeeling/lal/pkg/sdp"
-	"github.com/q191201771/naza/pkg/connection"
-	"github.com/q191201771/naza/pkg/nazahttp"
-	"github.com/q191201771/naza/pkg/nazalog"
-	"github.com/q191201771/naza/pkg/nazanet"
+	"github.com/cfeeling/naza/pkg/connection"
+	"github.com/cfeeling/naza/pkg/nazahttp"
+	"github.com/cfeeling/naza/pkg/nazalog"
+	"github.com/cfeeling/naza/pkg/nazanet"
 )
 
 type ClientCommandSessionType int

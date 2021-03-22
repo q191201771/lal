@@ -17,9 +17,9 @@ import (
 
 	"github.com/cfeeling/lal/app/demo/dispatch/datamanager"
 	"github.com/cfeeling/lal/pkg/base"
-	"github.com/q191201771/naza/pkg/nazahttp"
-	"github.com/q191201771/naza/pkg/nazalog"
-	"github.com/q191201771/naza/pkg/unique"
+	"github.com/cfeeling/naza/pkg/nazahttp"
+	"github.com/cfeeling/naza/pkg/nazalog"
+	"github.com/cfeeling/naza/pkg/unique"
 )
 
 //

@@ -14,11 +14,11 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/q191201771/naza/pkg/nazahttp"
+	"github.com/cfeeling/naza/pkg/nazahttp"
 
 	"github.com/cfeeling/lal/pkg/base"
-	"github.com/q191201771/naza/pkg/bininfo"
-	"github.com/q191201771/naza/pkg/nazalog"
+	"github.com/cfeeling/naza/pkg/bininfo"
+	"github.com/cfeeling/naza/pkg/nazalog"
 )
 
 var serverStartTime string

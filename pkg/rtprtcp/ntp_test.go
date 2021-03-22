@@ -13,7 +13,7 @@ import (
 	"time"
 
 	"github.com/cfeeling/lal/pkg/rtprtcp"
-	"github.com/q191201771/naza/pkg/nazalog"
+	"github.com/cfeeling/naza/pkg/nazalog"
 )
 
 func TestMSWLSW2UnixNano(t *testing.T) {

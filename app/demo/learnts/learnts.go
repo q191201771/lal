@@ -14,7 +14,7 @@ import (
 	"github.com/cfeeling/lal/pkg/mpegts"
 
 	"github.com/cfeeling/lal/pkg/hls"
-	"github.com/q191201771/naza/pkg/nazalog"
+	"github.com/cfeeling/naza/pkg/nazalog"
 )
 
 // 学习如何解析TS文件。注意，该程序还没有写完。

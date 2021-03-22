@@ -21,15 +21,15 @@ import (
 
 	"github.com/cfeeling/lal/pkg/base"
 
-	"github.com/q191201771/naza/pkg/filebatch"
-	"github.com/q191201771/naza/pkg/nazamd5"
+	"github.com/cfeeling/naza/pkg/filebatch"
+	"github.com/cfeeling/naza/pkg/nazamd5"
 
 	"github.com/cfeeling/lal/pkg/httpflv"
 	"github.com/cfeeling/lal/pkg/logic"
 	"github.com/cfeeling/lal/pkg/rtmp"
-	"github.com/q191201771/naza/pkg/assert"
-	"github.com/q191201771/naza/pkg/nazaatomic"
-	"github.com/q191201771/naza/pkg/nazalog"
+	"github.com/cfeeling/naza/pkg/assert"
+	"github.com/cfeeling/naza/pkg/nazaatomic"
+	"github.com/cfeeling/naza/pkg/nazalog"
 )
 
 // 开启了一个lalserver

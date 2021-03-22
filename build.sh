@@ -19,11 +19,11 @@ BuildTime=`date +'%Y.%m.%d.%H%M%S'`
 BuildGoVersion=`go version`
 
 LDFlags=" \
-    -X 'github.com/q191201771/naza/pkg/bininfo.GitTag=${GitTag}' \
-    -X 'github.com/q191201771/naza/pkg/bininfo.GitCommitLog=${GitCommitLog}' \
-    -X 'github.com/q191201771/naza/pkg/bininfo.GitStatus=${GitStatus}' \
-    -X 'github.com/q191201771/naza/pkg/bininfo.BuildTime=${BuildTime}' \
-    -X 'github.com/q191201771/naza/pkg/bininfo.BuildGoVersion=${BuildGoVersion}' \
+    -X 'github.com/cfeeling/naza/pkg/bininfo.GitTag=${GitTag}' \
+    -X 'github.com/cfeeling/naza/pkg/bininfo.GitCommitLog=${GitCommitLog}' \
+    -X 'github.com/cfeeling/naza/pkg/bininfo.GitStatus=${GitStatus}' \
+    -X 'github.com/cfeeling/naza/pkg/bininfo.BuildTime=${BuildTime}' \
+    -X 'github.com/cfeeling/naza/pkg/bininfo.BuildGoVersion=${BuildGoVersion}' \
 "
 
 echo "build" ${ROOT_DIR}/app/lalserver "..."

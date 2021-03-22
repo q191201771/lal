@@ -19,7 +19,7 @@ import (
 
 	"github.com/cfeeling/lal/pkg/aac"
 	"github.com/cfeeling/lal/pkg/httpflv"
-	"github.com/q191201771/naza/pkg/nazalog"
+	"github.com/cfeeling/naza/pkg/nazalog"
 )
 
 // 将本地FLV文件分离成H264/AVC和AAC的ES流文件

@@ -18,7 +18,7 @@ import (
 	"github.com/cfeeling/lal/pkg/base"
 
 	"github.com/cfeeling/lal/pkg/rtprtcp"
-	"github.com/q191201771/naza/pkg/nazanet"
+	"github.com/cfeeling/naza/pkg/nazanet"
 )
 
 // TODO chef

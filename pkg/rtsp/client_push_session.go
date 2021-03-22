@@ -12,9 +12,9 @@ import (
 	"github.com/cfeeling/lal/pkg/base"
 	"github.com/cfeeling/lal/pkg/rtprtcp"
 	"github.com/cfeeling/lal/pkg/sdp"
-	"github.com/q191201771/naza/pkg/nazaerrors"
-	"github.com/q191201771/naza/pkg/nazalog"
-	"github.com/q191201771/naza/pkg/nazanet"
+	"github.com/cfeeling/naza/pkg/nazaerrors"
+	"github.com/cfeeling/naza/pkg/nazalog"
+	"github.com/cfeeling/naza/pkg/nazanet"
 )
 
 type PushSessionOption struct {

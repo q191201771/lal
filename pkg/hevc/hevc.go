@@ -12,9 +12,9 @@ import (
 	"bytes"
 	"errors"
 
-	"github.com/q191201771/naza/pkg/nazabits"
+	"github.com/cfeeling/naza/pkg/nazabits"
 
-	"github.com/q191201771/naza/pkg/bele"
+	"github.com/cfeeling/naza/pkg/bele"
 )
 
 // HVCC

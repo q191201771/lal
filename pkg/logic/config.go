@@ -15,8 +15,8 @@ import (
 	"github.com/cfeeling/lal/pkg/httpflv"
 
 	"github.com/cfeeling/lal/pkg/hls"
-	"github.com/q191201771/naza/pkg/nazajson"
-	"github.com/q191201771/naza/pkg/nazalog"
+	"github.com/cfeeling/naza/pkg/nazajson"
+	"github.com/cfeeling/naza/pkg/nazalog"
 )
 
 const ConfigVersion = "0.0.1"

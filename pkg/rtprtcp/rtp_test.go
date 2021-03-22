@@ -13,7 +13,7 @@ import (
 
 	"github.com/cfeeling/lal/pkg/rtprtcp"
 
-	"github.com/q191201771/naza/pkg/assert"
+	"github.com/cfeeling/naza/pkg/assert"
 )
 
 func TestCompareSeq(t *testing.T) {

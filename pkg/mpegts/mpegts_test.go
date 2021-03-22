@@ -12,7 +12,7 @@ import (
 	"testing"
 
 	"github.com/cfeeling/lal/pkg/mpegts"
-	"github.com/q191201771/naza/pkg/nazalog"
+	"github.com/cfeeling/naza/pkg/nazalog"
 )
 
 func TestParseFixedTSPacket(t *testing.T) {

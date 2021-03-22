@@ -17,9 +17,9 @@ import (
 	"github.com/cfeeling/lal/pkg/base"
 	"github.com/cfeeling/lal/pkg/remux"
 	"github.com/cfeeling/lal/pkg/rtmp"
-	"github.com/q191201771/naza/pkg/nazalog"
-	"github.com/q191201771/naza/pkg/nazastring"
-	"github.com/q191201771/naza/pkg/unique"
+	"github.com/cfeeling/naza/pkg/nazalog"
+	"github.com/cfeeling/naza/pkg/nazastring"
+	"github.com/cfeeling/naza/pkg/unique"
 )
 
 // 注意，当前的策略是，当推流有多个地址时，任意一个失败就会退出整个任务

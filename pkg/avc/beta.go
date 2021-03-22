@@ -11,12 +11,12 @@ package avc
 import (
 	"encoding/hex"
 
-	"github.com/q191201771/naza/pkg/nazaerrors"
+	"github.com/cfeeling/naza/pkg/nazaerrors"
 
-	"github.com/q191201771/naza/pkg/bele"
-	"github.com/q191201771/naza/pkg/nazabits"
-	"github.com/q191201771/naza/pkg/nazalog"
-	"github.com/q191201771/naza/pkg/nazastring"
+	"github.com/cfeeling/naza/pkg/bele"
+	"github.com/cfeeling/naza/pkg/nazabits"
+	"github.com/cfeeling/naza/pkg/nazalog"
+	"github.com/cfeeling/naza/pkg/nazastring"
 )
 
 func ParseSPS(payload []byte, ctx *Context) error {

@@ -13,9 +13,9 @@ import (
 
 	"github.com/cfeeling/lal/pkg/aac"
 
-	"github.com/q191201771/naza/pkg/nazalog"
+	"github.com/cfeeling/naza/pkg/nazalog"
 
-	"github.com/q191201771/naza/pkg/assert"
+	"github.com/cfeeling/naza/pkg/assert"
 )
 
 var goldenSH = []byte{

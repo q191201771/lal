@@ -16,13 +16,13 @@ import (
 	"net"
 	"time"
 
-	"github.com/q191201771/naza/pkg/nazastring"
+	"github.com/cfeeling/naza/pkg/nazastring"
 
 	"github.com/cfeeling/lal/pkg/base"
 
-	"github.com/q191201771/naza/pkg/bele"
-	"github.com/q191201771/naza/pkg/connection"
-	"github.com/q191201771/naza/pkg/nazalog"
+	"github.com/cfeeling/naza/pkg/bele"
+	"github.com/cfeeling/naza/pkg/connection"
+	"github.com/cfeeling/naza/pkg/nazalog"
 )
 
 var ErrClientSessionTimeout = errors.New("lal.rtmp: client session timeout")

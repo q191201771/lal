@@ -8,7 +8,7 @@
 
 package base
 
-import "github.com/q191201771/naza/pkg/unique"
+import "github.com/cfeeling/naza/pkg/unique"
 
 const (
 	UKPRTMPServerSession        = "RTMPPUBSUB"

@@ -12,14 +12,14 @@ import (
 	"bytes"
 	"testing"
 
-	"github.com/q191201771/naza/pkg/nazabits"
-	"github.com/q191201771/naza/pkg/nazaerrors"
+	"github.com/cfeeling/naza/pkg/nazabits"
+	"github.com/cfeeling/naza/pkg/nazaerrors"
 
-	"github.com/q191201771/naza/pkg/nazalog"
+	"github.com/cfeeling/naza/pkg/nazalog"
 
 	"github.com/cfeeling/lal/pkg/avc"
 
-	"github.com/q191201771/naza/pkg/assert"
+	"github.com/cfeeling/naza/pkg/assert"
 )
 
 func TestParseNALUType(t *testing.T) {

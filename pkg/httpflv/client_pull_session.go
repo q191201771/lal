@@ -16,10 +16,10 @@ import (
 
 	"github.com/cfeeling/lal/pkg/base"
 
-	"github.com/q191201771/naza/pkg/nazahttp"
+	"github.com/cfeeling/naza/pkg/nazahttp"
 
-	"github.com/q191201771/naza/pkg/connection"
-	"github.com/q191201771/naza/pkg/nazalog"
+	"github.com/cfeeling/naza/pkg/connection"
+	"github.com/cfeeling/naza/pkg/nazalog"
 )
 
 type PullSessionOption struct {

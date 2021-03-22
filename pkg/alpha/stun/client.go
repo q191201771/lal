@@ -12,7 +12,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/q191201771/naza/pkg/nazanet"
+	"github.com/cfeeling/naza/pkg/nazanet"
 )
 
 // TODO chef:

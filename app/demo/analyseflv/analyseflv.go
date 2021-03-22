@@ -23,11 +23,11 @@ import (
 
 	"github.com/cfeeling/lal/pkg/avc"
 	"github.com/cfeeling/lal/pkg/hevc"
-	"github.com/q191201771/naza/pkg/bele"
-	"github.com/q191201771/naza/pkg/bitrate"
+	"github.com/cfeeling/naza/pkg/bele"
+	"github.com/cfeeling/naza/pkg/bitrate"
 
 	"github.com/cfeeling/lal/pkg/httpflv"
-	"github.com/q191201771/naza/pkg/nazalog"
+	"github.com/cfeeling/naza/pkg/nazalog"
 )
 
 // 分析诊断HTTP-FLV流的时间戳。注意，这个程序还没有完成。

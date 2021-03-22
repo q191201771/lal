@@ -9,7 +9,7 @@
 package mpegts
 
 import (
-	"github.com/q191201771/naza/pkg/nazabits"
+	"github.com/cfeeling/naza/pkg/nazabits"
 )
 
 // ------------------------------------------------

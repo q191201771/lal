@@ -14,7 +14,7 @@ import (
 
 	"github.com/cfeeling/lal/pkg/base"
 	"github.com/cfeeling/lal/pkg/httpflv"
-	log "github.com/q191201771/naza/pkg/nazalog"
+	log "github.com/cfeeling/naza/pkg/nazalog"
 )
 
 // 拉取HTTP-FLV的流

@@ -20,8 +20,8 @@ import (
 	"github.com/cfeeling/lal/pkg/httpflv"
 	"github.com/cfeeling/lal/pkg/remux"
 	"github.com/cfeeling/lal/pkg/rtmp"
-	"github.com/q191201771/naza/pkg/nazalog"
-	"github.com/q191201771/naza/pkg/nazamd5"
+	"github.com/cfeeling/naza/pkg/nazalog"
+	"github.com/cfeeling/naza/pkg/nazamd5"
 )
 
 const detailFilename = "delay.txt"

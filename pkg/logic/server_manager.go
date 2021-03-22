@@ -24,7 +24,7 @@ import (
 
 	"github.com/cfeeling/lal/pkg/httpflv"
 	"github.com/cfeeling/lal/pkg/rtmp"
-	"github.com/q191201771/naza/pkg/nazalog"
+	"github.com/cfeeling/naza/pkg/nazalog"
 )
 
 type ServerManager struct {

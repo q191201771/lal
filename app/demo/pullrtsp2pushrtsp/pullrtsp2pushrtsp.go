@@ -17,7 +17,7 @@ import (
 	"github.com/cfeeling/lal/pkg/base"
 	"github.com/cfeeling/lal/pkg/rtprtcp"
 	"github.com/cfeeling/lal/pkg/rtsp"
-	"github.com/q191201771/naza/pkg/nazalog"
+	"github.com/cfeeling/naza/pkg/nazalog"
 )
 
 var rtpPacketChan = make(chan rtprtcp.RTPPacket, 1024)

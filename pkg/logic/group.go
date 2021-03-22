@@ -17,7 +17,7 @@ import (
 
 	"github.com/cfeeling/lal/pkg/remux"
 
-	"github.com/q191201771/naza/pkg/defertaskthread"
+	"github.com/cfeeling/naza/pkg/defertaskthread"
 
 	"github.com/cfeeling/lal/pkg/rtprtcp"
 
@@ -34,7 +34,7 @@ import (
 
 	"github.com/cfeeling/lal/pkg/httpflv"
 	"github.com/cfeeling/lal/pkg/rtmp"
-	"github.com/q191201771/naza/pkg/nazalog"
+	"github.com/cfeeling/naza/pkg/nazalog"
 )
 
 type Group struct {

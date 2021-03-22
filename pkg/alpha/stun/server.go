@@ -11,8 +11,8 @@ package stun
 import (
 	"net"
 
-	"github.com/q191201771/naza/pkg/nazalog"
-	"github.com/q191201771/naza/pkg/nazanet"
+	"github.com/cfeeling/naza/pkg/nazalog"
+	"github.com/cfeeling/naza/pkg/nazanet"
 )
 
 type Server struct {

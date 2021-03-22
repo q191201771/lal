@@ -14,8 +14,8 @@ import (
 	"github.com/cfeeling/lal/pkg/base"
 
 	"github.com/cfeeling/lal/pkg/rtmp"
-	"github.com/q191201771/naza/pkg/assert"
-	"github.com/q191201771/naza/pkg/nazalog"
+	"github.com/cfeeling/naza/pkg/assert"
+	"github.com/cfeeling/naza/pkg/nazalog"
 )
 
 func TestMetadata(t *testing.T) {

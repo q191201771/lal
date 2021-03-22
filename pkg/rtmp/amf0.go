@@ -17,8 +17,8 @@ import (
 	"errors"
 	"io"
 
-	"github.com/q191201771/naza/pkg/bele"
-	"github.com/q191201771/naza/pkg/nazalog"
+	"github.com/cfeeling/naza/pkg/bele"
+	"github.com/cfeeling/naza/pkg/nazalog"
 )
 
 var (

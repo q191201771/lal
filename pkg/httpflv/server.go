@@ -13,7 +13,7 @@ import (
 	"net"
 	"sync"
 
-	"github.com/q191201771/naza/pkg/nazalog"
+	"github.com/cfeeling/naza/pkg/nazalog"
 )
 
 type ServerObserver interface {

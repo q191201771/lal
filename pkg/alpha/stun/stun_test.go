@@ -15,7 +15,7 @@ import (
 
 	"github.com/cfeeling/lal/pkg/alpha/stun"
 
-	"github.com/q191201771/naza/pkg/nazalog"
+	"github.com/cfeeling/naza/pkg/nazalog"
 )
 
 var serverAddrList = []string{

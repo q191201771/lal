@@ -12,7 +12,7 @@ import (
 	"github.com/cfeeling/lal/pkg/base"
 	"github.com/cfeeling/lal/pkg/remux"
 	"github.com/cfeeling/lal/pkg/rtmp"
-	"github.com/q191201771/naza/pkg/nazalog"
+	"github.com/cfeeling/naza/pkg/nazalog"
 )
 
 // 考虑以下两种场景：

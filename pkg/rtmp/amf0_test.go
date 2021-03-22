@@ -13,11 +13,11 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/q191201771/naza/pkg/nazalog"
+	"github.com/cfeeling/naza/pkg/nazalog"
 
 	. "github.com/cfeeling/lal/pkg/rtmp"
-	"github.com/q191201771/naza/pkg/assert"
-	"github.com/q191201771/naza/pkg/fake"
+	"github.com/cfeeling/naza/pkg/assert"
+	"github.com/cfeeling/naza/pkg/fake"
 )
 
 func TestAmf0_WriteNumber_ReadNumber(t *testing.T) {

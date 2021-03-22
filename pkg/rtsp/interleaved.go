@@ -12,7 +12,7 @@ import (
 	"bufio"
 	"io"
 
-	"github.com/q191201771/naza/pkg/bele"
+	"github.com/cfeeling/naza/pkg/bele"
 )
 
 // rfc2326 10.12 Embedded (Interleaved) Binary Data

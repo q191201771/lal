@@ -13,7 +13,7 @@ import (
 	"testing"
 
 	. "github.com/cfeeling/lal/pkg/rtmp"
-	"github.com/q191201771/naza/pkg/assert"
+	"github.com/cfeeling/naza/pkg/assert"
 )
 
 func TestHandshakeSimple(t *testing.T) {

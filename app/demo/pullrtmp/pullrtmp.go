@@ -24,7 +24,7 @@ import (
 
 	"github.com/cfeeling/lal/pkg/httpflv"
 	"github.com/cfeeling/lal/pkg/rtmp"
-	"github.com/q191201771/naza/pkg/nazalog"
+	"github.com/cfeeling/naza/pkg/nazalog"
 )
 
 // RTMP拉流客户端，从远端服务器拉取RTMP流，存储为本地FLV文件

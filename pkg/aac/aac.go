@@ -11,8 +11,8 @@ package aac
 import (
 	"errors"
 
-	"github.com/q191201771/naza/pkg/nazabits"
-	"github.com/q191201771/naza/pkg/nazalog"
+	"github.com/cfeeling/naza/pkg/nazabits"
+	"github.com/cfeeling/naza/pkg/nazalog"
 )
 
 // AudioSpecificConfig(asc)

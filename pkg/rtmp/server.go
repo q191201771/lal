@@ -11,7 +11,7 @@ package rtmp
 import (
 	"net"
 
-	log "github.com/q191201771/naza/pkg/nazalog"
+	log "github.com/cfeeling/naza/pkg/nazalog"
 )
 
 type ServerObserver interface {

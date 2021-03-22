@@ -16,7 +16,7 @@ import (
 	"github.com/cfeeling/lal/pkg/base"
 
 	"github.com/cfeeling/lal/pkg/httpflv"
-	log "github.com/q191201771/naza/pkg/nazalog"
+	log "github.com/cfeeling/naza/pkg/nazalog"
 )
 
 // 修改flv文件的一些信息（比如某些tag的时间戳）后另存文件

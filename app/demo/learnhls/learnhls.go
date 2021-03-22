@@ -17,9 +17,9 @@ import (
 
 	"github.com/cfeeling/lal/pkg/base"
 
-	"github.com/q191201771/naza/pkg/lru"
-	"github.com/q191201771/naza/pkg/nazahttp"
-	"github.com/q191201771/naza/pkg/nazalog"
+	"github.com/cfeeling/naza/pkg/lru"
+	"github.com/cfeeling/naza/pkg/nazahttp"
+	"github.com/cfeeling/naza/pkg/nazalog"
 )
 
 // 分析诊断HLS的时间戳。注意，这个程序还没有完成。

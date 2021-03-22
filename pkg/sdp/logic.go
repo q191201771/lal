@@ -12,7 +12,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/q191201771/naza/pkg/nazalog"
+	"github.com/cfeeling/naza/pkg/nazalog"
 
 	"github.com/cfeeling/lal/pkg/base"
 )

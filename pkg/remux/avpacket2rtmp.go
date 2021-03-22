@@ -14,7 +14,7 @@ import (
 	"github.com/cfeeling/lal/pkg/base"
 	"github.com/cfeeling/lal/pkg/hevc"
 	"github.com/cfeeling/lal/pkg/rtmp"
-	"github.com/q191201771/naza/pkg/bele"
+	"github.com/cfeeling/naza/pkg/bele"
 )
 
 // @return 返回的内存块为新申请的独立内存块

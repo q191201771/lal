@@ -10,7 +10,7 @@ package rtprtcp
 
 import (
 	"github.com/cfeeling/lal/pkg/hevc"
-	"github.com/q191201771/naza/pkg/nazalog"
+	"github.com/cfeeling/naza/pkg/nazalog"
 )
 
 func calcPositionIfNeededHEVC(pkt *RTPPacket) {

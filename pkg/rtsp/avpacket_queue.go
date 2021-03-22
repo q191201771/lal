@@ -10,7 +10,7 @@ package rtsp
 
 import (
 	"github.com/cfeeling/lal/pkg/base"
-	"github.com/q191201771/naza/pkg/circularqueue"
+	"github.com/cfeeling/naza/pkg/circularqueue"
 )
 
 // 处理音频和视频的时间戳：
