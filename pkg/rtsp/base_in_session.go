@@ -10,10 +10,11 @@ package rtsp
 
 import (
 	"encoding/hex"
-	"github.com/q191201771/naza/pkg/nazaatomic"
 	"net"
 	"sync"
 	"time"
+
+	"github.com/q191201771/naza/pkg/nazaatomic"
 
 	"github.com/q191201771/naza/pkg/nazaerrors"
 	"github.com/q191201771/naza/pkg/nazastring"
@@ -64,18 +65,18 @@ type BaseInSession struct {
 	staleStat    *connection.Stat
 	stat         base.StatSession
 
-	mu           sync.Mutex
-	rawSDP      []byte           // const after set
-	sdpLogicCtx sdp.LogicContext // const after set
+	mu              sync.Mutex
+	rawSDP          []byte           // const after set
+	sdpLogicCtx     sdp.LogicContext // const after set
 	avPacketQueue   *AVPacketQueue
 	audioRRProducer *rtprtcp.RRProducer
 	videoRRProducer *rtprtcp.RRProducer
 
-	audioUnpacker   *rtprtcp.RTPUnpacker
-	videoUnpacker   *rtprtcp.RTPUnpacker
+	audioUnpacker *rtprtcp.RTPUnpacker
+	videoUnpacker *rtprtcp.RTPUnpacker
 
-	audioSSRC       nazaatomic.Uint32
-	videoSSRC       nazaatomic.Uint32
+	audioSSRC nazaatomic.Uint32
+	videoSSRC nazaatomic.Uint32
 
 	// only for debug log
 	debugLogMaxCount        uint32

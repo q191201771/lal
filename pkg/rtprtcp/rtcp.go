@@ -87,8 +87,8 @@ import (
 var ErrRTCP = errors.New("lal.rtcp: fxxk")
 
 const (
-	RTCPPacketTypeSR = 200 // 0xc8 Sender Report
-	RTCPPacketTypeRR = 201 // 0xc9 Receiver Report
+	RTCPPacketTypeSR  = 200 // 0xc8 Sender Report
+	RTCPPacketTypeRR  = 201 // 0xc9 Receiver Report
 	RTCPPacketTypeAPP = 204
 
 	RTCPHeaderLength = 4

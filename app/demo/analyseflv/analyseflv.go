@@ -167,7 +167,7 @@ func main() {
 		}
 	})
 	nazalog.Assert(nil, err)
-	err = <- session.WaitChan()
+	err = <-session.WaitChan()
 	nazalog.Assert(nil, err)
 }
 
