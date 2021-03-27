@@ -28,6 +28,7 @@ LDFlags=" \
 
 echo "build" ${ROOT_DIR}/app/lalserver "..."
 cd ${ROOT_DIR}/app/lalserver && go build -ldflags "$LDFlags" -o ${ROOT_DIR}/${OUT_DIR}/lalserver
+cd ${ROOT_DIR}/app/lalserver && go build -race -ldflags "$LDFlags" -o ${ROOT_DIR}/${OUT_DIR}/lalserver.debug
 
 for file in `ls ${ROOT_DIR}/app/demo`
 do
