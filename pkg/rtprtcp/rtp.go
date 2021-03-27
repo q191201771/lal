@@ -91,7 +91,7 @@ type RTPPacket struct {
 	positionType uint8
 }
 
-func ParseRTPPacket(b []byte) (h RTPHeader, err error) {
+func ParseRTPHeader(b []byte) (h RTPHeader, err error) {
 	if len(b) < RTPFixedHeaderLength {
 		err = ErrRTP
 		return
@@ -108,6 +108,17 @@ func ParseRTPPacket(b []byte) (h RTPHeader, err error) {
 	h.SSRC = bele.BEUint32(b[8:])
 
 	h.payloadOffset = RTPFixedHeaderLength
+	return
+}
+
+// 函数调用结束后，不持有参数<b>的内存块
+func ParseRTPPacket(b []byte) (pkt RTPPacket, err error) {
+	pkt.Header, err = ParseRTPHeader(b)
+	if err != nil {
+		return
+	}
+	pkt.Raw = make([]byte, len(b))
+	copy(pkt.Raw, b)
 	return
 }
 
