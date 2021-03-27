@@ -11,11 +11,10 @@ package logic
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/q191201771/lal/pkg/remux"
 	"os"
 	"strings"
 	"sync"
-
-	"github.com/q191201771/lal/pkg/remux"
 
 	"github.com/q191201771/naza/pkg/defertaskthread"
 
@@ -461,6 +460,12 @@ func (group *Group) HasOutSession() bool {
 	return group.hasOutSession()
 }
 
+func (group *Group) BroadcastRTMP(msg base.RTMPMsg) {
+	group.mutex.Lock()
+	defer group.mutex.Unlock()
+	group.broadcastRTMP(msg)
+}
+
 // hls.Muxer
 func (group *Group) OnTSPackets(rawFrame []byte, boundary bool) {
 	// 因为最前面Feed时已经加锁了，所以这里回调上来就不用加锁了
@@ -479,10 +484,7 @@ func (group *Group) OnTSPackets(rawFrame []byte, boundary bool) {
 
 // rtmp.PubSession or rtmp.PullSession
 func (group *Group) OnReadRTMPAVMsg(msg base.RTMPMsg) {
-	group.mutex.Lock()
-	defer group.mutex.Unlock()
-
-	group.broadcastRTMP(msg)
+	group.BroadcastRTMP(msg)
 }
 
 // rtsp.PubSession
@@ -522,15 +524,13 @@ func (group *Group) OnAVConfig(asc, vps, sps, pps []byte) {
 
 // rtsp.PubSession
 func (group *Group) OnAVPacket(pkt base.AVPacket) {
-	// TODO chef: 这里没有加锁，最起码下面广播前需要加锁
-
 	msg, err := remux.AVPacket2RTMPMsg(pkt)
 	if err != nil {
 		nazalog.Errorf("[%s] remux av packet to rtmp msg failed. err=+%v", group.UniqueKey, err)
 		return
 	}
 
-	group.broadcastRTMP(msg)
+	group.BroadcastRTMP(msg)
 }
 
 func (group *Group) StringifyDebugStats() string {
@@ -1012,7 +1012,7 @@ func (group *Group) disposeHLSMuxer() {
 					streamName := param[1].(string)
 					outPath := param[2].(string)
 
-					if g := sm.getGroup(appName, streamName); g != nil {
+					if g := sm.GetGroup(appName, streamName); g != nil {
 						if g.IsHLSMuxerAlive() {
 							nazalog.Warnf("cancel cleanup hls file path since hls muxer still alive. streamName=%s", streamName)
 							return
