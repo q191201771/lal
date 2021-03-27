@@ -6,6 +6,7 @@ coverage.html
 logs
 testdata
 
+/app/demo/pullds2rtmp
 /pre-commit.sh
 /coverage.txt
 /TODO.md
