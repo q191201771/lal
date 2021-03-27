@@ -166,7 +166,9 @@ func main() {
 			prevTS = int64(tag.Header.Timestamp)
 		}
 	})
-	nazalog.Warn(err)
+	nazalog.Assert(nil, err)
+	err = <- session.WaitChan()
+	nazalog.Assert(nil, err)
 }
 
 const (

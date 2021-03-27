@@ -40,6 +40,8 @@ func main() {
 		}
 	})
 	nazalog.Assert(nil, err)
+	err = <- session.WaitChan()
+	nazalog.Assert(nil, err)
 }
 
 func parseFlag() string {
