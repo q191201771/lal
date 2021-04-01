@@ -11,7 +11,6 @@ package rtsp
 import (
 	"encoding/hex"
 	"net"
-	"sync/atomic"
 	"time"
 
 	"github.com/q191201771/lal/pkg/rtprtcp"
@@ -26,7 +25,7 @@ import (
 )
 
 type BaseOutSession struct {
-	UniqueKey  string
+	uniqueKey  string
 	cmdSession IInterleavedPacketWriter
 
 	rawSDP      []byte
@@ -42,7 +41,7 @@ type BaseOutSession struct {
 	videoRTCPChannel int
 
 	stat         base.StatSession
-	currConnStat connection.Stat
+	currConnStat connection.StatAtomic
 	prevConnStat connection.Stat
 	staleStat    *connection.Stat
 
@@ -55,7 +54,7 @@ type BaseOutSession struct {
 
 func NewBaseOutSession(uniqueKey string, cmdSession IInterleavedPacketWriter) *BaseOutSession {
 	s := &BaseOutSession{
-		UniqueKey:  uniqueKey,
+		uniqueKey:  uniqueKey,
 		cmdSession: cmdSession,
 		stat: base.StatSession{
 			Protocol:  base.ProtocolRTSP,
@@ -107,7 +106,7 @@ func (session *BaseOutSession) SetupWithChannel(uri string, rtpChannel, rtcpChan
 }
 
 func (session *BaseOutSession) Dispose() error {
-	nazalog.Infof("[%s] lifecycle dispose rtsp BaseOutSession. session=%p", session.UniqueKey, session)
+	nazalog.Infof("[%s] lifecycle dispose rtsp BaseOutSession. session=%p", session.uniqueKey, session)
 	var e1, e2, e3, e4 error
 	if session.audioRTPConn != nil {
 		e1 = session.audioRTPConn.Dispose()
@@ -129,24 +128,24 @@ func (session *BaseOutSession) HandleInterleavedPacket(b []byte, channel int) {
 	case session.audioRTPChannel:
 		fallthrough
 	case session.videoRTPChannel:
-		nazalog.Warnf("[%s] not supposed to read packet in rtp channel of BaseOutSession. channel=%d, len=%d", session.UniqueKey, channel, len(b))
+		nazalog.Warnf("[%s] not supposed to read packet in rtp channel of BaseOutSession. channel=%d, len=%d", session.uniqueKey, channel, len(b))
 	case session.audioRTCPChannel:
 		fallthrough
 	case session.videoRTCPChannel:
-		nazalog.Debugf("[%s] read interleaved rtcp packet. b=%s", session.UniqueKey, hex.Dump(nazastring.SubSliceSafety(b, 32)))
+		nazalog.Debugf("[%s] read interleaved rtcp packet. b=%s", session.uniqueKey, hex.Dump(nazastring.SubSliceSafety(b, 32)))
 	default:
-		nazalog.Errorf("[%s] read interleaved packet but channel invalid. channel=%d", session.UniqueKey, channel)
+		nazalog.Errorf("[%s] read interleaved packet but channel invalid. channel=%d", session.uniqueKey, channel)
 	}
 }
 
 func (session *BaseOutSession) WriteRTPPacket(packet rtprtcp.RTPPacket) {
-	atomic.AddUint64(&session.currConnStat.WroteBytesSum, uint64(len(packet.Raw)))
+	session.currConnStat.WroteBytesSum.Add(uint64(len(packet.Raw)))
 
 	// 发送数据时，保证和sdp的原始类型对应
 	t := int(packet.Header.PacketType)
 	if session.sdpLogicCtx.IsAudioPayloadTypeOrigin(t) {
 		if session.loggedWriteAudioRTPCount < session.debugLogMaxCount {
-			nazalog.Debugf("[%s] LOGPACKET. write audio rtp=%+v", session.UniqueKey, packet.Header)
+			nazalog.Debugf("[%s] LOGPACKET. write audio rtp=%+v", session.uniqueKey, packet.Header)
 			session.loggedWriteAudioRTPCount++
 		}
 
@@ -158,7 +157,7 @@ func (session *BaseOutSession) WriteRTPPacket(packet rtprtcp.RTPPacket) {
 		}
 	} else if session.sdpLogicCtx.IsVideoPayloadTypeOrigin(t) {
 		if session.loggedWriteVideoRTPCount < session.debugLogMaxCount {
-			nazalog.Debugf("[%s] LOGPACKET. write video rtp=%+v", session.UniqueKey, packet.Header)
+			nazalog.Debugf("[%s] LOGPACKET. write video rtp=%+v", session.uniqueKey, packet.Header)
 			session.loggedWriteVideoRTPCount++
 		}
 
@@ -169,31 +168,31 @@ func (session *BaseOutSession) WriteRTPPacket(packet rtprtcp.RTPPacket) {
 			_ = session.cmdSession.WriteInterleavedPacket(packet.Raw, session.videoRTPChannel)
 		}
 	} else {
-		nazalog.Errorf("[%s] write rtp packet but type invalid. type=%d", session.UniqueKey, t)
+		nazalog.Errorf("[%s] write rtp packet but type invalid. type=%d", session.uniqueKey, t)
 	}
 }
 
 func (session *BaseOutSession) GetStat() base.StatSession {
-	session.stat.ReadBytesSum = atomic.LoadUint64(&session.currConnStat.ReadBytesSum)
-	session.stat.WroteBytesSum = atomic.LoadUint64(&session.currConnStat.WroteBytesSum)
+	session.stat.ReadBytesSum = session.currConnStat.ReadBytesSum.Load()
+	session.stat.WroteBytesSum = session.currConnStat.WroteBytesSum.Load()
 	return session.stat
 }
 
-func (session *BaseOutSession) UpdateStat(interval uint32) {
-	readBytesSum := atomic.LoadUint64(&session.currConnStat.ReadBytesSum)
-	wroteBytesSum := atomic.LoadUint64(&session.currConnStat.WroteBytesSum)
+func (session *BaseOutSession) UpdateStat(intervalSec uint32) {
+	readBytesSum := session.currConnStat.ReadBytesSum.Load()
+	wroteBytesSum := session.currConnStat.WroteBytesSum.Load()
 	rDiff := readBytesSum - session.prevConnStat.ReadBytesSum
-	session.stat.ReadBitrate = int(rDiff * 8 / 1024 / uint64(interval))
+	session.stat.ReadBitrate = int(rDiff * 8 / 1024 / uint64(intervalSec))
 	wDiff := wroteBytesSum - session.prevConnStat.WroteBytesSum
-	session.stat.WriteBitrate = int(wDiff * 8 / 1024 / uint64(interval))
+	session.stat.WriteBitrate = int(wDiff * 8 / 1024 / uint64(intervalSec))
 	session.stat.Bitrate = session.stat.WriteBitrate
 	session.prevConnStat.ReadBytesSum = readBytesSum
 	session.prevConnStat.WroteBytesSum = wroteBytesSum
 }
 
 func (session *BaseOutSession) IsAlive() (readAlive, writeAlive bool) {
-	readBytesSum := atomic.LoadUint64(&session.currConnStat.ReadBytesSum)
-	wroteBytesSum := atomic.LoadUint64(&session.currConnStat.WroteBytesSum)
+	readBytesSum := session.currConnStat.ReadBytesSum.Load()
+	wroteBytesSum := session.currConnStat.WroteBytesSum.Load()
 	if session.staleStat == nil {
 		session.staleStat = new(connection.Stat)
 		session.staleStat.ReadBytesSum = readBytesSum
@@ -208,11 +207,15 @@ func (session *BaseOutSession) IsAlive() (readAlive, writeAlive bool) {
 	return
 }
 
+func (session *BaseOutSession) UniqueKey() string {
+	return session.uniqueKey
+}
+
 func (session *BaseOutSession) onReadUDPPacket(b []byte, rAddr *net.UDPAddr, err error) bool {
 	// TODO chef: impl me
 
 	if session.loggedReadUDPCount < session.debugLogMaxCount {
-		nazalog.Debugf("[%s] LOGPACKET. read udp=%s", session.UniqueKey, hex.Dump(nazastring.SubSliceSafety(b, 32)))
+		nazalog.Debugf("[%s] LOGPACKET. read udp=%s", session.uniqueKey, hex.Dump(nazastring.SubSliceSafety(b, 32)))
 		session.loggedReadUDPCount++
 	}
 	return true

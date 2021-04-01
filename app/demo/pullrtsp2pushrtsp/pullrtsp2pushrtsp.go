@@ -84,11 +84,11 @@ func main() {
 
 	for {
 		select {
-		case err = <-pullSession.Wait():
+		case err = <-pullSession.WaitChan():
 			nazalog.Infof("< pullSession.Wait(). err=%+v", err)
 			time.Sleep(1 * time.Second) // 不让程序立即退出，只是为了测试session内部资源是否正常及时释放
 			return
-		case err = <-pushSession.Wait():
+		case err = <-pushSession.WaitChan():
 			nazalog.Infof("< pushSession.Wait(). err=%+v", err)
 			time.Sleep(1 * time.Second)
 			return

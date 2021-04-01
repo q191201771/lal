@@ -19,6 +19,11 @@ import (
 )
 
 func main() {
+	_ = nazalog.Init(func(option *nazalog.Option) {
+		option.AssertBehavior = nazalog.AssertFatal
+	})
+	defer nazalog.Sync()
+
 	i := flag.String("i", "", "specify pull rtmp url")
 	o := flag.String("o", "", "specify push rtmp url list, separated by a comma")
 	flag.Parse()

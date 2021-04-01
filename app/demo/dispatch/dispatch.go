@@ -198,6 +198,11 @@ func logHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func main() {
+	_ = nazalog.Init(func(option *nazalog.Option) {
+		option.AssertBehavior = nazalog.AssertFatal
+	})
+	defer nazalog.Sync()
+
 	dataManager = datamanager.NewDataManager(datamanager.DMTMemory, config.ServerTimeoutSec)
 
 	l, err := net.Listen("tcp", config.ListenAddr)

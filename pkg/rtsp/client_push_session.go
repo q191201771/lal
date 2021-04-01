@@ -28,7 +28,7 @@ var defaultPushSessionOption = PushSessionOption{
 }
 
 type PushSession struct {
-	UniqueKey      string
+	uniqueKey      string
 	cmdSession     *ClientCommandSession
 	baseOutSession *BaseOutSession
 }
@@ -41,9 +41,9 @@ func NewPushSession(modOptions ...ModPushSessionOption) *PushSession {
 		fn(&option)
 	}
 
-	uk := base.GenUniqueKey(base.UKPRTSPPushSession)
+	uk := base.GenUKRTSPPushSession()
 	s := &PushSession{
-		UniqueKey: uk,
+		uniqueKey: uk,
 	}
 	cmdSession := NewClientCommandSession(CCSTPushSession, uk, s, func(opt *ClientCommandSessionOption) {
 		opt.DoTimeoutMS = option.PushTimeoutMS
@@ -56,50 +56,69 @@ func NewPushSession(modOptions ...ModPushSessionOption) *PushSession {
 	return s
 }
 
+// 阻塞直到和对端完成推流前，握手部分的工作（也即收到RTSP Record response），或者发生错误
 func (session *PushSession) Push(rawURL string, rawSDP []byte, sdpLogicCtx sdp.LogicContext) error {
-	nazalog.Debugf("[%s] push. url=%s", session.UniqueKey, rawURL)
+	nazalog.Debugf("[%s] push. url=%s", session.uniqueKey, rawURL)
 	session.cmdSession.InitWithSDP(rawSDP, sdpLogicCtx)
 	session.baseOutSession.InitWithSDP(rawSDP, sdpLogicCtx)
 	return session.cmdSession.Do(rawURL)
-}
-
-func (session *PushSession) Wait() <-chan error {
-	return session.cmdSession.Wait()
 }
 
 func (session *PushSession) WriteRTPPacket(packet rtprtcp.RTPPacket) {
 	session.baseOutSession.WriteRTPPacket(packet)
 }
 
+// 文档请参考： interface IClientSessionLifecycle
 func (session *PushSession) Dispose() error {
-	nazalog.Infof("[%s] lifecycle dispose rtsp PushSession. session=%p", session.UniqueKey, session)
+	nazalog.Infof("[%s] lifecycle dispose rtsp PushSession. session=%p", session.uniqueKey, session)
 	e1 := session.cmdSession.Dispose()
 	e2 := session.baseOutSession.Dispose()
 	return nazaerrors.CombineErrors(e1, e2)
 }
 
+// 文档请参考： interface IClientSessionLifecycle
+func (session *PushSession) WaitChan() <-chan error {
+	return session.cmdSession.WaitChan()
+}
+
+// 文档请参考： interface ISessionURLContext
+func (session *PushSession) URL() string {
+	return session.cmdSession.URL()
+}
+
+// 文档请参考： interface ISessionURLContext
 func (session *PushSession) AppName() string {
 	return session.cmdSession.AppName()
 }
 
+// 文档请参考： interface ISessionURLContext
 func (session *PushSession) StreamName() string {
 	return session.cmdSession.StreamName()
 }
 
+// 文档请参考： interface ISessionURLContext
 func (session *PushSession) RawQuery() string {
 	return session.cmdSession.RawQuery()
 }
 
+// 文档请参考： interface IObject
+func (session *PushSession) UniqueKey() string {
+	return session.uniqueKey
+}
+
+// 文档请参考： interface ISessionStat
 func (session *PushSession) GetStat() base.StatSession {
 	stat := session.baseOutSession.GetStat()
 	stat.RemoteAddr = session.cmdSession.RemoteAddr()
 	return stat
 }
 
-func (session *PushSession) UpdateStat(interval uint32) {
-	session.baseOutSession.UpdateStat(interval)
+// 文档请参考： interface ISessionStat
+func (session *PushSession) UpdateStat(intervalSec uint32) {
+	session.baseOutSession.UpdateStat(intervalSec)
 }
 
+// 文档请参考： interface ISessionStat
 func (session *PushSession) IsAlive() (readAlive, writeAlive bool) {
 	return session.baseOutSession.IsAlive()
 }

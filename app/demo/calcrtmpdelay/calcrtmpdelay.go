@@ -12,6 +12,7 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"strings"
 	"sync"
 	"time"
 
@@ -25,29 +26,63 @@ import (
 
 const detailFilename = "delay.txt"
 
+type PullType int
+
+const (
+	PullTypeUnknown PullType = iota
+	PullTypeRTMP
+	PullTypeHTTPFLV
+)
+
+func (pt PullType) Readable() string {
+	switch pt {
+	case PullTypeUnknown:
+		return "unknown"
+	case PullTypeRTMP:
+		return "rtmp"
+	case PullTypeHTTPFLV:
+		return "httpflv"
+	}
+
+	// never reach here
+	return "fxxk"
+}
+
 func main() {
+	_ = nazalog.Init(func(option *nazalog.Option) {
+		option.AssertBehavior = nazalog.AssertFatal
+	})
+	defer nazalog.Sync()
+
 	tagKey2writeTime := make(map[string]time.Time)
 	var delays []int64
 	var mu sync.Mutex
 
-	_ = nazalog.Init(func(option *nazalog.Option) {
-		option.AssertBehavior = nazalog.AssertFatal
-	})
-	filename, pushURL, pullURL := parseFlag()
+	filename, pushURL, pullURL, pullType := parseFlag()
+	nazalog.Infof("parse flag succ. filename=%s, pushURL=%s, pullURL=%s, pullType=%s",
+		filename, pushURL, pullURL, pullType.Readable())
 
 	tags, err := httpflv.ReadAllTagsFromFLVFile(filename)
-	nazalog.Assert(nil, err)
+	if err != nil {
+		nazalog.Fatalf("read tags from flv file failed. err=%+v", err)
+	}
 	nazalog.Infof("read tags from flv file succ. len of tags=%d", len(tags))
 
-	pushSession := rtmp.NewPushSession()
+	pushSession := rtmp.NewPushSession(func(option *rtmp.PushSessionOption) {
+		option.PushTimeoutMS = 10000
+	})
 	err = pushSession.Push(pushURL)
-	nazalog.Assert(nil, err)
-	nazalog.Info("push succ.")
-	//defer pushSession.Dispose()
+	if err != nil {
+		nazalog.Fatalf("push rtmp failed. url=%s, err=%+v", pushURL, err)
+	}
+	nazalog.Info("push rtmp succ.")
+	defer pushSession.Dispose()
 
-	pullSession := rtmp.NewPullSession()
-	err = pullSession.Pull(pullURL, func(msg base.RTMPMsg) {
-		tagKey := nazamd5.MD5(msg.Payload)
+	var rtmpPullSession *rtmp.PullSession
+	var httpflvPullSession *httpflv.PullSession
+
+	handleReadPayloadFn := func(payload []byte) {
+		tagKey := nazamd5.MD5(payload)
 		mu.Lock()
 		t, exist := tagKey2writeTime[tagKey]
 		if !exist {
@@ -58,17 +93,45 @@ func main() {
 			delete(tagKey2writeTime, tagKey)
 		}
 		mu.Unlock()
-	})
-	nazalog.Assert(nil, err)
-	nazalog.Info("pull succ.")
-	//defer pullSession.Dispose()
+	}
+
+	switch pullType {
+	case PullTypeHTTPFLV:
+		httpflvPullSession = httpflv.NewPullSession()
+		err = httpflvPullSession.Pull(pullURL, func(tag httpflv.Tag) {
+			handleReadPayloadFn(tag.Payload())
+		})
+		if err != nil {
+			nazalog.Fatalf("pull flv failed. err=%+v", err)
+		}
+		nazalog.Info("pull flv succ.")
+		defer httpflvPullSession.Dispose()
+	case PullTypeRTMP:
+		rtmpPullSession = rtmp.NewPullSession()
+		err = rtmpPullSession.Pull(pullURL, func(msg base.RTMPMsg) {
+			handleReadPayloadFn(msg.Payload)
+		})
+		if err != nil {
+			nazalog.Fatalf("pull rtmp failed. err=%+v", err)
+		}
+		nazalog.Info("pull rtmp succ.")
+		defer rtmpPullSession.Dispose()
+	}
 
 	go func() {
 		for {
 			time.Sleep(5 * time.Second)
 			pushSession.UpdateStat(1)
-			pullSession.UpdateStat(1)
-			nazalog.Debugf("stat bitrate. push=%+v, pull=%+v", pushSession.GetStat().Bitrate, pullSession.GetStat().Bitrate)
+			var pullBitrate int
+			switch pullType {
+			case PullTypeRTMP:
+				rtmpPullSession.UpdateStat(1)
+				pullBitrate = rtmpPullSession.GetStat().Bitrate
+			case PullTypeHTTPFLV:
+				httpflvPullSession.UpdateStat(1)
+				pullBitrate = httpflvPullSession.GetStat().Bitrate
+			}
+			nazalog.Debugf("stat bitrate. push=%+v, pull=%+v", pushSession.GetStat().Bitrate, pullBitrate)
 		}
 	}()
 
@@ -91,10 +154,14 @@ func main() {
 		tagKey2writeTime[tagKey] = time.Now()
 		mu.Unlock()
 
-		err = pushSession.AsyncWrite(chunks)
-		nazalog.Assert(nil, err)
+		err = pushSession.Write(chunks)
+		if err != nil {
+			nazalog.Fatalf("write failed. err=%+v", err)
+		}
 		//nazalog.Debugf("sent. %d", i)
 	}
+	_ = pushSession.Flush()
+	time.Sleep(300 * time.Millisecond)
 
 	min := int64(2147483647)
 	max := int64(0)
@@ -118,17 +185,28 @@ func main() {
 	nazalog.Debugf("len(tagKey2writeTime)=%d, delays(len=%d, avg=%d, min=%d, max=%d), detailFilename=%s", len(tagKey2writeTime), len(delays), avg, min, max, detailFilename)
 }
 
-func parseFlag() (filename, pushURL, pullURL string) {
+func parseFlag() (filename, pushURL, pullURL string, pullType PullType) {
 	f := flag.String("f", "", "specify flv file")
-	i := flag.String("i", "", "specify rtmp pull url")
-	o := flag.String("o", "", "specify rtmp push url")
+	o := flag.String("o", "", "specify rtmp/httpflv push url")
+	i := flag.String("i", "", "specify rtmp/httpflv pull url")
 	flag.Parse()
-	if *f == "" || *i == "" || *o == "" {
+	if strings.HasPrefix(*i, "rtmp") {
+		pullType = PullTypeRTMP
+	} else if strings.HasSuffix(*i, ".flv") {
+		pullType = PullTypeHTTPFLV
+	} else {
+		pullType = PullTypeUnknown
+	}
+	if *f == "" || *i == "" || *o == "" || pullType == PullTypeUnknown {
 		flag.Usage()
 		_, _ = fmt.Fprintf(os.Stderr, `Example:
-  %s -f test.flv -i rtmp://127.0.0.1:1935/live/test -o rtmp://127.0.0.1:1935/live/test
-`, os.Args[0])
+  %s -f test.flv -o rtmp://127.0.0.1:1935/live/test -i rtmp://127.0.0.1:1935/live/test
+  %s -f test.flv -o rtmp://127.0.0.1:1935/live/test -i http://127.0.0.1:8080/live/test.flv
+`, os.Args[0], os.Args[0])
 		base.OSExitAndWaitPressIfWindows(1)
 	}
-	return *f, *i, *o
+	filename = *f
+	pushURL = *o
+	pullURL = *i
+	return
 }

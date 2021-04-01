@@ -118,7 +118,7 @@ func (t *Tunnel) Start() (ret ErrorCode) {
 					nazalog.Debugf("[%s] > pull event loop. %s", t.uk, t.pullSession.UniqueKey())
 					for {
 						select {
-						case err := <-t.pullSession.Wait():
+						case err := <-t.pullSession.WaitChan():
 							t.notifyPullEC(ErrorCode{-1, err})
 							nazalog.Debugf("[%s] < pull event loop. %s", t.uk, t.pullSession.UniqueKey())
 							return
@@ -133,7 +133,7 @@ func (t *Tunnel) Start() (ret ErrorCode) {
 					nazalog.Debugf("[%s] > push event loop. %s", t.uk, s.UniqueKey())
 					for {
 						select {
-						case err := <-s.Wait():
+						case err := <-s.WaitChan():
 							nazalog.Errorf("[%s] push wait error. [%s] err=%+v", t.uk, s.UniqueKey(), err)
 							t.notifyPushEC(ErrorCode{ii, err})
 							nazalog.Debugf("[%s] < push event loop. %s", t.uk, s.UniqueKey())
@@ -171,7 +171,7 @@ func (t *Tunnel) Start() (ret ErrorCode) {
 					}
 
 					for i, pushSession := range t.pushSessionList {
-						err := pushSession.AsyncWrite(chunks)
+						err := pushSession.Write(chunks)
 						if err != nil {
 							nazalog.Errorf("[%s] exit main event loop, write error. err=%+v", t.uk, err)
 							t.notifyWait(ErrorCode{i, err})

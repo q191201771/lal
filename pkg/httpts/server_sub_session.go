@@ -25,7 +25,7 @@ import (
 var tsHTTPResponseHeader []byte
 
 type SubSession struct {
-	UniqueKey string
+	uniqueKey string
 	IsFresh   bool
 
 	scheme string
@@ -41,9 +41,9 @@ type SubSession struct {
 }
 
 func NewSubSession(conn net.Conn, scheme string) *SubSession {
-	uk := base.GenUniqueKey(base.UKPTSSubSession)
+	uk := base.GenUKTSSubSession()
 	s := &SubSession{
-		UniqueKey: uk,
+		uniqueKey: uk,
 		scheme:    scheme,
 		IsFresh:   true,
 		conn: connection.New(conn, func(option *connection.Option) {
@@ -92,12 +92,12 @@ func (session *SubSession) RunLoop() error {
 }
 
 func (session *SubSession) WriteHTTPResponseHeader() {
-	nazalog.Debugf("[%s] > W http response header.", session.UniqueKey)
+	nazalog.Debugf("[%s] > W http response header.", session.uniqueKey)
 	session.WriteRawPacket(tsHTTPResponseHeader)
 }
 
 func (session *SubSession) WriteFragmentHeader() {
-	nazalog.Debugf("[%s] > W http response header.", session.UniqueKey)
+	nazalog.Debugf("[%s] > W http response header.", session.uniqueKey)
 	session.WriteRawPacket(mpegts.FixedFragmentHeader)
 }
 
@@ -105,17 +105,17 @@ func (session *SubSession) WriteRawPacket(pkt []byte) {
 	_, _ = session.conn.Write(pkt)
 }
 
-func (session *SubSession) Dispose() {
-	nazalog.Infof("[%s] lifecycle dispose httpts SubSession.", session.UniqueKey)
-	_ = session.conn.Close()
+func (session *SubSession) Dispose() error {
+	nazalog.Infof("[%s] lifecycle dispose httpts SubSession.", session.uniqueKey)
+	return session.conn.Close()
 }
 
-func (session *SubSession) UpdateStat(interval uint32) {
+func (session *SubSession) UpdateStat(intervalSec uint32) {
 	currStat := session.conn.GetStat()
 	rDiff := currStat.ReadBytesSum - session.prevConnStat.ReadBytesSum
-	session.stat.ReadBitrate = int(rDiff * 8 / 1024 / uint64(interval))
+	session.stat.ReadBitrate = int(rDiff * 8 / 1024 / uint64(intervalSec))
 	wDiff := currStat.WroteBytesSum - session.prevConnStat.WroteBytesSum
-	session.stat.WriteBitrate = int(wDiff * 8 / 1024 / uint64(interval))
+	session.stat.WriteBitrate = int(wDiff * 8 / 1024 / uint64(intervalSec))
 	session.stat.Bitrate = session.stat.WriteBitrate
 	session.prevConnStat = currStat
 }
@@ -157,8 +157,8 @@ func (session *SubSession) RawQuery() string {
 	return session.urlCtx.RawQuery
 }
 
-func (session *SubSession) RemoteAddr() string {
-	return session.conn.RemoteAddr().String()
+func (session *SubSession) UniqueKey() string {
+	return session.uniqueKey
 }
 
 func init() {

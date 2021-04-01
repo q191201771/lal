@@ -27,7 +27,7 @@ type PullSessionOption struct {
 }
 
 var defaultPullSessionOption = PullSessionOption{
-	PullTimeoutMS:   0,
+	PullTimeoutMS:   10000,
 	ReadAVTimeoutMS: 0,
 }
 
@@ -47,7 +47,7 @@ func NewPullSession(modOptions ...ModPullSessionOption) *PullSession {
 	}
 }
 
-// 如果没有发生错误，阻塞直到到接收音视频数据的前一步，也即收到服务端返回的rtmp play对应结果的信令
+// 阻塞直到和对端完成拉流前，握手部分的工作（也即收到RTMP Play response），或者发生错误
 //
 // @param onReadRTMPAVMsg: 注意，回调结束后，内存块会被PullSession重复使用
 func (s *PullSession) Pull(rawURL string, onReadRTMPAVMsg OnReadRTMPAVMsg) error {
@@ -55,39 +55,52 @@ func (s *PullSession) Pull(rawURL string, onReadRTMPAVMsg OnReadRTMPAVMsg) error
 	return s.core.Do(rawURL)
 }
 
-// Pull成功后，调用该函数，可阻塞直到拉流结束
-func (s *PullSession) Wait() <-chan error {
-	return s.core.Wait()
+// 文档请参考： interface IClientSessionLifecycle
+func (s *PullSession) Dispose() error {
+	return s.core.Dispose()
 }
 
-func (s *PullSession) Dispose() {
-	s.core.Dispose()
+// 文档请参考： interface IClientSessionLifecycle
+func (s *PullSession) WaitChan() <-chan error {
+	return s.core.WaitChan()
 }
 
-func (s *PullSession) UniqueKey() string {
-	return s.core.UniqueKey
+// 文档请参考： interface ISessionURLContext
+func (s *PullSession) URL() string {
+	return s.core.URL()
 }
 
+// 文档请参考： interface ISessionURLContext
 func (s *PullSession) AppName() string {
 	return s.core.AppName()
 }
 
+// 文档请参考： interface ISessionURLContext
 func (s *PullSession) StreamName() string {
 	return s.core.StreamName()
 }
 
+// 文档请参考： interface ISessionURLContext
 func (s *PullSession) RawQuery() string {
 	return s.core.RawQuery()
 }
 
+// 文档请参考： interface IObject
+func (s *PullSession) UniqueKey() string {
+	return s.core.uniqueKey
+}
+
+// 文档请参考： interface ISessionStat
 func (s *PullSession) GetStat() base.StatSession {
 	return s.core.GetStat()
 }
 
-func (s *PullSession) UpdateStat(interval uint32) {
-	s.core.UpdateStat(interval)
+// 文档请参考： interface ISessionStat
+func (s *PullSession) UpdateStat(intervalSec uint32) {
+	s.core.UpdateStat(intervalSec)
 }
 
+// 文档请参考： interface ISessionStat
 func (s *PullSession) IsAlive() (readAlive, writeAlive bool) {
 	return s.core.IsAlive()
 }

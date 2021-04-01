@@ -63,7 +63,7 @@ type ClientCommandSessionObserver interface {
 // Push和Pull共用，封装了客户端底层信令信令部分。
 // 业务方应该使用PushSession和PullSession，而不是直接使用ClientCommandSession，除非你确定要这么做。
 type ClientCommandSession struct {
-	UniqueKey string
+	uniqueKey string
 	t         ClientCommandSessionType
 	observer  ClientCommandSessionObserver
 	option    ClientCommandSessionOption
@@ -82,7 +82,7 @@ type ClientCommandSession struct {
 	sessionID string
 	channel   int
 
-	waitErrChan chan error
+	waitChan chan error
 }
 
 type ModClientCommandSessionOption func(option *ClientCommandSessionOption)
@@ -93,11 +93,11 @@ func NewClientCommandSession(t ClientCommandSessionType, uniqueKey string, obser
 		fn(&option)
 	}
 	s := &ClientCommandSession{
-		t:           t,
-		UniqueKey:   uniqueKey,
-		observer:    observer,
-		option:      option,
-		waitErrChan: make(chan error, 1),
+		t:         t,
+		uniqueKey: uniqueKey,
+		observer:  observer,
+		option:    option,
+		waitChan:  make(chan error, 1),
 	}
 	nazalog.Infof("[%s] lifecycle new rtsp ClientCommandSession. session=%p", uniqueKey, s)
 	return s
@@ -123,25 +123,35 @@ func (session *ClientCommandSession) Do(rawURL string) error {
 	return session.doContext(ctx, rawURL)
 }
 
-func (session *ClientCommandSession) Wait() <-chan error {
-	return session.waitErrChan
+func (session *ClientCommandSession) WaitChan() <-chan error {
+	return session.waitChan
 }
 
 func (session *ClientCommandSession) Dispose() error {
-	nazalog.Infof("[%s] lifecycle dispose rtsp ClientCommandSession. session=%p", session.UniqueKey, session)
+	nazalog.Infof("[%s] lifecycle dispose rtsp ClientCommandSession. session=%p", session.uniqueKey, session)
 	if session.conn == nil {
-		return nil
+		return base.ErrSessionNotStarted
 	}
 	return session.conn.Close()
 }
 
 func (session *ClientCommandSession) WriteInterleavedPacket(packet []byte, channel int) error {
+	if session.conn == nil {
+		return base.ErrSessionNotStarted
+	}
 	_, err := session.conn.Write(packInterleaved(channel, packet))
 	return err
 }
 
 func (session *ClientCommandSession) RemoteAddr() string {
+	if session.conn == nil {
+		return ""
+	}
 	return session.conn.RemoteAddr().String()
+}
+
+func (session *ClientCommandSession) URL() string {
+	return session.urlCtx.URL
 }
 
 func (session *ClientCommandSession) AppName() string {
@@ -154,6 +164,10 @@ func (session *ClientCommandSession) StreamName() string {
 
 func (session *ClientCommandSession) RawQuery() string {
 	return session.urlCtx.RawQuery
+}
+
+func (session *ClientCommandSession) UniqueKey() string {
+	return session.uniqueKey
 }
 
 func (session *ClientCommandSession) doContext(ctx context.Context, rawURL string) error {
@@ -229,7 +243,7 @@ func (session *ClientCommandSession) runReadLoop() {
 			for {
 				isInterleaved, packet, channel, err := readInterleaved(r)
 				if err != nil {
-					session.waitErrChan <- err
+					session.waitChan <- err
 					return
 				}
 				if isInterleaved {
@@ -242,13 +256,13 @@ func (session *ClientCommandSession) runReadLoop() {
 		// 接收TCP对端关闭FIN信号
 		dummy := make([]byte, 1)
 		_, err := session.conn.Read(dummy)
-		session.waitErrChan <- err
+		session.waitChan <- err
 		return
 	}
 
 	// 对端支持get_parameter，需要定时向对端发送get_parameter进行保活
 
-	nazalog.Debugf("[%s] start get_parameter timer.", session.UniqueKey)
+	nazalog.Debugf("[%s] start get_parameter timer.", session.uniqueKey)
 	var r = bufio.NewReader(session.conn)
 	t := time.NewTicker(writeGetParameterIntervalMSec * time.Millisecond)
 	defer t.Stop()
@@ -259,7 +273,7 @@ func (session *ClientCommandSession) runReadLoop() {
 			case <-t.C:
 				session.cseq++
 				if err := session.writeCmd(MethodGetParameter, session.urlCtx.RawURLWithoutUserInfo, nil, ""); err != nil {
-					session.waitErrChan <- err
+					session.waitChan <- err
 					return
 				}
 			default:
@@ -268,14 +282,14 @@ func (session *ClientCommandSession) runReadLoop() {
 
 			isInterleaved, packet, channel, err := readInterleaved(r)
 			if err != nil {
-				session.waitErrChan <- err
+				session.waitChan <- err
 				return
 			}
 			if isInterleaved {
 				session.observer.OnInterleavedPacket(packet, int(channel))
 			} else {
 				if _, err := nazahttp.ReadHTTPResponseMessage(r); err != nil {
-					session.waitErrChan <- err
+					session.waitChan <- err
 					return
 				}
 			}
@@ -288,7 +302,7 @@ func (session *ClientCommandSession) runReadLoop() {
 		case <-t.C:
 			session.cseq++
 			if _, err := session.writeCmdReadResp(MethodGetParameter, session.urlCtx.RawURLWithoutUserInfo, nil, ""); err != nil {
-				session.waitErrChan <- err
+				session.waitChan <- err
 				return
 			}
 		default:
@@ -306,7 +320,7 @@ func (session *ClientCommandSession) connect(rawURL string) (err error) {
 		return err
 	}
 
-	nazalog.Debugf("[%s] > tcp connect.", session.UniqueKey)
+	nazalog.Debugf("[%s] > tcp connect.", session.uniqueKey)
 
 	// # 建立连接
 	conn, err := net.Dial("tcp", session.urlCtx.HostWithPort)
@@ -316,7 +330,7 @@ func (session *ClientCommandSession) connect(rawURL string) (err error) {
 	session.conn = connection.New(conn, func(option *connection.Option) {
 		option.ReadBufSize = readBufSize
 	})
-	nazalog.Debugf("[%s] < tcp connect. laddr=%s, raddr=%s", session.UniqueKey, conn.LocalAddr().String(), conn.RemoteAddr().String())
+	nazalog.Debugf("[%s] < tcp connect. laddr=%s, raddr=%s", session.uniqueKey, conn.LocalAddr().String(), conn.RemoteAddr().String())
 
 	session.observer.OnConnectResult()
 	return nil
@@ -422,7 +436,7 @@ func (session *ClientCommandSession) writeOneSetup(setupURI string) error {
 	}
 
 	nazalog.Debugf("[%s] init conn. lRTPPort=%d, lRTCPPort=%d, rRTPPort=%d, rRTCPPort=%d",
-		session.UniqueKey, lRTPPort, lRTCPPort, rRTPPort, rRTCPPort)
+		session.uniqueKey, lRTPPort, lRTCPPort, rRTPPort, rRTCPPort)
 
 	rtpConn, err := nazanet.NewUDPConnection(func(option *nazanet.UDPConnectionOption) {
 		option.Conn = rtpC
@@ -511,8 +525,8 @@ func (session *ClientCommandSession) writeCmd(method, uri string, headers map[st
 	}
 
 	req := PackRequest(method, uri, headers, body)
-	nazalog.Debugf("[%s] > write %s.", session.UniqueKey, method)
-	//nazalog.Debugf("[%s] > write %s. req=%s", session.UniqueKey, method, req)
+	nazalog.Debugf("[%s] > write %s.", session.uniqueKey, method)
+	//nazalog.Debugf("[%s] > write %s. req=%s", session.uniqueKey, method, req)
 	_, err := session.conn.Write([]byte(req))
 	return err
 }
@@ -530,7 +544,7 @@ func (session *ClientCommandSession) writeCmdReadResp(method, uri string, header
 			return
 		}
 		nazalog.Debugf("[%s] < read response. version=%s, code=%s, reason=%s, headers=%+v, body=%s",
-			session.UniqueKey, ctx.Version, ctx.StatusCode, ctx.Reason, ctx.Headers, string(ctx.Body))
+			session.uniqueKey, ctx.Version, ctx.StatusCode, ctx.Reason, ctx.Headers, string(ctx.Body))
 
 		if ctx.StatusCode != "401" {
 			return

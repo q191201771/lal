@@ -71,6 +71,11 @@ var (
 )
 
 func main() {
+	_ = nazalog.Init(func(option *nazalog.Option) {
+		option.AssertBehavior = nazalog.AssertFatal
+	})
+	defer nazalog.Sync()
+
 	url := parseFlag()
 	session := httpflv.NewPullSession()
 
@@ -161,7 +166,9 @@ func main() {
 			prevTS = int64(tag.Header.Timestamp)
 		}
 	})
-	nazalog.Warn(err)
+	nazalog.Assert(nil, err)
+	err = <-session.WaitChan()
+	nazalog.Assert(nil, err)
 }
 
 const (

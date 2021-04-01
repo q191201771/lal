@@ -82,6 +82,11 @@ func handlePacket(packet []byte) {
 }
 
 func main() {
+	_ = nazalog.Init(func(option *nazalog.Option) {
+		option.AssertBehavior = nazalog.AssertFatal
+	})
+	defer nazalog.Sync()
+
 	pid2stream = make(map[uint16]*Stream)
 
 	content, err := ioutil.ReadFile(filename)

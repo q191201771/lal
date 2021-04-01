@@ -87,8 +87,11 @@ import (
 var ErrRTCP = errors.New("lal.rtcp: fxxk")
 
 const (
-	RTCPPacketTypeSR = 200 // 0xc8 Sender Report
-	RTCPPacketTypeRR = 201 // 0xc9 Receiver Report
+	RTCPPacketTypeSR  = 200 // 0xc8 Sender Report
+	RTCPPacketTypeRR  = 201 // 0xc9 Receiver Report
+	RTCPPacketTypeAPP = 204
+
+	RTCPHeaderLength = 4
 
 	RTCPVersion = 2
 )
@@ -98,7 +101,7 @@ type RTCPHeader struct {
 	Padding       uint8  // 1b
 	CountOrFormat uint8  // 5b
 	PacketType    uint8  // 8b
-	Length        uint16 // 16b, byte length = (length+1) * 4
+	Length        uint16 // 16b, whole packet byte length = (Length+1) * 4
 }
 
 type SR struct {

@@ -1,3 +1,12 @@
+#### v0.20.0 (2021-03-21)
+
+- [feat] 新增app/demo/calcrtmpdelay，可用于测量rtmp服务器的转发延时，拉流支持rtmp/httpflv
+- [feat] app/demo/pushrtmp 做压测时，修改为完全并行的模式
+- [fix] 修复32位arm环境使用rtsp崩溃
+- [refactor] 统一各Session接口
+- [refactor] 使用新的unique id生成器，提高性能
+- [doc] 新增文档 ffplay播放rtsp花屏 https://pengrl.com/lal/#/RTSPFFPlayBlur
+
 #### v0.19.1 (2021-02-01)
 
 - [fix] 获取group中播放者数量时锁没有释放，导致后续无法转发数据

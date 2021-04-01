@@ -114,7 +114,7 @@ func InnerTestEntry(t *testing.T) {
 		if err != nil {
 			nazalog.Error(err)
 		}
-		err = <-rtmpPullSession.Wait()
+		err = <-rtmpPullSession.WaitChan()
 		nazalog.Debug(err)
 	}()
 
@@ -145,7 +145,7 @@ func InnerTestEntry(t *testing.T) {
 		fileTagCount.Increment()
 		msg := remux.FLVTag2RTMPMsg(tag)
 		chunks := rtmp.Message2Chunks(msg.Payload, &msg.Header)
-		err = pushSession.AsyncWrite(chunks)
+		err = pushSession.Write(chunks)
 		assert.Equal(t, nil, err)
 	}
 	err = pushSession.Flush()

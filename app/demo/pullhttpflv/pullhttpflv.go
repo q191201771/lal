@@ -14,7 +14,7 @@ import (
 
 	"github.com/q191201771/lal/pkg/base"
 	"github.com/q191201771/lal/pkg/httpflv"
-	log "github.com/q191201771/naza/pkg/nazalog"
+	"github.com/q191201771/naza/pkg/nazalog"
 )
 
 // 拉取HTTP-FLV的流
@@ -24,17 +24,24 @@ import (
 // - 拉取HTTP-FLV流进行分析参见另外一个demo：analyseflvts。 这个demo可能可以删除掉了。
 
 func main() {
+	_ = nazalog.Init(func(option *nazalog.Option) {
+		option.AssertBehavior = nazalog.AssertFatal
+	})
+	defer nazalog.Sync()
+
 	url := parseFlag()
 	session := httpflv.NewPullSession()
 	err := session.Pull(url, func(tag httpflv.Tag) {
 		switch tag.Header.Type {
 		case httpflv.TagTypeMetadata:
-			log.Info(hex.Dump(tag.Payload()))
+			nazalog.Info(hex.Dump(tag.Payload()))
 		case httpflv.TagTypeAudio:
 		case httpflv.TagTypeVideo:
 		}
 	})
-	log.Assert(nil, err)
+	nazalog.Assert(nil, err)
+	err = <-session.WaitChan()
+	nazalog.Assert(nil, err)
 }
 
 func parseFlag() string {

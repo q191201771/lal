@@ -23,7 +23,7 @@ type PubSessionObserver interface {
 }
 
 type PubSession struct {
-	UniqueKey     string
+	uniqueKey     string
 	urlCtx        base.URLContext
 	cmdSession    *ServerCommandSession
 	baseInSession *BaseInSession
@@ -32,9 +32,9 @@ type PubSession struct {
 }
 
 func NewPubSession(urlCtx base.URLContext, cmdSession *ServerCommandSession) *PubSession {
-	uk := base.GenUniqueKey(base.UKPRTSPPubSession)
+	uk := base.GenUKRTSPPubSession()
 	s := &PubSession{
-		UniqueKey:  uk,
+		uniqueKey:  uk,
 		urlCtx:     urlCtx,
 		cmdSession: cmdSession,
 	}
@@ -61,7 +61,7 @@ func (session *PubSession) SetupWithChannel(uri string, rtpChannel, rtcpChannel 
 }
 
 func (session *PubSession) Dispose() error {
-	nazalog.Infof("[%s] lifecycle dispose rtsp PubSession. session=%p", session.UniqueKey, session)
+	nazalog.Infof("[%s] lifecycle dispose rtsp PubSession. session=%p", session.uniqueKey, session)
 	e1 := session.cmdSession.Dispose()
 	e2 := session.baseInSession.Dispose()
 	return nazaerrors.CombineErrors(e1, e2)
@@ -91,22 +91,22 @@ func (session *PubSession) RawQuery() string {
 	return session.urlCtx.RawQuery
 }
 
+func (session *PubSession) UniqueKey() string {
+	return session.uniqueKey
+}
+
 func (session *PubSession) GetStat() base.StatSession {
 	stat := session.baseInSession.GetStat()
 	stat.RemoteAddr = session.cmdSession.RemoteAddr()
 	return stat
 }
 
-func (session *PubSession) UpdateStat(interval uint32) {
-	session.baseInSession.UpdateStat(interval)
+func (session *PubSession) UpdateStat(intervalSec uint32) {
+	session.baseInSession.UpdateStat(intervalSec)
 }
 
 func (session *PubSession) IsAlive() (readAlive, writeAlive bool) {
 	return session.baseInSession.IsAlive()
-}
-
-func (session *PubSession) RemoteAddr() string {
-	return session.cmdSession.RemoteAddr()
 }
 
 // IInterleavedPacketWriter, callback by BaseInSession

@@ -8,13 +8,53 @@
 
 package base
 
-type ISessionURLContext interface {
-	URL() string
-	AppName() string
-	StreamName() string
-	RawQuery() string
+import "errors"
+
+var (
+	ErrSessionNotStarted = errors.New("lal.base: session has not been started yet")
+)
+
+type IClientSession interface {
+	// PushSession:
+	// Push()
+	// Write()
+	// Flush()
+	// PullSession:
+	// Pull()
+
+	IClientSessionLifecycle
+	ISessionURLContext
+	IObject
+	ISessionStat
 }
 
+type IServerSession interface {
+	IServerSessionLifecycle
+	ISessionURLContext
+	IObject
+	ISessionStat
+}
+
+// 调用约束：对于Client类型的Session，调用Start函数并返回成功后才能调用，否则行为未定义
+type IClientSessionLifecycle interface {
+	// 关闭session
+	// 业务方想主动关闭session时调用
+	// 注意，Start成功后的session，必须显示调用Dispose释放资源（即使是被动接收到了WaitChan信号）
+	Dispose() error
+
+	// Start成功后，可使用这个channel来接收session结束的信号
+	WaitChan() <-chan error
+}
+
+type IServerSessionLifecycle interface {
+	// 开启session的事件循环，阻塞直到session结束
+	RunLoop() error
+
+	// 主动关闭session时调用
+	Dispose() error
+}
+
+// 调用约束：对于Client类型的Session，调用Start函数并返回成功后才能调用，否则行为未定义
 type ISessionStat interface {
 	// 周期性调用该函数，用于计算bitrate
 	//
@@ -35,67 +75,19 @@ type ISessionStat interface {
 	IsAlive() (readAlive, writeAlive bool)
 }
 
-type ISession interface {
-	RemoteAddr() string
+// 获取和流地址相关的信息
+//
+// 调用约束：对于Client类型的Session，调用Start函数并返回成功后才能调用，否则行为未定义
+type ISessionURLContext interface {
+	URL() string
+	AppName() string
+	StreamName() string
+	RawQuery() string
+}
+
+type IObject interface {
+	// 对象的全局唯一标识
+	UniqueKey() string
 }
 
 // TODO chef: rtmp.ClientSession修改为BaseClientSession更好些
-
-//
-// | .          | rtmp pub          | rtmp sub          | rtmp push                 | rtmp pull                 |
-// | -          | -                 | -                 | -                         | -                         |
-// | file       | server_session.go | server_session.go | client_push_session.go    | client_pull_session.go    |
-// | struct     | ServerSession     | ServerSession     | PushSession/ClientSession | PullSession/ClientSession |
-//
-//
-// | .          | flv sub               | flv pull               |
-// | -          | -                     | -                      |
-// | file       | server_sub_session.go | client_pull_session.go |
-// | struct     | SubSession            | PullSession            |
-//
-//
-// | .          | ts sub                |
-// | -          | -                     |
-// | file       | server_sub_session.go |
-// | struct     | SubSession            |
-//
-//
-// | .                      | rtmppub | rtsppub | rtmpsub | flvsub | tssub | rtspsub | - | rtmppush | rtmppull | flvpull | rtsppull | rtsppush | hls |
-// | -                      | -       | -       | -       | -      | -     | -       | - | -        | -        | -       | -        |          |     |
-// | x                      | x       | x       | x       | x      | x     | x       | - | x        | x        | x       | x        |          |     |
-// | UniqueKey<all>         | √       | √       | √       | √      | √     | √       | - | x√       | x√       | √       | √        |          |     |
-
-// | AppName()<all>         | √       | √       | √       | √      | √     | √       | - | √        | √        | √       | √        |          |     |
-// | StreamName()<all>      | √       | √       | √       | √      | √     | √       | - | √        | √        | √       | √        |          |     |
-// | RawQuery()<all>        | √       | √       | √       | √      | √     | √       | - | √        | √        | √       | √        |          |     |
-
-// | GetStat()<all>         | √       | √       | √       | √      | √     | √       | - | √        | √        | √       | √        |          |     |
-// | UpdateStat()<all>      | √       | √       | √       | √      | √     | √       | - | √        | √        | √       | √        |          |     |
-// | IsAlive()<all>         | √       | √       | √       | √      | √     | √       | - | √        | √        | √       | √        |          |     |
-
-// | RunLoop()              | √       | x√      | √       | √      | √     | x&√     | - | x        | x        | x       | x        |          |     |
-// | Dispose()              | √       | √       | √       | √      | √     | √       | - | √        | √        | √       | √        |          |     |
-
-// | RemoteAddr()           | √       | x       | √       | √      | x     | x       | - | x        | x        | x       | x        |          |     |
-// | SingleConn             | √       | x       | √       | √      | √     | √       | - | √        | √        | √       | x        |          |     |
-//
-// | Opt.Push/PullTimeoutMS | -       | -       | -       | -      | -     | -       | - | √        | √        | √       | √        |  √       |     |
-// | Wait()                 | -       | -       | -       | -      | -     | -       | - | √        | √        | √       | √        |  √       |     |
-//
-// Dispose由外部调用，表示主动关闭正常的session
-// 外部调用Dispose后，不应继续使用该session
-// Dispose后，RunLoop结束阻塞
-//
-// 对端关闭，或session内部关闭也会导致RunLoop结束阻塞
-//
-// RunLoop结束阻塞后，可通知上层，告知session生命周期结束
-//
-// ---
-//
-// 对于rtsp.PushSession和rtsp.PullSession
-// Push()或Pull成功后，可调用Dispose()主动关闭session
-// 当对端关闭导致Wait()触发时，也需要调用Dispose()
-//
-// 对于rtsp.PubSession和rtsp.SubSession
-// ServerCommandSession通知上层，上层调用session的Dispose()
-// 当然，session也支持主动调用Dispose()
