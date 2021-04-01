@@ -188,7 +188,7 @@ func (group *Group) Tick() {
 			if _, writeAlive := session.IsAlive(); !writeAlive {
 				nazalog.Warnf("[%s] session timeout. session=%s", group.UniqueKey, session.UniqueKey())
 				session.Dispose()
-				group.DelRTSPSubSession(session)
+				group.delRTSPSubSession(session)
 			}
 		}
 	}
@@ -657,7 +657,10 @@ func (group *Group) delRTSPPubSession(session *rtsp.PubSession) {
 	group.rtspPubSession = nil
 	group.delIn()
 }
-
+func (group *Group) delRTSPSubSession(session *rtsp.SubSession) {
+	nazalog.Debugf("[%s] [%s] del rtsp SubSession from group.", group.UniqueKey, session.UniqueKey())
+	delete(group.rtspSubSessionSet, session)
+}
 func (group *Group) delRTMPPullSession(session *rtmp.PullSession) {
 	nazalog.Debugf("[%s] [%s] del rtmp PullSession from group.", group.UniqueKey, session.UniqueKey())
 
