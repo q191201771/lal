@@ -37,7 +37,7 @@ func (c *ChunkComposer) SetPeerChunkSize(val uint32) {
 	c.peerChunkSize = val
 }
 
-type OnCompleteMessage func(stream *Stream) error
+type OnCompleteMessage func(stream *Stream, c *ChunkComposer) error
 
 // @param cb 回调结束后，内存块会被 ChunkComposer 再次使用
 func (c *ChunkComposer) RunLoop(reader io.Reader, cb OnCompleteMessage) error {
@@ -168,7 +168,7 @@ func (c *ChunkComposer) RunLoop(reader io.Reader, cb OnCompleteMessage) error {
 			absTsFlag = false
 			//nazalog.Debugf("RTMP_CHUNK_COMPOSER cb. fmt=%d, csid=%d, header=%+v, c=%p", fmt, csid, stream.header, c)
 
-			if err := cb(stream); err != nil {
+			if err := cb(stream, c); err != nil {
 				return err
 			}
 			stream.msg.clear()

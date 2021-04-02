@@ -85,7 +85,7 @@ func (packer *MessagePacker) writeConnect(writer io.Writer, appName, tcURL strin
 
 	var objs []ObjectPair
 	objs = append(objs, ObjectPair{Key: "app", Value: appName})
-	objs = append(objs, ObjectPair{Key: "type", Value: "nonprivate"})
+	//objs = append(objs, ObjectPair{Key: "type", Value: "nonprivate"})
 	var flashVer string
 	if isPush {
 		flashVer = fmt.Sprintf("FMLE/3.0 (compatible; %s)", base.LALRTMPPushSessionConnectVersion)
@@ -93,6 +93,7 @@ func (packer *MessagePacker) writeConnect(writer io.Writer, appName, tcURL strin
 		flashVer = "LNX 9,0,124,2"
 	}
 	objs = append(objs, ObjectPair{Key: "flashVer", Value: flashVer})
+	objs = append(objs, ObjectPair{Key: "fpad", Value: false})
 	objs = append(objs, ObjectPair{Key: "tcUrl", Value: tcURL})
 	_ = AMF0.WriteObject(packer.b, objs)
 	raw := packer.b.Bytes()
