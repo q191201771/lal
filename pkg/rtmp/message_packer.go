@@ -85,7 +85,7 @@ func (packer *MessagePacker) writeConnect(writer io.Writer, appName, tcURL strin
 
 	var objs []ObjectPair
 	objs = append(objs, ObjectPair{Key: "app", Value: appName})
-	//objs = append(objs, ObjectPair{Key: "type", Value: "nonprivate"})
+	objs = append(objs, ObjectPair{Key: "type", Value: "nonprivate"})
 	var flashVer string
 	if isPush {
 		flashVer = fmt.Sprintf("FMLE/3.0 (compatible; %s)", base.LALRTMPPushSessionConnectVersion)
