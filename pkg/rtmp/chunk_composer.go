@@ -37,7 +37,7 @@ func (c *ChunkComposer) SetPeerChunkSize(val uint32) {
 	c.peerChunkSize = val
 }
 
-type OnCompleteMessage func(stream *Stream, c *ChunkComposer) error
+type OnCompleteMessage func(stream *Stream) error
 
 // @param cb 回调结束后，内存块会被 ChunkComposer 再次使用
 func (c *ChunkComposer) RunLoop(reader io.Reader, cb OnCompleteMessage) error {
@@ -167,10 +167,52 @@ func (c *ChunkComposer) RunLoop(reader io.Reader, cb OnCompleteMessage) error {
 			}
 			absTsFlag = false
 			//nazalog.Debugf("RTMP_CHUNK_COMPOSER cb. fmt=%d, csid=%d, header=%+v, c=%p", fmt, csid, stream.header, c)
+			if stream.header.MsgTypeID == base.RTMPTypeIDAggregateMessage {
+				aggregateStream := NewStream()
+				var aggregateFirstTimestamp uint32 = 0
+			Aggregate:
+				for {
+					//aggregate里时间戳相对值；
+					if stream.msg.b < stream.msg.e && stream.msg.e-stream.msg.b > 11 {
+						aggregateStream.header.CSID = stream.header.CSID
+						aggregateStream.header.MsgStreamID = stream.header.MsgStreamID
+						//十一个字节TagHeader
+						aggreTagHeaderBuf := stream.msg.buf[stream.msg.b : stream.msg.b+11]
+						stream.msg.b += 11
+						aggregateStream.header.MsgTypeID = aggreTagHeaderBuf[0]
+						aggregateStream.header.MsgLen = bele.BEUint24(aggreTagHeaderBuf[1:])
+						aggregateStream.timestamp = bele.BEUint24(aggreTagHeaderBuf[4:])
+						if aggreTagHeaderBuf[7] > 0 {
+							aggregateStream.timestamp += uint32(aggreTagHeaderBuf[7] << 24)
+						}
+						if stream.msg.b == 11 {
+							aggregateFirstTimestamp = aggregateStream.timestamp
+						}
 
-			if err := cb(stream, c); err != nil {
-				return err
+						aggregateStream.header.TimestampAbs = stream.header.TimestampAbs + aggregateStream.timestamp - aggregateFirstTimestamp
+						if stream.msg.e-stream.msg.b < aggregateStream.header.MsgLen+4 {
+							break Aggregate
+						}
+						aggregateStream.msg.buf = stream.msg.buf[stream.msg.b : stream.msg.b+aggregateStream.header.MsgLen]
+						aggregateStream.msg.b = 0
+						aggregateStream.msg.e = aggregateStream.header.MsgLen
+						stream.msg.b += aggregateStream.header.MsgLen
+						//4字节pre tag 长度
+						_ = bele.BEUint32(stream.msg.buf[stream.msg.b:]) //返回值忽略
+						stream.msg.b += 4
+
+						cb(aggregateStream)
+					} else {
+						break Aggregate
+					}
+
+				}
+			} else {
+				if err := cb(stream); err != nil {
+					return err
+				}
 			}
+
 			stream.msg.clear()
 		}
 		if stream.msg.len() > stream.header.MsgLen {

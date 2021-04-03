@@ -314,7 +314,7 @@ func (s *ClientSession) runReadLoop() {
 	_ = s.chunkComposer.RunLoop(s.conn, s.doMsg)
 }
 
-func (s *ClientSession) doMsg(stream *Stream, c *ChunkComposer) error {
+func (s *ClientSession) doMsg(stream *Stream) error {
 	switch stream.header.MsgTypeID {
 	case base.RTMPTypeIDWinAckSize:
 		fallthrough
@@ -338,8 +338,6 @@ func (s *ClientSession) doMsg(stream *Stream, c *ChunkComposer) error {
 		fallthrough
 	case base.RTMPTypeIDVideo:
 		s.onReadRTMPAVMsg(stream.toAVMsg())
-	case base.RTMPTypeIDAggregateMessage:
-		s.doAggregateMessage(stream, c)
 	default:
 		nazalog.Errorf("[%s] read unknown message. typeid=%d, %s", s.uniqueKey, stream.header.MsgTypeID, stream.toDebugString())
 		panic(0)
@@ -477,49 +475,6 @@ func (s *ClientSession) doResultMessage(stream *Stream, tid int) error {
 		}
 	default:
 		nazalog.Errorf("[%s] unknown tid. tid=%d", s.uniqueKey, tid)
-	}
-	return nil
-}
-func (s *ClientSession) doAggregateMessage(stream *Stream, c *ChunkComposer) error {
-	var aggreTagHeader *TagHeader = new(TagHeader)
-	aggregateStream := NewStream()
-	for {
-		if stream.msg.b < stream.msg.e {
-			aggregateStream.header.CSID = stream.header.CSID
-			aggregateStream.header.MsgStreamID = stream.header.MsgStreamID
-			aggreTagHeaderBuf := stream.msg.buf[stream.msg.b : stream.msg.b+11]
-			aggreTagHeader.Type = aggreTagHeaderBuf[0]
-			aggregateStream.header.MsgTypeID = aggreTagHeader.Type
-			if aggreTagHeader.Type == base.RTMPTypeIDAudio || aggreTagHeader.Type == base.RTMPTypeIDVideo {
-				aggreTagHeader.DataSize = bele.BEUint24(aggreTagHeaderBuf[1:])
-				aggreTagHeader.Timestamp = bele.BEUint24(aggreTagHeaderBuf[4:])
-				if aggreTagHeaderBuf[7] > 0 {
-					aggreTagHeader.Timestamp += uint32(aggreTagHeaderBuf[7] << 24)
-				}
-				aggreTagHeader.StreamID = bele.BEUint24(aggreTagHeaderBuf[8:])
-				aggregateStream.timestamp = aggreTagHeader.Timestamp
-				aggregateStream.header.TimestampAbs = aggreTagHeader.Timestamp
-				aggregateStream.header.MsgLen = aggreTagHeader.DataSize
-
-				aggregateStream.msg.buf = stream.msg.buf[stream.msg.b+11 : stream.msg.b+11+aggregateStream.header.MsgLen]
-				aggregateStream.msg.b = 0
-				aggregateStream.msg.e = aggregateStream.header.MsgLen
-				stream.msg.b = stream.msg.b + 11 + aggregateStream.header.MsgLen
-				preTagLen := bele.BEUint32(stream.msg.buf[stream.msg.b:])
-				if preTagLen != aggregateStream.header.MsgLen {
-					nazalog.Errorf("[%s] AggregateMessage preTagLen Error.", s.uniqueKey)
-					return ErrRTMP
-				}
-				stream.msg.b += 4
-				s.onReadRTMPAVMsg(aggregateStream.toAVMsg())
-			} else {
-				nazalog.Errorf("[%s]  AggregateMessage audio/video TypeID Error.", s.uniqueKey)
-				return ErrRTMP
-			}
-		} else {
-			return nil
-		}
-
 	}
 	return nil
 }
