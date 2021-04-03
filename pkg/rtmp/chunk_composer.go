@@ -187,7 +187,7 @@ func (c *ChunkComposer) RunLoop(reader io.Reader, cb OnCompleteMessage) error {
 					}
 					aggregateStream.header.MsgTypeID = stream.msg.buf[0]
 					aggregateStream.header.MsgLen = bele.BEUint24(stream.msg.buf[1:])
-					aggregateStream.timestamp = bele.BEUint24(stream.msg.buf[4:]) + uint32(stream.msg.buf[7])
+					aggregateStream.timestamp = bele.BEUint24(stream.msg.buf[4:]) + (uint32(stream.msg.buf[7]) << 24)
 					aggregateStream.header.MsgStreamID = int(bele.BEUint24(stream.msg.buf[8:]))
 					stream.msg.consumed(11)
 
