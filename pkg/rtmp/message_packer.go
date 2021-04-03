@@ -93,6 +93,7 @@ func (packer *MessagePacker) writeConnect(writer io.Writer, appName, tcURL strin
 		flashVer = "LNX 9,0,124,2"
 	}
 	objs = append(objs, ObjectPair{Key: "flashVer", Value: flashVer})
+	// fpad True if proxy is being used.
 	objs = append(objs, ObjectPair{Key: "fpad", Value: false})
 	objs = append(objs, ObjectPair{Key: "tcUrl", Value: tcURL})
 	_ = AMF0.WriteObject(packer.b, objs)
