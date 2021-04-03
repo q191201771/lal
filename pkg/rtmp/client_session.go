@@ -478,7 +478,6 @@ func (s *ClientSession) doResultMessage(stream *Stream, tid int) error {
 	}
 	return nil
 }
-
 func (s *ClientSession) doProtocolControlMessage(stream *Stream) error {
 	if stream.msg.len() < 4 {
 		return ErrRTMP
