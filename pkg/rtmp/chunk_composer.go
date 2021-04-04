@@ -207,7 +207,7 @@ func (c *ChunkComposer) RunLoop(reader io.Reader, cb OnCompleteMessage) error {
 					stream.msg.consumed(aggregateStream.header.MsgLen)
 
 					// sub message回调给上层
-					if err := cb(stream); err != nil {
+					if err := cb(aggregateStream); err != nil {
 						return err
 					}
 
