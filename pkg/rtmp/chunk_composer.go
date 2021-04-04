@@ -185,11 +185,16 @@ func (c *ChunkComposer) RunLoop(reader io.Reader, cb OnCompleteMessage) error {
 					if stream.msg.len() < 11 {
 						return ErrRTMP
 					}
-					aggregateStream.header.MsgTypeID = stream.msg.buf[0]
-					aggregateStream.header.MsgLen = bele.BEUint24(stream.msg.buf[1:])
-					aggregateStream.timestamp = bele.BEUint24(stream.msg.buf[4:]) + (uint32(stream.msg.buf[7]) << 24)
-					aggregateStream.header.MsgStreamID = int(bele.BEUint24(stream.msg.buf[8:]))
-					stream.msg.consumed(11)
+					aggregateStream.header.MsgTypeID = stream.msg.buf[stream.msg.b]
+					stream.msg.consumed(1)
+					aggregateStream.header.MsgLen = bele.BEUint24(stream.msg.buf[stream.msg.b:])
+					stream.msg.consumed(3)
+					aggregateStream.timestamp = bele.BEUint24(stream.msg.buf[stream.msg.b:])
+					stream.msg.consumed(3)
+					aggregateStream.timestamp += uint32(stream.msg.buf[stream.msg.b]) << 24
+					stream.msg.consumed(1)
+					aggregateStream.header.MsgStreamID = int(bele.BEUint24(stream.msg.buf[stream.msg.b:]))
+					stream.msg.consumed(3)
 
 					// 计算时间戳
 					if firstSubMessage {
@@ -202,7 +207,8 @@ func (c *ChunkComposer) RunLoop(reader io.Reader, cb OnCompleteMessage) error {
 					if stream.msg.len() < aggregateStream.header.MsgLen {
 						return ErrRTMP
 					}
-					aggregateStream.msg.buf = stream.msg.buf[:aggregateStream.header.MsgLen]
+					aggregateStream.msg.buf = stream.msg.buf[stream.msg.b : stream.msg.b+aggregateStream.header.MsgLen]
+					//aggregateStream.msg.b = 0
 					aggregateStream.msg.e = aggregateStream.header.MsgLen
 					stream.msg.consumed(aggregateStream.header.MsgLen)
 
@@ -212,6 +218,9 @@ func (c *ChunkComposer) RunLoop(reader io.Reader, cb OnCompleteMessage) error {
 					}
 
 					// 跳过prev size字段
+					if stream.msg.len() < 4 {
+						return ErrRTMP
+					}
 					stream.msg.consumed(4)
 				}
 			} else {
