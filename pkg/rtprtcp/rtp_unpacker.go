@@ -10,31 +10,41 @@ package rtprtcp
 
 import (
 	"github.com/q191201771/lal/pkg/base"
+	"github.com/q191201771/naza/pkg/nazalog"
 )
 
-// 传入RTP包，合成帧数据，并回调。
-// 一路音频或一路视频各对应一个对象。
-// 目前支持AVC，HEVC和AAC MPEG4-GENERIC/44100/2
+// 传入RTP包，合成帧数据，并回调返回
+// 一路音频或一路视频各对应一个对象
 
-type RTPPacketListItem struct {
-	packet RTPPacket
-	next   *RTPPacketListItem
+var (
+	_ IRTPUnpacker         = &RTPUnpackContainer{}
+	_ IRTPUnpackContainer  = &RTPUnpackContainer{}
+	_ IRTPUnpackerProtocol = &RTPUnpackerAAC{}
+	_ IRTPUnpackerProtocol = &RTPUnpackerAVCHEVC{}
+)
+
+type IRTPUnpacker interface {
+	IRTPUnpackContainer
 }
 
-type RTPPacketList struct {
-	head RTPPacketListItem // 哨兵，自身不存放rtp包，第一个rtp包存在在head.next中
-	size int               // 实际元素个数
+type IRTPUnpackContainer interface {
+	Feed(pkt RTPPacket)
 }
 
-type RTPUnpacker struct {
-	payloadType base.AVPacketPT
-	clockRate   int
-	maxSize     int
-	onAVPacket  OnAVPacket
+type IRTPUnpackerProtocol interface {
+	// 计算rtp包处于帧中的位置
+	CalcPositionIfNeeded(pkt *RTPPacket)
 
-	list         RTPPacketList
-	unpackedFlag bool
-	unpackedSeq  uint16
+	// 尝试合成一个完整帧
+	//
+	// 从当前队列的第一个包开始合成
+	// 如果一个rtp包对应一个完整帧，则合成一帧
+	// 如果一个rtp包对应多个完整帧，则合成多帧
+	// 如果多个rtp包对应一个完整帧，则尝试合成一帧
+	//
+	// @return unpackedFlag 本次调用是否成功合成
+	// @return unpackedSeq  如果成功合成，合成使用的最后一个seq号；如果失败，则为0
+	TryUnpackOne(list *RTPPacketList) (unpackedFlag bool, unpackedSeq uint16)
 }
 
 // @param pkt: pkt.Timestamp   RTP包头中的时间戳(pts)经过clockrate换算后的时间戳，单位毫秒
@@ -46,138 +56,18 @@ type RTPUnpacker struct {
 //                             AVC或者HEVC是新申请的内存块，回调结束后，内部不再使用该内存块
 type OnAVPacket func(pkt base.AVPacket)
 
-func NewRTPUnpacker(payloadType base.AVPacketPT, clockRate int, maxSize int, onAVPacket OnAVPacket) *RTPUnpacker {
-	return &RTPUnpacker{
-		payloadType: payloadType,
-		clockRate:   clockRate,
-		maxSize:     maxSize,
-		onAVPacket:  onAVPacket,
-	}
-}
-
-// 输入收到的rtp包
-func (r *RTPUnpacker) Feed(pkt RTPPacket) {
-	if r.isStale(pkt.Header.Seq) {
-		return
-	}
-
-	r.calcPositionIfNeeded(&pkt)
-	r.insert(pkt)
-
-	// 尽可能多的合成顺序的帧
-	count := 0
-	for {
-		if !r.unpackOneSequential() {
-			break
-		}
-		count++
-	}
-
-	// 合成顺序的帧成功了，直接返回
-	if count > 0 {
-		return
-	}
-
-	// 缓存达到最大值
-	if r.list.size > r.maxSize {
-		// 尝试合成一帧发生跳跃的帧
-		if !r.unpackOne() {
-
-			// 合成失败了，丢弃过期数据
-			r.list.head.next = r.list.head.next.next
-			r.list.size--
-		}
-
-		// 再次尝试，尽可能多的合成顺序的帧
-		for {
-			if !r.unpackOneSequential() {
-				break
-			}
-		}
-	}
-}
-
-// 检查rtp包是否已经过期
-//
-// @return true  表示过期
-//         false 没过期
-//
-func (r *RTPUnpacker) isStale(seq uint16) bool {
-	if !r.unpackedFlag {
-		return false
-	}
-	return CompareSeq(seq, r.unpackedSeq) <= 0
-}
-
-// 计算rtp包处于帧中的位置
-func (r *RTPUnpacker) calcPositionIfNeeded(pkt *RTPPacket) {
-	switch r.payloadType {
-	case base.AVPacketPTAVC:
-		calcPositionIfNeededAVC(pkt)
-	case base.AVPacketPTHEVC:
-		calcPositionIfNeededHEVC(pkt)
+// 目前支持AVC，HEVC和AAC MPEG4-GENERIC/44100/2，业务方也可以自己实现IRTPUnpackerProtocol，甚至是IRTPUnpackContainer
+func DefaultRTPUnpackerFactory(payloadType base.AVPacketPT, clockRate int, maxSize int, onAVPacket OnAVPacket) IRTPUnpacker {
+	var protocol IRTPUnpackerProtocol
+	switch payloadType {
 	case base.AVPacketPTAAC:
-		// noop
-		break
-	default:
-		// can't reach here
-	}
-}
-
-// 将rtp包按seq排序插入队列中
-func (r *RTPUnpacker) insert(pkt RTPPacket) {
-	r.list.size++
-
-	p := &r.list.head
-	for ; p.next != nil; p = p.next {
-		res := CompareSeq(pkt.Header.Seq, p.next.packet.Header.Seq)
-		switch res {
-		case 0:
-			return
-		case 1:
-			// noop
-		case -1:
-			item := &RTPPacketListItem{
-				packet: pkt,
-				next:   p.next,
-			}
-			p.next = item
-			return
-		}
-	}
-
-	item := &RTPPacketListItem{
-		packet: pkt,
-		next:   p.next,
-	}
-	p.next = item
-}
-
-// 从队列头部，尝试合成一个完整的帧。保证这次合成的帧的首个seq和上次合成帧的尾部seq是连续的
-func (r *RTPUnpacker) unpackOneSequential() bool {
-	if r.unpackedFlag {
-		first := r.list.head.next
-		if first == nil {
-			return false
-		}
-		if SubSeq(first.packet.Header.Seq, r.unpackedSeq) != 1 {
-			return false
-		}
-	}
-
-	return r.unpackOne()
-}
-
-// 从队列头部，尝试合成一个完整的帧。不保证这次合成的帧的首个seq和上次合成帧的尾部seq是连续的
-func (r *RTPUnpacker) unpackOne() bool {
-	switch r.payloadType {
-	case base.AVPacketPTAAC:
-		return r.unpackOneAAC()
+		protocol = NewRTPUnpackerAAC(payloadType, clockRate, onAVPacket)
 	case base.AVPacketPTAVC:
 		fallthrough
 	case base.AVPacketPTHEVC:
-		return r.unpackOneAVCOrHEVC()
+		protocol = NewRTPUnpackerAVCHEVC(payloadType, clockRate, onAVPacket)
+	default:
+		nazalog.Fatalf("payload type not support yet. payloadType=%d", payloadType)
 	}
-
-	return false
+	return NewRTPUnpackContainer(maxSize, protocol)
 }

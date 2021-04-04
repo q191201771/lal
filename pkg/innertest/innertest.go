@@ -10,6 +10,7 @@ package innertest
 
 import (
 	"bytes"
+	"encoding/json"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -77,8 +78,11 @@ func InnerTestEntry(t *testing.T) {
 	go logic.Entry(confFile)
 	time.Sleep(200 * time.Millisecond)
 
-	config, err := logic.LoadConf(confFile)
-	assert.Equal(t, nil, err)
+	var config logic.Config
+	rawContent, err := ioutil.ReadFile(confFile)
+	nazalog.Assert(nil, err)
+	err = json.Unmarshal(rawContent, &config)
+	nazalog.Assert(nil, err)
 
 	_ = os.RemoveAll(config.HLSConfig.OutPath)
 

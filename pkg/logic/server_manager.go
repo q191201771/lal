@@ -10,7 +10,6 @@ package logic
 
 import (
 	"fmt"
-	"os"
 	"sync"
 	"time"
 
@@ -66,13 +65,12 @@ func NewServerManager() *ServerManager {
 	return m
 }
 
-func (sm *ServerManager) RunLoop() {
+func (sm *ServerManager) RunLoop() error {
 	httpNotify.OnServerStart()
 
 	if sm.rtmpServer != nil {
 		if err := sm.rtmpServer.Listen(); err != nil {
-			nazalog.Error(err)
-			os.Exit(1)
+			return err
 		}
 		go func() {
 			if err := sm.rtmpServer.RunLoop(); err != nil {
@@ -83,8 +81,7 @@ func (sm *ServerManager) RunLoop() {
 
 	if sm.httpflvServer != nil {
 		if err := sm.httpflvServer.Listen(); err != nil {
-			nazalog.Error(err)
-			os.Exit(1)
+			return err
 		}
 		go func() {
 			if err := sm.httpflvServer.RunLoop(); err != nil {
@@ -95,8 +92,7 @@ func (sm *ServerManager) RunLoop() {
 
 	if sm.httptsServer != nil {
 		if err := sm.httptsServer.Listen(); err != nil {
-			nazalog.Error(err)
-			os.Exit(1)
+			return err
 		}
 		go func() {
 			if err := sm.httptsServer.RunLoop(); err != nil {
@@ -107,8 +103,7 @@ func (sm *ServerManager) RunLoop() {
 
 	if sm.hlsServer != nil {
 		if err := sm.hlsServer.Listen(); err != nil {
-			nazalog.Error(err)
-			os.Exit(1)
+			return err
 		}
 		go func() {
 			if err := sm.hlsServer.RunLoop(); err != nil {
@@ -119,8 +114,7 @@ func (sm *ServerManager) RunLoop() {
 
 	if sm.rtspServer != nil {
 		if err := sm.rtspServer.Listen(); err != nil {
-			nazalog.Error(err)
-			os.Exit(1)
+			return err
 		}
 		go func() {
 			if err := sm.rtspServer.RunLoop(); err != nil {
@@ -131,8 +125,7 @@ func (sm *ServerManager) RunLoop() {
 
 	if sm.httpAPIServer != nil {
 		if err := sm.httpAPIServer.Listen(); err != nil {
-			nazalog.Error(err)
-			os.Exit(1)
+			return err
 		}
 		go func() {
 			if err := sm.httpAPIServer.Runloop(); err != nil {
@@ -153,7 +146,7 @@ func (sm *ServerManager) RunLoop() {
 	for {
 		select {
 		case <-sm.exitChan:
-			return
+			return nil
 		case <-t.C:
 			count++
 
@@ -178,6 +171,8 @@ func (sm *ServerManager) RunLoop() {
 			}
 		}
 	}
+
+	// never reach here
 }
 
 func (sm *ServerManager) Dispose() {

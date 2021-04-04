@@ -55,11 +55,12 @@ func main() {
 			b := time.Now()
 			err := pullSession.Pull(u, func(msg base.RTMPMsg) {
 			})
+			cost := time.Now().Sub(b).Milliseconds()
 			mu.Lock()
 			if err == nil {
-				succCosts = append(succCosts, time.Now().Sub(b).Milliseconds())
+				succCosts = append(succCosts, cost)
 			} else {
-				failCosts = append(failCosts, time.Now().Sub(b).Milliseconds())
+				failCosts = append(failCosts, cost)
 			}
 			mu.Unlock()
 			wg.Done()
