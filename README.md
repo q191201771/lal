@@ -9,7 +9,7 @@
 
 LAL is a live stream broadcast server written in Go. It's sort of like `nginx-rtmp-module`, but easier to use and with more features, e.g. RTMP/RTSP/HLS/HTTP[S]-FLV/HTTP-TS, H264/H265/AAC, relay, cluster, record, HTTP API/Notify, GOP cache.
 
-`LAL` stands for `Live And Live` if you may wonder.
+And [more than a server, act as package and client](https://github.com/q191201771/lal)
 
 ## Install
 
@@ -73,11 +73,13 @@ $ffplay http://127.0.0.1:8081/hls/test110/record.m3u8
 $ffplay http://127.0.0.1:8082/live/test110.ts
 ```
 
-## One more thing
+## More than a server, act as package and client
 
 Besides a live stream broadcast server which named `lalserver` precisely, `project lal` even provides many other applications, e.g. push/pull/remux stream clients, bench tools, examples. Each subdirectory under the `./app/demo` directory represents a tiny demo.
 
 Our goals are not only a production server but also a simple package with a well-defined, user-facing API, so that users can build their own applications on it.
+
+`LAL` stands for `Live And Live` if you may wonder.
 
 
 ## Contact
