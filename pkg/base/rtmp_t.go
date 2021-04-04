@@ -21,6 +21,7 @@ const (
 	RTMPTypeIDBandwidth          uint8 = 6
 	RTMPTypeIDCommandMessageAMF3 uint8 = 17
 	RTMPTypeIDCommandMessageAMF0 uint8 = 20
+	RTMPTypeIDAggregateMessage   uint8 = 22
 
 	// user control message type
 	RTMPUserControlStreamBegin uint8 = 0
