@@ -22,8 +22,8 @@ const initMsgLen = 4096
 // TODO chef: 将这个buffer实现和bytes.Buffer做比较，考虑将它放入naza package中
 type StreamMsg struct {
 	buf []byte
-	b   uint32
-	e   uint32
+	b   uint32 // 读取起始位置
+	e   uint32 // 读取结束位置，写入起始位置
 }
 
 type Stream struct {
@@ -59,33 +59,38 @@ func (stream *Stream) toAVMsg() base.RTMPMsg {
 	}
 }
 
+// 确保可写空间，如果不够会扩容
 func (msg *StreamMsg) reserve(n uint32) {
 	bufCap := uint32(cap(msg.buf))
-	nn := bufCap - msg.e
-	if nn > n {
+	nn := bufCap - msg.e // 剩余空闲空间
+	if nn > n {          // 足够
 		return
 	}
-	for nn < n {
+	for nn < n { // 不够，空闲空间翻倍，直到大于需求空间
 		nn <<= 1
 	}
-	nb := make([]byte, bufCap+nn)
-	copy(nb, msg.buf[msg.b:msg.e])
-	msg.buf = nb
-	nazalog.Debugf("reserve. need:%d left:%d %d %d", n, nn, len(msg.buf), cap(msg.buf))
+	nb := make([]byte, bufCap+nn)  // 当前容量加扩充容量
+	copy(nb, msg.buf[msg.b:msg.e]) // 老数据拷贝
+	msg.buf = nb                   // 替换
+	nazalog.Debugf("reserve. newLen=%d(%d, %d), need=(%d -> %d), cap=(%d -> %d)", len(msg.buf), msg.b, msg.e, n, nn, bufCap, cap(msg.buf))
 }
 
+// 可读长度
 func (msg *StreamMsg) len() uint32 {
 	return msg.e - msg.b
 }
 
+// 写入数据后调用
 func (msg *StreamMsg) produced(n uint32) {
 	msg.e += n
 }
 
+// 读取数据后调用
 func (msg *StreamMsg) consumed(n uint32) {
 	msg.b += n
 }
 
+// 清空，空闲内存空间保留不释放
 func (msg *StreamMsg) clear() {
 	msg.b = 0
 	msg.e = 0

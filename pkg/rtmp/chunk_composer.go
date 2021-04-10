@@ -148,7 +148,9 @@ func (c *ChunkComposer) RunLoop(reader io.Reader, cb OnCompleteMessage) error {
 			}
 		}
 
+		// 因为上面已经对整个msg的长度reserve过了，所以这里就不需要reserve了
 		//stream.msg.reserve(neededSize)
+
 		if _, err := io.ReadAtLeast(reader, stream.msg.buf[stream.msg.e:stream.msg.e+neededSize], int(neededSize)); err != nil {
 			return err
 		}

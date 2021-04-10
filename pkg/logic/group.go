@@ -87,7 +87,6 @@ type pushProxy struct {
 
 func NewGroup(appName string, streamName string, pullEnable bool, pullURL string) *Group {
 	uk := base.GenUKGroup()
-	nazalog.Infof("[%s] lifecycle new group. appName=%s, streamName=%s", uk, appName, streamName)
 
 	url2PushProxy := make(map[string]*pushProxy)
 	if config.RelayPushConfig.Enable {
@@ -100,7 +99,7 @@ func NewGroup(appName string, streamName string, pullEnable bool, pullURL string
 		}
 	}
 
-	return &Group{
+	g := &Group{
 		UniqueKey:  uk,
 		appName:    appName,
 		streamName: streamName,
@@ -119,6 +118,9 @@ func NewGroup(appName string, streamName string, pullEnable bool, pullURL string
 		pullEnable:           pullEnable,
 		pullURL:              pullURL,
 	}
+	nazalog.Infof("[%s] lifecycle new group. group=%p, appName=%s, streamName=%s", uk, g, appName, streamName)
+
+	return g
 }
 
 func (group *Group) RunLoop() {
