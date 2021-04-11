@@ -5,6 +5,7 @@
 [![TravisCI](https://www.travis-ci.org/q191201771/lal.svg?branch=master)](https://www.travis-ci.org/q191201771/lal)
 [![goreportcard](https://goreportcard.com/badge/github.com/q191201771/lal)](https://goreportcard.com/report/github.com/q191201771/lal)
 [![wechat](https://img.shields.io/:微信-q191201771-blue.svg)](https://pengrl.com/images/yoko_vx.jpeg)
+![qqgroup](https://img.shields.io/:QQ群-1090510973-blue.svg)
 
 [中文文档](https://pengrl.com/lal/#/)
 
