@@ -25,6 +25,8 @@ import (
 var sm *logic.ServerManager
 
 func main() {
+	defer nazalog.Sync()
+
 	confFile := parseFlag()
 	logic.Entry(confFile)
 }

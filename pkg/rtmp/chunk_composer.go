@@ -41,6 +41,7 @@ type OnCompleteMessage func(stream *Stream) error
 
 // @param cb 回调结束后，内存块会被 ChunkComposer 再次使用
 func (c *ChunkComposer) RunLoop(reader io.Reader, cb OnCompleteMessage) error {
+	var aggregateStream *Stream
 	bootstrap := make([]byte, 11)
 	absTsFlag := false
 
@@ -147,7 +148,9 @@ func (c *ChunkComposer) RunLoop(reader io.Reader, cb OnCompleteMessage) error {
 			}
 		}
 
+		// 因为上面已经对整个msg的长度reserve过了，所以这里就不需要reserve了
 		//stream.msg.reserve(neededSize)
+
 		if _, err := io.ReadAtLeast(reader, stream.msg.buf[stream.msg.e:stream.msg.e+neededSize], int(neededSize)); err != nil {
 			return err
 		}
@@ -166,54 +169,69 @@ func (c *ChunkComposer) RunLoop(reader io.Reader, cb OnCompleteMessage) error {
 				stream.header.TimestampAbs += stream.timestamp
 			}
 			absTsFlag = false
-			//nazalog.Debugf("RTMP_CHUNK_COMPOSER cb. fmt=%d, csid=%d, header=%+v, c=%p", fmt, csid, stream.header, c)
+			//nazalog.Debugf("RTMP_CHUNK_COMPOSER cb. fmt=%d, csid=%d, header=%+v, ctimestamp=%d, c=%p",
+			//	fmt, csid, stream.header, stream.timestamp, c)
+
 			if stream.header.MsgTypeID == base.RTMPTypeIDAggregateMessage {
-				aggregateStream := NewStream()
-				var aggregateFirstTimestamp uint32 = 0
-			Aggregate:
-				for {
-					//aggregate里时间戳相对值；
-					if stream.msg.b < stream.msg.e && stream.msg.e-stream.msg.b > 11 {
-						aggregateStream.header.CSID = stream.header.CSID
-						aggregateStream.header.MsgStreamID = stream.header.MsgStreamID
-						//十一个字节TagHeader
-						aggreTagHeaderBuf := stream.msg.buf[stream.msg.b : stream.msg.b+11]
-						stream.msg.b += 11
-						aggregateStream.header.MsgTypeID = aggreTagHeaderBuf[0]
-						aggregateStream.header.MsgLen = bele.BEUint24(aggreTagHeaderBuf[1:])
-						aggregateStream.timestamp = bele.BEUint24(aggreTagHeaderBuf[4:])
-						if aggreTagHeaderBuf[7] > 0 {
-							aggregateStream.timestamp += uint32(aggreTagHeaderBuf[7] << 24)
-						}
-						if stream.msg.b == 11 {
-							aggregateFirstTimestamp = aggregateStream.timestamp
-						}
+				firstSubMessage := true
+				baseTimestamp := uint32(0)
 
-						aggregateStream.header.TimestampAbs = stream.header.TimestampAbs + aggregateStream.timestamp - aggregateFirstTimestamp
-						if stream.msg.e-stream.msg.b < aggregateStream.header.MsgLen+4 {
-							break Aggregate
-						}
-						aggregateStream.msg.buf = stream.msg.buf[stream.msg.b : stream.msg.b+aggregateStream.header.MsgLen]
-						aggregateStream.msg.b = 0
-						aggregateStream.msg.e = aggregateStream.header.MsgLen
-						stream.msg.b += aggregateStream.header.MsgLen
-						//4字节pre tag 长度
-						_ = bele.BEUint32(stream.msg.buf[stream.msg.b:]) //返回值忽略
-						stream.msg.b += 4
+				// 懒初始化
+				if aggregateStream == nil {
+					aggregateStream = NewStream()
+				}
+				aggregateStream.header.CSID = stream.header.CSID
 
-						cb(aggregateStream)
-					} else {
-						break Aggregate
+				for stream.msg.len() != 0 {
+					// 读取sub message的头
+					if stream.msg.len() < 11 {
+						return ErrRTMP
+					}
+					aggregateStream.header.MsgTypeID = stream.msg.buf[stream.msg.b]
+					stream.msg.consumed(1)
+					aggregateStream.header.MsgLen = bele.BEUint24(stream.msg.buf[stream.msg.b:])
+					stream.msg.consumed(3)
+					aggregateStream.timestamp = bele.BEUint24(stream.msg.buf[stream.msg.b:])
+					stream.msg.consumed(3)
+					aggregateStream.timestamp += uint32(stream.msg.buf[stream.msg.b]) << 24
+					stream.msg.consumed(1)
+					aggregateStream.header.MsgStreamID = int(bele.BEUint24(stream.msg.buf[stream.msg.b:]))
+					stream.msg.consumed(3)
+
+					// 计算时间戳
+					if firstSubMessage {
+						baseTimestamp = aggregateStream.timestamp
+						firstSubMessage = false
+					}
+					aggregateStream.header.TimestampAbs = stream.header.TimestampAbs + aggregateStream.timestamp - baseTimestamp
+
+					// message包体
+					if stream.msg.len() < aggregateStream.header.MsgLen {
+						return ErrRTMP
+					}
+					aggregateStream.msg.buf = stream.msg.buf[stream.msg.b : stream.msg.b+aggregateStream.header.MsgLen]
+					//aggregateStream.msg.b = 0
+					aggregateStream.msg.e = aggregateStream.header.MsgLen
+					stream.msg.consumed(aggregateStream.header.MsgLen)
+
+					// sub message回调给上层
+					if err := cb(aggregateStream); err != nil {
+						return err
 					}
 
+					// 跳过prev size字段
+					if stream.msg.len() < 4 {
+						return ErrRTMP
+					}
+					stream.msg.consumed(4)
 				}
 			} else {
 				if err := cb(stream); err != nil {
 					return err
 				}
-			}
 
-			stream.msg.clear()
+				stream.msg.clear()
+			}
 		}
 		if stream.msg.len() > stream.header.MsgLen {
 			log.Panicf("stream msg len should not greater than len field in header. stream.msg.len=%d, len.in.header=%d", stream.msg.len(), stream.header.MsgLen)

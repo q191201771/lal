@@ -34,10 +34,25 @@ type MuxerObserver interface {
 
 type MuxerConfig struct {
 	Enable             bool   `json:"enable"`   // 如果false，说明hls功能没开，也即不写磁盘，但是MuxerObserver依然会回调
-	OutPath            string `json:"out_path"` // m3u8和ts文件的输出根目录，注意，末尾需已'/'结束
+	OutPath            string `json:"out_path"` // m3u8和ts文件的输出根目录，注意，末尾需以'/'结束
 	FragmentDurationMS int    `json:"fragment_duration_ms"`
 	FragmentNum        int    `json:"fragment_num"`
+
+	// hls文件清理模式：
+	// 0 不删除m3u8+ts文件，可用于录制等场景
+	// 1 在输入流结束后删除m3u8+ts文件
+	//   注意，确切的删除时间是推流结束后的<fragment_duration_ms> * <fragment_num> * 2的时间点
+	//   推迟一小段时间删除，是为了避免输入流刚结束，hls的拉流端还没有拉取完
+	// 2 推流过程中，持续删除过期的ts文件，只保留最近的<fragment_num> * 2个左右的ts文件
+	// TODO chef: lalserver的模式1的逻辑是在上层做的，应该重构到hls模块中
+	CleanupMode int `json:"cleanup_mode"`
 }
+
+const (
+	CleanupModeNever    = 0
+	CleanupModeInTheEnd = 1
+	CleanupModeASAP     = 2
+)
 
 type Muxer struct {
 	UniqueKey string
@@ -58,9 +73,9 @@ type Muxer struct {
 	audioCC  uint8
 
 	fragTS                uint64         // 新建立fragment时的时间戳，毫秒 * 90
-	nfrags                int            // 大序号，增长到winfrags后，就增长frag
+	nfrags                int            // 大序号，增长到config.FragmentNum后，就增长frag
 	frag                  int            // 写入m3u8的EXT-X-MEDIA-SEQUENCE字段
-	frags                 []fragmentInfo // TS文件的环形队列，记录TS的信息，比如写M3U8文件时要用 2 * winfrags + 1
+	frags                 []fragmentInfo // TS文件的固定大小环形队列，记录TS的信息
 	recordMaxFragDuration float64
 
 	streamer *Streamer
@@ -82,7 +97,7 @@ func NewMuxer(streamName string, config *MuxerConfig, observer MuxerObserver) *M
 	playlistFilenameBak := fmt.Sprintf("%s.bak", playlistFilename)
 	recordPlaylistFilename := getRecordM3U8Filename(op, streamName)
 	recordPlaylistFilenameBak := fmt.Sprintf("%s.bak", recordPlaylistFilename)
-	frags := make([]fragmentInfo, 2*config.FragmentNum+1) // TODO chef: 为什么是 * 2 + 1
+	frags := make([]fragmentInfo, 2*config.FragmentNum+1)
 	m := &Muxer{
 		UniqueKey:                 uk,
 		streamName:                streamName,
@@ -284,11 +299,29 @@ func (m *Muxer) closeFragment(isLast bool) error {
 	}
 
 	m.opened = false
-	//更新序号，为下个分片准备好
+
+	// 更新序号，为下个分片做准备
+	// 注意，后面getFrag和getCurrFrag的调用，都依赖该处
 	m.incrFrag()
 
 	m.writePlaylist(isLast)
-	m.writeRecordPlaylist(isLast)
+
+	if m.config.CleanupMode == CleanupModeNever || m.config.CleanupMode == CleanupModeInTheEnd {
+		m.writeRecordPlaylist(isLast)
+	}
+
+	if m.config.CleanupMode == CleanupModeASAP {
+		// 删除过期文件
+		// 注意，此处获取的是环形队列该位置的上一轮残留下的信息
+		//
+		frag := m.getCurrFrag()
+		if frag.filename != "" {
+			filenameWithPath := getTSFilenameWithPath(m.outPath, frag.filename)
+			if err := os.Remove(filenameWithPath); err != nil {
+				nazalog.Warnf("[%s] remove stale fragment file failed. filename=%s, err=%+v", m.UniqueKey, filenameWithPath, err)
+			}
+		}
+	}
 
 	return nil
 }
@@ -298,6 +331,8 @@ func (m *Muxer) writeRecordPlaylist(isLast bool) {
 		return
 	}
 
+	// 找出整个直播流从开始到结束最大的分片时长
+	// 注意，由于前面已经incr过了，所以这里-1获取
 	//frag := m.getCurrFrag()
 	currFrag := m.getFrag(m.nfrags - 1)
 	if currFrag.duration > m.recordMaxFragDuration {

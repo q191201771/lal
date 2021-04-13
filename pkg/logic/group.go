@@ -87,7 +87,6 @@ type pushProxy struct {
 
 func NewGroup(appName string, streamName string, pullEnable bool, pullURL string) *Group {
 	uk := base.GenUKGroup()
-	nazalog.Infof("[%s] lifecycle new group. appName=%s, streamName=%s", uk, appName, streamName)
 
 	url2PushProxy := make(map[string]*pushProxy)
 	if config.RelayPushConfig.Enable {
@@ -100,7 +99,7 @@ func NewGroup(appName string, streamName string, pullEnable bool, pullURL string
 		}
 	}
 
-	return &Group{
+	g := &Group{
 		UniqueKey:  uk,
 		appName:    appName,
 		streamName: streamName,
@@ -119,6 +118,9 @@ func NewGroup(appName string, streamName string, pullEnable bool, pullURL string
 		pullEnable:           pullEnable,
 		pullURL:              pullURL,
 	}
+	nazalog.Infof("[%s] lifecycle new group. group=%p, appName=%s, streamName=%s", uk, g, appName, streamName)
+
+	return g
 }
 
 func (group *Group) RunLoop() {
@@ -657,10 +659,7 @@ func (group *Group) delRTSPPubSession(session *rtsp.PubSession) {
 	group.rtspPubSession = nil
 	group.delIn()
 }
-func (group *Group) delRTSPSubSession(session *rtsp.SubSession) {
-	nazalog.Debugf("[%s] [%s] del rtsp SubSession from group.", group.UniqueKey, session.UniqueKey())
-	delete(group.rtspSubSessionSet, session)
-}
+
 func (group *Group) delRTMPPullSession(session *rtmp.PullSession) {
 	nazalog.Debugf("[%s] [%s] del rtmp PullSession from group.", group.UniqueKey, session.UniqueKey())
 
@@ -682,6 +681,11 @@ func (group *Group) delHTTPFLVSubSession(session *httpflv.SubSession) {
 func (group *Group) delHTTPTSSubSession(session *httpts.SubSession) {
 	nazalog.Debugf("[%s] [%s] del httpts SubSession from group.", group.UniqueKey, session.UniqueKey())
 	delete(group.httptsSubSessionSet, session)
+}
+
+func (group *Group) delRTSPSubSession(session *rtsp.SubSession) {
+	nazalog.Debugf("[%s] [%s] del rtsp SubSession from group.", group.UniqueKey, session.UniqueKey())
+	delete(group.rtspSubSessionSet, session)
 }
 
 // TODO chef: 目前相当于其他类型往rtmp.AVMsg转了，考虑统一往一个通用类型转
@@ -1008,7 +1012,8 @@ func (group *Group) disposeHLSMuxer() {
 		group.hlsMuxer.Dispose()
 
 		// 添加延时任务，删除HLS文件
-		if config.HLSConfig.Enable && config.HLSConfig.CleanupFlag {
+		if config.HLSConfig.Enable &&
+			(config.HLSConfig.CleanupMode == hls.CleanupModeInTheEnd || config.HLSConfig.CleanupMode == hls.CleanupModeASAP) {
 			defertaskthread.Go(
 				config.HLSConfig.FragmentDurationMS*config.HLSConfig.FragmentNum*2,
 				func(param ...interface{}) {
