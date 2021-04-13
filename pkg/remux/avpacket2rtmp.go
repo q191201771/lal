@@ -142,10 +142,9 @@ func AVPacket2RTMPMsg(pkt base.AVPacket) (msg base.RTMPMsg, err error) {
 		// TODO chef: 这段代码应该放在更合适的地方，或者在AVPacket中标识是否包含关键帧
 		for i := 0; i != len(pkt.Payload); {
 			naluSize := int(bele.BEUint32(pkt.Payload[i:]))
-
-			t := avc.ParseNALUType(pkt.Payload[i+4])
 			switch pkt.PayloadType {
 			case base.AVPacketPTAVC:
+				t := avc.ParseNALUType(pkt.Payload[i+4])
 				if t == avc.NALUTypeIDRSlice {
 					msg.Payload[0] = base.RTMPAVCKeyFrame
 				} else {
@@ -153,6 +152,7 @@ func AVPacket2RTMPMsg(pkt base.AVPacket) (msg base.RTMPMsg, err error) {
 				}
 				msg.Payload[1] = base.RTMPAVCPacketTypeNALU
 			case base.AVPacketPTHEVC:
+				t := hevc.ParseNALUType(pkt.Payload[i+4])
 				if t == hevc.NALUTypeSliceIDR || t == hevc.NALUTypeSliceIDRNLP {
 					msg.Payload[0] = base.RTMPHEVCKeyFrame
 				} else {

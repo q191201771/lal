@@ -150,9 +150,9 @@ func AVPacket2FLVTag(pkt base.AVPacket) (tag httpflv.Tag, err error) {
 		for i := 0; i != len(pkt.Payload); {
 			naluSize := int(bele.BEUint32(pkt.Payload[i:]))
 
-			t := avc.ParseNALUType(pkt.Payload[i+4])
 			switch pkt.PayloadType {
 			case base.AVPacketPTAVC:
+				t := avc.ParseNALUType(pkt.Payload[i+4])
 				if t == avc.NALUTypeIDRSlice {
 					tag.Raw[httpflv.TagHeaderSize] = base.RTMPAVCKeyFrame
 				} else {
@@ -160,6 +160,7 @@ func AVPacket2FLVTag(pkt base.AVPacket) (tag httpflv.Tag, err error) {
 				}
 				tag.Raw[httpflv.TagHeaderSize+1] = base.RTMPAVCPacketTypeNALU
 			case base.AVPacketPTHEVC:
+				t := hevc.ParseNALUType(pkt.Payload[i+4])
 				if t == hevc.NALUTypeSliceIDR || t == hevc.NALUTypeSliceIDRNLP {
 					tag.Raw[httpflv.TagHeaderSize] = base.RTMPHEVCKeyFrame
 				} else {
