@@ -120,7 +120,7 @@ func ParseSDP2LogicContext(b []byte) (LogicContext, error) {
 				if md.AFmtPBase != nil {
 					ret.ASC, err = ParseASC(md.AFmtPBase)
 					if err != nil {
-						return ret, err
+						nazalog.Warnf("asc Parse error.")
 					}
 				} else {
 					nazalog.Warnf("aac afmtp not exist.")
@@ -140,7 +140,7 @@ func ParseSDP2LogicContext(b []byte) (LogicContext, error) {
 				if md.AFmtPBase != nil {
 					ret.SPS, ret.PPS, err = ParseSPSPPS(md.AFmtPBase)
 					if err != nil {
-						return ret, err
+						nazalog.Warnf("avc sps pps Parse error.")
 					}
 				} else {
 					nazalog.Warnf("avc afmtp not exist.")
@@ -150,7 +150,7 @@ func ParseSDP2LogicContext(b []byte) (LogicContext, error) {
 				if md.AFmtPBase != nil {
 					ret.VPS, ret.SPS, ret.PPS, err = ParseVPSSPSPPS(md.AFmtPBase)
 					if err != nil {
-						return ret, err
+						nazalog.Warnf("hevc vps sps pps Parse error.")
 					}
 				} else {
 					nazalog.Warnf("hevc afmtp not exist.")

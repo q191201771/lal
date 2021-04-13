@@ -184,7 +184,6 @@ func ParseAFmtPBase(s string) (ret AFmtPBase, err error) {
 		pp = strings.TrimSpace(pp)
 		kv := strings.SplitN(pp, "=", 2)
 		if len(kv) != 2 {
-			err = ErrSDP
 			return
 		}
 		ret.Parameters[kv[0]] = kv[1]
