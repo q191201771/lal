@@ -53,6 +53,9 @@ func NewServerManager() *ServerManager {
 	}
 	if config.HLSConfig.Enable {
 		m.hlsServer = hls.NewServer(config.HLSConfig.SubListenAddr, config.HLSConfig.OutPath)
+		if config.HLSConfig.HttpReadFileFallback != nil {
+			m.hlsServer.SetReadFileFallback(config.HLSConfig.HttpReadFileFallback)
+		}
 	}
 	if config.HTTPTSConfig.Enable {
 		m.httptsServer = httpts.NewServer(m, config.HTTPTSConfig.SubListenAddr)

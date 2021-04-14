@@ -17,11 +17,13 @@ import (
 	"github.com/cfeeling/naza/pkg/nazalog"
 )
 
+type ReadFileFallback func(rootOutPath string, ri requestInfo) ([]byte, error)
 type Server struct {
-	addr    string
-	outPath string
-	ln      net.Listener
-	httpSrv *http.Server
+	addr             string
+	outPath          string
+	ln               net.Listener
+	httpSrv          *http.Server
+	readFileFallback ReadFileFallback
 }
 
 func NewServer(addr string, outPath string) *Server {
@@ -29,6 +31,10 @@ func NewServer(addr string, outPath string) *Server {
 		addr:    addr,
 		outPath: outPath,
 	}
+}
+
+func (s *Server) SetReadFileFallback(fallback ReadFileFallback) {
+	s.readFileFallback = fallback
 }
 
 func (s *Server) Listen() (err error) {
@@ -67,9 +73,19 @@ func (s *Server) ServeHTTP(resp http.ResponseWriter, req *http.Request) {
 
 	content, err := readFileContent(s.outPath, ri)
 	if err != nil {
-		nazalog.Warnf("%+v", err)
-		resp.WriteHeader(404)
-		return
+		if s.readFileFallback != nil {
+			content, err = s.readFileFallback(s.outPath, ri)
+			if err != nil {
+				nazalog.Warnf("%+v", err)
+				resp.WriteHeader(404)
+				return
+			}
+		} else {
+			nazalog.Warnf("%+v", err)
+			resp.WriteHeader(404)
+			return
+		}
+
 	}
 
 	switch ri.fileType {

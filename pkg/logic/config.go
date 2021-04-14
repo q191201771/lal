@@ -56,8 +56,9 @@ type HTTPTSConfig struct {
 type HLSConfig struct {
 	SubListenAddr string `json:"sub_listen_addr"`
 	hls.MuxerConfig
-	CleanupFlag         bool                   `json:"cleanup_flag"`
-	EventObserverConfig hls.MuxerEventObserver `json:"-"`
+	CleanupFlag          bool                   `json:"cleanup_flag"`
+	EventObserverConfig  hls.MuxerEventObserver `json:"-"`
+	HttpReadFileFallback hls.ReadFileFallback   `json:"-"`
 }
 
 type RTSPConfig struct {
