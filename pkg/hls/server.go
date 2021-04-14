@@ -17,7 +17,7 @@ import (
 	"github.com/cfeeling/naza/pkg/nazalog"
 )
 
-type ReadFileFallback func(rootOutPath string, ri requestInfo) ([]byte, error)
+type ReadFileFallback func(rootOutPath string, fileName string, streamName string, fileType string) ([]byte, error)
 type Server struct {
 	addr             string
 	outPath          string
@@ -74,7 +74,7 @@ func (s *Server) ServeHTTP(resp http.ResponseWriter, req *http.Request) {
 	content, err := readFileContent(s.outPath, ri)
 	if err != nil {
 		if s.readFileFallback != nil {
-			content, err = s.readFileFallback(s.outPath, ri)
+			content, err = s.readFileFallback(s.outPath, ri.fileName, ri.streamName, ri.fileType)
 			if err != nil {
 				nazalog.Warnf("%+v", err)
 				resp.WriteHeader(404)
