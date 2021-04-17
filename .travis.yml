@@ -1,14 +1,22 @@
 language: go
 
-env:
-    - GIMME_OS=linux GIMME_ARCH=amd64 GOOS=linux GOARCH=amd64
+os:
+  - linux
+  - osx
+  - windows
+
+arch:
+  - amd64
+  - arm64
+  - ppc64le
+  - s390x
 
 go:
   - 1.13.x
   - master
 
 script:
-  - make all
+  - ./build.sh && ./test.sh
 
 after_success:
   - bash <(curl -s https://codecov.io/bash)
