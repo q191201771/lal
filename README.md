@@ -27,7 +27,7 @@ LAL could also be built from the source wherever the Go compiler toolchain can r
 
 First, make sure that Go version >= 1.13
 
-For Unix-like user:
+For Linux/macOS user:
 
 ```shell
 $git clone https://github.com/q191201771/lal.git
@@ -37,7 +37,7 @@ $make build
 
 Then all binaries go into the `./bin/` directory. That's it.
 
-For an experienced gopher, the only thing you should be concern is that `the main function` is under the `./app/lalserver` directory. So you can also:
+For an experienced gopher(and Windows user), the only thing you should be concern is that `the main function` is under the `./app/lalserver` directory. So you can also:
 
 ```shell
 $git clone https://github.com/q191201771/lal.git
