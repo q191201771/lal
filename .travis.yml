@@ -1,9 +1,12 @@
 language: go
 
+jobs:
+  allow_failures:
+  - os: windows
+
 os:
   - linux
   - osx
-  - windows
 
 arch:
   - amd64
