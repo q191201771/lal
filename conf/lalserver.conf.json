@@ -1,6 +1,6 @@
 {
   "# doc of config": "https://pengrl.com/lal/#/ConfigBrief",
-  "conf_version": "v0.1.0",
+  "conf_version": "v0.1.1",
   "rtmp": {
     "enable": true,
     "addr": ":1935",
@@ -21,7 +21,8 @@
     "out_path": "/tmp/lal/hls/",
     "fragment_duration_ms": 3000,
     "fragment_num": 6,
-    "cleanup_mode": 1
+    "cleanup_mode": 1,
+    "use_memory_as_disk_flag": false
   },
   "httpts": {
     "enable": true,

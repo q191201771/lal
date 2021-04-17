@@ -11,8 +11,6 @@ package hls
 import (
 	"bytes"
 	"fmt"
-	"io/ioutil"
-	"os"
 	"time"
 
 	"github.com/q191201771/lal/pkg/mpegts"
@@ -33,7 +31,7 @@ type MuxerObserver interface {
 }
 
 type MuxerConfig struct {
-	Enable             bool   `json:"enable"`   // 如果false，说明hls功能没开，也即不写磁盘，但是MuxerObserver依然会回调
+	Enable             bool   `json:"enable"`   // 如果false，说明hls功能没开，也即不写文件，但是MuxerObserver依然会回调
 	OutPath            string `json:"out_path"` // m3u8和ts文件的输出根目录，注意，末尾需以'/'结束
 	FragmentDurationMS int    `json:"fragment_duration_ms"`
 	FragmentNum        int    `json:"fragment_num"`
@@ -317,7 +315,7 @@ func (m *Muxer) closeFragment(isLast bool) error {
 		frag := m.getCurrFrag()
 		if frag.filename != "" {
 			filenameWithPath := getTSFilenameWithPath(m.outPath, frag.filename)
-			if err := os.Remove(filenameWithPath); err != nil {
+			if err := fslCtx.Remove(filenameWithPath); err != nil {
 				nazalog.Warnf("[%s] remove stale fragment file failed. filename=%s, err=%+v", m.UniqueKey, filenameWithPath, err)
 			}
 		}
@@ -341,7 +339,7 @@ func (m *Muxer) writeRecordPlaylist(isLast bool) {
 
 	fragLines := fmt.Sprintf("#EXTINF:%.3f,\n%s\n", currFrag.duration, currFrag.filename)
 
-	content, err := ioutil.ReadFile(m.recordPlayListFilename)
+	content, err := fslCtx.ReadFile(m.recordPlayListFilename)
 	if err == nil {
 		// m3u8文件已经存在
 
@@ -426,9 +424,9 @@ func (m *Muxer) ensureDir() {
 	if !m.config.Enable {
 		return
 	}
-	//err := os.RemoveAll(m.outPath)
+	//err := fslCtx.RemoveAll(m.outPath)
 	//nazalog.Assert(nil, err)
-	err := os.MkdirAll(m.outPath, 0777)
+	err := fslCtx.MkdirAll(m.outPath, 0777)
 	nazalog.Assert(nil, err)
 }
 

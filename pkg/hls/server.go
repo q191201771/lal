@@ -60,14 +60,14 @@ func (s *Server) ServeHTTP(resp http.ResponseWriter, req *http.Request) {
 	//nazalog.Debugf("%+v", ri)
 
 	if ri.fileName == "" || ri.streamName == "" || (ri.fileType != "m3u8" && ri.fileType != "ts") {
-		nazalog.Warnf("%+v", ri)
+		nazalog.Warnf("invalid hls request. request=%+v", ri)
 		resp.WriteHeader(404)
 		return
 	}
 
 	content, err := readFileContent(s.outPath, ri)
 	if err != nil {
-		nazalog.Warnf("%+v", err)
+		nazalog.Warnf("read hls file failed. request=%+v, err=%+v", ri, err)
 		resp.WriteHeader(404)
 		return
 	}
