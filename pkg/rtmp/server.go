@@ -1,37 +1,49 @@
+// Copyright 2019, Chef.  All rights reserved.
+// https://github.com/q191201771/lal
+//
+// Use of this source code is governed by a MIT-style license
+// that can be found in the License file.
+//
+// Author: Chef (191201771@qq.com)
+
 package rtmp
 
 import (
-	"github.com/q191201771/nezha/pkg/log"
 	"net"
+
+	log "github.com/q191201771/naza/pkg/nazalog"
 )
 
 type ServerObserver interface {
-	NewRTMPPubSessionCB(session *ServerSession) bool // 返回true则允许推流，返回false则强制关闭这个连接
-	NewRTMPSubSessionCB(session *ServerSession) bool // 返回true则允许拉流，返回false则强制关闭这个连接
-	DelRTMPPubSessionCB(session *ServerSession)
-	DelRTMPSubSessionCB(session *ServerSession)
+	OnRTMPConnect(session *ServerSession, opa ObjectPairArray)
+	OnNewRTMPPubSession(session *ServerSession) bool // 返回true则允许推流，返回false则强制关闭这个连接
+	OnDelRTMPPubSession(session *ServerSession)
+	OnNewRTMPSubSession(session *ServerSession) bool // 返回true则允许拉流，返回false则强制关闭这个连接
+	OnDelRTMPSubSession(session *ServerSession)
 }
 
 type Server struct {
-	obs  ServerObserver
-	addr string
-	ln   net.Listener
+	observer ServerObserver
+	addr     string
+	ln       net.Listener
 }
 
-func NewServer(obs ServerObserver, addr string) *Server {
+func NewServer(observer ServerObserver, addr string) *Server {
 	return &Server{
-		obs:  obs,
-		addr: addr,
+		observer: observer,
+		addr:     addr,
 	}
+}
+
+func (server *Server) Listen() (err error) {
+	if server.ln, err = net.Listen("tcp", server.addr); err != nil {
+		return
+	}
+	log.Infof("start rtmp server listen. addr=%s", server.addr)
+	return
 }
 
 func (server *Server) RunLoop() error {
-	var err error
-	server.ln, err = net.Listen("tcp", server.addr)
-	if err != nil {
-		return err
-	}
-	log.Infof("start rtmp server listen. addr=%s", server.addr)
 	for {
 		conn, err := server.ln.Accept()
 		if err != nil {
@@ -42,28 +54,37 @@ func (server *Server) RunLoop() error {
 }
 
 func (server *Server) Dispose() {
+	if server.ln == nil {
+		return
+	}
 	if err := server.ln.Close(); err != nil {
 		log.Error(err)
 	}
 }
 
 func (server *Server) handleTCPConnect(conn net.Conn) {
-	log.Infof("accept a rtmp connection. remoteAddr=%v", conn.RemoteAddr())
+	log.Infof("accept a rtmp connection. remoteAddr=%s", conn.RemoteAddr().String())
 	session := NewServerSession(server, conn)
-	_ = session.RunLoop()
+	err := session.RunLoop()
+	log.Infof("[%s] rtmp loop done. err=%v", session.uniqueKey, err)
 	switch session.t {
 	case ServerSessionTypeUnknown:
 	// noop
 	case ServerSessionTypePub:
-		server.obs.DelRTMPPubSessionCB(session)
+		server.observer.OnDelRTMPPubSession(session)
 	case ServerSessionTypeSub:
-		server.obs.DelRTMPSubSessionCB(session)
+		server.observer.OnDelRTMPSubSession(session)
 	}
 }
 
 // ServerSessionObserver
-func (server *Server) NewRTMPPubSessionCB(session *ServerSession) {
-	if !server.obs.NewRTMPPubSessionCB(session) {
+func (server *Server) OnRTMPConnect(session *ServerSession, opa ObjectPairArray) {
+	server.observer.OnRTMPConnect(session, opa)
+}
+
+// ServerSessionObserver
+func (server *Server) OnNewRTMPPubSession(session *ServerSession) {
+	if !server.observer.OnNewRTMPPubSession(session) {
 		log.Warnf("dispose PubSession since pub exist.")
 		session.Dispose()
 		return
@@ -71,9 +92,9 @@ func (server *Server) NewRTMPPubSessionCB(session *ServerSession) {
 }
 
 // ServerSessionObserver
-func (server *Server) NewRTMPSubSessionCB(session *ServerSession) {
-	if !server.obs.NewRTMPSubSessionCB(session) {
-		// TODO chef: 关闭这个连接
+func (server *Server) OnNewRTMPSubSession(session *ServerSession) {
+	if !server.observer.OnNewRTMPSubSession(session) {
+		session.Dispose()
 		return
 	}
 }

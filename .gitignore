@@ -1,19 +1,25 @@
+/app/demo/pubrtmp2pushrtmp
+
 profile.out
 coverage.html
+*.aac
+*.h264
+*.flv
+logs
+testdata
 
+/app/demo/pullds2rtmp
 /pre-commit.sh
 /coverage.txt
 /TODO.md
 /SECRET.md
 /conf/self.conf.json
-/lal
-/lal_linux
-/lal.log
+/conf/self.center.conf.json
+/conf/self.edge.conf.json
 /tmp
 
-/pkg/hls/
-/demo/
-/bin/
-/.idea/
-/.trash/
-/logs/
+/bin
+/release
+/.idea
+/.trash
+/playground

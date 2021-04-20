@@ -1,0 +1,60 @@
+{
+  "# doc of config": "https://pengrl.com/lal/#/ConfigBrief",
+  "conf_version": "v0.1.0",
+  "rtmp": {
+    "enable": true,
+    "addr": ":1945",
+    "gop_num": 2
+  },
+  "httpflv": {
+    "enable": true,
+    "sub_listen_addr": ":8180",
+    "enable_https": false,
+    "https_addr": ":4443",
+    "https_cert_file": "./conf/cert.pem",
+    "https_key_file": "./conf/key.pem",
+    "gop_num": 2
+  },
+  "hls": {
+    "enable": true,
+    "sub_listen_addr": ":8181",
+    "out_path": "/tmp/lal/edge/",
+    "fragment_duration_ms": 3000,
+    "fragment_num": 6,
+    "cleanup_mode": 1
+  },
+  "httpts": {
+    "enable": true,
+    "sub_listen_addr": ":8182"
+  },
+  "rtsp": {
+    "enable": true,
+    "addr": ":5644"
+  },
+  "relay_push": {
+    "enable": true,
+    "addr_list":[
+      "127.0.0.1:1935"
+    ]
+  },
+  "relay_pull": {
+    "enable": true,
+    "addr": "127.0.0.1:1935"
+  },
+  "http_api": {
+    "enable": true,
+    "addr": ":8183"
+  },
+  "pprof": {
+    "enable": false,
+    "addr": ":8184"
+  },
+  "log": {
+    "level": 1,
+    "filename": "./logs/edge.log",
+    "is_to_stdout": true,
+    "is_rotate_daily": true,
+    "short_file_flag": true,
+    "assert_behavior": 1
+  }
+}

@@ -1,4 +1,280 @@
-#### v0.2.0
+#### v0.21.0 (2021-04-11)
+
+- [feat] package rtmp: 支持Aggregate Message
+- [feat] lalserver: 新增配置项hls.cleanup_mode，支持三种清理hls文件的模式，具体说明见 https://pengrl.com/lal/#/ConfigBrief
+- [feat] package rtsp: 支持aac fragment格式（一个音频帧被拆分成多个rtp包），之前这种aac格式可能导致崩溃
+- [doc] 新增文章《rtmp中的各种ID》，见 https://pengrl.com/lal/#/RTMPID
+- [doc] 新增文章《rtmp handshake握手之简单模式和复杂模式》，见 https://pengrl.com/lal/#/RTMPHandshake
+- [fix] rtsp推流时，rtp包时间戳翻转导致的错误（比如长时间推流后hls一直强制切片）
+- [fix] lalserver的group中，rtsp sub超时时，锁重入导致服务器异常阻塞不响应
+- [fix] 修复mipsle架构下rtsp崩溃
+- [fix] 修复lalserver中（rtsp.BaseInSession以及logic.Group）的一些竞态读写，https://github.com/q191201771/lal/issues/47
+- [fix] demo: 两个拉httpflv流的demo，main函数退出前忘记等待拉流结束
+- [refactor] package rtprtcp: 重构一些函数名
+- [refactor] package rtprtcp: 重构rtp unpacker，业务方可以使用默认的container，protocol策略，也可以自己实现特定的协议解析组包策略
+- [refactor] lalserver: 整理配置文件加载与日志初始化部分的代码
+- [doc] 启用英文版本README.md作为github首页文档展示
+- [doc] lalserver: 新增配置项conf_version，用于表示配置文件的版本号
+- [doc] lalserver: 启动时日志中增加lal logo
+
+#### v0.20.0 (2021-03-21)
+
+- [feat] 新增app/demo/calcrtmpdelay，可用于测量rtmp服务器的转发延时，拉流支持rtmp/httpflv
+- [feat] app/demo/pushrtmp 做压测时，修改为完全并行的模式
+- [fix] 修复32位arm环境使用rtsp崩溃
+- [refactor] 统一各Session接口
+- [refactor] 使用新的unique id生成器，提高性能
+- [doc] 新增文档 ffplay播放rtsp花屏 https://pengrl.com/lal/#/RTSPFFPlayBlur
+
+#### v0.19.1 (2021-02-01)
+
+- [fix] 获取group中播放者数量时锁没有释放，导致后续无法转发数据
+
+#### v0.19.0 (2021-01-24)
+
+- [feat] demo，新增app/demo/pullrtsp2pushrtsp，可拉取rtsp流，并使用rtsp转推出去
+- [feat] demo，新增/app/demo/pullrtmp2pushrtmp，从远端服务器拉取RTMP流，并使用RTMP转推出去，支持1对n转推
+- [feat] lalserver，运行参数中没指定配置文件时，尝试从几个常见位置读取
+- [feat] windows平台下，执行程序缺少运行参数时，等待用户键入回车再退出程序，避免用户双击打开程序时程序闪退，看不到提示信息
+- [feat] rtsp，支持auth basic验证
+- [feat] rtsp，实现PushSession
+- [feat] rtsp，所有Session类型都支持auth，interleaved
+- [fix] rtsp，只有输入流中的音频和视频格式都支持时才使用queue，避免只有音频或视频时造成延迟增加
+- [fix] rtsp，输入流只有单路音频或视频时，接收对象设置错误导致崩溃
+- [fix] rtsp，client session的所有信令都处理401 auth
+- [fix] rtsp，in session使用rtp over tcp时，收到sr回复rr
+- [fix] rtsp，setup信令header中的transport字段区分record和play，record时添加mode=record
+- [fix] avc，整体解析sps数据失败时，只解析最基础部分
+- [refactor] rtsp，重构部分逻辑，聚合至sdp.LogicContext中
+- [refactor] rtsp，新增ClientCommandSession，将PushSession和PullSession中共用的信令部分抽离出来
+- [refactor] rtsp，新增BaseOutSession，将PushSession和SubSession中共用的发送数据部分抽离出来
+- [refactor] rtsp，整理所有session，包含生命周期，ISessionStat、IURLContext、Interleaved收发等函数，整理debug日志
+- [doc] 启动lal官方文档页： https://pengrl.com/lal
+- [doc] 新增文档《rtmp url，以及vhost》： http://pengrl.com/lal/#/RTMPURLVhost
+- [chore] Go最低版本要求从1.9上升到1.13
+
+#### v0.18.0 (2020-12-27)
+
+- [feat] 实现rtsp pull session
+- [feat] demo，增加`/app/demo/pullrtsp2pushrtmp`，可拉取rtsp流，并使用rtmp转推出去
+- [feat] demo，增加`/app/demo/pullrtsp`，可拉取rtsp流，存储为flv文件
+- [feat] rtsp interleaved(rtp over tcp)模式。pub, sub, pull都已支持
+- [feat] rtsp，pull支持auth digest验证
+- [feat] rtsp，pull支持定时发送`GET_PARAMETER` rtsp message进行保活（对端支持的情况下）
+- [feat] rtsp，输入流音频不是AAC格式时，保证视频流可正常remux成其他封装协议
+- [feat] rtsp，pull开始时发送dummy rtp/rtcp数据，保证对端能成功发送数据至本地
+- [feat] rtsp，修改rtsp.AVPacketQueue的行为：当音频或者视频数量队列满了后，直接出队而不是丢弃
+- [feat] logic，rtsp pub转发给rtsp sub
+- [feat] logic，rtsp pub转发给relay rtmp push
+- [feat] remux，新增package，用于处理协议转封装
+- [refactor] 重构所有client session解析url的地方
+- [refactor] 所有session实现ISessionStat接口，用于计算、获取bitrate等流相关的信息
+- [refactor] 所有session实现ISessionURLContext接口，用于获取流url相关的信息
+- [refactor] rtmp/httpflv/rtsp，统一所有PullSession：超时形式；Pull和Wait函数
+- [fix] rtsp，将以下包返回给上层：rtsp pub h265, single rtp packet, VPS, SPS, PPS, SEI
+- [fix] sdp，修复解析及使用sdp错误的一些case
+- [fix] aac，正确处理大于2字节的AudioSpecificConfig
+- [fix] avc，尝试解析scaling matrix
+
+#### v0.17.0 (2020-11-21)
+
+- [feat] 增加HTTP Notify事件回调功能，见 https://pengrl.com/p/20101
+- [feat] 增加`/app/demo/dispatch`示例程序，用于演示如何结合HTTP Notify加HTTP API构架一个lalserver集群
+- [feat] 配置文件中增加配置项，支持配置是否清除过期流的HLS文件
+- [feat] lalserver的session增加存活检查，10秒没有数据会主动断开连接
+- [feat] lalserver的group没有sub拉流时，停止对应的pull回源
+- [feat] HTTP API，增加`/api/ctrl/start_pull`接口，可向lalserver发送命令，主动触发pull回源拉流
+- [feat] HTTP API，增加`/api/ctrl/kick_out_session`接口，可向lalserver发送命令，主动踢掉指定的session
+- [feat] HTTP API `/api/stat/lal_info` 中增加`server_id`字段
+- [feat] HTTP API，group结构体中增加pull结构体，包含了回源拉流的信息
+- [fix] 配置文件静态relay push转推方式中，push rtmp url透传pub rtmp url的参数
+- [chore] 增加`gen_tag.sh`，用于打tag
+
+#### v0.16.0 (2020-10-23)
+
+- [feat] rtsp pub h265（lal支持接收rtsp h265视频格式的推流）
+- [feat] 增加HTTP API接口，用于获取服务的一些信息，具体见： https://pengrl.com/p/20100/
+- [fix] 修复部分使用adobe flash player作为rtmp拉流客户端，拉流失败的问题
+- [fix] 修复接收rtsp pub推流时，流只有视频（没有音频）流处理的问题
+
+#### v0.15.1 (2020-09-19)
+
+- [fix] 配置文件没有开启HTTPS-FLV时，错误使用nil对象导致崩溃
+
+#### v0.15.0 (2020-09-19)
+
+- [feat] 支持HTTP-TS sub长连接拉流
+- [feat] 支持HTTPS-FLV
+- [feat] 支持跨域请求：HTTP-FLV sub, HTTP-TS sub, HLS这几个HTTP类型的拉流
+- [feat] 支持HLS录制与回放（在原有HLS直播的基础之上）
+- [fix] 修复record m3u8文件无法更新的问题
+- [fix] 修复rtsp pub无法接收IPv6 RTP数据的问题
+- [fix] 修复windows平台编译失败的问题（单元测试package innertest中使用syscall.Kill导致）
+- [feat] demo pullrtmp2hls: 新增demo，从远端服务器拉取rtmp流，存储为本地hls文件
+- [feat] 新增package alpha/stun，学习stun协议
+- [feat] 部分rtsp pub支持h265的代码，未完全完成
+
+#### v0.14.0 (2020-08-23)
+
+- [feat] lalserver实现rtsp pub功能。支持接收rtsp(rtp/rtcp)推流，转换为rtmp,httpflv,hls格式供拉流使用
+- [feat] hls.Muxer释放时，向m3u8文件写入`#EXT-X-ENDLIST`
+- [refactor] 新增package sdp，rtprtcp
+- [refactor] 新增package base，整理lal项目中各package的依赖关系
+- [refactor] 新增package mpegts，将部分package hls中代码抽离出来
+- [refactor] 重写package aac
+- [feat] 在各协议的标准字段中写入lal版本信息
+- [fix] group Dispose主动释放所有内部资源，与中继转推回调回来的消息，做同步处理，避免崩溃
+- [fix] package avc: 修复解析sps中PicOrderCntType为2无法解析的bug
+- [refactor] 重命名app/demo中的一些程序名
+- [feat] package rtmp: 增加BuildMetadata函数
+- [test] 使用wontcry30s.flv作为单元测试用的音视频文件
+- [chore] 使用Makefile管理build, test
+- [doc] 增加文档: https://pengrl.com/p/20080/
+- [log] 整理所有session的日志
+
+#### v0.13.0 (2020-07-18)
+
+- [feat] package httpflv: pull拉流时，携带url参数
+- [feat] package avc: 提供一些AVCC转AnnexB相关的代码。学习解析SPS、PPS内部的字段
+- [fix] package rtmp: 打包rtmp chunk时扩展时间戳的格式。避免时间戳过大后，发送给vlc的数据无法播放。
+- [fix] package hls: 写ts视频数据时，流中没有spspps导致崩溃
+- [fix] package logic: 修复重复创建group.RunLoop协程的bug
+- [perf] package logic: 广播数据时，内存块不做拷贝
+- [perf] package hls: 切片188字节buffer复用一块内存
+- [refactor] package hls: 使用package avc
+- [refactor] 所有回调函数的命名格式，从CB后缀改为On前缀
+- [refactor] 整理日志
+- [style] Nalu更改为NALU
+- [doc] 增加PR规范
+- [test] innertest中对hls生成的m3u8和ts文件做md5验证
+- [chore] 下载单元测试用的test.flv失败，本地文件大小为0时，去备用地址下载
+
+#### v0.12.0 (2020-06-20)
+
+- [feat] lalserver增加回源功能
+- [fix] rtmp.AMF0.ReadObject函数内部，增加解析子类型EcmaArray。避免向某些rtmp服务器推流时，触发断言错误
+- [fix] 解析rtmp metadata时，兼容Object和Array两种外层格式
+- [refactor] 重写了lalserver的中继转推的代码
+
+#### v0.11.0 (2020-06-13)
+
+- [feat] lalserver增加中继转推(relay push)功能，可将接收到的推流(pub)转推(push)到其他rtmp类型的服务器，支持1对n的转推
+- [feat] package rtmp: 新增函数amf0::ReadArray，用于解析amf array数据
+- [refactor] `rtmp/client_push_session`增加当前会话连接状态
+- [fix] demo/analyseflv: 修复解析metadata的bug
+- [perf] httpflv协议关闭时，不做httpflv的GOP缓存
+- [refactor] logic中的配置变更为全局变量
+- [refactor] lal/demo移动到lal/app/demo
+- [refactor] 日志整理
+
+#### v0.10.0 (2020-06-06)
+
+- [refactor] app/lals重命名为app/lalserver，避免描述时容易和lal造成混淆
+- [refactor] 将app/lalserver的大部分逻辑代码移入pkg/logic中
+- [test] 将所有package的Server、Session等内容的实例测试收缩至package innertest中，多个package都可以共用它做单元测试
+- [refactor] lalserver配置中增加显式enable字段，用于开启关闭特定协议
+- [refactor] 各package的Server对象增加独立的Listen函数，使得绑定监听端口失败时上层可以第一时间感知
+- [feat] demo/analyseflv，增加I帧间隔检查，增加metadata分析
+- [fix] package avc: 修复函数CalcSliceType解析I、P、B帧类型的bug
+- [fix] package hls: 检查输入的rtmp message是否完整，避免非法数据造成崩溃
+- [perf] gop缓存使用环形队列替换FIFO动态切片队列
+- [refactor] package aac: 函数ADTS::PutAACSequenceHeader检查输入切片长度
+- [refactor] package aac: 删除函数CaptureAAC
+- [feat] 增加demo/learnrtsp，pkg/rtsp，开始学习rtsp
+
+#### v0.9.0 (2020-05-30)
+
+- [feat] 新增HLS直播功能
+- [fix] 接收rtmp数据时，同一个message的多个chunk混合使用fmt1，2时，可能出现时间戳多加的情况
+- [refactor] 将app目录下除lals的其他应用移入demo目录下
+- [feat] 新增两个demo：analyseflv和analysehls，分别用于拉取HTTP-FLV和HLS的流，并进行分析
+- [fix] 修改rtmp简单握手，修复macOS ffmpeg 4.2.2向lals推rtmp流时的握手警告
+
+#### v0.8.1 (2020-05-01)
+
+- [feat] 新package hevc
+- [fix] windows平台缺少USER1信号导致编译失败
+- [fix] gop缓存时，不以I帧开始的流会崩溃
+- [chore] 提供各平台二进制可执行文件的压缩包
+- [doc] package aac增加一些注释
+- [refactor] 使用naza v0.10.0
+
+#### v0.8.0 (2020-04-18)
+
+- [feat] 支持H265/HEVC
+- [feat] 支持GOP缓存
+
+#### v0.7.0 (2019-12-13)
+
+- [fix] package logic: 转发 rtmp metadata 时，message header 中的 len 字段可能和 body 实际长度不一致
+- [feat] rtmp.AVMsg 增加判断包中音视频数据是否为 seq header 等函数
+- [feat] app/httpflvpull 使用 naza/bitrate 来统计音频和视频的带宽
+- [refactor] logic config 的部分配置移动至 app/lals 中
+- [refactor] logic 增加 LazyChunkDivider 组织代码
+- [log] package rtmp: 一些错误情况下，对接收到包 dump hex
+- [test] 测试推送 n 路 rtmp 流至 lals，再从 lals 拉取这 n 路 rtmp 流的性能消耗
+- [doc] README 中增加测试过的推拉流客户端
+- [dep] update naza -> v0.7.1
+
+#### v0.6.0 (2019-11-08)
+
+- package rtmp: 结构体的属性重命名 AVMsg.Message -> AVMsg.Payload
+- app/flvfile2rtmppush: 支持推送多路 rtmp 流，相当于一个压测工具
+- app/rtmppull: 支持对特定的一路流并发拉取多份，相当于一个压测工具
+- README 中补充性能测试结果
+
+#### v0.5.0 (2019-11-01)
+
+- package rtmp:
+    - 增加结构体 ClientSessionOption，PushSessionOption，PullSessionOption
+    - 增加结构体 AVMsg
+    - ClientSession 作为 PushSession 和 PullSession 的私有成员
+    - 将绝对时间戳移入到 Header 结构体中
+    - PullSession::Pull OnReadAVMsg with AVMsg
+    - AVMsgObserver::ReadRTMPAVMsgCB -> OnReadRTMPAVMsg
+- package httpflv:
+    - PullSessionOption
+    - OnReadFLVTag
+    - some func use Tag instead of *Tag
+    - 整个包的代码做了一次整理
+    - FlvFileReader 在 ReadTag 中懒读取 flv header
+- package logic:
+    - 使用 rtmp.AVMsg
+    - 增加两个函数 MakeDefaultRTMPHeader，FLVTagHeader2RTMPHeader
+
+#### v0.4.0 (2019-10-25)
+
+- [功能] 将 rtmp pub session 的音视频转发给httpflv sub session
+- [依赖] httpflv ServerSubSession 使用 naza connection
+- [其他] 增加测试，加载flv文件后使用rtmp推流至服务器，然后分别使用rtmp和httpflv将流拉取下来，存成文件，判断和输入文件是否相等
+
+#### v0.3.2 (2019-10-19)
+
+- [功能] 默认的rtmp地址
+- [依赖] naza 更新为 0.4.3
+- [架构调整] lal 中的服务器更名为 lals
+- [其他] 从远端下载 flv 测试文件，跑单元测试
+- [其他] test.sh 中加入更多 go tool
+- [其他] 所有源码文件添加 MIT 许可证
+
+#### v0.3.1 (2019-09-30)
+
+- [功能] 读取配置文件时，部分未配置的字段设置初始值
+- [其他] build.sh 中 git信息单引号替换成双引号
+- [其他] test.sh 中 加入 gofmt 检查
+- [其他] 更新 naza -> 0.4.0
+
+#### v0.3.0 (2019-09-27)
+
+- [功能] package logic: 增加 func FlvTag2RTMPMsg
+- [代码调整] package rtmp: ClientSession 和 ServerSession 使用 nezha 中的 connection 做连接管理
+- [代码调整] package rtmp: 增加 struct ChunkDivider
+- [代码调整] package rtmp: 调整一些接口
+- [代码调整] package httpflv: 删除了 group， gop 相关的代码，后续会放入 package logic 中
+- [测试] package rtmp: 增加 `example_test.go` 用于测试整个 rtmp 包的流程
+- [其他] 更新 nezha -> 0.3.0
+
+#### v0.2.0 (2019-09-21)
 
 - [结构调整] 将 app/lal 的部分代码抽离到 pkg/logic 中，使得其他 app 可以使用
 - [结构调整] 将协议层 rtmp.Group 和 应用层 app/lal 中的 GroupManager 合并为 逻辑层 pkg/logic 的 Group，以后只在逻辑层维护一个 Group，用于处理各种具体协议的输入输出流的挂载
@@ -13,7 +289,7 @@
 - [其他] pprof web 地址放入配置文件中
 - [测试] 使用一些开源工具对 app/lal 做推流、拉流测试
 
-#### v0.1.0
+#### v0.1.0 (2019-09-12)
 
 - /app/flvfile2rtmppush 优化推流平稳性
 - bugfix rtmp 推拉流信令时可以携带 url 参数，并且在做上下行匹配时去掉 url 参数
@@ -29,6 +305,6 @@
 - 更新 nezha 0.1.0
 - errors.PanicIfErrorOccur -> log.FatalIfErrorNotNil
 
-#### v0.0.1
+#### v0.0.1 (2019-09-03)
 
 1. 提供 `/app/flvfile2rtmppush` 给业务方使用

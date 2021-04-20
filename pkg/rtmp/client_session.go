@@ -1,39 +1,57 @@
+// Copyright 2019, Chef.  All rights reserved.
+// https://github.com/q191201771/lal
+//
+// Use of this source code is governed by a MIT-style license
+// that can be found in the License file.
+//
+// Author: Chef (191201771@qq.com)
+
 package rtmp
 
 import (
+	"context"
 	"encoding/hex"
-	"github.com/q191201771/nezha/pkg/bele"
-	"github.com/q191201771/nezha/pkg/connection"
-	"github.com/q191201771/nezha/pkg/log"
-	"github.com/q191201771/nezha/pkg/unique"
+	"errors"
+	"fmt"
 	"net"
-	"net/url"
-	"strings"
 	"time"
+
+	"github.com/q191201771/naza/pkg/nazastring"
+
+	"github.com/q191201771/lal/pkg/base"
+
+	"github.com/q191201771/naza/pkg/bele"
+	"github.com/q191201771/naza/pkg/connection"
+	"github.com/q191201771/naza/pkg/nazalog"
 )
 
-// rtmp客户端类型连接的底层实现
-// rtmp包的使用者应该优先使用基于ClientSession实现的PushSession和PullSession
+var ErrClientSessionTimeout = errors.New("lal.rtmp: client session timeout")
+
+// rtmp 客户端类型连接的底层实现
+// package rtmp 的使用者应该优先使用基于 ClientSession 实现的 PushSession 和 PullSession
 type ClientSession struct {
-	UniqueKey string
+	uniqueKey string
 
-	t                      ClientSessionType
-	obs                    PullSessionObserver // only for PullSession
-	timeout                ClientSessionTimeout
-	doResultChan           chan struct{}
-	errChan                chan error
-	packer                 *MessagePacker
-	chunkComposer          *ChunkComposer
-	url                    *url.URL
-	tcURL                  string
-	appName                string
-	streamName             string
-	streamNameWithRawQuery string
-	hc                     HandshakeClientSimple
-	peerWinAckSize         int
+	t      ClientSessionType
+	option ClientSessionOption
 
-	Conn  connection.Connection
-	wChan chan []byte
+	packer         *MessagePacker
+	chunkComposer  *ChunkComposer
+	urlCtx         base.URLContext
+	hc             HandshakeClientSimple
+	peerWinAckSize int
+
+	conn         connection.Connection
+	prevConnStat connection.Stat
+	staleStat    *connection.Stat
+	stat         base.StatSession
+	doResultChan chan struct{}
+
+	// 只有PullSession使用
+	onReadRTMPAVMsg OnReadRTMPAVMsg
+
+	debugLogReadUserCtrlMsgCount int
+	debugLogReadUserCtrlMsgMax   int
 }
 
 type ClientSessionType int
@@ -43,131 +61,285 @@ const (
 	CSTPushSession
 )
 
-// 单位毫秒，如果为0，则没有超时
-type ClientSessionTimeout struct {
-	ConnectTimeoutMS int // 建立连接超时
+type ClientSessionOption struct {
+	// 单位毫秒，如果为0，则没有超时
 	DoTimeoutMS      int // 从发起连接（包含了建立连接的时间）到收到publish或play信令结果的超时
 	ReadAVTimeoutMS  int // 读取音视频数据的超时
 	WriteAVTimeoutMS int // 发送音视频数据的超时
 }
 
+var defaultClientSessOption = ClientSessionOption{
+	DoTimeoutMS:      0,
+	ReadAVTimeoutMS:  0,
+	WriteAVTimeoutMS: 0,
+}
+
+type ModClientSessionOption func(option *ClientSessionOption)
+
 // @param t: session的类型，只能是推或者拉
-// @param obs: 回调结束后，buffer会被重复使用
-// @param timeout: 设置各种超时
-func NewClientSession(t ClientSessionType, obs PullSessionObserver, timeout ClientSessionTimeout) *ClientSession {
+func NewClientSession(t ClientSessionType, modOptions ...ModClientSessionOption) *ClientSession {
 	var uk string
 	switch t {
 	case CSTPullSession:
-		uk = "RTMPPULL"
+		uk = base.GenUKRTMPPullSession()
 	case CSTPushSession:
-		uk = "RTMPPUSH"
+		uk = base.GenUKRTMPPushSession()
 	}
-	log.Infof("lifecycle new rtmp client session. [%s]", uk)
 
-	return &ClientSession{
-		UniqueKey:     unique.GenUniqueKey(uk),
+	option := defaultClientSessOption
+	for _, fn := range modOptions {
+		fn(&option)
+	}
+
+	s := &ClientSession{
+		uniqueKey:     uk,
 		t:             t,
-		obs:           obs,
-		timeout:       timeout,
-		doResultChan:  make(chan struct{}),
-		errChan:       make(chan error),
+		option:        option,
+		doResultChan:  make(chan struct{}, 1),
 		packer:        NewMessagePacker(),
 		chunkComposer: NewChunkComposer(),
-		wChan:         make(chan []byte, wChanSize),
+		stat: base.StatSession{
+			Protocol:  base.ProtocolRTMP,
+			SessionID: uk,
+			StartTime: time.Now().Format("2006-01-02 15:04:05.999"),
+		},
+		debugLogReadUserCtrlMsgMax: 5,
 	}
+	nazalog.Infof("[%s] lifecycle new rtmp ClientSession. session=%p", uk, s)
+	return s
 }
 
-// 阻塞直到收到服务端返回的 publish start / play start 信令 或者超时
+// 阻塞直到收到服务端返回的 publish / play 对应结果的信令或者发生错误
 func (s *ClientSession) Do(rawURL string) error {
-	t := time.NewTimer(time.Duration(s.timeout.DoTimeoutMS) * time.Millisecond)
-	select {
-	case err := <-s.do(rawURL):
-		return err
-	case <-t.C:
-		return rtmpErr
+	nazalog.Debugf("[%s] Do. url=%s", s.uniqueKey, rawURL)
 
+	var (
+		ctx    context.Context
+		cancel context.CancelFunc
+	)
+	if s.option.DoTimeoutMS == 0 {
+		ctx, cancel = context.WithCancel(context.Background())
+	} else {
+		ctx, cancel = context.WithTimeout(context.Background(), time.Duration(s.option.DoTimeoutMS)*time.Millisecond)
 	}
+	defer cancel()
+	return s.doContext(ctx, rawURL)
 }
 
-func (s *ClientSession) do(rawURL string) <-chan error {
-	ch := make(chan error, 1)
-	if err := s.parseURL(rawURL); err != nil {
-		ch <- err
-		return ch
+func (s *ClientSession) Write(msg []byte) error {
+	if s.conn == nil {
+		return base.ErrSessionNotStarted
 	}
-	if err := s.tcpConnect(); err != nil {
-		ch <- err
-		return ch
-	}
-
-	if err := s.handshake(); err != nil {
-		ch <- err
-		return ch
-	}
-
-	log.Infof("<----- SetChunkSize %d. [%s]", LocalChunkSize, s.UniqueKey)
-	if err := s.packer.writeChunkSize(s.Conn, LocalChunkSize); err != nil {
-		ch <- err
-		return ch
-	}
-
-	log.Infof("<----- connect('%s'). [%s]", s.appName, s.UniqueKey)
-	if err := s.packer.writeConnect(s.Conn, s.appName, s.tcURL); err != nil {
-		ch <- err
-		return ch
-	}
-
-	go func() {
-		s.errChan <- s.runReadLoop()
-	}()
-
-	select {
-	case <-s.doResultChan:
-		ch <- nil
-		break
-	case err := <-s.errChan:
-		ch <- err
-		break
-	}
-	return ch
-}
-
-func (s *ClientSession) WaitLoop() error {
-	return <-s.errChan
-}
-
-// TODO chef: mod to async
-func (s *ClientSession) TmpWrite(b []byte) error {
-	_, err := s.Conn.Write(b)
+	_, err := s.conn.Write(msg)
 	return err
 }
 
-func (s *ClientSession) runReadLoop() error {
-	return s.chunkComposer.RunLoop(s.Conn, s.doMsg)
+func (s *ClientSession) Flush() error {
+	if s.conn == nil {
+		return base.ErrSessionNotStarted
+	}
+	return s.conn.Flush()
+}
+
+func (s *ClientSession) Dispose() error {
+	nazalog.Infof("[%s] lifecycle dispose rtmp ClientSession.", s.uniqueKey)
+	if s.conn == nil {
+		return base.ErrSessionNotStarted
+	}
+	return s.conn.Close()
+}
+
+func (s *ClientSession) WaitChan() <-chan error {
+	return s.conn.Done()
+}
+
+func (s *ClientSession) URL() string {
+	return s.urlCtx.URL
+}
+
+func (s *ClientSession) AppName() string {
+	return s.urlCtx.PathWithoutLastItem
+}
+
+func (s *ClientSession) StreamName() string {
+	return s.urlCtx.LastItemOfPath
+}
+
+func (s *ClientSession) RawQuery() string {
+	return s.urlCtx.RawQuery
+}
+
+func (s *ClientSession) UniqueKey() string {
+	return s.uniqueKey
+}
+
+func (s *ClientSession) GetStat() base.StatSession {
+	connStat := s.conn.GetStat()
+	s.stat.ReadBytesSum = connStat.ReadBytesSum
+	s.stat.WroteBytesSum = connStat.WroteBytesSum
+	return s.stat
+}
+
+func (s *ClientSession) UpdateStat(intervalSec uint32) {
+	currStat := s.conn.GetStat()
+	rDiff := currStat.ReadBytesSum - s.prevConnStat.ReadBytesSum
+	s.stat.ReadBitrate = int(rDiff * 8 / 1024 / uint64(intervalSec))
+	wDiff := currStat.WroteBytesSum - s.prevConnStat.WroteBytesSum
+	s.stat.WriteBitrate = int(wDiff * 8 / 1024 / uint64(intervalSec))
+	switch s.t {
+	case CSTPushSession:
+		s.stat.Bitrate = s.stat.WriteBitrate
+	case CSTPullSession:
+		s.stat.Bitrate = s.stat.ReadBitrate
+	}
+	s.prevConnStat = currStat
+}
+
+func (s *ClientSession) IsAlive() (readAlive, writeAlive bool) {
+	currStat := s.conn.GetStat()
+	if s.staleStat == nil {
+		s.staleStat = new(connection.Stat)
+		*s.staleStat = currStat
+		return true, true
+	}
+
+	readAlive = !(currStat.ReadBytesSum-s.staleStat.ReadBytesSum == 0)
+	writeAlive = !(currStat.WroteBytesSum-s.staleStat.WroteBytesSum == 0)
+	*s.staleStat = currStat
+	return
+}
+
+func (s *ClientSession) doContext(ctx context.Context, rawURL string) error {
+	errChan := make(chan error, 1)
+
+	go func() {
+		if err := s.parseURL(rawURL); err != nil {
+			errChan <- err
+			return
+		}
+		if err := s.tcpConnect(); err != nil {
+			errChan <- err
+			return
+		}
+
+		if err := s.handshake(); err != nil {
+			errChan <- err
+			return
+		}
+
+		nazalog.Infof("[%s] > W SetChunkSize %d.", s.uniqueKey, LocalChunkSize)
+		if err := s.packer.writeChunkSize(s.conn, LocalChunkSize); err != nil {
+			errChan <- err
+			return
+		}
+
+		nazalog.Infof("[%s] > W connect('%s'). tcUrl=%s", s.uniqueKey, s.appName(), s.tcURL())
+		if err := s.packer.writeConnect(s.conn, s.appName(), s.tcURL(), s.t == CSTPushSession); err != nil {
+			errChan <- err
+			return
+		}
+
+		s.runReadLoop()
+	}()
+
+	select {
+	case <-ctx.Done():
+		return ctx.Err()
+	case <-s.doResultChan:
+		return nil
+	}
+}
+
+func (s *ClientSession) parseURL(rawURL string) (err error) {
+	s.urlCtx, err = base.ParseRTMPURL(rawURL)
+	if err != nil {
+		return err
+	}
+
+	return
+}
+
+func (s *ClientSession) tcURL() string {
+	return fmt.Sprintf("%s://%s/%s", s.urlCtx.Scheme, s.urlCtx.StdHost, s.urlCtx.PathWithoutLastItem)
+}
+func (s *ClientSession) appName() string {
+	return s.urlCtx.PathWithoutLastItem
+}
+
+func (s *ClientSession) streamNameWithRawQuery() string {
+	if s.urlCtx.RawQuery == "" {
+		return s.urlCtx.LastItemOfPath
+	}
+	return fmt.Sprintf("%s?%s", s.urlCtx.LastItemOfPath, s.urlCtx.RawQuery)
+}
+
+func (s *ClientSession) tcpConnect() error {
+	nazalog.Infof("[%s] > tcp connect.", s.uniqueKey)
+	var err error
+
+	s.stat.RemoteAddr = s.urlCtx.HostWithPort
+
+	var conn net.Conn
+	if conn, err = net.Dial("tcp", s.urlCtx.HostWithPort); err != nil {
+		return err
+	}
+
+	s.conn = connection.New(conn, func(option *connection.Option) {
+		option.ReadBufSize = readBufSize
+		option.WriteChanFullBehavior = connection.WriteChanFullBehaviorBlock
+	})
+	return nil
+}
+
+func (s *ClientSession) handshake() error {
+	nazalog.Infof("[%s] > W Handshake C0+C1.", s.uniqueKey)
+	if err := s.hc.WriteC0C1(s.conn); err != nil {
+		return err
+	}
+
+	if err := s.hc.ReadS0S1S2(s.conn); err != nil {
+		return err
+	}
+	nazalog.Infof("[%s] < R Handshake S0+S1+S2.", s.uniqueKey)
+
+	nazalog.Infof("[%s] > W Handshake C2.", s.uniqueKey)
+	if err := s.hc.WriteC2(s.conn); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (s *ClientSession) runReadLoop() {
+	// TODO chef: 这里是否应该主动关闭conn，考虑对端发送非法协议数据，增加一个对应的测试看看
+	_ = s.chunkComposer.RunLoop(s.conn, s.doMsg)
 }
 
 func (s *ClientSession) doMsg(stream *Stream) error {
 	switch stream.header.MsgTypeID {
-	case typeidWinAckSize:
+	case base.RTMPTypeIDWinAckSize:
 		fallthrough
-	case typeidBandwidth:
+	case base.RTMPTypeIDBandwidth:
 		fallthrough
-	case typeidSetChunkSize:
+	case base.RTMPTypeIDSetChunkSize:
 		return s.doProtocolControlMessage(stream)
-	case typeidCommandMessageAMF0:
+	case base.RTMPTypeIDCommandMessageAMF0:
 		return s.doCommandMessage(stream)
-	case TypeidDataMessageAMF0:
+	case base.RTMPTypeIDMetadata:
 		return s.doDataMessageAMF0(stream)
-	case typeidAck:
+	case base.RTMPTypeIDAck:
 		return s.doAck(stream)
-	case typeidUserControl:
-		log.Warnf("read user control message, ignore. [%s]", s.UniqueKey)
-	case TypeidAudio:
+	case base.RTMPTypeIDUserControl:
+		s.debugLogReadUserCtrlMsgCount++
+		if s.debugLogReadUserCtrlMsgCount <= s.debugLogReadUserCtrlMsgMax {
+			nazalog.Warnf("[%s] read user control message, ignore. buf=%s",
+				s.uniqueKey, hex.Dump(nazastring.SubSliceSafety(stream.msg.buf[stream.msg.b:stream.msg.e], 32)))
+		}
+	case base.RTMPTypeIDAudio:
 		fallthrough
-	case TypeidVideo:
-		s.obs.ReadRTMPAVMsgCB(stream.header, stream.timestampAbs, stream.msg.buf[stream.msg.b:stream.msg.e])
+	case base.RTMPTypeIDVideo:
+		s.onReadRTMPAVMsg(stream.toAVMsg())
 	default:
-		log.Errorf("read unknown msg type id. [%s] typeid=%+v", s.UniqueKey, stream.header)
+		nazalog.Errorf("[%s] read unknown message. typeid=%d, %s", s.uniqueKey, stream.header.MsgTypeID, stream.toDebugString())
 		panic(0)
 	}
 	return nil
@@ -175,7 +347,7 @@ func (s *ClientSession) doMsg(stream *Stream) error {
 
 func (s *ClientSession) doAck(stream *Stream) error {
 	seqNum := bele.BEUint32(stream.msg.buf[stream.msg.b:stream.msg.e])
-	log.Infof("-----> Acknowledgement. [%s] ignore. sequence number=%d.", s.UniqueKey, seqNum)
+	nazalog.Infof("[%s] < R Acknowledgement. ignore. sequence number=%d.", s.uniqueKey, seqNum)
 	return nil
 }
 
@@ -186,13 +358,12 @@ func (s *ClientSession) doDataMessageAMF0(stream *Stream) error {
 	}
 
 	switch val {
-	case "|RtmpSampleAccess": // TODO chef: handle this?
+	case "|RtmpSampleAccess":
+		nazalog.Debugf("[%s] < R |RtmpSampleAccess, ignore.", s.uniqueKey)
 		return nil
 	default:
-		log.Error(val)
-		log.Error(hex.Dump(stream.msg.buf[stream.msg.b:stream.msg.e]))
 	}
-	s.obs.ReadRTMPAVMsgCB(stream.header, stream.timestampAbs, stream.msg.buf[stream.msg.b:stream.msg.e])
+	s.onReadRTMPAVMsg(stream.toAVMsg())
 	return nil
 }
 
@@ -209,13 +380,13 @@ func (s *ClientSession) doCommandMessage(stream *Stream) error {
 
 	switch cmd {
 	case "onBWDone":
-		log.Warnf("-----> onBWDone. ignore. [%s]", s.UniqueKey)
+		nazalog.Warnf("[%s] < R onBWDone. ignore.", s.uniqueKey)
 	case "_result":
 		return s.doResultMessage(stream, tid)
 	case "onStatus":
 		return s.doOnStatusMessage(stream, tid)
 	default:
-		log.Errorf("read unknown cmd. [%s] cmd=%s", s.UniqueKey, cmd)
+		nazalog.Errorf("[%s] read unknown command message. cmd=%s, %s", s.uniqueKey, cmd, stream.toDebugString())
 	}
 
 	return nil
@@ -229,26 +400,26 @@ func (s *ClientSession) doOnStatusMessage(stream *Stream, tid int) error {
 	if err != nil {
 		return err
 	}
-	code, ok := infos["code"]
-	if !ok {
-		return rtmpErr
+	code, err := infos.FindString("code")
+	if err != nil {
+		return err
 	}
 	switch s.t {
 	case CSTPushSession:
 		switch code {
 		case "NetStream.Publish.Start":
-			log.Infof("-----> onStatus('NetStream.Publish.Start'). [%s]", s.UniqueKey)
+			nazalog.Infof("[%s] < R onStatus('NetStream.Publish.Start').", s.uniqueKey)
 			s.notifyDoResultSucc()
 		default:
-			log.Errorf("read on status message but code field unknown. [%s] code=%s", s.UniqueKey, code)
+			nazalog.Warnf("[%s] read on status message but code field unknown. code=%s", s.uniqueKey, code)
 		}
 	case CSTPullSession:
 		switch code {
 		case "NetStream.Play.Start":
-			log.Infof("-----> onStatus('NetStream.Play.Start'). [%s]", s.UniqueKey)
+			nazalog.Infof("[%s] < R onStatus('NetStream.Play.Start').", s.uniqueKey)
 			s.notifyDoResultSucc()
 		default:
-			log.Errorf("read on status message but code field unknown. [%s] code=%s", s.UniqueKey, code)
+			nazalog.Warnf("[%s] read on status message but code field unknown. code=%s", s.uniqueKey, code)
 		}
 	}
 
@@ -266,19 +437,19 @@ func (s *ClientSession) doResultMessage(stream *Stream, tid int) error {
 		if err != nil {
 			return err
 		}
-		code, ok := infos["code"].(string)
-		if !ok {
-			return rtmpErr
+		code, err := infos.FindString("code")
+		if err != nil {
+			return err
 		}
 		switch code {
 		case "NetConnection.Connect.Success":
-			log.Infof("-----> _result(\"NetConnection.Connect.Success\"). [%s]", s.UniqueKey)
-			log.Infof("<----- createStream(). [%s]", s.UniqueKey)
-			if err := s.packer.writeCreateStream(s.Conn); err != nil {
+			nazalog.Infof("[%s] < R _result(\"NetConnection.Connect.Success\").", s.uniqueKey)
+			nazalog.Infof("[%s] > W createStream().", s.uniqueKey)
+			if err := s.packer.writeCreateStream(s.conn); err != nil {
 				return err
 			}
 		default:
-			log.Errorf("unknown code. [%s] code=%s", s.UniqueKey, code)
+			nazalog.Errorf("[%s] unknown code. code=%v", s.uniqueKey, code)
 		}
 	case tidClientCreateStream:
 		err := stream.msg.readNull()
@@ -289,118 +460,51 @@ func (s *ClientSession) doResultMessage(stream *Stream, tid int) error {
 		if err != nil {
 			return err
 		}
-		log.Infof("-----> _result(). [%s]", s.UniqueKey)
+		nazalog.Infof("[%s] < R _result().", s.uniqueKey)
 		switch s.t {
 		case CSTPullSession:
-			log.Infof("<----- play('%s'). [%s]", s.streamNameWithRawQuery, s.UniqueKey)
-			if err := s.packer.writePlay(s.Conn, s.streamNameWithRawQuery, sid); err != nil {
+			nazalog.Infof("[%s] > W play('%s').", s.uniqueKey, s.streamNameWithRawQuery())
+			if err := s.packer.writePlay(s.conn, s.streamNameWithRawQuery(), sid); err != nil {
 				return err
 			}
 		case CSTPushSession:
-			log.Infof("<----- publish('%s'). [%s]", s.streamNameWithRawQuery, s.UniqueKey)
-			if err := s.packer.writePublish(s.Conn, s.appName, s.streamNameWithRawQuery, sid); err != nil {
+			nazalog.Infof("[%s] > W publish('%s').", s.uniqueKey, s.streamNameWithRawQuery())
+			if err := s.packer.writePublish(s.conn, s.appName(), s.streamNameWithRawQuery(), sid); err != nil {
 				return err
 			}
 		}
 	default:
-		log.Errorf("unknown tid. [%s] tid=%d", s.UniqueKey, tid)
+		nazalog.Errorf("[%s] unknown tid. tid=%d", s.uniqueKey, tid)
 	}
 	return nil
 }
-
 func (s *ClientSession) doProtocolControlMessage(stream *Stream) error {
 	if stream.msg.len() < 4 {
-		return rtmpErr
+		return ErrRTMP
 	}
 	val := int(bele.BEUint32(stream.msg.buf))
 
 	switch stream.header.MsgTypeID {
-	case typeidWinAckSize:
+	case base.RTMPTypeIDWinAckSize:
 		s.peerWinAckSize = val
-		log.Infof("-----> Window Acknowledgement Size: %d. [%s]", s.peerWinAckSize, s.UniqueKey)
-	case typeidBandwidth:
-		log.Warnf("-----> Set Peer Bandwidth. ignore. [%s]", s.UniqueKey)
-	case typeidSetChunkSize:
+		nazalog.Infof("[%s] < R Window Acknowledgement Size: %d", s.uniqueKey, s.peerWinAckSize)
+	case base.RTMPTypeIDBandwidth:
+		// TODO chef: 是否需要关注这个信令
+		nazalog.Warnf("[%s] < R Set Peer Bandwidth. ignore.", s.uniqueKey)
+	case base.RTMPTypeIDSetChunkSize:
 		// composer内部会自动更新peer chunk size.
-		log.Infof("-----> Set Chunk Size %d. [%s]", val, s.UniqueKey)
+		nazalog.Infof("[%s] < R Set Chunk Size %d.", s.uniqueKey, val)
 	default:
-		log.Errorf("unknown msg type id. [%s] id=%d", s.UniqueKey, stream.header.MsgTypeID)
+		nazalog.Errorf("[%s] read unknown protocol control message. typeid=%d, %s", s.uniqueKey, stream.header.MsgTypeID, stream.toDebugString())
 	}
-	return nil
-}
-
-func (s *ClientSession) parseURL(rawURL string) error {
-	var err error
-	s.url, err = url.Parse(rawURL)
-	if err != nil {
-		return err
-	}
-	if s.url.Scheme != "rtmp" || len(s.url.Host) == 0 || len(s.url.Path) == 0 || s.url.Path[0] != '/' {
-		return rtmpErr
-	}
-	index := strings.LastIndexByte(rawURL, '/')
-	if index == -1 {
-		return rtmpErr
-	}
-	s.tcURL = rawURL[:index]
-	strs := strings.Split(s.url.Path[1:], "/")
-	if len(strs) != 2 {
-		return rtmpErr
-	}
-	s.appName = strs[0]
-	// 有的rtmp服务器会使用url后面的参数（比如说用于鉴权），这里把它带上
-	s.streamName = strs[1]
-	if s.url.RawQuery == "" {
-		s.streamNameWithRawQuery = s.streamName
-	} else {
-		s.streamNameWithRawQuery = s.streamName + "?" + s.url.RawQuery
-	}
-	log.Debugf("parseURL. [%s] %s %s %s %+v", s.UniqueKey, s.tcURL, s.appName, s.streamNameWithRawQuery, *s.url)
-
-	return nil
-}
-
-func (s *ClientSession) handshake() error {
-	log.Infof("<----- Handshake C0+C1. [%s]", s.UniqueKey)
-	if err := s.hc.WriteC0C1(s.Conn); err != nil {
-		return err
-	}
-
-	if err := s.hc.ReadS0S1S2(s.Conn); err != nil {
-		return err
-	}
-	log.Infof("-----> Handshake S0+S1+S2. [%s]", s.UniqueKey)
-
-	log.Infof("<----- Handshake C2. [%s]", s.UniqueKey)
-	if err := s.hc.WriteC2(s.Conn); err != nil {
-		return err
-	}
-	return nil
-}
-
-func (s *ClientSession) tcpConnect() error {
-	var err error
-	var addr string
-	if strings.Contains(s.url.Host, ":") {
-		addr = s.url.Host
-	} else {
-		addr = s.url.Host + ":1935"
-	}
-
-	var conn net.Conn
-	if conn, err = net.DialTimeout("tcp", addr, time.Duration(s.timeout.ConnectTimeoutMS)*time.Millisecond); err != nil {
-		return err
-	}
-
-	s.Conn = connection.New(conn, connection.Config{
-		ReadBufSize: readBufSize,
-	})
 	return nil
 }
 
 func (s *ClientSession) notifyDoResultSucc() {
-	s.Conn.ModWriteBufSize(writeBufSize)
-	s.Conn.ModReadTimeoutMS(s.timeout.ReadAVTimeoutMS)
-	s.Conn.ModWriteTimeoutMS(s.timeout.WriteAVTimeoutMS)
+	s.conn.ModWriteChanSize(wChanSize)
+	s.conn.ModWriteBufSize(writeBufSize)
+	s.conn.ModReadTimeoutMS(s.option.ReadAVTimeoutMS)
+	s.conn.ModWriteTimeoutMS(s.option.WriteAVTimeoutMS)
+
 	s.doResultChan <- struct{}{}
 }

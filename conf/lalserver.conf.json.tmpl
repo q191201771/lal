@@ -1,0 +1,72 @@
+{
+  "# doc of config": "https://pengrl.com/lal/#/ConfigBrief",
+  "conf_version": "v0.1.1",
+  "rtmp": {
+    "enable": true,
+    "addr": ":1935",
+    "gop_num": 2
+  },
+  "httpflv": {
+    "enable": true,
+    "sub_listen_addr": ":8080",
+    "enable_https": false,
+    "https_addr": ":4433",
+    "https_cert_file": "./conf/cert.pem",
+    "https_key_file": "./conf/key.pem",
+    "gop_num": 2
+  },
+  "hls": {
+    "enable": true,
+    "sub_listen_addr": ":8081",
+    "out_path": "/tmp/lal/hls/",
+    "fragment_duration_ms": 3000,
+    "fragment_num": 6,
+    "cleanup_mode": 1,
+    "use_memory_as_disk_flag": false
+  },
+  "httpts": {
+    "enable": true,
+    "sub_listen_addr": ":8082"
+  },
+  "rtsp": {
+    "enable": true,
+    "addr": ":5544"
+  },
+  "relay_push": {
+    "enable": false,
+    "addr_list":[
+    ]
+  },
+  "relay_pull": {
+    "enable": false,
+    "addr": ""
+  },
+  "http_api": {
+    "enable": true,
+    "addr": ":8083"
+  },
+  "server_id": "1",
+  "http_notify": {
+    "enable": false,
+    "update_interval_sec": 5,
+    "on_server_start": "http://127.0.0.1:10101/on_server_start",
+    "on_update": "http://127.0.0.1:10101/on_update",
+    "on_pub_start": "http://127.0.0.1:10101/on_pub_start",
+    "on_pub_stop": "http://127.0.0.1:10101/on_pub_stop",
+    "on_sub_start": "http://127.0.0.1:10101/on_sub_start",
+    "on_sub_stop": "http://127.0.0.1:10101/on_sub_stop",
+    "on_rtmp_connect": "http://127.0.0.1:10101/on_rtmp_connect"
+  },
+  "pprof": {
+    "enable": true,
+    "addr": ":8084"
+  },
+  "log": {
+    "level": 1,
+    "filename": "./logs/lalserver.log",
+    "is_to_stdout": true,
+    "is_rotate_daily": true,
+    "short_file_flag": true,
+    "assert_behavior": 1
+  }
+}

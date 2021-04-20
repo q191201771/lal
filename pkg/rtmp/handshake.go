@@ -1,14 +1,25 @@
+// Copyright 2019, Chef.  All rights reserved.
+// https://github.com/q191201771/lal
+//
+// Use of this source code is governed by a MIT-style license
+// that can be found in the License file.
+//
+// Author: Chef (191201771@qq.com)
+
 package rtmp
 
 import (
 	"bytes"
 	"crypto/hmac"
 	"crypto/sha256"
-	"github.com/q191201771/nezha/pkg/bele"
-	"github.com/q191201771/nezha/pkg/log"
 	"io"
 	"time"
+
+	"github.com/q191201771/naza/pkg/bele"
+	"github.com/q191201771/naza/pkg/nazalog"
 )
+
+// https://pengrl.com/p/20027
 
 const version = uint8(3)
 
@@ -64,9 +75,6 @@ type HandshakeClient interface {
 	WriteC2(writer io.Writer) error
 }
 
-var _ HandshakeClient = &HandshakeClientSimple{}
-var _ HandshakeClient = &HandshakeClientComplex{}
-
 type HandshakeClientSimple struct {
 	c0c1 []byte
 	c2   []byte
@@ -80,6 +88,43 @@ type HandshakeClientComplex struct {
 type HandshakeServer struct {
 	isSimpleMode bool
 	s0s1s2       []byte
+}
+
+func (c *HandshakeClientSimple) WriteC0C1(writer io.Writer) error {
+	c.c0c1 = make([]byte, c0c1Len)
+	c.c0c1[0] = version
+	bele.BEPutUint32(c.c0c1[1:5], uint32(time.Now().UnixNano()))
+	//c.c0c1[1] = 0
+	//c.c0c1[2] = 0
+	//c.c0c1[3] = 0
+	//c.c0c1[4] = 0
+	//c.c0c1[5] = 9
+	//c.c0c1[6] = 0
+	//c.c0c1[7] = 124
+	//c.c0c1[8] = 2
+	random1528(c.c0c1[9:])
+
+	_, err := writer.Write(c.c0c1)
+	return err
+}
+
+func (c *HandshakeClientSimple) ReadS0S1S2(reader io.Reader) error {
+	s0s1s2 := make([]byte, s0s1s2Len)
+	if _, err := io.ReadAtLeast(reader, s0s1s2, s0s1s2Len); err != nil {
+		return err
+	}
+	//if s0s1s2[0] != version {
+	//	return ErrRTMP
+	//}
+	// use s2 as c2
+	c.c2 = append(c.c2, s0s1s2[s0s1Len:]...)
+
+	return nil
+}
+
+func (c *HandshakeClientSimple) WriteC2(write io.Writer) error {
+	_, err := write.Write(c.c2)
+	return err
 }
 
 func (c *HandshakeClientComplex) WriteC0C1(writer io.Writer) error {
@@ -106,7 +151,7 @@ func (c *HandshakeClientComplex) ReadS0S1S2(reader io.Reader) error {
 		return err
 	}
 	//if s0s1s2[0] != version {
-	//	return rtmpErr
+	//	return ErrRTMP
 	//}
 	// TODO chef: 这里复杂模式的 c2 构造没有完全按照规范
 	// nginx rtmp module 作为 server 端时，不会校验 c2 内容
@@ -116,35 +161,6 @@ func (c *HandshakeClientComplex) ReadS0S1S2(reader io.Reader) error {
 }
 
 func (c *HandshakeClientComplex) WriteC2(write io.Writer) error {
-	_, err := write.Write(c.c2)
-	return err
-}
-
-func (c *HandshakeClientSimple) WriteC0C1(writer io.Writer) error {
-	c.c0c1 = make([]byte, c0c1Len)
-	c.c0c1[0] = version
-	bele.BEPutUint32(c.c0c1[1:5], uint32(time.Now().UnixNano()))
-	random1528(c.c0c1[9:])
-
-	_, err := writer.Write(c.c0c1)
-	return err
-}
-
-func (c *HandshakeClientSimple) ReadS0S1S2(reader io.Reader) error {
-	s0s1s2 := make([]byte, s0s1s2Len)
-	if _, err := io.ReadAtLeast(reader, s0s1s2, s0s1s2Len); err != nil {
-		return err
-	}
-	//if s0s1s2[0] != version {
-	//	return rtmpErr
-	//}
-	// use s2 as c2
-	c.c2 = append(c.c2, s0s1s2[s0s1Len:]...)
-
-	return nil
-}
-
-func (c *HandshakeClientSimple) WriteC2(write io.Writer) error {
 	_, err := write.Write(c.c2)
 	return err
 }
@@ -160,27 +176,19 @@ func (s *HandshakeServer) ReadC0C1(reader io.Reader) (err error) {
 	s2key := parseChallenge(c0c1)
 	s.isSimpleMode = len(s2key) == 0
 
-	c1ts := bele.BEUint32(c0c1[1:])
-	now := uint32(time.Now().UnixNano())
-
 	s.s0s1s2[0] = version
 
 	s1 := s.s0s1s2[1:]
 	s2 := s.s0s1s2[s0s1Len:]
 
-	bele.BEPutUint32(s1, now)
+	bele.BEPutUint32(s1, uint32(time.Now().UnixNano()))
 	random1528(s1[8:])
-
-	bele.BEPutUint32(s2, c1ts)
-	bele.BEPutUint32(s2[4:], now)
-	random1528(s2[8:])
 
 	if s.isSimpleMode {
 		// s1
 		bele.BEPutUint32(s1[4:], 0)
 
-		//copy(s.s0s1s2, c0c1)
-		//copy(s.s0s1s2[s0s1Len:], c0c1)
+		copy(s2, c0c1[1:])
 	} else {
 		// s1
 		copy(s1[4:], serverVersion)
@@ -191,6 +199,8 @@ func (s *HandshakeServer) ReadC0C1(reader io.Reader) (err error) {
 
 		// s2
 		// make digest to s2 suffix position
+		random1528(s2)
+
 		replyOffs := s2Len - keyLen
 		makeDigestWithoutCenterPart(s2, replyOffs, s2key, s2[replyOffs:])
 	}
@@ -213,11 +223,11 @@ func (s *HandshakeServer) ReadC2(reader io.Reader) error {
 
 func parseChallenge(c0c1 []byte) []byte {
 	//if c0c1[0] != version {
-	//	return nil, rtmpErr
+	//	return nil, ErrRTMP
 	//}
 	ver := bele.BEUint32(c0c1[5:])
 	if ver == 0 {
-		log.Debug("handshake simple mode.")
+		nazalog.Debug("handshake simple mode.")
 		return nil
 	}
 
@@ -226,10 +236,10 @@ func parseChallenge(c0c1 []byte) []byte {
 		offs = findDigest(c0c1[1:], 8, clientKey[:clientPartKeyLen])
 	}
 	if offs == -1 {
-		log.Warn("get digest offs failed. roll back to try simple handshake.")
+		nazalog.Warn("get digest offs failed. roll back to try simple handshake.")
 		return nil
 	}
-	log.Debug("handshake complex mode.")
+	nazalog.Debug("handshake complex mode.")
 
 	// use c0c1 digest to make a new digest
 	digest := makeDigest(c0c1[1+offs:1+offs+keyLen], serverKey[:serverFullKeyLen])
@@ -277,10 +287,7 @@ func random1528(out []byte) {
 }
 
 func init() {
-	bs := []byte{'l', 'a', 'l'}
-	bsl := len(bs)
 	random1528Buf = make([]byte, 1528)
-	for i := 0; i < 1528; i++ {
-		random1528Buf[i] = bs[i%bsl]
-	}
+	//hack := fmt.Sprintf("random buf of rtmp handshake gen by %s", base.LALRTMPHandshakeWaterMark)
+	//copy(random1528Buf, []byte(hack))
 }

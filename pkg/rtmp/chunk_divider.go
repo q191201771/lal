@@ -1,3 +1,11 @@
+// Copyright 2019, Chef.  All rights reserved.
+// https://github.com/q191201771/lal
+//
+// Use of this source code is governed by a MIT-style license
+// that can be found in the License file.
+//
+// Author: Chef (191201771@qq.com)
+
 package rtmp
 
 // chunk_divider.go
@@ -5,35 +13,55 @@ package rtmp
 // 将message切割成chunk
 
 import (
-	"github.com/q191201771/nezha/pkg/bele"
+	"github.com/q191201771/lal/pkg/base"
+	"github.com/q191201771/naza/pkg/bele"
 )
 
-// TODO chef: 新的message的第一个chunk始终使用fmt0格式，没有参考前一个message
-func Message2Chunks(message []byte, header *Header, chunkSize int) []byte {
-	return message2Chunks(message, header, nil, chunkSize)
+type ChunkDivider struct {
+	localChunkSize int
+}
+
+var defaultChunkDivider = ChunkDivider{
+	localChunkSize: LocalChunkSize,
+}
+
+// @return 返回的内存块由内部申请，不依赖参数<message>内存块
+func Message2Chunks(message []byte, header *base.RTMPHeader) []byte {
+	return defaultChunkDivider.Message2Chunks(message, header)
+}
+
+// TODO chef: 新的 message 的第一个 chunk 始终使用 fmt0 格式，没有参考前一个 message
+func (d *ChunkDivider) Message2Chunks(message []byte, header *base.RTMPHeader) []byte {
+	return message2Chunks(message, header, nil, d.localChunkSize)
 }
 
 // @param 返回头的大小
-func calcHeader(header *Header, prevHeader *Header, out []byte) int {
+func calcHeader(header *base.RTMPHeader, prevHeader *base.RTMPHeader, out []byte) int {
 	var index int
 
 	// 计算fmt和timestamp
 	fmt := uint8(0)
 	var timestamp uint32
 	if prevHeader == nil {
-		timestamp = header.Timestamp
+		timestamp = header.TimestampAbs
 	} else {
 		if header.MsgStreamID == prevHeader.MsgStreamID {
 			fmt++
 			if header.MsgLen == prevHeader.MsgLen && header.MsgTypeID == prevHeader.MsgTypeID {
 				fmt++
-				if header.Timestamp == prevHeader.Timestamp {
+				if header.TimestampAbs == prevHeader.TimestampAbs {
 					fmt++
 				}
 			}
-			timestamp = header.Timestamp - prevHeader.Timestamp
+			if header.TimestampAbs > maxTimestampInMessageHeader {
+				// 将数据打包成rtmp chunk发送给vlc，时间戳超过3字节最大范围时，
+				// vlc认为fmt0和fmt3两种格式，都需要携带扩展时间戳字段，并且该时间戳字段必须使用绝对时间戳。
+				timestamp = header.TimestampAbs
+			} else {
+				timestamp = header.TimestampAbs - prevHeader.TimestampAbs
+			}
 		} else {
-			timestamp = header.Timestamp
+			timestamp = header.TimestampAbs
 		}
 	}
 
@@ -90,9 +118,9 @@ func calcHeader(header *Header, prevHeader *Header, out []byte) int {
 	return index
 }
 
-func message2Chunks(message []byte, header *Header, prevHeader *Header, chunkSize int) []byte {
+func message2Chunks(message []byte, header *base.RTMPHeader, prevHeader *base.RTMPHeader, chunkSize int) []byte {
 	//if header.CSID < minCSID || header.CSID > maxCSID {
-	//	return nil, rtmpErr
+	//	return nil, ErrRTMP
 	//}
 
 	// 计算chunk数量，最后一个chunk的大小
