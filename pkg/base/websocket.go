@@ -3,6 +3,7 @@ package base
 import (
 	"crypto/sha1"
 	"encoding/base64"
+	"math"
 
 	"github.com/q191201771/naza/pkg/bele"
 )
@@ -40,45 +41,95 @@ opcode:
 *  %xB-F are reserved for further control frames
 Payload length:  7 bits, 7+16 bits, or 7+64 bits
 Masking-key:  0 or 4 bytes
+mark 加密
+for i := 0; i < datalen; i {
+    m := markingkeys[i%4]
+    data[i] = msg[i] ^ m
+}
 */
+type WsOpcode = uint8
+
+const (
+	WSO_Continuous WsOpcode = iota //连续消息片断
+	WSO_Text                       //文本消息片断,
+	WSO_Binary                     //二进制消息片断,
+	//非控制消息片断保留的操作码,
+	WSO_Rsv3
+	WSO_Rsv4
+	WSO_Rsv5
+	WSO_Rsv6
+	WSO_Rsv7
+	WSO_Close //连接关闭,
+	WSO_Ping  //心跳检查的ping,
+	WSO_Pong  //心跳检查的pong,
+	//为将来的控制消息片断的保留操作码
+	WSO_RsvB
+	WSO_RsvC
+	WSO_RsvD
+	WSO_RsvE
+	WSO_RsvF
+)
+
+type WSHeader struct {
+	Fin    bool
+	Rsv1   bool
+	Rsv2   bool
+	Rsv3   bool
+	Opcode WsOpcode
+
+	PayloadLength uint64
+
+	Masked  bool
+	MaskKey uint32
+}
+
 const WS_MAGIC_STR = "258EAFA5-E914-47DA-95CA-C5AB0DC85B11"
 
-func MakeWSFrameHeader(AOpCode uint8, AFin bool, AMaskKey uint32, ADataSize uint64) (HeaderBytes []byte) {
-	LHeaderSize := 2
-	LPayload := uint64(0)
-	if ADataSize < 126 {
-		LPayload = ADataSize
-	} else if ADataSize <= 0xFFFF {
-		LPayload = 126
-		LHeaderSize += 2
-	} else {
-		LPayload = 127
-		LHeaderSize += 8
+func MakeWSFrameHeader(wsHeader WSHeader) (buf []byte) {
+	headerSize := 2
+	payload := uint64(0)
+	switch {
+	case wsHeader.PayloadLength < 126:
+		payload = wsHeader.PayloadLength
+	case wsHeader.PayloadLength <= math.MaxUint16:
+		payload = 126
+		headerSize += 2
+	case wsHeader.PayloadLength > math.MaxUint16:
+		payload = 127
+		headerSize += 8
 	}
-	if AMaskKey != 0 {
-		LHeaderSize += 4
+	if wsHeader.Masked {
+		headerSize += 4
 	}
-	HeaderBytes = make([]byte, LHeaderSize, LHeaderSize)
-	if AFin {
-		HeaderBytes[0] = HeaderBytes[0] | 0x80
+	buf = make([]byte, headerSize, headerSize)
+	if wsHeader.Fin {
+		buf[0] |= 1 << 7
+	}
+	if wsHeader.Rsv1 {
+		buf[0] |= 1 << 6
+	}
+	if wsHeader.Rsv2 {
+		buf[0] |= 1 << 5
+	}
+	if wsHeader.Rsv3 {
+		buf[0] |= 1 << 4
+	}
+	buf[0] |= wsHeader.Opcode
+
+	if wsHeader.Masked {
+		buf[1] |= 1 << 7
+	}
+	buf[1] |= (uint8(payload) & 0x7F)
+	if payload == 126 {
+		bele.BEPutUint16(buf[2:], uint16(wsHeader.PayloadLength))
+	} else if payload == 127 {
+		bele.BEPutUint64(buf[2:], wsHeader.PayloadLength)
 	}
 
-	HeaderBytes[0] = HeaderBytes[0] | (AOpCode & 0x0F)
-
-	if AMaskKey != 0 {
-		HeaderBytes[1] = HeaderBytes[1] | 0x80
+	if wsHeader.Masked {
+		bele.LEPutUint32(buf[headerSize-4:], wsHeader.MaskKey)
 	}
-	HeaderBytes[1] = HeaderBytes[1] | (uint8(LPayload) & 0x7F)
-	if LPayload == 126 {
-		bele.BEPutUint16(HeaderBytes[2:4], uint16(ADataSize))
-	} else if LPayload == 127 {
-		bele.BEPutUint64(HeaderBytes[2:10], ADataSize)
-	}
-
-	if AMaskKey != 0 {
-		bele.LEPutUint32(HeaderBytes[LHeaderSize-4:], AMaskKey)
-	}
-	return HeaderBytes
+	return buf
 }
 func UpdateWebSocketHeader(secWebSocketKey string) []byte {
 	firstLine := "HTTP/1.1 101 Switching Protocol\r\n"

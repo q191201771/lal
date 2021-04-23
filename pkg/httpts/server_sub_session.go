@@ -113,7 +113,16 @@ func (session *SubSession) WriteFragmentHeader() {
 
 func (session *SubSession) WriteRawPacket(pkt []byte) {
 	if session.isWebSocket {
-		session.writeRawPacket(base.MakeWSFrameHeader(2, true, 0, uint64(len(pkt))))
+		wsHeader := base.WSHeader{
+			Fin:           true,
+			Rsv1:          false,
+			Rsv2:          false,
+			Rsv3:          false,
+			Opcode:        base.WSO_Binary,
+			PayloadLength: uint64(len(pkt)),
+			Masked:        false,
+		}
+		session.writeRawPacket(base.MakeWSFrameHeader(wsHeader))
 	}
 	session.writeRawPacket(pkt)
 }
