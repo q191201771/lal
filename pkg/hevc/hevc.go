@@ -43,6 +43,7 @@ var NALUTypeMapping = map[uint8]string{
 	NALUTypeSEISuffix:   "SEI",
 }
 var (
+	NALUTypeSliceTrailN uint8 = 0  // 0x0
 	NALUTypeSliceTrailR uint8 = 1  // 0x01
 	NALUTypeSliceIDR    uint8 = 19 // 0x13
 	NALUTypeSliceIDRNLP uint8 = 20 // 0x14

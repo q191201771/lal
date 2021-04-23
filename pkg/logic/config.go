@@ -15,7 +15,7 @@ import (
 	"github.com/q191201771/naza/pkg/nazalog"
 )
 
-const ConfVersion = "v0.1.0"
+const ConfVersion = "v0.1.1"
 
 type Config struct {
 	ConfVersion     string          `json:"conf_version"`
@@ -51,7 +51,8 @@ type HTTPTSConfig struct {
 }
 
 type HLSConfig struct {
-	SubListenAddr string `json:"sub_listen_addr"`
+	SubListenAddr       string `json:"sub_listen_addr"`
+	UseMemoryAsDiskFlag bool   `json:"use_memory_as_disk_flag"`
 	hls.MuxerConfig
 }
 

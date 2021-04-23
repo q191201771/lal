@@ -10,7 +10,6 @@ package hls
 
 import (
 	"fmt"
-	"io/ioutil"
 	"strings"
 )
 
@@ -59,7 +58,7 @@ func parseRequestInfo(uri string) (ri requestInfo) {
 
 func readFileContent(rootOutPath string, ri requestInfo) ([]byte, error) {
 	filename := fmt.Sprintf("%s%s/%s", rootOutPath, ri.streamName, ri.fileName)
-	return ioutil.ReadFile(filename)
+	return fslCtx.ReadFile(filename)
 }
 
 func getMuxerOutPath(rootOutPath string, streamName string) string {

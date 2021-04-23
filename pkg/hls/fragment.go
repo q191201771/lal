@@ -9,17 +9,17 @@
 package hls
 
 import (
-	"os"
+	"github.com/q191201771/naza/pkg/filesystemlayer"
 
 	"github.com/q191201771/lal/pkg/mpegts"
 )
 
 type Fragment struct {
-	fp *os.File
+	fp filesystemlayer.IFile
 }
 
 func (f *Fragment) OpenFile(filename string) (err error) {
-	f.fp, err = os.Create(filename)
+	f.fp, err = fslCtx.Create(filename)
 	if err != nil {
 		return
 	}

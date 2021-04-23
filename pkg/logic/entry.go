@@ -40,6 +40,11 @@ func Entry(confFile string) {
 	nazalog.Infof("github: %s", base.LALGithubSite)
 	nazalog.Infof("doc: %s", base.LALDocSite)
 
+	if config.HLSConfig.Enable && config.HLSConfig.UseMemoryAsDiskFlag {
+		nazalog.Infof("hls use memory as disk.")
+		hls.SetUseMemoryAsDiskFlag(true)
+	}
+
 	sm = NewServerManager()
 
 	if config.PProfConfig.Enable {
@@ -113,9 +118,9 @@ func LoadConfAndInitLog(confFile string) *Config {
 
 	// 打印Logo
 	nazalog.Info(`
-    __    ___    __ 
-   / /   /   |  / / 
-  / /   / /| | / /  
+    __    ___    __
+   / /   /   |  / /
+  / /   / /| | / /
  / /___/ ___ |/ /___
 /_____/_/  |_/_____/
 `)

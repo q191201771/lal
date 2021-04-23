@@ -11,7 +11,6 @@ package hls
 import (
 	"bytes"
 	"fmt"
-	"os"
 	"strconv"
 )
 
@@ -20,21 +19,11 @@ import (
 // @param filenameBak m3u8临时文件名
 //
 func writeM3U8File(content []byte, filename string, filenameBak string) error {
-	var fp *os.File
-	var err error
-	if fp, err = os.Create(filenameBak); err != nil {
+	if err := fslCtx.WriteFile(filenameBak, content, 0666); err != nil {
 		return err
 	}
-	if _, err = fp.Write(content); err != nil {
-		return err
-	}
-	if err = fp.Close(); err != nil {
-		return err
-	}
-	if err = os.Rename(filenameBak, filename); err != nil {
-		return err
-	}
-	return nil
+
+	return fslCtx.Rename(filenameBak, filename)
 }
 
 // 如果当前duration比原m3u8文件的`EXT-X-TARGETDURATION`大，则更新`EXT-X-TARGETDURATION`的值

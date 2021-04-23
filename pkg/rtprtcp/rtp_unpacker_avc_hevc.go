@@ -285,6 +285,8 @@ func calcPositionIfNeededHEVC(pkt *RTPPacket) {
 		fallthrough
 	case hevc.NALUTypeSEI:
 		fallthrough
+	case hevc.NALUTypeSliceTrailN:
+		fallthrough
 	case hevc.NALUTypeSliceTrailR:
 		fallthrough
 	case hevc.NALUTypeSliceIDRNLP:
@@ -333,7 +335,8 @@ func calcPositionIfNeededHEVC(pkt *RTPPacket) {
 		return
 	default:
 		// TODO chef: 没有实现 AP 48
-		nazalog.Errorf("unknown nalu type. outerNALUType=%d", outerNALUType)
+		nazalog.Errorf("unknown nalu type. outerNALUType=%d(%d), header=%+v, len=%d",
+			b[0], outerNALUType, pkt.Header, len(pkt.Raw))
 	}
 
 }

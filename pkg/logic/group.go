@@ -11,7 +11,6 @@ package logic
 import (
 	"encoding/json"
 	"fmt"
-	"os"
 	"strings"
 	"sync"
 
@@ -1029,7 +1028,7 @@ func (group *Group) disposeHLSMuxer() {
 					}
 
 					nazalog.Infof("cleanup hls file path. streamName=%s, path=%s", streamName, outPath)
-					if err := os.RemoveAll(outPath); err != nil {
+					if err := hls.RemoveAll(outPath); err != nil {
 						nazalog.Warnf("cleanup hls file path error. path=%s, err=%+v", outPath, err)
 					}
 				},
