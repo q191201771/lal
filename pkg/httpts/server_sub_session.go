@@ -38,6 +38,7 @@ type SubSession struct {
 	prevConnStat connection.Stat
 	staleStat    *connection.Stat
 	stat         base.StatSession
+	isWebSocket  bool
 }
 
 func NewSubSession(conn net.Conn, scheme string) *SubSession {
@@ -82,6 +83,11 @@ func (session *SubSession) ReadRequest() (err error) {
 	_ = rawURL
 
 	session.urlCtx, err = base.ParseHTTPTSURL(rawURL, session.scheme == "https")
+	if session.headers["Connection"] == "Upgrade" && session.headers["Upgrade"] == "websocket" {
+		session.isWebSocket = true
+		//回复升级为websocket
+		session.writeRawPacket(base.UpdateWebSocketHeader(session.headers["Sec-WebSocket-Key"]))
+	}
 	return
 }
 
@@ -93,7 +99,11 @@ func (session *SubSession) RunLoop() error {
 
 func (session *SubSession) WriteHTTPResponseHeader() {
 	nazalog.Debugf("[%s] > W http response header.", session.uniqueKey)
-	session.WriteRawPacket(tsHTTPResponseHeader)
+	if session.isWebSocket {
+
+	} else {
+		session.WriteRawPacket(tsHTTPResponseHeader)
+	}
 }
 
 func (session *SubSession) WriteFragmentHeader() {
@@ -102,9 +112,14 @@ func (session *SubSession) WriteFragmentHeader() {
 }
 
 func (session *SubSession) WriteRawPacket(pkt []byte) {
+	if session.isWebSocket {
+		session.writeRawPacket(base.MakeWSFrameHeader(2, true, 0, uint64(len(pkt))))
+	}
+	session.writeRawPacket(pkt)
+}
+func (session *SubSession) writeRawPacket(pkt []byte) {
 	_, _ = session.conn.Write(pkt)
 }
-
 func (session *SubSession) Dispose() error {
 	nazalog.Infof("[%s] lifecycle dispose httpts SubSession.", session.uniqueKey)
 	return session.conn.Close()
@@ -169,6 +184,7 @@ func init() {
 		"Connection: close\r\n" +
 		"Expires: -1\r\n" +
 		"Pragma: no-cache\r\n" +
+		"Access-Control-Allow-Credentials: true\r\n" +
 		"Access-Control-Allow-Origin: *\r\n" +
 		"\r\n"
 

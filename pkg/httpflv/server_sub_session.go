@@ -39,6 +39,7 @@ type SubSession struct {
 	prevConnStat connection.Stat
 	staleStat    *connection.Stat
 	stat         base.StatSession
+	isWebSocket  bool
 }
 
 func NewSubSession(conn net.Conn, scheme string) *SubSession {
@@ -83,6 +84,11 @@ func (session *SubSession) ReadRequest() (err error) {
 	_ = rawURL
 
 	session.urlCtx, err = base.ParseHTTPFLVURL(rawURL, session.scheme == "https")
+	if session.headers["Connection"] == "Upgrade" && session.headers["Upgrade"] == "websocket" {
+		session.isWebSocket = true
+		//回复升级为websocket
+		session.writeRawPacket(base.UpdateWebSocketHeader(session.headers["Sec-WebSocket-Key"]))
+	}
 	return
 }
 
@@ -94,19 +100,31 @@ func (session *SubSession) RunLoop() error {
 
 func (session *SubSession) WriteHTTPResponseHeader() {
 	nazalog.Debugf("[%s] > W http response header.", session.uniqueKey)
-	session.WriteRawPacket(flvHTTPResponseHeader)
+	if session.isWebSocket {
+
+	} else {
+		session.WriteRawPacket(flvHTTPResponseHeader)
+	}
 }
 
 func (session *SubSession) WriteFLVHeader() {
 	nazalog.Debugf("[%s] > W http flv header.", session.uniqueKey)
 	session.WriteRawPacket(FLVHeader)
+
 }
 
 func (session *SubSession) WriteTag(tag *Tag) {
 	session.WriteRawPacket(tag.Raw)
+
 }
 
 func (session *SubSession) WriteRawPacket(pkt []byte) {
+	if session.isWebSocket {
+		session.writeRawPacket(base.MakeWSFrameHeader(2, true, 0, uint64(len(pkt))))
+	}
+	session.writeRawPacket(pkt)
+}
+func (session *SubSession) writeRawPacket(pkt []byte) {
 	_, _ = session.conn.Write(pkt)
 }
 
@@ -174,6 +192,7 @@ func init() {
 		"Connection: close\r\n" +
 		"Expires: -1\r\n" +
 		"Pragma: no-cache\r\n" +
+		"Access-Control-Allow-Credentials: true\r\n" +
 		"Access-Control-Allow-Origin: *\r\n" +
 		"\r\n"
 
