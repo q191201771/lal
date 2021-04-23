@@ -41,6 +41,7 @@ opcode:
 Payload length:  7 bits, 7+16 bits, or 7+64 bits
 Masking-key:  0 or 4 bytes
 */
+const WS_MAGIC_STR = "258EAFA5-E914-47DA-95CA-C5AB0DC85B11"
 
 func MakeWSFrameHeader(AOpCode uint8, AFin bool, AMaskKey uint32, ADataSize uint64) (HeaderBytes []byte) {
 	LHeaderSize := 2
@@ -81,10 +82,9 @@ func MakeWSFrameHeader(AOpCode uint8, AFin bool, AMaskKey uint32, ADataSize uint
 }
 func UpdateWebSocketHeader(secWebSocketKey string) []byte {
 	firstLine := "HTTP/1.1 101 Switching Protocol\r\n"
-	WS_MAGIC_STR := "258EAFA5-E914-47DA-95CA-C5AB0DC85B11"
 	sha1Sum := sha1.Sum([]byte(secWebSocketKey + WS_MAGIC_STR))
 	secWebSocketAccept := base64.StdEncoding.EncodeToString(sha1Sum[:])
-	flvWebSocketResponseHeaderStr := firstLine +
+	webSocketResponseHeaderStr := firstLine +
 		"Server: " + LALHTTPFLVSubSessionServer + "\r\n" +
 		"Sec-WebSocket-Accept:" + secWebSocketAccept + "\r\n" +
 		"Keep-Alive: timeout=15, max=100\r\n" +
@@ -93,5 +93,5 @@ func UpdateWebSocketHeader(secWebSocketKey string) []byte {
 		"Access-Control-Allow-Credentials: true\r\n" +
 		"Access-Control-Allow-Origin: *\r\n" +
 		"\r\n"
-	return []byte(flvWebSocketResponseHeaderStr)
+	return []byte(webSocketResponseHeaderStr)
 }
