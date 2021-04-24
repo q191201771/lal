@@ -144,8 +144,8 @@ var _ hls.MuxerObserver = &Group{}
 var _ rtsp.BaseInSessionObserver = &Group{} //
 
 var _ rtmp.ServerSessionObserver = &rtmp.Server{}
-var _ rtmp.HandshakeClient = &rtmp.HandshakeClientSimple{}
-var _ rtmp.HandshakeClient = &rtmp.HandshakeClientComplex{}
+var _ rtmp.IHandshakeClient = &rtmp.HandshakeClientSimple{}
+var _ rtmp.IHandshakeClient = &rtmp.HandshakeClientComplex{}
 
 var _ rtsp.ServerCommandSessionObserver = &rtsp.Server{}
 var _ rtsp.ClientCommandSessionObserver = &rtsp.PushSession{}
