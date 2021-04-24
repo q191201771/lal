@@ -12,8 +12,11 @@ import (
 	"bytes"
 	"crypto/hmac"
 	"crypto/sha256"
+	"fmt"
 	"io"
 	"time"
+
+	"github.com/q191201771/lal/pkg/base"
 
 	"github.com/q191201771/naza/pkg/bele"
 	"github.com/q191201771/naza/pkg/nazalog"
@@ -24,24 +27,26 @@ import (
 const version = uint8(3)
 
 const (
+	c0c1Len   = 1537
 	c2Len     = 1536
+	s0s1Len   = 1537
 	s1Len     = 1536
 	s2Len     = 1536
-	c0c1Len   = 1537
-	s0s1Len   = 1537
 	s0s1s2Len = 3073
 )
 
 const (
 	clientPartKeyLen = 30
+	clientFullKeyLen = 62
 	serverPartKeyLen = 36
 	serverFullKeyLen = 68
 	keyLen           = 32
 )
 
 var (
-	clientVersion = []byte{0x0C, 0x00, 0x0D, 0x0E}
-	serverVersion = []byte{0x0D, 0x0E, 0x0A, 0x0D}
+	clientVersionMockFromFFMPEG = []byte{9, 0, 124, 2} // emulated Flash client version - 9.0.124.2 on Linux
+	clientVersion               = []byte{0x0C, 0x00, 0x0D, 0x0E}
+	serverVersion               = []byte{0x0D, 0x0E, 0x0A, 0x0D}
 )
 
 // 30+32
@@ -69,20 +74,19 @@ var serverKey = []byte{
 
 var random1528Buf []byte
 
-type HandshakeClient interface {
+type IHandshakeClient interface {
 	WriteC0C1(writer io.Writer) error
-	ReadS0S1S2(reader io.Reader) error
+	ReadS0S1(reader io.Reader) error
 	WriteC2(writer io.Writer) error
+	ReadS2(reader io.Reader) error
 }
 
 type HandshakeClientSimple struct {
-	c0c1 []byte
-	c2   []byte
+	buf []byte
 }
 
 type HandshakeClientComplex struct {
-	c0c1 []byte
-	c2   []byte
+	buf []byte
 }
 
 type HandshakeServer struct {
@@ -91,77 +95,78 @@ type HandshakeServer struct {
 }
 
 func (c *HandshakeClientSimple) WriteC0C1(writer io.Writer) error {
-	c.c0c1 = make([]byte, c0c1Len)
-	c.c0c1[0] = version
-	bele.BEPutUint32(c.c0c1[1:5], uint32(time.Now().UnixNano()))
-	//c.c0c1[1] = 0
-	//c.c0c1[2] = 0
-	//c.c0c1[3] = 0
-	//c.c0c1[4] = 0
-	//c.c0c1[5] = 9
-	//c.c0c1[6] = 0
-	//c.c0c1[7] = 124
-	//c.c0c1[8] = 2
-	random1528(c.c0c1[9:])
+	c.buf = make([]byte, c0c1Len)
+	c.buf[0] = version
+	bele.BEPutUint32(c.buf[1:5], uint32(time.Now().UnixNano()))
+	bele.BEPutUint32(c.buf[5:9], 0) // 4字节模式串保持为0，标识是简单模式
+	random1528(c.buf[9:])
 
-	_, err := writer.Write(c.c0c1)
+	_, err := writer.Write(c.buf)
 	return err
 }
 
-func (c *HandshakeClientSimple) ReadS0S1S2(reader io.Reader) error {
-	s0s1s2 := make([]byte, s0s1s2Len)
-	if _, err := io.ReadAtLeast(reader, s0s1s2, s0s1s2Len); err != nil {
-		return err
-	}
-	//if s0s1s2[0] != version {
-	//	return ErrRTMP
-	//}
-	// use s2 as c2
-	c.c2 = append(c.c2, s0s1s2[s0s1Len:]...)
-
-	return nil
+func (c *HandshakeClientSimple) ReadS0S1(reader io.Reader) error {
+	_, err := io.ReadAtLeast(reader, c.buf, s0s1Len)
+	return err
 }
 
-func (c *HandshakeClientSimple) WriteC2(write io.Writer) error {
-	_, err := write.Write(c.c2)
+func (c *HandshakeClientSimple) WriteC2(writer io.Writer) error {
+	// use s1 as c2
+	_, err := writer.Write(c.buf[1:])
+	return err
+}
+
+func (c *HandshakeClientSimple) ReadS2(reader io.Reader) error {
+	_, err := io.ReadAtLeast(reader, c.buf, s2Len)
 	return err
 }
 
 func (c *HandshakeClientComplex) WriteC0C1(writer io.Writer) error {
-	c.c0c1 = make([]byte, c0c1Len)
-	c.c0c1[0] = version
-	bele.BEPutUint32(c.c0c1[1:5], uint32(time.Now().UnixNano()))
-	//
-	copy(c.c0c1[5:], clientVersion)
-	random1528(c.c0c1[9:])
-	// offset
-	c.c0c1[9] = 0
-	c.c0c1[10] = 0
-	c.c0c1[11] = 0
-	c.c0c1[12] = 0
-	// digest
-	makeDigestWithoutCenterPart(c.c0c1[1:], 12, clientKey[:clientPartKeyLen], c.c0c1[13:])
-	_, err := writer.Write(c.c0c1)
+	c.buf = make([]byte, c0c1Len)
+
+	c.buf[0] = version
+	// mock ffmpeg
+	bele.BEPutUint32(c.buf[1:5], 0)
+	copy(c.buf[5:9], clientVersionMockFromFFMPEG)
+	random1528(c.buf[9:])
+
+	offs := int(c.buf[9]) + int(c.buf[10]) + int(c.buf[11]) + int(c.buf[12])
+	offs = (offs % 728) + 12
+	makeDigestWithoutCenterPart(c.buf[1:c0c1Len], offs, clientKey[:clientPartKeyLen], c.buf[1+offs:])
+
+	_, err := writer.Write(c.buf)
 	return err
 }
 
-func (c *HandshakeClientComplex) ReadS0S1S2(reader io.Reader) error {
-	s0s1s2 := make([]byte, s0s1s2Len)
-	if _, err := io.ReadAtLeast(reader, s0s1s2, s0s1s2Len); err != nil {
+func (c *HandshakeClientComplex) ReadS0S1(reader io.Reader) error {
+	s0s1 := make([]byte, s0s1Len)
+	if _, err := io.ReadAtLeast(reader, s0s1, s0s1Len); err != nil {
 		return err
 	}
-	//if s0s1s2[0] != version {
-	//	return ErrRTMP
-	//}
-	// TODO chef: 这里复杂模式的 c2 构造没有完全按照规范
-	// nginx rtmp module 作为 server 端时，不会校验 c2 内容
-	c.c2 = append(c.c2, s0s1s2[s0s1Len:]...)
 
+	c2key := parseChallenge(s0s1, serverKey[:serverPartKeyLen], clientKey[:clientFullKeyLen])
+
+	// simple mode
+	if c2key == nil {
+		// use s1 as c2
+		copy(c.buf, s0s1[1:])
+		return nil
+	}
+
+	// complex mode
+	random1528(c.buf)
+	replayOffs := c2Len - keyLen
+	makeDigestWithoutCenterPart(c.buf[:c2Len], replayOffs, c2key, c.buf[replayOffs:replayOffs+keyLen])
 	return nil
 }
 
-func (c *HandshakeClientComplex) WriteC2(write io.Writer) error {
-	_, err := write.Write(c.c2)
+func (c *HandshakeClientComplex) WriteC2(writer io.Writer) error {
+	_, err := writer.Write(c.buf[:c2Len])
+	return err
+}
+
+func (c *HandshakeClientComplex) ReadS2(reader io.Reader) error {
+	_, err := io.ReadAtLeast(reader, c.buf, s2Len)
 	return err
 }
 
@@ -173,7 +178,7 @@ func (s *HandshakeServer) ReadC0C1(reader io.Reader) (err error) {
 
 	s.s0s1s2 = make([]byte, s0s1s2Len)
 
-	s2key := parseChallenge(c0c1)
+	s2key := parseChallenge(c0c1, clientKey[:clientPartKeyLen], serverKey[:serverFullKeyLen])
 	s.isSimpleMode = len(s2key) == 0
 
 	s.s0s1s2[0] = version
@@ -208,8 +213,8 @@ func (s *HandshakeServer) ReadC0C1(reader io.Reader) (err error) {
 	return nil
 }
 
-func (s *HandshakeServer) WriteS0S1S2(write io.Writer) error {
-	_, err := write.Write(s.s0s1s2)
+func (s *HandshakeServer) WriteS0S1S2(writer io.Writer) error {
+	_, err := writer.Write(s.s0s1s2)
 	return err
 }
 
@@ -221,19 +226,21 @@ func (s *HandshakeServer) ReadC2(reader io.Reader) error {
 	return nil
 }
 
-func parseChallenge(c0c1 []byte) []byte {
-	//if c0c1[0] != version {
+// c0c1 clientPartKey serverFullKey
+// s0s1 serverPartKey clientFullKey
+func parseChallenge(b []byte, peerKey []byte, key []byte) []byte {
+	//if b[0] != version {
 	//	return nil, ErrRTMP
 	//}
-	ver := bele.BEUint32(c0c1[5:])
+	ver := bele.BEUint32(b[5:])
 	if ver == 0 {
 		nazalog.Debug("handshake simple mode.")
 		return nil
 	}
 
-	offs := findDigest(c0c1[1:], 764+8, clientKey[:clientPartKeyLen])
+	offs := findDigest(b[1:], 764+8, peerKey)
 	if offs == -1 {
-		offs = findDigest(c0c1[1:], 8, clientKey[:clientPartKeyLen])
+		offs = findDigest(b[1:], 8, peerKey)
 	}
 	if offs == -1 {
 		nazalog.Warn("get digest offs failed. roll back to try simple handshake.")
@@ -242,20 +249,21 @@ func parseChallenge(c0c1 []byte) []byte {
 	nazalog.Debug("handshake complex mode.")
 
 	// use c0c1 digest to make a new digest
-	digest := makeDigest(c0c1[1+offs:1+offs+keyLen], serverKey[:serverFullKeyLen])
+	digest := makeDigest(b[1+offs:1+offs+keyLen], key)
 
 	return digest
 }
 
-func findDigest(c1 []byte, base int, key []byte) int {
+// @param b c1或s1
+func findDigest(b []byte, base int, key []byte) int {
 	// calc offs
-	offs := int(c1[base]) + int(c1[base+1]) + int(c1[base+2]) + int(c1[base+3])
+	offs := int(b[base]) + int(b[base+1]) + int(b[base+2]) + int(b[base+3])
 	offs = (offs % 728) + base + 4
 	// calc digest
 	digest := make([]byte, keyLen)
-	makeDigestWithoutCenterPart(c1, offs, key, digest)
+	makeDigestWithoutCenterPart(b, offs, key, digest)
 	// compare origin digest in buffer with calced digest
-	if bytes.Compare(digest, c1[offs:offs+keyLen]) == 0 {
+	if bytes.Compare(digest, b[offs:offs+keyLen]) == 0 {
 		return offs
 	}
 	return -1
@@ -288,6 +296,8 @@ func random1528(out []byte) {
 
 func init() {
 	random1528Buf = make([]byte, 1528)
-	//hack := fmt.Sprintf("random buf of rtmp handshake gen by %s", base.LALRTMPHandshakeWaterMark)
-	//copy(random1528Buf, []byte(hack))
+	hack := []byte(fmt.Sprintf("random buf of rtmp handshake gen by %s", base.LALRTMPHandshakeWaterMark))
+	for i := 0; i < 1528; i += len(hack) {
+		copy(random1528Buf[i:], hack)
+	}
 }
