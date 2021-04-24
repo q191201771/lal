@@ -34,6 +34,9 @@ var (
 
 func Entry(confFile string) {
 	LoadConfAndInitLog(confFile)
+	if dir, err := os.Getwd(); err == nil {
+		nazalog.Infof("wd: %s", dir)
+	}
 	nazalog.Infof("args: %s", strings.Join(os.Args, " "))
 	nazalog.Infof("bininfo: %s", bininfo.StringifySingleLine())
 	nazalog.Infof("version: %s", base.LALFullInfo)
@@ -43,6 +46,15 @@ func Entry(confFile string) {
 	if config.HLSConfig.Enable && config.HLSConfig.UseMemoryAsDiskFlag {
 		nazalog.Infof("hls use memory as disk.")
 		hls.SetUseMemoryAsDiskFlag(true)
+	}
+
+	if config.RecordConfig.EnableFLV {
+		if err := os.MkdirAll(config.RecordConfig.FLVOutPath, 0777); err != nil {
+			nazalog.Errorf("record flv mkdir error. path=%s, err=%+v", config.RecordConfig.FLVOutPath, err)
+		}
+		if err := os.MkdirAll(config.RecordConfig.MPEGTSOutPath, 0777); err != nil {
+			nazalog.Errorf("record mpegts mkdir error. path=%s, err=%+v", config.RecordConfig.MPEGTSOutPath, err)
+		}
 	}
 
 	sm = NewServerManager()
@@ -138,6 +150,7 @@ func LoadConfAndInitLog(confFile string) *Config {
 		"hls",
 		"httpts",
 		"rtsp",
+		"record",
 		"relay_push",
 		"relay_pull",
 		"http_api",

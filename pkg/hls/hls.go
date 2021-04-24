@@ -33,8 +33,6 @@ import (
 
 var ErrHLS = errors.New("lal.hls: fxxk")
 
-var _ StreamerObserver = &Muxer{}
-
 var audNal = []byte{
 	0x00, 0x00, 0x00, 0x01, 0x09, 0xf0,
 }

@@ -11,8 +11,12 @@ package logic
 import (
 	"encoding/json"
 	"fmt"
+	"path/filepath"
 	"strings"
 	"sync"
+	"time"
+
+	"github.com/q191201771/lal/pkg/mpegts"
 
 	"github.com/q191201771/lal/pkg/remux"
 
@@ -46,30 +50,36 @@ type Group struct {
 	mutex sync.Mutex
 	//
 	stat base.StatGroup
-	//
+	// pub
 	rtmpPubSession *rtmp.ServerSession
 	rtspPubSession *rtsp.PubSession
-	//
+	// pull
 	pullEnable bool
 	pullURL    string
 	pullProxy  *pullProxy
-	//
+	// sub
 	rtmpSubSessionSet    map[*rtmp.ServerSession]struct{}
 	httpflvSubSessionSet map[*httpflv.SubSession]struct{}
 	httptsSubSessionSet  map[*httpts.SubSession]struct{}
 	rtspSubSessionSet    map[*rtsp.SubSession]struct{}
-	//
+	// push
 	url2PushProxy map[string]*pushProxy
-	//
+	// hls
 	hlsMuxer *hls.Muxer
+
+	recordFLV    *httpflv.FLVFileWriter
+	recordMPEGTS *mpegts.FileWriter
+
 	// rtmp pub/pull使用
 	gopCache        *GOPCache
 	httpflvGopCache *GOPCache
+
 	// rtsp pub使用
 	asc []byte
 	vps []byte
 	sps []byte
 	pps []byte
+
 	//
 	tickCount uint32
 }
@@ -482,6 +492,12 @@ func (group *Group) OnTSPackets(rawFrame []byte, boundary bool) {
 			session.WriteRawPacket(rawFrame)
 		}
 	}
+
+	if group.recordMPEGTS != nil {
+		if err := group.recordMPEGTS.Write(rawFrame); err != nil {
+			nazalog.Errorf("[%s] record mpegts write error. err=%+v", group.UniqueKey, err)
+		}
+	}
 }
 
 // rtmp.PubSession or rtmp.PullSession
@@ -796,7 +812,14 @@ func (group *Group) broadcastRTMP(msg base.RTMPMsg) {
 		session.WriteRawPacket(lrm2ft.Get())
 	}
 
-	// # 5. 缓存关键信息，以及gop
+	// # 5. 录制flv文件
+	if group.recordFLV != nil {
+		if err := group.recordFLV.WriteRaw(lrm2ft.Get()); err != nil {
+			nazalog.Errorf("[%s] record flv write error. err=%+v", group.UniqueKey, err)
+		}
+	}
+
+	// # 6. 缓存关键信息，以及gop
 	if config.RTMPConfig.Enable {
 		group.gopCache.Feed(msg, lcd.Get)
 	}
@@ -804,7 +827,7 @@ func (group *Group) broadcastRTMP(msg base.RTMPMsg) {
 		group.httpflvGopCache.Feed(msg, lrm2ft.Get)
 	}
 
-	// # 6. 记录stat
+	// # 7. 记录stat
 	if group.stat.AudioCodec == "" {
 		if msg.IsAACSeqHeader() {
 			group.stat.AudioCodec = base.AudioCodecAAC
@@ -986,6 +1009,48 @@ func (group *Group) addIn() {
 	if config.RelayPushConfig.Enable {
 		group.pushIfNeeded()
 	}
+
+	now := time.Now().Unix()
+	if config.RecordConfig.EnableFLV {
+		filename := fmt.Sprintf("%s-%d.flv", group.streamName, now)
+		filenameWithPath := filepath.Join(config.RecordConfig.FLVOutPath, filename)
+		if group.recordFLV != nil {
+			nazalog.Errorf("[%s] record flv but already exist. new filename=%s, old filename=%s",
+				group.UniqueKey, filenameWithPath, group.recordFLV.Name())
+			if err := group.recordFLV.Dispose(); err != nil {
+				nazalog.Errorf("[%s] record flv dispose error. err=%+v", group.UniqueKey, err)
+			}
+		}
+		group.recordFLV = &httpflv.FLVFileWriter{}
+		if err := group.recordFLV.Open(filenameWithPath); err != nil {
+			nazalog.Errorf("[%s] record flv open file failed. filename=%s, err=%+v",
+				group.UniqueKey, filenameWithPath, err)
+			group.recordFLV = nil
+		}
+		if err := group.recordFLV.WriteFLVHeader(); err != nil {
+			nazalog.Errorf("[%s] record flv write flv header failed. filename=%s, err=%+v",
+				group.UniqueKey, filenameWithPath, err)
+			group.recordFLV = nil
+		}
+	}
+
+	if config.RecordConfig.EnableMPEGTS {
+		filename := fmt.Sprintf("%s-%d.ts", group.streamName, now)
+		filenameWithPath := filepath.Join(config.RecordConfig.MPEGTSOutPath, filename)
+		if group.recordMPEGTS != nil {
+			nazalog.Errorf("[%s] record mpegts but already exist. new filename=%s, old filename=%s",
+				group.UniqueKey, filenameWithPath, group.recordMPEGTS.Name())
+			if err := group.recordMPEGTS.Dispose(); err != nil {
+				nazalog.Errorf("[%s] record mpegts dispose error. err=%+v", group.UniqueKey, err)
+			}
+		}
+		group.recordMPEGTS = &mpegts.FileWriter{}
+		if err := group.recordMPEGTS.Create(filenameWithPath); err != nil {
+			nazalog.Errorf("[%s] record mpegts open file failed. filename=%s, err=%+v",
+				group.UniqueKey, filenameWithPath, err)
+			group.recordFLV = nil
+		}
+	}
 }
 
 func (group *Group) delIn() {
@@ -999,6 +1064,24 @@ func (group *Group) delIn() {
 				v.pushSession.Dispose()
 			}
 			v.pushSession = nil
+		}
+	}
+
+	if config.RecordConfig.EnableFLV {
+		if group.recordFLV != nil {
+			if err := group.recordFLV.Dispose(); err != nil {
+				nazalog.Errorf("[%s] record flv dispose error. err=%+v", group.UniqueKey, err)
+			}
+			group.recordFLV = nil
+		}
+	}
+
+	if config.RecordConfig.EnableMPEGTS {
+		if group.recordMPEGTS != nil {
+			if err := group.recordMPEGTS.Dispose(); err != nil {
+				nazalog.Errorf("[%s] record mpegts dispose error. err=%+v", group.UniqueKey, err)
+			}
+			group.recordMPEGTS = nil
 		}
 	}
 

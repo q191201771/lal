@@ -10,6 +10,7 @@ package hls
 
 import (
 	"fmt"
+	"path/filepath"
 	"strings"
 )
 
@@ -56,25 +57,30 @@ func parseRequestInfo(uri string) (ri requestInfo) {
 	return
 }
 
+// <rootOutPath>/<ri.streamName>/<ri.fileName>
 func readFileContent(rootOutPath string, ri requestInfo) ([]byte, error) {
-	filename := fmt.Sprintf("%s%s/%s", rootOutPath, ri.streamName, ri.fileName)
+	filename := filepath.Join(rootOutPath, ri.streamName, ri.fileName)
 	return fslCtx.ReadFile(filename)
 }
 
+// <rootOutPath>/<streamName>
 func getMuxerOutPath(rootOutPath string, streamName string) string {
-	return fmt.Sprintf("%s%s/", rootOutPath, streamName)
+	return filepath.Join(rootOutPath, streamName)
 }
 
-func getM3U8Filename(outpath string, streamName string) string {
-	return fmt.Sprintf("%s%s.m3u8", outpath, "playlist")
+// @param outPath 参考func getMuxerOutPath
+func getM3U8Filename(outPath string, streamName string) string {
+	return filepath.Join(outPath, "playlist.m3u8")
 }
 
-func getRecordM3U8Filename(outpath string, streamName string) string {
-	return fmt.Sprintf("%s%s.m3u8", outpath, "record")
+// @param outPath 参考func getMuxerOutPath
+func getRecordM3U8Filename(outPath string, streamName string) string {
+	return filepath.Join(outPath, "record.m3u8")
 }
 
+// @param outPath 参考func getMuxerOutPath
 func getTSFilenameWithPath(outpath string, filename string) string {
-	return fmt.Sprintf("%s%s", outpath, filename)
+	return filepath.Join(outpath, filename)
 }
 
 func getTSFilename(streamName string, id int, timestamp int) string {
