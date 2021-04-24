@@ -37,7 +37,7 @@ var (
 var (
 	// 植入rtmp握手随机字符串中
 	// e.g. lal v0.12.3 (github.com/q191201771/lal)
-	//LALRTMPHandshakeWaterMark string
+	LALRTMPHandshakeWaterMark string
 
 	// 植入rtmp server中的connect result信令中
 	// 注意，有两个object，第一个object中的fmsVer我们保持通用公认的值，在第二个object中植入
@@ -123,5 +123,5 @@ func init() {
 	LALHTTPFLVPullSessionUA = LALLibraryName + "/" + LALVersionDot
 	LALRTSPPullSessionUA = LALLibraryName + "/" + LALVersionDot
 
-	//LALRTMPHandshakeWaterMark = LALFullInfo
+	LALRTMPHandshakeWaterMark = LALFullInfo
 }
