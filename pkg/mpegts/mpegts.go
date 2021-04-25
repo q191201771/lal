@@ -8,7 +8,11 @@
 
 package mpegts
 
+import "errors"
+
 // MPEG: Moving Picture Experts Group
+
+var ErrMPEGTS = errors.New("lal.mpegts: fxxk")
 
 // 每个TS文件都以固定的PAT，PMT开始
 var FixedFragmentHeader = []byte{

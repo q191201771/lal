@@ -15,7 +15,7 @@ import (
 	"github.com/q191201771/naza/pkg/nazalog"
 )
 
-const ConfVersion = "v0.1.1"
+const ConfVersion = "v0.1.2"
 
 type Config struct {
 	ConfVersion     string          `json:"conf_version"`
@@ -24,6 +24,7 @@ type Config struct {
 	HLSConfig       HLSConfig       `json:"hls"`
 	HTTPTSConfig    HTTPTSConfig    `json:"httpts"`
 	RTSPConfig      RTSPConfig      `json:"rtsp"`
+	RecordConfig    RecordConfig    `json:"record"`
 	RelayPushConfig RelayPushConfig `json:"relay_push"`
 	RelayPullConfig RelayPullConfig `json:"relay_pull"`
 
@@ -59,6 +60,13 @@ type HLSConfig struct {
 type RTSPConfig struct {
 	Enable bool   `json:"enable"`
 	Addr   string `json:"addr"`
+}
+
+type RecordConfig struct {
+	EnableFLV     bool   `json:"enable_flv"`
+	FLVOutPath    string `json:"flv_out_path"`
+	EnableMPEGTS  bool   `json:"enable_mpegts"`
+	MPEGTSOutPath string `json:"mpegts_out_path"`
 }
 
 type RelayPushConfig struct {

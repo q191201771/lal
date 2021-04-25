@@ -92,8 +92,8 @@ func NewMuxer(streamName string, config *MuxerConfig, observer MuxerObserver) *M
 	uk := base.GenUKHLSMuxer()
 	op := getMuxerOutPath(config.OutPath, streamName)
 	playlistFilename := getM3U8Filename(op, streamName)
-	playlistFilenameBak := fmt.Sprintf("%s.bak", playlistFilename)
 	recordPlaylistFilename := getRecordM3U8Filename(op, streamName)
+	playlistFilenameBak := fmt.Sprintf("%s.bak", playlistFilename)
 	recordPlaylistFilenameBak := fmt.Sprintf("%s.bak", recordPlaylistFilename)
 	frags := make([]fragmentInfo, 2*config.FragmentNum+1)
 	m := &Muxer{

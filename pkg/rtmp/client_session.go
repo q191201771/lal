@@ -297,15 +297,20 @@ func (s *ClientSession) handshake() error {
 		return err
 	}
 
-	if err := s.hc.ReadS0S1S2(s.conn); err != nil {
+	if err := s.hc.ReadS0S1(s.conn); err != nil {
 		return err
 	}
-	nazalog.Infof("[%s] < R Handshake S0+S1+S2.", s.uniqueKey)
+	nazalog.Infof("[%s] < R Handshake S0+S1.", s.uniqueKey)
 
 	nazalog.Infof("[%s] > W Handshake C2.", s.uniqueKey)
 	if err := s.hc.WriteC2(s.conn); err != nil {
 		return err
 	}
+
+	if err := s.hc.ReadS2(s.conn); err != nil {
+		return err
+	}
+	nazalog.Infof("[%s] < R Handshake S2.", s.uniqueKey)
 	return nil
 }
 
