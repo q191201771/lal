@@ -62,11 +62,11 @@ func (unpacker *RTPUnpackerAAC) TryUnpackOne(list *RTPPacketList) (unpackedFlag 
 	//   Unit, and 0 on all other fragments.
 	//
 
-	p := list.head.next // first
+	p := list.Head.Next // first
 	if p == nil {
 		return false, 0
 	}
-	b := p.packet.Raw[p.packet.Header.payloadOffset:]
+	b := p.Packet.Raw[p.Packet.Header.payloadOffset:]
 	//nazalog.Debugf("%d, %d, %s", len(pkt.Raw), pkt.Header.timestamp, hex.Dump(b))
 
 	aus := parseAU(b)
@@ -76,43 +76,43 @@ func (unpacker *RTPUnpackerAAC) TryUnpackOne(list *RTPPacketList) (unpackedFlag 
 			// one complete access unit
 			var outPkt base.AVPacket
 			outPkt.PayloadType = unpacker.payloadType
-			outPkt.Timestamp = p.packet.Header.Timestamp / uint32(unpacker.clockRate/1000)
+			outPkt.Timestamp = p.Packet.Header.Timestamp / uint32(unpacker.clockRate/1000)
 			outPkt.Payload = b[aus[0].pos : aus[0].pos+aus[0].size]
 			unpacker.onAVPacket(outPkt)
 
-			list.head.next = p.next
-			list.size--
-			return true, p.packet.Header.Seq
+			list.Head.Next = p.Next
+			list.Size--
+			return true, p.Packet.Header.Seq
 		}
 
 		// fragmented
 		// 注意，这里我们参考size和rtp包头中的timestamp，不参考rtp包头中的mark位
 
 		totalSize := aus[0].size
-		timestamp := p.packet.Header.Timestamp
+		timestamp := p.Packet.Header.Timestamp
 
 		var as [][]byte
 		as = append(as, b[aus[0].pos:])
 		cacheSize := uint32(len(b[aus[0].pos:]))
 
-		seq := p.packet.Header.Seq
-		p = p.next
+		seq := p.Packet.Header.Seq
+		p = p.Next
 		packetCount := 0
 		for {
 			packetCount++
 			if p == nil {
 				return false, 0
 			}
-			if SubSeq(p.packet.Header.Seq, seq) != 1 {
+			if SubSeq(p.Packet.Header.Seq, seq) != 1 {
 				return false, 0
 			}
-			if p.packet.Header.Timestamp != timestamp {
+			if p.Packet.Header.Timestamp != timestamp {
 				nazalog.Errorf("fragments of the same access shall have the same timestamp. first=%d, curr=%d",
-					timestamp, p.packet.Header.Timestamp)
+					timestamp, p.Packet.Header.Timestamp)
 				return false, 0
 			}
 
-			b = p.packet.Raw[p.packet.Header.payloadOffset:]
+			b = p.Packet.Raw[p.Packet.Header.payloadOffset:]
 			aus := parseAU(b)
 			if len(aus) != 1 {
 				nazalog.Errorf("shall be a single fragment. len(aus)=%d", len(aus))
@@ -125,22 +125,22 @@ func (unpacker *RTPUnpackerAAC) TryUnpackOne(list *RTPPacketList) (unpackedFlag 
 			}
 
 			cacheSize += uint32(len(b[aus[0].pos:]))
-			seq = p.packet.Header.Seq
+			seq = p.Packet.Header.Seq
 			as = append(as, b[aus[0].pos:])
 			if cacheSize < totalSize {
-				p = p.next
+				p = p.Next
 			} else if cacheSize == totalSize {
 				var outPkt base.AVPacket
 				outPkt.PayloadType = unpacker.payloadType
-				outPkt.Timestamp = p.packet.Header.Timestamp / uint32(unpacker.clockRate/1000)
+				outPkt.Timestamp = p.Packet.Header.Timestamp / uint32(unpacker.clockRate/1000)
 				for _, a := range as {
 					outPkt.Payload = append(outPkt.Payload, a...)
 				}
 				unpacker.onAVPacket(outPkt)
 
-				list.head.next = p.next
-				list.size -= packetCount
-				return true, p.packet.Header.Seq
+				list.Head.Next = p.Next
+				list.Size -= packetCount
+				return true, p.Packet.Header.Seq
 			} else {
 				nazalog.Errorf("cache size bigger then total size. cacheSize=%d, totalSize=%d",
 					cacheSize, totalSize)
@@ -154,16 +154,16 @@ func (unpacker *RTPUnpackerAAC) TryUnpackOne(list *RTPPacketList) (unpackedFlag 
 	for i := range aus {
 		var outPkt base.AVPacket
 		outPkt.PayloadType = unpacker.payloadType
-		outPkt.Timestamp = p.packet.Header.Timestamp / uint32(unpacker.clockRate/1000)
+		outPkt.Timestamp = p.Packet.Header.Timestamp / uint32(unpacker.clockRate/1000)
 		// TODO chef: 这里1024的含义
 		outPkt.Timestamp += uint32(i * (1024 * 1000) / unpacker.clockRate)
 		outPkt.Payload = b[aus[i].pos : aus[i].pos+aus[i].size]
 		unpacker.onAVPacket(outPkt)
 	}
 
-	list.head.next = p.next
-	list.size--
-	return true, p.packet.Header.Seq
+	list.Head.Next = p.Next
+	list.Size--
+	return true, p.Packet.Header.Seq
 }
 
 type au struct {

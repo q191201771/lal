@@ -40,33 +40,33 @@ func (unpacker *RTPUnpackerAVCHEVC) CalcPositionIfNeeded(pkt *RTPPacket) {
 }
 
 func (unpacker *RTPUnpackerAVCHEVC) TryUnpackOne(list *RTPPacketList) (unpackedFlag bool, unpackedSeq uint16) {
-	first := list.head.next
+	first := list.Head.Next
 	if first == nil {
 		return false, 0
 	}
 
-	switch first.packet.positionType {
+	switch first.Packet.positionType {
 	case PositionTypeSingle:
 		var pkt base.AVPacket
 		pkt.PayloadType = unpacker.payloadType
-		pkt.Timestamp = first.packet.Header.Timestamp / uint32(unpacker.clockRate/1000)
+		pkt.Timestamp = first.Packet.Header.Timestamp / uint32(unpacker.clockRate/1000)
 
-		pkt.Payload = make([]byte, len(first.packet.Raw)-int(first.packet.Header.payloadOffset)+4)
-		bele.BEPutUint32(pkt.Payload, uint32(len(first.packet.Raw))-first.packet.Header.payloadOffset)
-		copy(pkt.Payload[4:], first.packet.Raw[first.packet.Header.payloadOffset:])
+		pkt.Payload = make([]byte, len(first.Packet.Raw)-int(first.Packet.Header.payloadOffset)+4)
+		bele.BEPutUint32(pkt.Payload, uint32(len(first.Packet.Raw))-first.Packet.Header.payloadOffset)
+		copy(pkt.Payload[4:], first.Packet.Raw[first.Packet.Header.payloadOffset:])
 
-		list.head.next = first.next
-		list.size--
+		list.Head.Next = first.Next
+		list.Size--
 		unpacker.onAVPacket(pkt)
-		return true, first.packet.Header.Seq
+		return true, first.Packet.Header.Seq
 
 	case PositionTypeSTAPA:
 		var pkt base.AVPacket
 		pkt.PayloadType = unpacker.payloadType
-		pkt.Timestamp = first.packet.Header.Timestamp / uint32(unpacker.clockRate/1000)
+		pkt.Timestamp = first.Packet.Header.Timestamp / uint32(unpacker.clockRate/1000)
 
 		// 跳过首字节，并且将多nalu前的2字节长度，替换成4字节长度
-		buf := first.packet.Raw[first.packet.Header.payloadOffset+1:]
+		buf := first.Packet.Raw[first.Packet.Header.payloadOffset+1:]
 
 		// 使用两次遍历，第一次遍历找出总大小，第二次逐个拷贝，目的是使得内存块一次就申请好，不用动态扩容造成额外性能开销
 		totalSize := 0
@@ -90,31 +90,31 @@ func (unpacker *RTPUnpackerAVCHEVC) TryUnpackOne(list *RTPPacketList) (unpackedF
 			i += 2 + naluSize
 		}
 
-		list.head.next = first.next
-		list.size--
+		list.Head.Next = first.Next
+		list.Size--
 		unpacker.onAVPacket(pkt)
 
-		return true, first.packet.Header.Seq
+		return true, first.Packet.Header.Seq
 
 	case PositionTypeFUAStart:
 		prev := first
-		p := first.next
+		p := first.Next
 		for {
 			if prev == nil || p == nil {
 				return false, 0
 			}
-			if SubSeq(p.packet.Header.Seq, prev.packet.Header.Seq) != 1 {
+			if SubSeq(p.Packet.Header.Seq, prev.Packet.Header.Seq) != 1 {
 				return false, 0
 			}
 
-			if p.packet.positionType == PositionTypeFUAMiddle {
+			if p.Packet.positionType == PositionTypeFUAMiddle {
 				prev = p
-				p = p.next
+				p = p.Next
 				continue
-			} else if p.packet.positionType == PositionTypeFUAEnd {
+			} else if p.Packet.positionType == PositionTypeFUAEnd {
 				var pkt base.AVPacket
 				pkt.PayloadType = unpacker.payloadType
-				pkt.Timestamp = p.packet.Header.Timestamp / uint32(unpacker.clockRate/1000)
+				pkt.Timestamp = p.Packet.Header.Timestamp / uint32(unpacker.clockRate/1000)
 
 				var naluTypeLen int
 				var naluType []byte
@@ -122,14 +122,14 @@ func (unpacker *RTPUnpackerAVCHEVC) TryUnpackOne(list *RTPPacketList) (unpackedF
 					naluTypeLen = 1
 					naluType = make([]byte, naluTypeLen)
 
-					fuIndicator := first.packet.Raw[first.packet.Header.payloadOffset]
-					fuHeader := first.packet.Raw[first.packet.Header.payloadOffset+1]
+					fuIndicator := first.Packet.Raw[first.Packet.Header.payloadOffset]
+					fuHeader := first.Packet.Raw[first.Packet.Header.payloadOffset+1]
 					naluType[0] = (fuIndicator & 0xE0) | (fuHeader & 0x1F)
 				} else {
 					naluTypeLen = 2
 					naluType = make([]byte, naluTypeLen)
 
-					buf := first.packet.Raw[first.packet.Header.payloadOffset:]
+					buf := first.Packet.Raw[first.Packet.Header.payloadOffset:]
 					fuType := buf[2] & 0x3f
 					naluType[0] = (buf[0] & 0x81) | (fuType << 1)
 					naluType[1] = buf[1]
@@ -139,11 +139,11 @@ func (unpacker *RTPUnpackerAVCHEVC) TryUnpackOne(list *RTPPacketList) (unpackedF
 				totalSize := 0
 				pp := first
 				for {
-					totalSize += len(pp.packet.Raw) - int(pp.packet.Header.payloadOffset) - (naluTypeLen + 1)
+					totalSize += len(pp.Packet.Raw) - int(pp.Packet.Header.payloadOffset) - (naluTypeLen + 1)
 					if pp == p {
 						break
 					}
-					pp = pp.next
+					pp = pp.Next
 				}
 
 				pkt.Payload = make([]byte, totalSize+4+naluTypeLen)
@@ -160,24 +160,24 @@ func (unpacker *RTPUnpackerAVCHEVC) TryUnpackOne(list *RTPPacketList) (unpackedF
 				packetCount := 0
 				pp = first
 				for {
-					copy(pkt.Payload[index:], pp.packet.Raw[int(pp.packet.Header.payloadOffset)+(naluTypeLen+1):])
-					index += len(pp.packet.Raw) - int(pp.packet.Header.payloadOffset) - (naluTypeLen + 1)
+					copy(pkt.Payload[index:], pp.Packet.Raw[int(pp.Packet.Header.payloadOffset)+(naluTypeLen+1):])
+					index += len(pp.Packet.Raw) - int(pp.Packet.Header.payloadOffset) - (naluTypeLen + 1)
 					packetCount++
 
 					if pp == p {
 						break
 					}
-					pp = pp.next
+					pp = pp.Next
 				}
 
-				list.head.next = p.next
-				list.size -= packetCount
+				list.Head.Next = p.Next
+				list.Size -= packetCount
 				unpacker.onAVPacket(pkt)
 
-				return true, p.packet.Header.Seq
+				return true, p.Packet.Header.Seq
 			} else {
 				// 不应该出现其他类型
-				nazalog.Errorf("invalid position type. position=%d", p.packet.positionType)
+				nazalog.Errorf("invalid position type. position=%d", p.Packet.positionType)
 				return false, 0
 			}
 		}
@@ -187,7 +187,7 @@ func (unpacker *RTPUnpackerAVCHEVC) TryUnpackOne(list *RTPPacketList) (unpackedF
 	case PositionTypeFUAEnd:
 		// noop
 	default:
-		nazalog.Errorf("invalid position. pos=%d", first.packet.positionType)
+		nazalog.Errorf("invalid position. pos=%d", first.Packet.positionType)
 	}
 
 	return false, 0
