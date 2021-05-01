@@ -21,7 +21,8 @@ type PushSessionOption struct {
 	// 如果为0，则没有超时时间
 	PushTimeoutMS int
 
-	WriteAVTimeoutMS int
+	WriteAVTimeoutMS     int
+	HandshakeComplexFlag bool
 }
 
 var defaultPushSessionOption = PushSessionOption{
@@ -41,6 +42,7 @@ func NewPushSession(modOptions ...ModPushSessionOption) *PushSession {
 		core: NewClientSession(CSTPushSession, func(option *ClientSessionOption) {
 			option.DoTimeoutMS = opt.PushTimeoutMS
 			option.WriteAVTimeoutMS = opt.WriteAVTimeoutMS
+			option.HandshakeComplexFlag = opt.HandshakeComplexFlag
 		}),
 	}
 }
