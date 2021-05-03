@@ -24,6 +24,8 @@ import (
 //            后续从架构上考虑，packet hls,mpegts,logic的分工
 
 type MuxerObserver interface {
+	OnPATPMT(b []byte)
+
 	// @param rawFrame TS流，回调结束后，内部不再使用该内存块
 	// @param boundary 新的TS流接收者，应该从该标志为true时开始发送数据
 	//
@@ -52,6 +54,7 @@ const (
 	CleanupModeASAP     = 2
 )
 
+// 输入rtmp流，转出hls(m3u8+ts)至文件中，并回调给上层转出ts流
 type Muxer struct {
 	UniqueKey string
 
@@ -77,6 +80,7 @@ type Muxer struct {
 	recordMaxFragDuration float64
 
 	streamer *Streamer
+	patpmt   []byte
 }
 
 // 记录fragment的一些信息，注意，写m3u8文件时可能还需要用到历史fragment的信息
@@ -131,6 +135,11 @@ func (m *Muxer) Dispose() {
 //
 func (m *Muxer) FeedRTMPMessage(msg base.RTMPMsg) {
 	m.streamer.FeedRTMPMessage(msg)
+}
+
+func (m *Muxer) OnPATPMT(b []byte) {
+	m.patpmt = b
+	m.observer.OnPATPMT(b)
 }
 
 func (m *Muxer) OnFrame(streamer *Streamer, frame *mpegts.Frame) {
@@ -204,7 +213,13 @@ func (m *Muxer) updateFragment(ts uint64, boundary bool) error {
 	if m.opened {
 		f := m.getCurrFrag()
 
-		// 当前时间戳跳跃很大，或者是往回跳跃超过了阈值，强制开启新的fragment
+		// 以下情况，强制开启新的分片：
+		// 1. 当前时间戳 - 当前分片的初始时间戳 > 配置中单个ts分片时长的10倍
+		//    原因可能是：
+		//        1. 当前包的时间戳发生了大的跳跃
+		//        2. 一直没有I帧导致没有合适的时间重新切片，堆积的包达到阈值
+		// 2. 往回跳跃超过了阈值
+		//
 		maxfraglen := uint64(m.config.FragmentDurationMS * 90 * 10)
 		if (ts > m.fragTS && ts-m.fragTS > maxfraglen) || (m.fragTS > ts && m.fragTS-ts > negMaxfraglen) {
 			nazalog.Warnf("[%s] force fragment split. fragTS=%d, ts=%d", m.UniqueKey, m.fragTS, ts)
@@ -240,6 +255,9 @@ func (m *Muxer) updateFragment(ts uint64, boundary bool) error {
 	}
 
 	// 开启新的fragment
+	// 此时的情况是，上层认为是合适的开启分片的时机（比如是I帧），并且
+	// 1. 当前是第一个分片
+	// 2. 当前不是第一个分片，但是上一个分片已经达到配置时长
 	if boundary {
 		if err := m.closeFragment(false); err != nil {
 			return err
@@ -265,6 +283,9 @@ func (m *Muxer) openFragment(ts uint64, discont bool) error {
 	filenameWithPath := getTSFilenameWithPath(m.outPath, filename)
 	if m.config.Enable {
 		if err := m.fragment.OpenFile(filenameWithPath); err != nil {
+			return err
+		}
+		if err := m.fragment.WriteFile(m.patpmt); err != nil {
 			return err
 		}
 	}

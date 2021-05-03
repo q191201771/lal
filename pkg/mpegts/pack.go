@@ -9,7 +9,7 @@
 package mpegts
 
 type Frame struct {
-	PTS uint64
+	PTS uint64 // =(毫秒 * 90)
 	DTS uint64
 	CC  uint8 // continuity_counter of TS Header
 
@@ -36,6 +36,8 @@ type Frame struct {
 //
 type OnTSPacket func(packet []byte)
 
+// AnnexB格式的流转换为mpegts packet
+//
 // @param frame: 各字段含义见mpegts.Frame结构体定义
 //               frame.CC  注意，内部会修改frame.CC的值，外部在调用结束后，可保存CC的值，供下次调用时使用
 //               frame.Raw 函数调用结束后，内部不会持有该内存块

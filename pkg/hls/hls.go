@@ -33,10 +33,6 @@ import (
 
 var ErrHLS = errors.New("lal.hls: fxxk")
 
-var audNal = []byte{
-	0x00, 0x00, 0x00, 0x01, 0x09, 0xf0,
-}
-
 const (
 	// TODO chef 这些在配置项中提供
 	negMaxfraglen             uint64 = 1000 * 90 // 当前包时间戳回滚了，比当前fragment的首个时间戳还小，强制切割新的fragment，单位（毫秒*90）

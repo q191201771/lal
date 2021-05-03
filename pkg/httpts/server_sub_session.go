@@ -14,8 +14,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/q191201771/lal/pkg/mpegts"
-
 	"github.com/q191201771/lal/pkg/base"
 	"github.com/q191201771/naza/pkg/connection"
 	"github.com/q191201771/naza/pkg/nazahttp"
@@ -104,11 +102,6 @@ func (session *SubSession) WriteHTTPResponseHeader() {
 	} else {
 		session.WriteRawPacket(tsHTTPResponseHeader)
 	}
-}
-
-func (session *SubSession) WriteFragmentHeader() {
-	nazalog.Debugf("[%s] > W http response header.", session.uniqueKey)
-	session.WriteRawPacket(mpegts.FixedFragmentHeader)
 }
 
 func (session *SubSession) WriteRawPacket(pkt []byte) {
