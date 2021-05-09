@@ -134,11 +134,11 @@ func ParseRTMPURL(rawURL string) (ctx URLContext, err error) {
 }
 
 func ParseHTTPFLVURL(rawURL string, isHTTPS bool) (ctx URLContext, err error) {
-	return parsehttpURL(rawURL, isHTTPS, ".flv")
+	return ParseHTTPURL(rawURL, isHTTPS, ".flv")
 }
 
 func ParseHTTPTSURL(rawURL string, isHTTPS bool) (ctx URLContext, err error) {
-	return parsehttpURL(rawURL, isHTTPS, ".ts")
+	return ParseHTTPURL(rawURL, isHTTPS, ".ts")
 }
 
 func ParseRTSPURL(rawURL string) (ctx URLContext, err error) {
@@ -184,7 +184,7 @@ func parseURLPath(stdURL *url.URL) (ctx URLPathContext, err error) {
 	return ctx, nil
 }
 
-func parsehttpURL(rawURL string, isHTTPS bool, suffix string) (ctx URLContext, err error) {
+func ParseHTTPURL(rawURL string, isHTTPS bool, suffix string) (ctx URLContext, err error) {
 	var defaultPort int
 	if isHTTPS {
 		defaultPort = DefaultHTTPSPort

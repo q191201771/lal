@@ -392,7 +392,7 @@ func (group *Group) DelHTTPFLVSubSession(session *httpflv.SubSession) {
 //   这里应该也要考虑触发hls muxer开启
 //   也即HTTPTS sub需要使用hls muxer，hls muxer开启和关闭都要考虑HTTPTS sub
 func (group *Group) AddHTTPTSSubSession(session *httpts.SubSession) {
-	nazalog.Debugf("[%s] [%s] add httpflv SubSession into group.", group.UniqueKey, session.UniqueKey())
+	nazalog.Debugf("[%s] [%s] add httpts SubSession into group.", group.UniqueKey, session.UniqueKey())
 	session.WriteHTTPResponseHeader()
 
 	group.mutex.Lock()
@@ -498,12 +498,12 @@ func (group *Group) OnTSPackets(rawFrame []byte, boundary bool) {
 	for session := range group.httptsSubSessionSet {
 		if session.IsFresh {
 			if boundary {
-				session.WriteRawPacket(group.patpmt)
-				session.WriteRawPacket(rawFrame)
+				session.Write(group.patpmt)
+				session.Write(rawFrame)
 				session.IsFresh = false
 			}
 		} else {
-			session.WriteRawPacket(rawFrame)
+			session.Write(rawFrame)
 		}
 	}
 
@@ -807,24 +807,24 @@ func (group *Group) broadcastRTMP(msg base.RTMPMsg) {
 	for session := range group.httpflvSubSessionSet {
 		if session.IsFresh {
 			if group.httpflvGopCache.Metadata != nil {
-				session.WriteRawPacket(group.httpflvGopCache.Metadata)
+				session.Write(group.httpflvGopCache.Metadata)
 			}
 			if group.httpflvGopCache.VideoSeqHeader != nil {
-				session.WriteRawPacket(group.httpflvGopCache.VideoSeqHeader)
+				session.Write(group.httpflvGopCache.VideoSeqHeader)
 			}
 			if group.httpflvGopCache.AACSeqHeader != nil {
-				session.WriteRawPacket(group.httpflvGopCache.AACSeqHeader)
+				session.Write(group.httpflvGopCache.AACSeqHeader)
 			}
 			for i := 0; i < group.httpflvGopCache.GetGOPCount(); i++ {
 				for _, item := range group.httpflvGopCache.GetGOPDataAt(i) {
-					session.WriteRawPacket(item)
+					session.Write(item)
 				}
 			}
 
 			session.IsFresh = false
 		}
 
-		session.WriteRawPacket(lrm2ft.Get())
+		session.Write(lrm2ft.Get())
 	}
 
 	// # 5. 录制flv文件
@@ -1017,7 +1017,8 @@ func (group *Group) addIn() {
 		if group.hlsMuxer != nil {
 			nazalog.Errorf("[%s] hls muxer exist while addIn. muxer=%+v", group.UniqueKey, group.hlsMuxer)
 		}
-		group.hlsMuxer = hls.NewMuxer(group.streamName, &config.HLSConfig.MuxerConfig, group)
+		enable := config.HLSConfig.Enable || config.HLSConfig.EnableHTTPS
+		group.hlsMuxer = hls.NewMuxer(group.streamName, enable, &config.HLSConfig.MuxerConfig, group)
 		group.hlsMuxer.Start()
 	}
 

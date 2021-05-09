@@ -10,7 +10,6 @@ package innertest
 
 import (
 	"bytes"
-	"encoding/json"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -75,19 +74,16 @@ func InnerTestEntry(t *testing.T) {
 
 	var err error
 
-	go logic.Entry(confFile)
+	logic.Init(confFile)
+	go logic.RunLoop()
 	time.Sleep(200 * time.Millisecond)
 
-	var config logic.Config
-	rawContent, err := ioutil.ReadFile(confFile)
-	nazalog.Assert(nil, err)
-	err = json.Unmarshal(rawContent, &config)
-	nazalog.Assert(nil, err)
+	config := logic.GetConfig()
 
 	_ = os.RemoveAll(config.HLSConfig.OutPath)
 
 	pushURL = fmt.Sprintf("rtmp://127.0.0.1%s/live/innertest", config.RTMPConfig.Addr)
-	httpflvPullURL = fmt.Sprintf("http://127.0.0.1%s/live/innertest.flv", config.HTTPFLVConfig.SubListenAddr)
+	httpflvPullURL = fmt.Sprintf("http://127.0.0.1%s/live/innertest.flv", config.HTTPFLVConfig.HTTPListenAddr)
 	rtmpPullURL = fmt.Sprintf("rtmp://127.0.0.1%s/live/innertest", config.RTMPConfig.Addr)
 
 	err = fileReader.Open(rFLVFileName)

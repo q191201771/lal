@@ -9,24 +9,23 @@
 package logic
 
 import (
-	"github.com/q191201771/lal/pkg/httpflv"
-
 	"github.com/q191201771/lal/pkg/hls"
 	"github.com/q191201771/naza/pkg/nazalog"
 )
 
-const ConfVersion = "v0.1.2"
+const ConfVersion = "v0.2.0"
 
 type Config struct {
-	ConfVersion     string          `json:"conf_version"`
-	RTMPConfig      RTMPConfig      `json:"rtmp"`
-	HTTPFLVConfig   HTTPFLVConfig   `json:"httpflv"`
-	HLSConfig       HLSConfig       `json:"hls"`
-	HTTPTSConfig    HTTPTSConfig    `json:"httpts"`
-	RTSPConfig      RTSPConfig      `json:"rtsp"`
-	RecordConfig    RecordConfig    `json:"record"`
-	RelayPushConfig RelayPushConfig `json:"relay_push"`
-	RelayPullConfig RelayPullConfig `json:"relay_pull"`
+	ConfVersion       string            `json:"conf_version"`
+	RTMPConfig        RTMPConfig        `json:"rtmp"`
+	DefaultHTTPConfig DefaultHTTPConfig `json:"default_http"`
+	HTTPFLVConfig     HTTPFLVConfig     `json:"httpflv"`
+	HLSConfig         HLSConfig         `json:"hls"`
+	HTTPTSConfig      HTTPTSConfig      `json:"httpts"`
+	RTSPConfig        RTSPConfig        `json:"rtsp"`
+	RecordConfig      RecordConfig      `json:"record"`
+	RelayPushConfig   RelayPushConfig   `json:"relay_push"`
+	RelayPullConfig   RelayPullConfig   `json:"relay_pull"`
 
 	HTTPAPIConfig    HTTPAPIConfig    `json:"http_api"`
 	ServerID         string           `json:"server_id"`
@@ -41,19 +40,24 @@ type RTMPConfig struct {
 	GOPNum int    `json:"gop_num"`
 }
 
+type DefaultHTTPConfig struct {
+	CommonHTTPAddrConfig
+}
+
 type HTTPFLVConfig struct {
-	httpflv.ServerConfig
+	CommonHTTPServerConfig
+
 	GOPNum int `json:"gop_num"`
 }
 
 type HTTPTSConfig struct {
-	Enable        bool   `json:"enable"`
-	SubListenAddr string `json:"sub_listen_addr"`
+	CommonHTTPServerConfig
 }
 
 type HLSConfig struct {
-	SubListenAddr       string `json:"sub_listen_addr"`
-	UseMemoryAsDiskFlag bool   `json:"use_memory_as_disk_flag"`
+	CommonHTTPServerConfig
+
+	UseMemoryAsDiskFlag bool `json:"use_memory_as_disk_flag"`
 	hls.MuxerConfig
 }
 
@@ -99,4 +103,18 @@ type HTTPNotifyConfig struct {
 type PProfConfig struct {
 	Enable bool   `json:"enable"`
 	Addr   string `json:"addr"`
+}
+
+type CommonHTTPServerConfig struct {
+	CommonHTTPAddrConfig
+
+	Enable      bool `json:"enable"`
+	EnableHTTPS bool `json:"enable_https"`
+}
+
+type CommonHTTPAddrConfig struct {
+	HTTPListenAddr  string `json:"http_listen_addr"`
+	HTTPSListenAddr string `json:"https_listen_addr"`
+	HTTPSCertFile   string `json:"https_cert_file"`
+	HTTPSKeyFile    string `json:"https_key_file"`
 }

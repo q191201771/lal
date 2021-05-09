@@ -31,7 +31,6 @@ func main() {
 		url, hlsOutPath, fragmentDurationMS, fragmentNum)
 
 	hlsMuxerConfig := hls.MuxerConfig{
-		Enable:             true,
 		OutPath:            hlsOutPath,
 		FragmentDurationMS: fragmentDurationMS,
 		FragmentNum:        fragmentNum,
@@ -43,7 +42,7 @@ func main() {
 	}
 	streamName := ctx.LastItemOfPath
 
-	hlsMuexer := hls.NewMuxer(streamName, &hlsMuxerConfig, nil)
+	hlsMuexer := hls.NewMuxer(streamName, true, &hlsMuxerConfig, nil)
 	hlsMuexer.Start()
 
 	pullSession := rtmp.NewPullSession(func(option *rtmp.PullSessionOption) {

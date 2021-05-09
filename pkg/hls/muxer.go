@@ -33,7 +33,6 @@ type MuxerObserver interface {
 }
 
 type MuxerConfig struct {
-	Enable             bool   `json:"enable"`   // 如果false，说明hls功能没开，也即不写文件，但是MuxerObserver依然会回调
 	OutPath            string `json:"out_path"` // m3u8和ts文件的输出根目录，注意，末尾需以'/'结束
 	FragmentDurationMS int    `json:"fragment_duration_ms"`
 	FragmentNum        int    `json:"fragment_num"`
@@ -66,6 +65,7 @@ type Muxer struct {
 	recordPlayListFilenameBak string // const after init
 
 	config   *MuxerConfig
+	enable   bool
 	observer MuxerObserver
 
 	fragment Fragment
@@ -91,8 +91,9 @@ type fragmentInfo struct {
 	filename string
 }
 
+// @param enable   如果false，说明hls功能没开，也即不写文件，但是MuxerObserver依然会回调
 // @param observer 可以为nil，如果不为nil，TS流将回调给上层
-func NewMuxer(streamName string, config *MuxerConfig, observer MuxerObserver) *Muxer {
+func NewMuxer(streamName string, enable bool, config *MuxerConfig, observer MuxerObserver) *Muxer {
 	uk := base.GenUKHLSMuxer()
 	op := getMuxerOutPath(config.OutPath, streamName)
 	playlistFilename := getM3U8Filename(op, streamName)
@@ -108,6 +109,7 @@ func NewMuxer(streamName string, config *MuxerConfig, observer MuxerObserver) *M
 		playlistFilenameBak:       playlistFilenameBak,
 		recordPlayListFilename:    recordPlaylistFilename,
 		recordPlayListFilenameBak: recordPlaylistFilenameBak,
+		enable:   enable,
 		config:   config,
 		observer: observer,
 		frags:    frags,
@@ -182,7 +184,7 @@ func (m *Muxer) OnFrame(streamer *Streamer, frame *mpegts.Frame) {
 	}
 
 	mpegts.PackTSPacket(frame, func(packet []byte) {
-		if m.config.Enable {
+		if m.enable {
 			if err := m.fragment.WriteFile(packet); err != nil {
 				nazalog.Errorf("[%s] fragment write error. err=%+v", m.UniqueKey, err)
 				return
@@ -281,7 +283,7 @@ func (m *Muxer) openFragment(ts uint64, discont bool) error {
 
 	filename := getTSFilename(m.streamName, id, int(time.Now().Unix()))
 	filenameWithPath := getTSFilenameWithPath(m.outPath, filename)
-	if m.config.Enable {
+	if m.enable {
 		if err := m.fragment.OpenFile(filenameWithPath); err != nil {
 			return err
 		}
@@ -311,7 +313,7 @@ func (m *Muxer) closeFragment(isLast bool) error {
 		return nil
 	}
 
-	if m.config.Enable {
+	if m.enable {
 		if err := m.fragment.CloseFile(); err != nil {
 			return err
 		}
@@ -346,7 +348,7 @@ func (m *Muxer) closeFragment(isLast bool) error {
 }
 
 func (m *Muxer) writeRecordPlaylist(isLast bool) {
-	if !m.config.Enable {
+	if !m.enable {
 		return
 	}
 
@@ -401,7 +403,7 @@ func (m *Muxer) writeRecordPlaylist(isLast bool) {
 }
 
 func (m *Muxer) writePlaylist(isLast bool) {
-	if !m.config.Enable {
+	if !m.enable {
 		return
 	}
 
@@ -442,7 +444,7 @@ func (m *Muxer) writePlaylist(isLast bool) {
 }
 
 func (m *Muxer) ensureDir() {
-	if !m.config.Enable {
+	if !m.enable {
 		return
 	}
 	//err := fslCtx.RemoveAll(m.outPath)
