@@ -1,3 +1,15 @@
+#### v0.22.0 (2021-05-03)
+
+- [feat] 录制新增支持：flv和mpegts文件。 录制支持列表见： https://pengrl.com/lal/#/LALServer (#14)
+- [feat] h265新增支持： hls拉流，hls录制；http-ts拉流，mpegts录制。h265支持列表见： https://pengrl.com/lal/#/LALServer (#65)
+- [feat] 拉流新增支持：websocket-flv，websocket-ts。拉流协议支持列表见： https://pengrl.com/lal/#/LALServer
+- [feat] hls: 支持内存切片。 (#50)
+- [fix] rtmp ClientSession握手，c2的发送时机，由收到s0s1s2改为收到s0s1就发送，解决握手失败的case。 (#42)
+- [fix] rtsp h265: 转rtmp时处理错误导致无法播放
+- [fix] rtsp h265: ffmpeg向lalserver推送rtsp h265报错。 (#55)
+- [test] travis ci: 自动化单元测试os增加osx, windows, arch增加arm64, ppc64le, s390x。 (#59)
+- [feat] rtmp ClientSession支持配置使用简单握手，复杂握手 (#68)
+
 #### v0.21.0 (2021-04-11)
 
 - [feat] package rtmp: 支持Aggregate Message

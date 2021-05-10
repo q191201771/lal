@@ -32,11 +32,16 @@ var (
 	sm     *ServerManager
 )
 
-func Entry(confFile string) {
+// TODO(chef) 临时供innertest使用，后面应该重构
+func GetConfig() *Config {
+	return config
+}
+
+func Init(confFile string) {
 	LoadConfAndInitLog(confFile)
-	if dir, err := os.Getwd(); err == nil {
-		nazalog.Infof("wd: %s", dir)
-	}
+
+	dir, _ := os.Getwd()
+	nazalog.Infof("wd: %s", dir)
 	nazalog.Infof("args: %s", strings.Join(os.Args, " "))
 	nazalog.Infof("bininfo: %s", bininfo.StringifySingleLine())
 	nazalog.Infof("version: %s", base.LALFullInfo)
@@ -56,7 +61,9 @@ func Entry(confFile string) {
 			nazalog.Errorf("record mpegts mkdir error. path=%s, err=%+v", config.RecordConfig.MPEGTSOutPath, err)
 		}
 	}
+}
 
+func RunLoop() {
 	sm = NewServerManager()
 
 	if config.PProfConfig.Enable {
@@ -164,6 +171,11 @@ func LoadConfAndInitLog(confFile string) *Config {
 		}
 	}
 
+	// 如果具体的HTTP应用没有设置HTTP监听相关的配置，则尝试使用全局配置
+	mergeCommonHTTPAddrConfig(&config.HTTPFLVConfig.CommonHTTPAddrConfig, &config.DefaultHTTPConfig.CommonHTTPAddrConfig)
+	mergeCommonHTTPAddrConfig(&config.HTTPTSConfig.CommonHTTPAddrConfig, &config.DefaultHTTPConfig.CommonHTTPAddrConfig)
+	mergeCommonHTTPAddrConfig(&config.HLSConfig.CommonHTTPAddrConfig, &config.DefaultHTTPConfig.CommonHTTPAddrConfig)
+
 	// 配置不存在时，设置默认值
 	if !j.Exist("hls.cleanup_mode") {
 		const defaultMode = hls.CleanupModeInTheEnd
@@ -195,5 +207,20 @@ func runWebPProf(addr string) {
 	if err := http.ListenAndServe(addr, nil); err != nil {
 		nazalog.Error(err)
 		return
+	}
+}
+
+func mergeCommonHTTPAddrConfig(dst, src *CommonHTTPAddrConfig) {
+	if dst.HTTPListenAddr == "" && src.HTTPListenAddr != "" {
+		dst.HTTPListenAddr = src.HTTPListenAddr
+	}
+	if dst.HTTPSListenAddr == "" && src.HTTPSListenAddr != "" {
+		dst.HTTPSListenAddr = src.HTTPSListenAddr
+	}
+	if dst.HTTPSCertFile == "" && src.HTTPSCertFile != "" {
+		dst.HTTPSCertFile = src.HTTPSCertFile
+	}
+	if dst.HTTPSKeyFile == "" && src.HTTPSKeyFile != "" {
+		dst.HTTPSKeyFile = src.HTTPSKeyFile
 	}
 }

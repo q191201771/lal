@@ -17,6 +17,8 @@ import (
 	"github.com/q191201771/lal/pkg/rtsp"
 )
 
+// TODO(chef) add base.HTTPSubSession
+
 // client.pub:  rtmp, rtsp
 // client.sub:  rtmp, rtsp, flv, ts
 // server.push: rtmp, rtsp
@@ -132,8 +134,7 @@ var (
 
 var _ rtmp.ServerObserver = &ServerManager{}
 var _ rtsp.ServerObserver = &ServerManager{}
-var _ httpflv.ServerObserver = &ServerManager{}
-var _ httpts.ServerObserver = &ServerManager{}
+var _ HTTPServerHandlerObserver = &ServerManager{}
 
 var _ HTTPAPIServerObserver = &ServerManager{}
 

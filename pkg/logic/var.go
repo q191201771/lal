@@ -8,6 +8,12 @@
 
 package logic
 
+var (
+	HTTPFLVURLPath = "/live/"
+	HTTPTSURLPath  = "/live/"
+	HLSURLPath     = "/hls/"
+)
+
 //var relayPushCheckIntervalMS = 1000
 var relayPushTimeoutMS = 5000
 var relayPushWriteAVTimeoutMS = 5000

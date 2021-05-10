@@ -21,7 +21,7 @@ func TestParseFixedTSPacket(t *testing.T) {
 	pat := mpegts.ParsePAT(mpegts.FixedFragmentHeader[5:])
 	nazalog.Debugf("%+v", pat)
 
-	h = mpegts.ParseTSPacketHeader(mpegts.FixedFragmentHeader[188:])
+	h = mpegts.ParseTSPacketHeader(mpegts.FixedFragmentHeaderHEVC[188:])
 	nazalog.Debugf("%+v", h)
 	pmt := mpegts.ParsePMT(mpegts.FixedFragmentHeader[188+5:])
 	nazalog.Debugf("%+v", pmt)

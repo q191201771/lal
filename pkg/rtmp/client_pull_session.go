@@ -23,7 +23,8 @@ type PullSessionOption struct {
 	// 如果为0，则没有超时时间
 	PullTimeoutMS int
 
-	ReadAVTimeoutMS int
+	ReadAVTimeoutMS      int
+	HandshakeComplexFlag bool
 }
 
 var defaultPullSessionOption = PullSessionOption{
@@ -43,6 +44,7 @@ func NewPullSession(modOptions ...ModPullSessionOption) *PullSession {
 		core: NewClientSession(CSTPullSession, func(option *ClientSessionOption) {
 			option.DoTimeoutMS = opt.PullTimeoutMS
 			option.ReadAVTimeoutMS = opt.ReadAVTimeoutMS
+			option.HandshakeComplexFlag = opt.HandshakeComplexFlag
 		}),
 	}
 }

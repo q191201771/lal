@@ -28,7 +28,8 @@ func main() {
 	defer nazalog.Sync()
 
 	confFile := parseFlag()
-	logic.Entry(confFile)
+	logic.Init(confFile)
+	logic.RunLoop()
 }
 
 func parseFlag() string {

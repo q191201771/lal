@@ -31,6 +31,9 @@ var ErrAVC = errors.New("lal.avc: fxxk")
 var (
 	NALUStartCode3 = []byte{0x0, 0x0, 0x1}
 	NALUStartCode4 = []byte{0x0, 0x0, 0x0, 0x1}
+
+	// aud nalu
+	AUDNALU = []byte{0x00, 0x00, 0x00, 0x01, 0x09, 0xf0}
 )
 
 var NALUTypeMapping = map[uint8]string{
