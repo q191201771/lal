@@ -58,9 +58,9 @@ func (session *HTTPSubSession) RunLoop() error {
 
 func (session *HTTPSubSession) WriteHTTPResponseHeader(b []byte) {
 	if session.IsWebSocket {
-		session.Write(UpdateWebSocketHeader(session.WebSocketKey))
+		session.write(UpdateWebSocketHeader(session.WebSocketKey))
 	} else {
-		session.Write(b)
+		session.write(b)
 	}
 }
 
