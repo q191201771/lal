@@ -74,6 +74,9 @@ type Group struct {
 	rtmpGopCache    *GOPCache
 	httpflvGopCache *GOPCache
 
+	//
+	rtmpBufWriter base.IBufWriter // TODO(chef): 后面可以在业务层加一个定时Flush
+
 	// rtsp pub使用
 	asc []byte
 	vps []byte
@@ -130,6 +133,7 @@ func NewGroup(appName string, streamName string, pullEnable bool, pullURL string
 		pullEnable:           pullEnable,
 		pullURL:              pullURL,
 	}
+	g.rtmpBufWriter = base.NewWriterFuncSize(g.write2RTMPSubSessions, config.RTMPConfig.MergeWriteSize)
 	nazalog.Infof("[%s] lifecycle new group. group=%p, appName=%s, streamName=%s", uk, g, appName, streamName)
 
 	return g
@@ -474,10 +478,10 @@ func (group *Group) HasOutSession() bool {
 	return group.hasOutSession()
 }
 
-func (group *Group) BroadcastRTMP(msg base.RTMPMsg) {
+func (group *Group) BroadcastByRTMPMsg(msg base.RTMPMsg) {
 	group.mutex.Lock()
 	defer group.mutex.Unlock()
-	group.broadcastRTMP(msg)
+	group.broadcastByRTMPMsg(msg)
 }
 
 // hls.Muxer
@@ -516,7 +520,7 @@ func (group *Group) OnTSPackets(rawFrame []byte, boundary bool) {
 
 // rtmp.PubSession or rtmp.PullSession
 func (group *Group) OnReadRTMPAVMsg(msg base.RTMPMsg) {
-	group.BroadcastRTMP(msg)
+	group.BroadcastByRTMPMsg(msg)
 }
 
 // rtsp.PubSession
@@ -544,13 +548,13 @@ func (group *Group) OnAVConfig(asc, vps, sps, pps []byte) {
 		return
 	}
 	if metadata != nil {
-		group.broadcastRTMP(*metadata)
+		group.broadcastByRTMPMsg(*metadata)
 	}
 	if vsh != nil {
-		group.broadcastRTMP(*vsh)
+		group.broadcastByRTMPMsg(*vsh)
 	}
 	if ash != nil {
-		group.broadcastRTMP(*ash)
+		group.broadcastByRTMPMsg(*ash)
 	}
 }
 
@@ -563,7 +567,7 @@ func (group *Group) OnAVPacket(pkt base.AVPacket) {
 		return
 	}
 
-	group.BroadcastRTMP(msg)
+	group.BroadcastByRTMPMsg(msg)
 }
 
 func (group *Group) StringifyDebugStats() string {
@@ -720,7 +724,7 @@ func (group *Group) delRTSPSubSession(session *rtsp.SubSession) {
 
 // TODO chef: 目前相当于其他类型往rtmp.AVMsg转了，考虑统一往一个通用类型转
 // @param msg 调用结束后，内部不持有msg.Payload内存块
-func (group *Group) broadcastRTMP(msg base.RTMPMsg) {
+func (group *Group) broadcastByRTMPMsg(msg base.RTMPMsg) {
 	var (
 		lcd    LazyChunkDivider
 		lrm2ft LazyRTMPMsg2FLVTag
@@ -744,8 +748,8 @@ func (group *Group) broadcastRTMP(msg base.RTMPMsg) {
 	lrm2ft.Init(msg)
 
 	// # 3. 广播。遍历所有 rtmp sub session，转发数据
+	// ## 3.1. 如果是新的 sub session，发送已缓存的信息
 	for session := range group.rtmpSubSessionSet {
-		// ## 3.1. 如果是新的 sub session，发送已缓存的信息
 		if session.IsFresh {
 			// TODO chef: 头信息和full gop也可以在SubSession刚加入时发送
 			if group.rtmpGopCache.Metadata != nil {
@@ -768,9 +772,10 @@ func (group *Group) broadcastRTMP(msg base.RTMPMsg) {
 
 			session.IsFresh = false
 		}
-
-		// ## 3.2. 转发本次数据
-		_ = session.Write(lcd.Get())
+	}
+	// ## 3.2. 转发本次数据
+	if len(group.rtmpSubSessionSet) > 0 {
+		group.rtmpBufWriter.Write(lcd.Get())
 	}
 
 	// TODO chef: rtmp sub, rtmp push, httpflv sub 的发送逻辑都差不多，可以考虑封装一下
@@ -879,6 +884,12 @@ func (group *Group) broadcastRTMP(msg base.RTMPMsg) {
 				}
 			}
 		}
+	}
+}
+
+func (group *Group) write2RTMPSubSessions(b []byte) {
+	for session := range group.rtmpSubSessionSet {
+		_ = session.Write(b)
 	}
 }
 

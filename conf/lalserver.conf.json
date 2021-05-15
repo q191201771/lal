@@ -1,10 +1,11 @@
 {
   "# doc of config": "https://pengrl.com/lal/#/ConfigBrief",
-  "conf_version": "v0.2.0",
+  "conf_version": "v0.2.1",
   "rtmp": {
     "enable": true,
     "addr": ":1935",
-    "gop_num": 2
+    "gop_num": 2,
+    "merge_write_size": 0
   },
   "default_http": {
     "http_listen_addr": ":8080",

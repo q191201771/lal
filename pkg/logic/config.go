@@ -13,7 +13,7 @@ import (
 	"github.com/q191201771/naza/pkg/nazalog"
 )
 
-const ConfVersion = "v0.2.0"
+const ConfVersion = "v0.2.1"
 
 type Config struct {
 	ConfVersion       string            `json:"conf_version"`
@@ -35,9 +35,10 @@ type Config struct {
 }
 
 type RTMPConfig struct {
-	Enable bool   `json:"enable"`
-	Addr   string `json:"addr"`
-	GOPNum int    `json:"gop_num"`
+	Enable         bool   `json:"enable"`
+	Addr           string `json:"addr"`
+	GOPNum         int    `json:"gop_num"`
+	MergeWriteSize int    `json:"merge_write_size"`
 }
 
 type DefaultHTTPConfig struct {
