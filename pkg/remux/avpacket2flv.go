@@ -146,13 +146,15 @@ func AVPacket2FLVTag(pkt base.AVPacket) (tag httpflv.Tag, err error) {
 		tag.Raw[9] = 0
 		tag.Raw[10] = 0
 
-		// TODO chef: 这段代码应该放在更合适的地方，或者在AVPacket中标识是否包含关键帧
-		for i := 0; i != len(pkt.Payload); {
-			naluSize := int(bele.BEUint32(pkt.Payload[i:]))
-
+		var nals [][]byte
+		nals, err = avc.IterateNALUAVCC(pkt.Payload)
+		if err != nil {
+			return
+		}
+		for _, nal := range nals {
 			switch pkt.PayloadType {
 			case base.AVPacketPTAVC:
-				t := avc.ParseNALUType(pkt.Payload[i+4])
+				t := avc.ParseNALUType(nal[0])
 				if t == avc.NALUTypeIDRSlice {
 					tag.Raw[httpflv.TagHeaderSize] = base.RTMPAVCKeyFrame
 				} else {
@@ -160,7 +162,7 @@ func AVPacket2FLVTag(pkt base.AVPacket) (tag httpflv.Tag, err error) {
 				}
 				tag.Raw[httpflv.TagHeaderSize+1] = base.RTMPAVCPacketTypeNALU
 			case base.AVPacketPTHEVC:
-				t := hevc.ParseNALUType(pkt.Payload[i+4])
+				t := hevc.ParseNALUType(nal[0])
 				if t == hevc.NALUTypeSliceIDR || t == hevc.NALUTypeSliceIDRNLP {
 					tag.Raw[httpflv.TagHeaderSize] = base.RTMPHEVCKeyFrame
 				} else {
@@ -168,8 +170,6 @@ func AVPacket2FLVTag(pkt base.AVPacket) (tag httpflv.Tag, err error) {
 				}
 				tag.Raw[httpflv.TagHeaderSize+1] = base.RTMPHEVCPacketTypeNALU
 			}
-
-			i += 4 + naluSize
 		}
 
 		tag.Raw[httpflv.TagHeaderSize+2] = 0x0 // cts

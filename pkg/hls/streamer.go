@@ -9,6 +9,8 @@
 package hls
 
 import (
+	"encoding/hex"
+
 	"github.com/q191201771/lal/pkg/aac"
 	"github.com/q191201771/lal/pkg/avc"
 	"github.com/q191201771/lal/pkg/base"
@@ -16,6 +18,7 @@ import (
 	"github.com/q191201771/lal/pkg/mpegts"
 	"github.com/q191201771/naza/pkg/bele"
 	"github.com/q191201771/naza/pkg/nazalog"
+	"github.com/q191201771/naza/pkg/nazastring"
 )
 
 type StreamerObserver interface {
@@ -124,25 +127,19 @@ func (s *Streamer) feedVideo(msg base.RTMPMsg) {
 	// 优化这块buffer
 	out := s.videoOut[0:0]
 
-	// tag中可能有多个NALU，逐个获取
-	for i := 5; i != len(msg.Payload); {
-		if i+4 > len(msg.Payload) {
-			nazalog.Errorf("[%s] slice len not enough. i=%d, len=%d", s.UniqueKey, i, len(msg.Payload))
-			return
-		}
-		nalBytes := int(bele.BEUint32(msg.Payload[i:]))
-		i += 4
-		if i+nalBytes > len(msg.Payload) {
-			nazalog.Errorf("[%s] slice len not enough. i=%d, payload len=%d, nalBytes=%d", s.UniqueKey, i, len(msg.Payload), nalBytes)
-			return
-		}
-
+	// msg中可能有多个NALU，逐个获取
+	nals, err := avc.IterateNALUAVCC(msg.Payload[5:])
+	if err != nil {
+		nazalog.Errorf("[%s] iterate nalu failed. err=%+v, payload=%s", err, s.UniqueKey, hex.Dump(nazastring.SubSliceSafety(msg.Payload, 32)))
+		return
+	}
+	for _, nal := range nals {
 		var nalType uint8
 		switch codecID {
 		case base.RTMPCodecIDAVC:
-			nalType = avc.ParseNALUType(msg.Payload[i])
+			nalType = avc.ParseNALUType(nal[0])
 		case base.RTMPCodecIDHEVC:
-			nalType = hevc.ParseNALUType(msg.Payload[i])
+			nalType = hevc.ParseNALUType(nal[0])
 		}
 
 		//nazalog.Debugf("[%s] naltype=%d, len=%d(%d), cts=%d, key=%t.", s.UniqueKey, nalType, nalBytes, len(msg.Payload), cts, msg.IsVideoKeyNALU())
@@ -152,7 +149,6 @@ func (s *Streamer) feedVideo(msg base.RTMPMsg) {
 		// aud有自己的写入逻辑
 		if (codecID == base.RTMPCodecIDAVC && (nalType == avc.NALUTypeSPS || nalType == avc.NALUTypePPS || nalType == avc.NALUTypeAUD)) ||
 			(codecID == base.RTMPCodecIDHEVC && (nalType == hevc.NALUTypeVPS || nalType == hevc.NALUTypeSPS || nalType == hevc.NALUTypePPS || nalType == hevc.NALUTypeAUD)) {
-			i += nalBytes
 			continue
 		}
 
@@ -209,9 +205,7 @@ func (s *Streamer) feedVideo(msg base.RTMPMsg) {
 			out = append(out, avc.NALUStartCode3...)
 		}
 
-		out = append(out, msg.Payload[i:i+nalBytes]...)
-
-		i += nalBytes
+		out = append(out, nal...)
 	}
 
 	dts := uint64(msg.Header.TimestampAbs) * 90

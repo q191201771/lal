@@ -14,7 +14,6 @@ import (
 	"github.com/q191201771/lal/pkg/base"
 	"github.com/q191201771/lal/pkg/hevc"
 	"github.com/q191201771/lal/pkg/rtmp"
-	"github.com/q191201771/naza/pkg/bele"
 )
 
 // @return 返回的内存块为新申请的独立内存块
@@ -139,13 +138,15 @@ func AVPacket2RTMPMsg(pkt base.AVPacket) (msg base.RTMPMsg, err error) {
 
 		msg.Payload = make([]byte, msg.Header.MsgLen)
 
-		// TODO chef: 这段代码应该放在更合适的地方，或者在AVPacket中标识是否包含关键帧
-		for i := 0; i != len(pkt.Payload); {
-			naluSize := int(bele.BEUint32(pkt.Payload[i:]))
-
+		var nals [][]byte
+		nals, err = avc.IterateNALUAVCC(pkt.Payload)
+		if err != nil {
+			return
+		}
+		for _, nal := range nals {
 			switch pkt.PayloadType {
 			case base.AVPacketPTAVC:
-				t := avc.ParseNALUType(pkt.Payload[i+4])
+				t := avc.ParseNALUType(nal[0])
 				if t == avc.NALUTypeIDRSlice {
 					msg.Payload[0] = base.RTMPAVCKeyFrame
 				} else {
@@ -153,7 +154,7 @@ func AVPacket2RTMPMsg(pkt base.AVPacket) (msg base.RTMPMsg, err error) {
 				}
 				msg.Payload[1] = base.RTMPAVCPacketTypeNALU
 			case base.AVPacketPTHEVC:
-				t := hevc.ParseNALUType(pkt.Payload[i+4])
+				t := hevc.ParseNALUType(nal[0])
 				if t == hevc.NALUTypeSliceIDR || t == hevc.NALUTypeSliceIDRNLP {
 					msg.Payload[0] = base.RTMPHEVCKeyFrame
 				} else {
@@ -161,8 +162,6 @@ func AVPacket2RTMPMsg(pkt base.AVPacket) (msg base.RTMPMsg, err error) {
 				}
 				msg.Payload[1] = base.RTMPHEVCPacketTypeNALU
 			}
-
-			i += 4 + naluSize
 		}
 
 		msg.Payload[2] = 0x0 // cts
