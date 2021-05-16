@@ -51,7 +51,7 @@ type IRTPUnpackerProtocol interface {
 //                             注意，不支持带B帧的视频流，pts和dts永远相同
 //             pkt.PayloadType base.AVPacketPTXXX
 //             pkt.Payload     如果是AAC，返回的是raw frame，一个AVPacket只包含一帧
-//                             如果是AVC或HEVC，一个AVPacket可能包含多个NAL(受STAP-A影响)，所以NAL前包含4字节的长度信息
+//                             如果是AVC或HEVC，是AVCC格式，每个NAL前包含4字节NAL的长度
 //                             AAC引用的是接收到的RTP包中的内存块
 //                             AVC或者HEVC是新申请的内存块，回调结束后，内部不再使用该内存块
 type OnAVPacket func(pkt base.AVPacket)

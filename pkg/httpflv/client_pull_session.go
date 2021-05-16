@@ -67,6 +67,7 @@ func NewPullSession(modOptions ...ModPullSessionOption) *PullSession {
 	return s
 }
 
+// @param tag: 底层保证回调上来的Raw数据长度是完整的（但是不会分析Raw内部的编码数据）
 type OnReadFLVTag func(tag Tag)
 
 // 阻塞直到和对端完成拉流前，握手部分的工作（也即发送完HTTP Request），或者发生错误

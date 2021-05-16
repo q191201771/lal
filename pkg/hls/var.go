@@ -9,5 +9,9 @@
 package hls
 
 var (
+	PathStrategy IPathStrategy = &DefaultPathStrategy{}
+)
+
+var (
 	calcFragmentHeaderQueueSize = 16
 )

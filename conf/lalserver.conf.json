@@ -1,10 +1,10 @@
 {
   "# doc of config": "https://pengrl.com/lal/#/ConfigBrief",
-  "conf_version": "v0.2.1",
+  "conf_version": "v0.2.2",
   "rtmp": {
     "enable": true,
     "addr": ":1935",
-    "gop_num": 2,
+    "gop_num": 0,
     "merge_write_size": 0
   },
   "default_http": {
@@ -16,11 +16,13 @@
   "httpflv": {
     "enable": true,
     "enable_https": false,
-    "gop_num": 2
+    "url_pattern": "/live/",
+    "gop_num": 0
   },
   "hls": {
     "enable": true,
     "enable_https": false,
+    "url_pattern": "/hls/",
     "out_path": "/tmp/lal/hls/",
     "fragment_duration_ms": 3000,
     "fragment_num": 6,
@@ -29,7 +31,8 @@
   },
   "httpts": {
     "enable": true,
-    "enable_https":false
+    "enable_https":false,
+    "url_pattern": "/live/"
   },
   "rtsp": {
     "enable": true,

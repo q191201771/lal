@@ -70,9 +70,9 @@ Play multi protocol stream from lalserver via ffplay:
 ```shell
 $ffplay rtmp://127.0.0.1/live/test110
 $ffplay http://127.0.0.1:8080/live/test110.flv
-$ffplay http://127.0.0.1:8081/hls/test110/playlist.m3u8
-$ffplay http://127.0.0.1:8081/hls/test110/record.m3u8
-$ffplay http://127.0.0.1:8082/live/test110.ts
+$ffplay http://127.0.0.1:8080/hls/test110/playlist.m3u8
+$ffplay http://127.0.0.1:8080/hls/test110/record.m3u8
+$ffplay http://127.0.0.1:8080/live/test110.ts
 ```
 
 ## More than a server, act as package and client

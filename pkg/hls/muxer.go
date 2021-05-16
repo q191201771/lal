@@ -95,9 +95,9 @@ type fragmentInfo struct {
 // @param observer 可以为nil，如果不为nil，TS流将回调给上层
 func NewMuxer(streamName string, enable bool, config *MuxerConfig, observer MuxerObserver) *Muxer {
 	uk := base.GenUKHLSMuxer()
-	op := getMuxerOutPath(config.OutPath, streamName)
-	playlistFilename := getM3U8Filename(op, streamName)
-	recordPlaylistFilename := getRecordM3U8Filename(op, streamName)
+	op := PathStrategy.GetMuxerOutPath(config.OutPath, streamName)
+	playlistFilename := PathStrategy.GetLiveM3U8FileName(op, streamName)
+	recordPlaylistFilename := PathStrategy.GetRecordM3U8FileName(op, streamName)
 	playlistFilenameBak := fmt.Sprintf("%s.bak", playlistFilename)
 	recordPlaylistFilenameBak := fmt.Sprintf("%s.bak", recordPlaylistFilename)
 	frags := make([]fragmentInfo, 2*config.FragmentNum+1)
@@ -281,8 +281,8 @@ func (m *Muxer) openFragment(ts uint64, discont bool) error {
 
 	id := m.getFragmentID()
 
-	filename := getTSFilename(m.streamName, id, int(time.Now().Unix()))
-	filenameWithPath := getTSFilenameWithPath(m.outPath, filename)
+	filename := PathStrategy.GetTSFileName(m.streamName, id, int(time.Now().UnixNano()/1e6))
+	filenameWithPath := PathStrategy.GetTSFileNameWithPath(m.outPath, filename)
 	if m.enable {
 		if err := m.fragment.OpenFile(filenameWithPath); err != nil {
 			return err
@@ -337,7 +337,7 @@ func (m *Muxer) closeFragment(isLast bool) error {
 		//
 		frag := m.getCurrFrag()
 		if frag.filename != "" {
-			filenameWithPath := getTSFilenameWithPath(m.outPath, frag.filename)
+			filenameWithPath := PathStrategy.GetTSFileNameWithPath(m.outPath, frag.filename)
 			if err := fslCtx.Remove(filenameWithPath); err != nil {
 				nazalog.Warnf("[%s] remove stale fragment file failed. filename=%s, err=%+v", m.UniqueKey, filenameWithPath, err)
 			}

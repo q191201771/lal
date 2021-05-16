@@ -69,41 +69,41 @@ func NewServerManager() *ServerManager {
 func (sm *ServerManager) RunLoop() error {
 	httpNotify.OnServerStart()
 
-	var addMux = func(config CommonHTTPServerConfig, pattern string, handler base.Handler, name string) error {
+	var addMux = func(config CommonHTTPServerConfig, handler base.Handler, name string) error {
 		if config.Enable {
 			err := sm.httpServerManager.AddListen(
 				base.LocalAddrCtx{Addr: config.HTTPListenAddr},
-				pattern,
+				config.URLPattern,
 				handler,
 			)
 			if err != nil {
-				nazalog.Infof("add http listen for %s failed. addr=%s, pattern=%s, err=%+v", name, config.HTTPListenAddr, pattern, err)
+				nazalog.Infof("add http listen for %s failed. addr=%s, pattern=%s, err=%+v", name, config.HTTPListenAddr, config.URLPattern, err)
 				return err
 			}
-			nazalog.Infof("add http listen for %s. addr=%s, pattern=%s", name, config.HTTPListenAddr, pattern)
+			nazalog.Infof("add http listen for %s. addr=%s, pattern=%s", name, config.HTTPListenAddr, config.URLPattern)
 		}
 		if config.EnableHTTPS {
 			err := sm.httpServerManager.AddListen(
 				base.LocalAddrCtx{IsHTTPS: true, Addr: config.HTTPSListenAddr, CertFile: config.HTTPSCertFile, KeyFile: config.HTTPSKeyFile},
-				pattern,
+				config.URLPattern,
 				handler,
 			)
 			if err != nil {
-				nazalog.Infof("add https listen for %s failed. addr=%s, pattern=%s, err=%+v", name, config.HTTPListenAddr, pattern, err)
+				nazalog.Infof("add https listen for %s failed. addr=%s, pattern=%s, err=%+v", name, config.HTTPListenAddr, config.URLPattern, err)
 				return err
 			}
-			nazalog.Infof("add https listen for %s. addr=%s, pattern=%s", name, config.HTTPSListenAddr, pattern)
+			nazalog.Infof("add https listen for %s. addr=%s, pattern=%s", name, config.HTTPSListenAddr, config.URLPattern)
 		}
 		return nil
 	}
 
-	if err := addMux(config.HTTPFLVConfig.CommonHTTPServerConfig, HTTPFLVURLPath, sm.httpServerHandler.ServeSubSession, "httpflv"); err != nil {
+	if err := addMux(config.HTTPFLVConfig.CommonHTTPServerConfig, sm.httpServerHandler.ServeSubSession, "httpflv"); err != nil {
 		return err
 	}
-	if err := addMux(config.HTTPTSConfig.CommonHTTPServerConfig, HTTPTSURLPath, sm.httpServerHandler.ServeSubSession, "httpts"); err != nil {
+	if err := addMux(config.HTTPTSConfig.CommonHTTPServerConfig, sm.httpServerHandler.ServeSubSession, "httpts"); err != nil {
 		return err
 	}
-	if err := addMux(config.HTTPTSConfig.CommonHTTPServerConfig, HLSURLPath, sm.hlsServerHandler.ServeHTTP, "hls"); err != nil {
+	if err := addMux(config.HLSConfig.CommonHTTPServerConfig, sm.hlsServerHandler.ServeHTTP, "hls"); err != nil {
 		return err
 	}
 
@@ -123,17 +123,6 @@ func (sm *ServerManager) RunLoop() error {
 			}
 		}()
 	}
-
-	//if sm.hlsServer != nil {
-	//	if err := sm.hlsServer.Listen(); err != nil {
-	//		return err
-	//	}
-	//	go func() {
-	//		if err := sm.hlsServer.RunLoop(); err != nil {
-	//			nazalog.Error(err)
-	//		}
-	//	}()
-	//}
 
 	if sm.rtspServer != nil {
 		if err := sm.rtspServer.Listen(); err != nil {

@@ -55,23 +55,23 @@ func (s *ServerHandler) ServeHTTP(resp http.ResponseWriter, req *http.Request) {
 	// TODO chef:
 	// - check appname in URI path
 
-	ri := parseRequestInfo(req.RequestURI)
+	ri := PathStrategy.GetRequestInfo(req.RequestURI, s.outPath)
 	//nazalog.Debugf("%+v", ri)
 
-	if ri.fileName == "" || ri.streamName == "" || (ri.fileType != "m3u8" && ri.fileType != "ts") {
-		nazalog.Warnf("invalid hls request. request=%+v", ri)
+	if ri.FileName == "" || ri.StreamName == "" || ri.FileNameWithPath == "" || (ri.FileType != "m3u8" && ri.FileType != "ts") {
+		nazalog.Warnf("invalid hls request. uri=%s, request=%+v", req.RequestURI, ri)
 		resp.WriteHeader(404)
 		return
 	}
 
-	content, err := readFileContent(s.outPath, ri)
+	content, err := ReadFile(ri.FileNameWithPath)
 	if err != nil {
 		nazalog.Warnf("read hls file failed. request=%+v, err=%+v", ri, err)
 		resp.WriteHeader(404)
 		return
 	}
 
-	switch ri.fileType {
+	switch ri.FileType {
 	case "m3u8":
 		resp.Header().Add("Content-Type", "application/x-mpegurl")
 		resp.Header().Add("Server", base.LALHLSM3U8Server)
