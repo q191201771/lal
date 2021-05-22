@@ -85,7 +85,10 @@ func (b *bufWriter) Write(p []byte) {
 }
 
 func (b *bufWriter) Flush() {
-	b.flush()
+	if b.n == 0 {
+		return
+	}
+	b.wr(b.buf[:b.n])
 	b.mallocOnePiece(b.defaultSize)
 }
 
@@ -102,13 +105,6 @@ func (b *bufWriter) mallocOnePiece(size int) {
 func (b *bufWriter) append(p []byte) {
 	copy(b.buf[b.n:], p)
 	b.n += len(p)
-}
-
-func (b *bufWriter) flush() {
-	if b.n == 0 {
-		return
-	}
-	b.wr(b.buf[:b.n])
 }
 
 func (dw *directWriter) Write(p []byte) {

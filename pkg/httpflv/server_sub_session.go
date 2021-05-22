@@ -21,14 +21,15 @@ import (
 var flvHTTPResponseHeader []byte
 
 type SubSession struct {
-	*base.HTTPSubSession // 直接使用它提供的函数
-	IsFresh              bool
+	*base.HTTPSubSession    // 直接使用它提供的函数
+	IsFresh                 bool
+	ShouldWaitVideoKeyFrame bool
 }
 
 func NewSubSession(conn net.Conn, urlCtx base.URLContext, isWebSocket bool, websocketKey string) *SubSession {
 	uk := base.GenUKFLVSubSession()
 	s := &SubSession{
-		base.NewHTTPSubSession(base.HTTPSubSessionOption{
+		HTTPSubSession: base.NewHTTPSubSession(base.HTTPSubSessionOption{
 			Conn: conn,
 			ConnModOption: func(option *connection.Option) {
 				option.WriteChanSize = SubSessionWriteChanSize
@@ -40,7 +41,8 @@ func NewSubSession(conn net.Conn, urlCtx base.URLContext, isWebSocket bool, webs
 			IsWebSocket:  isWebSocket,
 			WebSocketKey: websocketKey,
 		}),
-		true,
+		IsFresh:                 true,
+		ShouldWaitVideoKeyFrame: true,
 	}
 	nazalog.Infof("[%s] lifecycle new httpflv SubSession. session=%p, remote addr=%s", uk, s, conn.RemoteAddr().String())
 	return s

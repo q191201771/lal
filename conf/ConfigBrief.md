@@ -4,9 +4,10 @@
   "conf_version": "0.2.2",                                   //. 配置文件版本号，业务方不应该手动修改，程序中会检查该版本
                                                              //  号是否与代码中声明的一致
   "rtmp": {
-    "enable": true,   //. 是否开启rtmp服务的监听
-    "addr": ":19350", //. RTMP服务监听的端口，客户端向lalserver推拉流都是这个地址
-    "gop_num": 2      //. RTMP拉流的GOP缓存数量，加速秒开
+    "enable": true,           //. 是否开启rtmp服务的监听
+    "addr": ":19350",         //. RTMP服务监听的端口，客户端向lalserver推拉流都是这个地址
+    "gop_num": 2,             //. RTMP拉流的GOP缓存数量，加速流打开时间，但是可能增加延时
+    "merge_write_size": 8192  //. 将小包数据合并进行发送，单位字节，提高服务器性能，但是可能造成卡顿
   },
   "default_http": {                       //. http监听相关的默认配置，如果hls, httpflv, httpts中没有单独配置以下配置项，
                                           //  则使用default_http中的配置

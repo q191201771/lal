@@ -54,18 +54,63 @@ func (l *LazyRTMPMsg2FLVTag) Get() []byte {
 	return l.tag
 }
 
+// ---------------------------------------------------------------------------------------------------------------------
+
+// 提供两个功能:
+//   1. 缓存Metadata, VideoSeqHeader, AACSeqHeader
+//   2. 缓存音视频GOP数据
+//
+// 以下，只讨论GOPCache的第2点功能
+//
+// 音频和视频都会缓存
+//
+// GOPCache也可能不缓存GOP数据，见NewGOPCache函数的gopNum参数说明
+//
+// 以下，我们只讨论gopNum > 0(也即gopSize > 1)的情况
+//
+// GOPCache为空时，只有输入了关键帧，才能开启GOP缓存，非关键帧以及音频数据不会被缓存
+// 因此，单音频的流是ok的，相当于不缓存任何数据
+//
+// GOPCache不为空时，输入关键帧触发生成新的GOP元素，其他情况则往最后一个GOP元素一直追加
+//
+// first用于读取第一个GOP（可能不完整），last的前一个用于写入当前GOP
+//
+// 最近不完整的GOP也会被缓存，见NewGOPCache函数的gopNum参数说明
+//
+// -----
+// gopNum  = 1
+// gopSize = 2
+//
+//              first     |   first       |       first   | 在后面两个状态间转换，就不画了
+//                |       |     |         |        |      |
+//                0   1   |     0   1	  |    0   1      |
+//                *   *   |     *   *	  |    *   *      |
+//                |       |         |	  |    |          |
+//              last      |        last   |   last        |
+//                        |               |               |
+//              (empty)   |   (full)      |   (full)      |
+// GetGOPCount: 0         |   1           |   1           |
+// -----
+//
+//
 type GOPCache struct {
-	t              string
-	uniqueKey      string
+	t         string
+	uniqueKey string
+
 	Metadata       []byte
 	VideoSeqHeader []byte
 	AACSeqHeader   []byte
-	gopRing        []GOP
-	gopRingFirst   int
-	gopRingLast    int
-	gopSize        int
+
+	gopRing      []GOP
+	gopRingFirst int
+	gopRingLast  int
+	gopSize      int
 }
 
+// @param gopNum: gop缓存大小
+//                如果为0，则不缓存音频数据，也即GOP缓存功能不生效
+//                如果>0，则缓存<gopNum>个完整GOP，另外还可能有半个最近不完整的GOP
+//
 func NewGOPCache(t string, uniqueKey string, gopNum int) *GOPCache {
 	return &GOPCache{
 		t:            t,
@@ -99,7 +144,6 @@ func (gc *GOPCache) Feed(msg base.RTMPMsg, lg LazyGet) {
 		}
 	}
 
-	// 这个size的判断去掉也行
 	if gc.gopSize > 1 {
 		if msg.IsVideoKeyNALU() {
 			gc.feedNewGOP(msg, lg())
@@ -109,6 +153,7 @@ func (gc *GOPCache) Feed(msg base.RTMPMsg, lg LazyGet) {
 	}
 }
 
+// 获取GOP数量，注意，最后一个可能是不完整的
 func (gc *GOPCache) GetGOPCount() int {
 	return (gc.gopRingLast + gc.gopSize - gc.gopRingFirst) % gc.gopSize
 }
@@ -128,12 +173,15 @@ func (gc *GOPCache) Clear() {
 	gc.gopRingFirst = 0
 }
 
+// 往最后一个GOP元素追加一个msg
+// 注意，如果GOPCache为空，则不缓存msg
 func (gc *GOPCache) feedLastGOP(msg base.RTMPMsg, b []byte) {
 	if !gc.isGOPRingEmpty() {
 		gc.gopRing[(gc.gopRingLast-1+gc.gopSize)%gc.gopSize].Feed(msg, b)
 	}
 }
 
+// 生成一个最新的GOP元素，并往里追加一个msg
 func (gc *GOPCache) feedNewGOP(msg base.RTMPMsg, b []byte) {
 	if gc.isGOPRingFull() {
 		gc.gopRingFirst = (gc.gopRingFirst + 1) % gc.gopSize

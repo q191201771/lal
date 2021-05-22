@@ -364,6 +364,14 @@ func (group *Group) AddRTMPSubSession(session *rtmp.ServerSession) {
 	group.mutex.Lock()
 	defer group.mutex.Unlock()
 	group.rtmpSubSessionSet[session] = struct{}{}
+	// 加入时，如果上行还没有推过视频（比如还没推流，或者是单音频流），就不需要等待关键帧了
+	// 也即我们假定上行肯定是以关键帧为开始进行视频发送，假设不是，那么我们按上行的流正常发，而不过滤掉关键帧前面的不包含关键帧的非完整GOP
+	// TODO(chef):
+	//   1. 需要仔细考虑单音频无视频的流的情况
+	//   2. 这里不修改标志，让这个session继续等关键帧也可以
+	if group.stat.VideoCodec == "" {
+		session.ShouldWaitVideoKeyFrame = false
+	}
 
 	group.pullIfNeeded()
 }
@@ -382,6 +390,10 @@ func (group *Group) AddHTTPFLVSubSession(session *httpflv.SubSession) {
 	group.mutex.Lock()
 	defer group.mutex.Unlock()
 	group.httpflvSubSessionSet[session] = struct{}{}
+	// 加入时，如果上行还没有推流过，就不需要等待关键帧了
+	if group.stat.VideoCodec == "" {
+		session.ShouldWaitVideoKeyFrame = false
+	}
 
 	group.pullIfNeeded()
 }
@@ -753,24 +765,45 @@ func (group *Group) broadcastByRTMPMsg(msg base.RTMPMsg) {
 		if session.IsFresh {
 			// TODO chef: 头信息和full gop也可以在SubSession刚加入时发送
 			if group.rtmpGopCache.Metadata != nil {
-				//nazalog.Debugf("[%s] [%s] write metadata", group.UniqueKey, session.UniqueKey)
+				nazalog.Debugf("[%s] [%s] write metadata", group.UniqueKey, session.UniqueKey())
 				_ = session.Write(group.rtmpGopCache.Metadata)
 			}
 			if group.rtmpGopCache.VideoSeqHeader != nil {
-				//nazalog.Debugf("[%s] [%s] write vsh", group.UniqueKey, session.UniqueKey)
+				nazalog.Debugf("[%s] [%s] write vsh", group.UniqueKey, session.UniqueKey())
 				_ = session.Write(group.rtmpGopCache.VideoSeqHeader)
 			}
 			if group.rtmpGopCache.AACSeqHeader != nil {
-				//nazalog.Debugf("[%s] [%s] write ash", group.UniqueKey, session.UniqueKey)
+				nazalog.Debugf("[%s] [%s] write ash", group.UniqueKey, session.UniqueKey())
 				_ = session.Write(group.rtmpGopCache.AACSeqHeader)
 			}
-			for i := 0; i < group.rtmpGopCache.GetGOPCount(); i++ {
+			gopCount := group.rtmpGopCache.GetGOPCount()
+			if gopCount > 0 {
+				// GOP缓存中肯定包含了关键帧
+				session.ShouldWaitVideoKeyFrame = false
+
+				nazalog.Debugf("[%s] [%s] write gop cahe. gop num=%d", group.UniqueKey, session.UniqueKey(), gopCount)
+			}
+			for i := 0; i < gopCount; i++ {
 				for _, item := range group.rtmpGopCache.GetGOPDataAt(i) {
 					_ = session.Write(item)
 				}
 			}
 
+			// 有新加入的sub session（本次循环的第一个新加入的sub session），把rtmp buf writer中的缓存数据全部广播发送给老的sub session
+			// 从而确保新加入的sub session不会发送这部分脏的数据
+			// 注意，此处可能被调用多次，但是只有第一次会实际flush缓存数据
+			group.rtmpBufWriter.Flush()
+
 			session.IsFresh = false
+		}
+
+		if session.ShouldWaitVideoKeyFrame && msg.IsVideoKeyNALU() {
+			// 有sub session在等待关键帧，并且当前是关键帧
+			// 把rtmp buf writer中的缓存数据全部广播发送给老的sub session
+			// 并且修改这个sub session的标志
+			// 让rtmp buf writer来发送这个关键帧
+			group.rtmpBufWriter.Flush()
+			session.ShouldWaitVideoKeyFrame = false
 		}
 	}
 	// ## 3.2. 转发本次数据
@@ -820,7 +853,12 @@ func (group *Group) broadcastByRTMPMsg(msg base.RTMPMsg) {
 			if group.httpflvGopCache.AACSeqHeader != nil {
 				session.Write(group.httpflvGopCache.AACSeqHeader)
 			}
-			for i := 0; i < group.httpflvGopCache.GetGOPCount(); i++ {
+			gopCount := group.httpflvGopCache.GetGOPCount()
+			if gopCount > 0 {
+				// GOP缓存中肯定包含了关键帧
+				session.ShouldWaitVideoKeyFrame = false
+			}
+			for i := 0; i < gopCount; i++ {
 				for _, item := range group.httpflvGopCache.GetGOPDataAt(i) {
 					session.Write(item)
 				}
@@ -829,7 +867,15 @@ func (group *Group) broadcastByRTMPMsg(msg base.RTMPMsg) {
 			session.IsFresh = false
 		}
 
-		session.Write(lrm2ft.Get())
+		// 是否在等待关键帧
+		if session.ShouldWaitVideoKeyFrame {
+			if msg.IsVideoKeyNALU() {
+				session.Write(lrm2ft.Get())
+				session.ShouldWaitVideoKeyFrame = false
+			}
+		} else {
+			session.Write(lrm2ft.Get())
+		}
 	}
 
 	// # 5. 录制flv文件
@@ -853,7 +899,7 @@ func (group *Group) broadcastByRTMPMsg(msg base.RTMPMsg) {
 			group.stat.AudioCodec = base.AudioCodecAAC
 		}
 	}
-	if group.stat.AudioCodec == "" {
+	if group.stat.VideoCodec == "" {
 		if msg.IsAVCKeySeqHeader() {
 			group.stat.VideoCodec = base.VideoCodecAVC
 		}
@@ -889,6 +935,9 @@ func (group *Group) broadcastByRTMPMsg(msg base.RTMPMsg) {
 
 func (group *Group) write2RTMPSubSessions(b []byte) {
 	for session := range group.rtmpSubSessionSet {
+		if session.IsFresh || session.ShouldWaitVideoKeyFrame {
+			continue
+		}
 		_ = session.Write(b)
 	}
 }
