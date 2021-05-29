@@ -240,7 +240,7 @@ func TestIterateNALUAnnexB(t *testing.T) {
 		},
 	}
 	for _, v := range golden {
-		nalList, err := avc.IterateNALUAnnexB(v.nals)
+		nalList, err := avc.SplitNALUAnnexB(v.nals)
 		assert.Equal(t, v.nalList, nalList)
 		assert.Equal(t, v.err, err, fmt.Sprintf("%+v", v))
 	}
@@ -291,7 +291,7 @@ func TestIterateNALUAVCC(t *testing.T) {
 		},
 	}
 	for _, v := range golden {
-		nalList, err := avc.IterateNALUAVCC(v.nals)
+		nalList, err := avc.SplitNALUAVCC(v.nals)
 		assert.Equal(t, v.nalList, nalList)
 		assert.Equal(t, v.err, err)
 	}

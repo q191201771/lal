@@ -27,7 +27,7 @@ func (*RTPPackerAVC) Pack(nalu []byte, maxSize int) (ret [][]byte) {
 		return
 	}
 
-	nals, err := avc.IterateNALUAVCC(nalu)
+	nals, err := avc.SplitNALUAVCC(nalu)
 	if err != nil {
 		return
 	}

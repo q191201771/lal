@@ -139,7 +139,7 @@ func AVPacket2RTMPMsg(pkt base.AVPacket) (msg base.RTMPMsg, err error) {
 		msg.Payload = make([]byte, msg.Header.MsgLen)
 
 		var nals [][]byte
-		nals, err = avc.IterateNALUAVCC(pkt.Payload)
+		nals, err = avc.SplitNALUAVCC(pkt.Payload)
 		if err != nil {
 			return
 		}

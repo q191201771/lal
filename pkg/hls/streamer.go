@@ -128,7 +128,7 @@ func (s *Streamer) feedVideo(msg base.RTMPMsg) {
 	out := s.videoOut[0:0]
 
 	// msg中可能有多个NALU，逐个获取
-	nals, err := avc.IterateNALUAVCC(msg.Payload[5:])
+	nals, err := avc.SplitNALUAVCC(msg.Payload[5:])
 	if err != nil {
 		nazalog.Errorf("[%s] iterate nalu failed. err=%+v, payload=%s", err, s.UniqueKey, hex.Dump(nazastring.SubSliceSafety(msg.Payload, 32)))
 		return

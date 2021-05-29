@@ -147,7 +147,7 @@ func AVPacket2FLVTag(pkt base.AVPacket) (tag httpflv.Tag, err error) {
 		tag.Raw[10] = 0
 
 		var nals [][]byte
-		nals, err = avc.IterateNALUAVCC(pkt.Payload)
+		nals, err = avc.SplitNALUAVCC(pkt.Payload)
 		if err != nil {
 			return
 		}

@@ -377,33 +377,50 @@ func IterateNALUStartCode(nalu []byte, start int) (pos, length int) {
 //
 // 具体见单元测试
 //
-func IterateNALUAnnexB(nals []byte) (nalList [][]byte, err error) {
+func SplitNALUAnnexB(nals []byte) (nalList [][]byte, err error) {
+	err = IterateNALUAnnexB(nals, func(nal []byte) {
+		nalList = append(nalList, nal)
+	})
+	return
+}
+
+// 遍历AVCC格式，去掉4字节长度，获取nal包，正常情况下可能返回1个或多个，异常情况下可能一个也没有
+//
+// 具体见单元测试
+//
+func SplitNALUAVCC(nals []byte) (nalList [][]byte, err error) {
+	err = IterateNALUAVCC(nals, func(nal []byte) {
+		nalList = append(nalList, nal)
+	})
+	return
+
+}
+
+func IterateNALUAnnexB(nals []byte, handler func(nal []byte)) error {
 	if nals == nil {
-		err = ErrAVC
-		return
+		return ErrAVC
 	}
 	prePos, preLength := IterateNALUStartCode(nals, 0)
 	if prePos == -1 {
-		nalList = append(nalList, nals)
-		err = ErrAVC
-		return
+		handler(nals)
+		return ErrAVC
 	}
 
 	for {
-		pos, length := IterateNALUStartCode(nals, prePos+preLength)
 		start := prePos + preLength
+		pos, length := IterateNALUStartCode(nals, start)
 		if pos == -1 {
 			if start < len(nals) {
-				nalList = append(nalList, nals[start:])
+				handler(nals[start:])
+				return nil
 			} else {
-				err = ErrAVC
+				return ErrAVC
 			}
-			return
 		}
 		if start < pos {
-			nalList = append(nalList, nals[start:pos])
+			handler(nals[start:pos])
 		} else {
-			err = ErrAVC
+			return ErrAVC
 		}
 
 		prePos = pos
@@ -411,44 +428,34 @@ func IterateNALUAnnexB(nals []byte) (nalList [][]byte, err error) {
 	}
 }
 
-// 遍历AVCC格式，去掉4字节长度，获取nal包，正常情况下可能返回1个或多个，异常情况下可能一个也没有
-//
-// 具体见单元测试
-//
-func IterateNALUAVCC(nals []byte) (nalList [][]byte, err error) {
+func IterateNALUAVCC(nals []byte, handler func(nal []byte)) error {
 	if nals == nil {
-		err = ErrAVC
-		return
+		return ErrAVC
 	}
 	pos := 0
 	for {
 		if len(nals[pos:]) < 4 {
-			err = ErrAVC
-			return
+			return ErrAVC
 		}
 		length := int(bele.BEUint32(nals[pos:]))
 		pos += 4
 		if pos == len(nals) {
-			err = ErrAVC
-			return
+			return ErrAVC
 		}
 		epos := pos + length
 		if epos < len(nals) {
 			// 非最后一个
-			nalList = append(nalList, nals[pos:epos])
+			handler(nals[pos:epos])
 			pos += length
 		} else if epos == len(nals) {
 			// 最后一个
-			nalList = append(nalList, nals[pos:epos])
-			return
+			handler(nals[pos:epos])
+			return nil
 		} else {
-			nalList = append(nalList, nals[pos:])
-			err = ErrAVC
-			return
+			handler(nals[pos:])
+			return ErrAVC
 		}
 	}
 }
 
-// TODO(chef)
-// func NALUAVCC2AnnexB
-// func NALUAnnexB2AVCC
+// TODO(chef): 是否需要 func NALUAVCC2AnnexB, func NALUAnnexB2AVCC

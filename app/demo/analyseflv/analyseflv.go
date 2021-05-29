@@ -200,7 +200,7 @@ func analysisVideoTag(tag httpflv.Tag) {
 		}
 	} else {
 		body := tag.Raw[httpflv.TagHeaderSize+5 : len(tag.Raw)-httpflv.PrevTagSizeFieldSize]
-		nals, err := avc.IterateNALUAVCC(body)
+		nals, err := avc.SplitNALUAVCC(body)
 		nazalog.Assert(nil, err)
 
 		for _, nal := range nals {
