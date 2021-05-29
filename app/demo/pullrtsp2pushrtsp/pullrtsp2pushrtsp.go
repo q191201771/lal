@@ -14,6 +14,8 @@ import (
 	"os"
 	"time"
 
+	"github.com/q191201771/lal/pkg/sdp"
+
 	"github.com/q191201771/lal/pkg/base"
 	"github.com/q191201771/lal/pkg/rtprtcp"
 	"github.com/q191201771/lal/pkg/rtsp"
@@ -29,7 +31,7 @@ func (o *Observer) OnRTPPacket(pkt rtprtcp.RTPPacket) {
 	rtpPacketChan <- pkt
 }
 
-func (o *Observer) OnAVConfig(asc, vps, sps, pps []byte) {
+func (o *Observer) OnSDP(sdpCtx sdp.LogicContext) {
 	// noop
 }
 

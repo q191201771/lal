@@ -13,6 +13,7 @@ import (
 	"github.com/q191201771/lal/pkg/hls"
 	"github.com/q191201771/lal/pkg/httpflv"
 	"github.com/q191201771/lal/pkg/httpts"
+	"github.com/q191201771/lal/pkg/remux"
 	"github.com/q191201771/lal/pkg/rtmp"
 	"github.com/q191201771/lal/pkg/rtsp"
 )
@@ -140,9 +141,12 @@ var _ HTTPAPIServerObserver = &ServerManager{}
 
 var _ rtmp.PubSessionObserver = &Group{} //
 var _ rtsp.PullSessionObserver = &Group{}
+var _ rtsp.PullSessionObserver = &remux.AVPacket2RTMPRemuxer{}
 var _ rtsp.PubSessionObserver = &Group{}
+var _ rtsp.PubSessionObserver = &remux.AVPacket2RTMPRemuxer{}
 var _ hls.MuxerObserver = &Group{}
 var _ rtsp.BaseInSessionObserver = &Group{} //
+var _ rtsp.BaseInSessionObserver = &remux.AVPacket2RTMPRemuxer{}
 
 var _ rtmp.ServerSessionObserver = &rtmp.Server{}
 var _ rtmp.IHandshakeClient = &rtmp.HandshakeClientSimple{}

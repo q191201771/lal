@@ -360,3 +360,67 @@ a=appversion:1.0`
 	assert.Equal(t, true, ctx.hasVideo)
 	nazalog.Debugf("%+v", ctx)
 }
+
+// #85
+func TestCase7(t *testing.T) {
+	golden := `v=0
+o=- 1109162014219182 0 IN IP4 0.0.0.0
+s=HIK Media Server V3.4.106
+i=HIK Media Server Session Description : standard
+e=NONE
+c=IN IP4 0.0.0.0
+t=0 0
+a=control:*
+b=AS:4106
+a=range:clock=20210520T063812Z-20210520T064816Z
+m=video 0 RTP/AVP 96
+i=Video Media
+a=rtpmap:96 H264/90000
+a=fmtp:96 profile-level-id=4D0014;packetization-mode=0
+a=control:trackID=video
+b=AS:4096
+m=audio 0 RTP/AVP 98
+i=Audio Media
+a=rtpmap:98 G7221/16000
+a=control:trackID=audio
+b=AS:10
+a=Media_header:MEDIAINFO=494D4B48020100000400000121720110803E0000803E000000000000000000000000000000000000;
+a=appversion:1.0
+`
+
+	golden = strings.ReplaceAll(golden, "\n", "\r\n")
+	ctx, err := ParseSDP2LogicContext([]byte(golden))
+	assert.Equal(t, nil, err)
+	_ = ctx
+}
+
+func TestCase8(t *testing.T) {
+	golden := `v=0
+o=- 1622201479405259 1622201479405259 IN IP4 192.168.3.58
+s=Media Presentation
+e=NONE
+b=AS:5100
+t=0 0
+a=control:rtsp://192.168.3.58:554/Streaming/Channels/101/?transportmode=unicast
+m=video 0 RTP/AVP 96
+c=IN IP4 0.0.0.0
+b=AS:5000
+a=recvonly
+a=x-dimensions:1920,1080
+a=control:rtsp://192.168.3.58:554/Streaming/Channels/101/trackID=1?transportmode=unicast
+a=rtpmap:96 H265/90000
+m=audio 0 RTP/AVP 8
+c=IN IP4 0.0.0.0
+b=AS:50
+a=recvonly
+a=control:rtsp://192.168.3.58:554/Streaming/Channels/101/trackID=2?transportmode=unicast
+a=rtpmap:8 PCMA/8000
+a=Media_header:MEDIAINFO=494D4B48010200000400050011710110401F000000FA000000000000000000000000000000000000;
+a=appversion:1.0
+`
+
+	golden = strings.ReplaceAll(golden, "\n", "\r\n")
+	ctx, err := ParseSDP2LogicContext([]byte(golden))
+	assert.Equal(t, nil, err)
+	_ = ctx
+}

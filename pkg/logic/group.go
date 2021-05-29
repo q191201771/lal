@@ -16,6 +16,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/q191201771/lal/pkg/sdp"
+
 	"github.com/q191201771/lal/pkg/mpegts"
 
 	"github.com/q191201771/lal/pkg/remux"
@@ -51,8 +53,9 @@ type Group struct {
 	//
 	stat base.StatGroup
 	// pub
-	rtmpPubSession *rtmp.ServerSession
-	rtspPubSession *rtsp.PubSession
+	rtmpPubSession   *rtmp.ServerSession
+	rtspPubSession   *rtsp.PubSession
+	rtsp2RTMPRemuxer *remux.AVPacket2RTMPRemuxer
 	// pull
 	pullEnable bool
 	pullURL    string
@@ -76,12 +79,6 @@ type Group struct {
 
 	//
 	rtmpBufWriter base.IBufWriter // TODO(chef): 后面可以在业务层加一个定时Flush
-
-	// rtsp pub使用
-	asc []byte
-	vps []byte
-	sps []byte
-	pps []byte
 
 	// mpegts使用
 	patpmt []byte
@@ -172,6 +169,7 @@ func (group *Group) Tick() {
 				nazalog.Warnf("[%s] session timeout. session=%s", group.UniqueKey, group.rtspPubSession.UniqueKey())
 				group.rtspPubSession.Dispose()
 				group.rtspPubSession = nil
+				group.rtsp2RTMPRemuxer = nil
 			}
 		}
 		if group.pullProxy.pullSession != nil {
@@ -259,6 +257,7 @@ func (group *Group) Dispose() {
 	if group.rtspPubSession != nil {
 		group.rtspPubSession.Dispose()
 		group.rtspPubSession = nil
+		group.rtsp2RTMPRemuxer = nil
 	}
 
 	for session := range group.rtmpSubSessionSet {
@@ -326,6 +325,9 @@ func (group *Group) AddRTSPPubSession(session *rtsp.PubSession) bool {
 
 	group.rtspPubSession = session
 	group.addIn()
+	group.rtsp2RTMPRemuxer = remux.NewAVPacket2RTMPRemuxer(func(msg base.RTMPMsg) {
+		group.broadcastByRTMPMsg(msg)
+	})
 	session.SetObserver(group)
 
 	return true
@@ -546,40 +548,20 @@ func (group *Group) OnRTPPacket(pkt rtprtcp.RTPPacket) {
 }
 
 // rtsp.PubSession
-func (group *Group) OnAVConfig(asc, vps, sps, pps []byte) {
-	// 注意，前面已经进锁了，这里依然在锁保护内
+func (group *Group) OnSDP(sdpCtx sdp.LogicContext) {
+	group.mutex.Lock()
+	defer group.mutex.Unlock()
 
-	group.asc = asc
-	group.vps = vps
-	group.sps = sps
-	group.pps = pps
-
-	metadata, vsh, ash, err := remux.AVConfig2RTMPMsg(group.asc, group.vps, group.sps, group.pps)
-	if err != nil {
-		nazalog.Errorf("[%s] remux avconfig to metadata and seqheader failed. err=%+v", group.UniqueKey, err)
-		return
-	}
-	if metadata != nil {
-		group.broadcastByRTMPMsg(*metadata)
-	}
-	if vsh != nil {
-		group.broadcastByRTMPMsg(*vsh)
-	}
-	if ash != nil {
-		group.broadcastByRTMPMsg(*ash)
-	}
+	group.rtsp2RTMPRemuxer.OnSDP(sdpCtx)
 }
 
 // rtsp.PubSession
 func (group *Group) OnAVPacket(pkt base.AVPacket) {
+	group.mutex.Lock()
+	defer group.mutex.Unlock()
 	//nazalog.Tracef("[%s] > Group::OnAVPacket. type=%s, ts=%d", group.UniqueKey, pkt.PayloadType.ReadableString(), pkt.Timestamp)
-	msg, err := remux.AVPacket2RTMPMsg(pkt)
-	if err != nil {
-		nazalog.Errorf("[%s] remux av packet to rtmp msg failed. err=+%v", group.UniqueKey, err)
-		return
-	}
 
-	group.BroadcastByRTMPMsg(msg)
+	group.rtsp2RTMPRemuxer.OnAVPacket(pkt)
 }
 
 func (group *Group) StringifyDebugStats() string {
@@ -655,6 +637,7 @@ func (group *Group) KickOutSession(sessionID string) bool {
 	} else if strings.HasPrefix(sessionID, base.UKPreRTSPPubSession) {
 		if group.rtspPubSession != nil {
 			group.rtspPubSession.Dispose()
+			group.rtsp2RTMPRemuxer = nil
 			return true
 		}
 	} else if strings.HasPrefix(sessionID, base.UKPreFLVSubSession) {
@@ -703,6 +686,7 @@ func (group *Group) delRTSPPubSession(session *rtsp.PubSession) {
 
 	_ = group.rtspPubSession.Dispose()
 	group.rtspPubSession = nil
+	group.rtsp2RTMPRemuxer = nil
 	group.delIn()
 }
 
@@ -1203,9 +1187,4 @@ func (group *Group) disposeHLSMuxer() {
 
 		group.hlsMuxer = nil
 	}
-}
-
-// TODO chef: 后续看是否有更合适的方法判断
-func (group *Group) isHEVC() bool {
-	return group.vps != nil
 }

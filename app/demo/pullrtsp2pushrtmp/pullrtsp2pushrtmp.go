@@ -18,44 +18,9 @@ import (
 
 	"github.com/q191201771/lal/pkg/base"
 	"github.com/q191201771/lal/pkg/remux"
-	"github.com/q191201771/lal/pkg/rtprtcp"
 	"github.com/q191201771/lal/pkg/rtsp"
 	"github.com/q191201771/naza/pkg/nazalog"
 )
-
-var pushSession *rtmp.PushSession
-
-type Observer struct {
-}
-
-func (o *Observer) OnRTPPacket(pkt rtprtcp.RTPPacket) {
-	// noop
-}
-
-func (o *Observer) OnAVConfig(asc, vps, sps, pps []byte) {
-	metadata, ash, vsh, err := remux.AVConfig2RTMPMsg(asc, vps, sps, pps)
-	nazalog.Assert(nil, err)
-
-	err = pushSession.Write(rtmp.Message2Chunks(metadata.Payload, &metadata.Header))
-	nazalog.Assert(nil, err)
-
-	if ash != nil {
-		err = pushSession.Write(rtmp.Message2Chunks(ash.Payload, &ash.Header))
-		nazalog.Assert(nil, err)
-	}
-
-	if vsh != nil {
-		err = pushSession.Write(rtmp.Message2Chunks(vsh.Payload, &vsh.Header))
-		nazalog.Assert(nil, err)
-	}
-}
-
-func (o *Observer) OnAVPacket(pkt base.AVPacket) {
-	msg, err := remux.AVPacket2RTMPMsg(pkt)
-	nazalog.Assert(nil, err)
-	err = pushSession.Write(rtmp.Message2Chunks(msg.Payload, &msg.Header))
-	nazalog.Assert(nil, err)
-}
 
 func main() {
 	_ = nazalog.Init(func(option *nazalog.Option) {
@@ -65,7 +30,7 @@ func main() {
 
 	inURL, outURL, overTCP := parseFlag()
 
-	pushSession = rtmp.NewPushSession(func(option *rtmp.PushSessionOption) {
+	pushSession := rtmp.NewPushSession(func(option *rtmp.PushSessionOption) {
 		option.PushTimeoutMS = 5000
 		option.WriteAVTimeoutMS = 5000
 	})
@@ -74,8 +39,11 @@ func main() {
 	nazalog.Assert(nil, err)
 	defer pushSession.Dispose()
 
-	o := &Observer{}
-	pullSession := rtsp.NewPullSession(o, func(option *rtsp.PullSessionOption) {
+	remuxer := remux.NewAVPacket2RTMPRemuxer(func(msg base.RTMPMsg) {
+		err = pushSession.Write(rtmp.Message2Chunks(msg.Payload, &msg.Header))
+		nazalog.Assert(nil, err)
+	})
+	pullSession := rtsp.NewPullSession(remuxer, func(option *rtsp.PullSessionOption) {
 		option.PullTimeoutMS = 5000
 		option.OverTCP = overTCP != 0
 	})

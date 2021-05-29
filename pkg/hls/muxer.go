@@ -157,7 +157,7 @@ func (m *Muxer) OnFrame(streamer *Streamer, frame *mpegts.Frame) {
 		}
 
 		if !m.opened {
-			nazalog.Warnf("[%s] OnFrame A not opened.", m.UniqueKey)
+			nazalog.Warnf("[%s] OnFrame A not opened. boundary=%t", m.UniqueKey, boundary)
 			return
 		}
 
@@ -176,7 +176,7 @@ func (m *Muxer) OnFrame(streamer *Streamer, frame *mpegts.Frame) {
 		}
 
 		if !m.opened {
-			nazalog.Warnf("[%s] OnFrame V not opened.", m.UniqueKey)
+			nazalog.Warnf("[%s] OnFrame V not opened. boundary=%t, key=%t", m.UniqueKey, boundary, frame.Key)
 			return
 		}
 

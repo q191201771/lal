@@ -50,10 +50,14 @@ type IRTPUnpackerProtocol interface {
 // @param pkt: pkt.Timestamp   RTP包头中的时间戳(pts)经过clockrate换算后的时间戳，单位毫秒
 //                             注意，不支持带B帧的视频流，pts和dts永远相同
 //             pkt.PayloadType base.AVPacketPTXXX
-//             pkt.Payload     如果是AAC，返回的是raw frame，一个AVPacket只包含一帧
-//                             如果是AVC或HEVC，是AVCC格式，每个NAL前包含4字节NAL的长度
-//                             AAC引用的是接收到的RTP包中的内存块
-//                             AVC或者HEVC是新申请的内存块，回调结束后，内部不再使用该内存块
+//             pkt.Payload     AAC:
+//                               返回的是raw frame，一个AVPacket只包含一帧
+//                               引用的是接收到的RTP包中的内存块
+//                             AVC或HEVC:
+//                               AVCC格式，每个NAL前包含4字节NAL的长度
+//                               新申请的内存块，回调结束后，内部不再使用该内存块
+//                               注意，这一层只做RTP包的合并，假如sps和pps是两个RTP single包，则合并结果为两个AVPacket，
+//                               假如sps和pps是一个stapA包，则合并结果为一个AVPacket
 type OnAVPacket func(pkt base.AVPacket)
 
 // 目前支持AVC，HEVC和AAC MPEG4-GENERIC/44100/2，业务方也可以自己实现IRTPUnpackerProtocol，甚至是IRTPUnpackContainer
