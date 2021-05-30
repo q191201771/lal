@@ -140,9 +140,11 @@ func (r *AVPacket2RTMPRemuxer) FeedAVPacket(pkt base.AVPacket) {
 						r.setPPS(nal)
 					}
 
-					if r.sps != nil && r.pps != nil {
-						// TODO(chef): 是否应该判断sps、pps是连续的，比如rtp seq的关系，或者timestamp是相等的
+					// 注意，由于sps空值时，可能是nil也可能是[0:0]，所以这里不用nil做判断，而用len
+					if len(r.sps) > 0 && len(r.pps) > 0 {
 						// 凑齐了，发送video seq header
+						//
+						// TODO(chef): 是否应该判断sps、pps是连续的，比如rtp seq的关系，或者timestamp是相等的
 
 						bVsh, err := avc.BuildSeqHeaderFromSPSPPS(r.sps, r.pps)
 						if err != nil {
@@ -176,7 +178,7 @@ func (r *AVPacket2RTMPRemuxer) FeedAVPacket(pkt base.AVPacket) {
 					} else {
 						r.setPPS(nal)
 					}
-					if r.vps != nil && r.sps != nil && r.pps != nil {
+					if len(r.vps) > 0 && len(r.sps) > 0 && len(r.pps) > 0 {
 						bVsh, err := hevc.BuildSeqHeaderFromVPSSPSPPS(r.vps, r.sps, r.pps)
 						if err != nil {
 							nazalog.Errorf("build hevc seq header failed. err=%+v", err)
