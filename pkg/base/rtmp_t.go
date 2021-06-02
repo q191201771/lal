@@ -62,7 +62,7 @@ const (
 	//   AACAUDIODATA
 	//     AACPacketType UI8
 	//     Data          UI8[n]
-	RTMPSoundFormatAAC         uint8 = 10
+	RTMPSoundFormatAAC         uint8 = 10 // 注意，视频的CodecID是后4位，音频是前4位
 	RTMPAACPacketTypeSeqHeader       = 0
 	RTMPAACPacketTypeRaw             = 1
 )
@@ -72,7 +72,7 @@ type RTMPHeader struct {
 	MsgLen       uint32 // 不包含header的大小
 	MsgTypeID    uint8  // 8 audio 9 video 18 metadata
 	MsgStreamID  int
-	TimestampAbs uint32 // 经过计算得到的流上的绝对时间戳
+	TimestampAbs uint32 // 经过计算得到的流上的绝对时间戳，单位毫秒
 }
 
 type RTMPMsg struct {

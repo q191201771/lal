@@ -13,13 +13,13 @@ import (
 	"sync"
 	"time"
 
+	"github.com/q191201771/lal/pkg/hls"
+
 	"github.com/q191201771/lal/pkg/base"
 
 	"github.com/q191201771/lal/pkg/httpts"
 
 	"github.com/q191201771/lal/pkg/rtsp"
-
-	"github.com/q191201771/lal/pkg/hls"
 
 	"github.com/q191201771/lal/pkg/httpflv"
 	"github.com/q191201771/lal/pkg/rtmp"
@@ -27,10 +27,11 @@ import (
 )
 
 type ServerManager struct {
+	httpServerManager *base.HTTPServerManager
+	httpServerHandler *HTTPServerHandler
+	hlsServerHandler  *hls.ServerHandler
+
 	rtmpServer    *rtmp.Server
-	httpflvServer *httpflv.Server
-	hlsServer     *hls.Server
-	httptsServer  *httpts.Server
 	rtspServer    *rtsp.Server
 	httpAPIServer *HTTPAPIServer
 	exitChan      chan struct{}
@@ -44,17 +45,17 @@ func NewServerManager() *ServerManager {
 		groupMap: make(map[string]*Group),
 		exitChan: make(chan struct{}),
 	}
+
+	if config.HTTPFLVConfig.Enable || config.HTTPFLVConfig.EnableHTTPS ||
+		config.HTTPTSConfig.Enable || config.HTTPTSConfig.EnableHTTPS ||
+		config.HLSConfig.Enable || config.HLSConfig.EnableHTTPS {
+		m.httpServerManager = base.NewHTTPServerManager()
+		m.httpServerHandler = NewHTTPServerHandler(m)
+		m.hlsServerHandler = hls.NewServerHandler(config.HLSConfig.OutPath)
+	}
+
 	if config.RTMPConfig.Enable {
 		m.rtmpServer = rtmp.NewServer(m, config.RTMPConfig.Addr)
-	}
-	if config.HTTPFLVConfig.Enable || config.HTTPFLVConfig.EnableHTTPS {
-		m.httpflvServer = httpflv.NewServer(m, config.HTTPFLVConfig.ServerConfig)
-	}
-	if config.HLSConfig.Enable {
-		m.hlsServer = hls.NewServer(config.HLSConfig.SubListenAddr, config.HLSConfig.OutPath)
-	}
-	if config.HTTPTSConfig.Enable {
-		m.httptsServer = httpts.NewServer(m, config.HTTPTSConfig.SubListenAddr)
 	}
 	if config.RTSPConfig.Enable {
 		m.rtspServer = rtsp.NewServer(config.RTSPConfig.Addr, m)
@@ -68,45 +69,56 @@ func NewServerManager() *ServerManager {
 func (sm *ServerManager) RunLoop() error {
 	httpNotify.OnServerStart()
 
+	var addMux = func(config CommonHTTPServerConfig, handler base.Handler, name string) error {
+		if config.Enable {
+			err := sm.httpServerManager.AddListen(
+				base.LocalAddrCtx{Addr: config.HTTPListenAddr},
+				config.URLPattern,
+				handler,
+			)
+			if err != nil {
+				nazalog.Infof("add http listen for %s failed. addr=%s, pattern=%s, err=%+v", name, config.HTTPListenAddr, config.URLPattern, err)
+				return err
+			}
+			nazalog.Infof("add http listen for %s. addr=%s, pattern=%s", name, config.HTTPListenAddr, config.URLPattern)
+		}
+		if config.EnableHTTPS {
+			err := sm.httpServerManager.AddListen(
+				base.LocalAddrCtx{IsHTTPS: true, Addr: config.HTTPSListenAddr, CertFile: config.HTTPSCertFile, KeyFile: config.HTTPSKeyFile},
+				config.URLPattern,
+				handler,
+			)
+			if err != nil {
+				nazalog.Infof("add https listen for %s failed. addr=%s, pattern=%s, err=%+v", name, config.HTTPListenAddr, config.URLPattern, err)
+				return err
+			}
+			nazalog.Infof("add https listen for %s. addr=%s, pattern=%s", name, config.HTTPSListenAddr, config.URLPattern)
+		}
+		return nil
+	}
+
+	if err := addMux(config.HTTPFLVConfig.CommonHTTPServerConfig, sm.httpServerHandler.ServeSubSession, "httpflv"); err != nil {
+		return err
+	}
+	if err := addMux(config.HTTPTSConfig.CommonHTTPServerConfig, sm.httpServerHandler.ServeSubSession, "httpts"); err != nil {
+		return err
+	}
+	if err := addMux(config.HLSConfig.CommonHTTPServerConfig, sm.hlsServerHandler.ServeHTTP, "hls"); err != nil {
+		return err
+	}
+
+	go func() {
+		if err := sm.httpServerManager.RunLoop(); err != nil {
+			nazalog.Error(err)
+		}
+	}()
+
 	if sm.rtmpServer != nil {
 		if err := sm.rtmpServer.Listen(); err != nil {
 			return err
 		}
 		go func() {
 			if err := sm.rtmpServer.RunLoop(); err != nil {
-				nazalog.Error(err)
-			}
-		}()
-	}
-
-	if sm.httpflvServer != nil {
-		if err := sm.httpflvServer.Listen(); err != nil {
-			return err
-		}
-		go func() {
-			if err := sm.httpflvServer.RunLoop(); err != nil {
-				nazalog.Error(err)
-			}
-		}()
-	}
-
-	if sm.httptsServer != nil {
-		if err := sm.httptsServer.Listen(); err != nil {
-			return err
-		}
-		go func() {
-			if err := sm.httptsServer.RunLoop(); err != nil {
-				nazalog.Error(err)
-			}
-		}()
-	}
-
-	if sm.hlsServer != nil {
-		if err := sm.hlsServer.Listen(); err != nil {
-			return err
-		}
-		go func() {
-			if err := sm.hlsServer.RunLoop(); err != nil {
 				nazalog.Error(err)
 			}
 		}()
@@ -177,18 +189,15 @@ func (sm *ServerManager) RunLoop() error {
 
 func (sm *ServerManager) Dispose() {
 	nazalog.Debug("dispose server manager.")
+
+	// TODO(chef) add httpServer
+
 	if sm.rtmpServer != nil {
 		sm.rtmpServer.Dispose()
 	}
-	if sm.httpflvServer != nil {
-		sm.httpflvServer.Dispose()
-	}
-	if sm.httptsServer != nil {
-		sm.httptsServer.Dispose()
-	}
-	if sm.hlsServer != nil {
-		sm.hlsServer.Dispose()
-	}
+	//if sm.hlsServer != nil {
+	//	sm.hlsServer.Dispose()
+	//}
 
 	sm.mutex.Lock()
 	for _, group := range sm.groupMap {

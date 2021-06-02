@@ -1,4 +1,4 @@
-// Copyright 2020, Chef.  All rights reserved.
+// Copyright 2021, Chef.  All rights reserved.
 // https://github.com/q191201771/lal
 //
 // Use of this source code is governed by a MIT-style license
@@ -6,9 +6,12 @@
 //
 // Author: Chef (191201771@qq.com)
 
-package httpts
+package hls
 
 var (
-	SubSessionWriteChanSize  = 1024
-	SubSessionWriteTimeoutMS = 10000
+	PathStrategy IPathStrategy = &DefaultPathStrategy{}
+)
+
+var (
+	calcFragmentHeaderQueueSize = 16
 )

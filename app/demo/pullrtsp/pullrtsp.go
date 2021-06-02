@@ -17,44 +17,9 @@ import (
 	"github.com/q191201771/lal/pkg/base"
 	"github.com/q191201771/lal/pkg/httpflv"
 	"github.com/q191201771/lal/pkg/remux"
-	"github.com/q191201771/lal/pkg/rtprtcp"
 	"github.com/q191201771/lal/pkg/rtsp"
 	"github.com/q191201771/naza/pkg/nazalog"
 )
-
-var fileWriter httpflv.FLVFileWriter
-
-type Observer struct {
-}
-
-func (o *Observer) OnRTPPacket(pkt rtprtcp.RTPPacket) {
-	// noop
-}
-
-func (o *Observer) OnAVConfig(asc, vps, sps, pps []byte) {
-	metadata, ash, vsh, err := remux.AVConfig2FLVTag(asc, vps, sps, pps)
-	nazalog.Assert(nil, err)
-
-	err = fileWriter.WriteTag(*metadata)
-	nazalog.Assert(nil, err)
-
-	if ash != nil {
-		err = fileWriter.WriteTag(*ash)
-		nazalog.Assert(nil, err)
-	}
-
-	if vsh != nil {
-		err = fileWriter.WriteTag(*vsh)
-		nazalog.Assert(nil, err)
-	}
-}
-
-func (o *Observer) OnAVPacket(pkt base.AVPacket) {
-	tag, err := remux.AVPacket2FLVTag(pkt)
-	nazalog.Assert(nil, err)
-	err = fileWriter.WriteTag(tag)
-	nazalog.Assert(nil, err)
-}
 
 func main() {
 	_ = nazalog.Init(func(option *nazalog.Option) {
@@ -64,14 +29,18 @@ func main() {
 
 	inURL, outFilename, overTCP := parseFlag()
 
+	var fileWriter httpflv.FLVFileWriter
 	err := fileWriter.Open(outFilename)
 	nazalog.Assert(nil, err)
 	defer fileWriter.Dispose()
 	err = fileWriter.WriteRaw(httpflv.FLVHeader)
 	nazalog.Assert(nil, err)
 
-	o := &Observer{}
-	pullSession := rtsp.NewPullSession(o, func(option *rtsp.PullSessionOption) {
+	remuxer := remux.NewAVPacket2RTMPRemuxer(func(msg base.RTMPMsg) {
+		err = fileWriter.WriteTag(*remux.RTMPMsg2FLVTag(msg))
+		nazalog.Assert(nil, err)
+	})
+	pullSession := rtsp.NewPullSession(remuxer, func(option *rtsp.PullSessionOption) {
 		option.PullTimeoutMS = 5000
 		option.OverTCP = overTCP != 0
 	})

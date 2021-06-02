@@ -1,23 +1,28 @@
 {
   "# doc of config": "https://pengrl.com/lal/#/ConfigBrief",
-  "conf_version": "v0.1.1",
+  "conf_version": "v0.2.2",
   "rtmp": {
     "enable": true,
     "addr": ":1935",
-    "gop_num": 2
+    "gop_num": 0,
+    "merge_write_size": 0
+  },
+  "default_http": {
+    "http_listen_addr": ":8080",
+    "https_listen_addr": ":4433",
+    "https_cert_file": "./conf/cert.pem",
+    "https_key_file": "./conf/key.pem"
   },
   "httpflv": {
     "enable": true,
-    "sub_listen_addr": ":8080",
     "enable_https": false,
-    "https_addr": ":4433",
-    "https_cert_file": "./conf/cert.pem",
-    "https_key_file": "./conf/key.pem",
-    "gop_num": 2
+    "url_pattern": "/live/",
+    "gop_num": 0
   },
   "hls": {
     "enable": true,
-    "sub_listen_addr": ":8081",
+    "enable_https": false,
+    "url_pattern": "/hls/",
     "out_path": "/tmp/lal/hls/",
     "fragment_duration_ms": 3000,
     "fragment_num": 6,
@@ -26,11 +31,18 @@
   },
   "httpts": {
     "enable": true,
-    "sub_listen_addr": ":8082"
+    "enable_https":false,
+    "url_pattern": "/live/"
   },
   "rtsp": {
     "enable": true,
     "addr": ":5544"
+  },
+  "record": {
+    "enable_flv": false,
+    "flv_out_path": "/tmp/lal/flv/",
+    "enable_mpegts": false,
+    "mpegts_out_path": "/tmp/lal/mpegts"
   },
   "relay_push": {
     "enable": false,

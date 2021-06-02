@@ -9,15 +9,22 @@
 package hls
 
 import (
+	"encoding/hex"
+
 	"github.com/q191201771/lal/pkg/aac"
 	"github.com/q191201771/lal/pkg/avc"
 	"github.com/q191201771/lal/pkg/base"
+	"github.com/q191201771/lal/pkg/hevc"
 	"github.com/q191201771/lal/pkg/mpegts"
 	"github.com/q191201771/naza/pkg/bele"
 	"github.com/q191201771/naza/pkg/nazalog"
+	"github.com/q191201771/naza/pkg/nazastring"
 )
 
 type StreamerObserver interface {
+	// @param b const只读内存块，上层可以持有，但是不允许修改
+	OnPATPMT(b []byte)
+
 	// @param streamer: 供上层获取streamer内部的一些状态，比如spspps是否已缓存，音频缓存队列是否有数据等
 	//
 	// @param frame:    各字段含义见mpegts.Frame结构体定义
@@ -27,12 +34,14 @@ type StreamerObserver interface {
 	OnFrame(streamer *Streamer, frame *mpegts.Frame)
 }
 
+// 输入rtmp流，回调转封装成AnnexB格式的流
 type Streamer struct {
 	UniqueKey string
 
 	observer                StreamerObserver
+	calcFragmentHeaderQueue *Queue
 	videoOut                []byte // AnnexB TODO chef: 优化这块buff
-	spspps                  []byte // AnnexB
+	spspps                  []byte // AnnexB 也可能是vps+sps+pps
 	adts                    aac.ADTS
 	audioCacheFrames        []byte // 缓存音频帧数据，注意，可能包含多个音频帧 TODO chef: 优化这块buff
 	audioCacheFirstFramePTS uint64 // audioCacheFrames中第一个音频帧的时间戳 TODO chef: rename to DTS
@@ -44,17 +53,27 @@ func NewStreamer(observer StreamerObserver) *Streamer {
 	uk := base.GenUKStreamer()
 	videoOut := make([]byte, 1024*1024)
 	videoOut = videoOut[0:0]
-	return &Streamer{
+	streamer := &Streamer{
 		UniqueKey: uk,
 		observer:  observer,
 		videoOut:  videoOut,
 	}
+	streamer.calcFragmentHeaderQueue = NewQueue(calcFragmentHeaderQueueSize, streamer)
+	return streamer
 }
 
 // @param msg msg.Payload 调用结束后，函数内部不会持有这块内存
 //
 // TODO chef: 可以考虑数据有问题时，返回给上层，直接主动关闭输入流的连接
 func (s *Streamer) FeedRTMPMessage(msg base.RTMPMsg) {
+	s.calcFragmentHeaderQueue.Push(msg)
+}
+
+func (s *Streamer) OnPATPMT(b []byte) {
+	s.observer.OnPATPMT(b)
+}
+
+func (s *Streamer) OnPop(msg base.RTMPMsg) {
 	switch msg.Header.MsgTypeID {
 	case base.RTMPTypeIDAudio:
 		s.feedAudio(msg)
@@ -80,19 +99,23 @@ func (s *Streamer) feedVideo(msg base.RTMPMsg) {
 		nazalog.Errorf("[%s] invalid video message length. len=%d", s.UniqueKey, len(msg.Payload))
 		return
 	}
-	if msg.Payload[0]&0xF != base.RTMPCodecIDAVC {
+	codecID := msg.Payload[0] & 0xF
+	if codecID != base.RTMPCodecIDAVC && codecID != base.RTMPCodecIDHEVC {
 		return
 	}
-
-	ftype := msg.Payload[0] & 0xF0 >> 4
-	htype := msg.Payload[1]
 
 	// 将数据转换成AnnexB
 
 	// 如果是sps pps，缓存住，然后直接返回
-	if ftype == base.RTMPFrameTypeKey && htype == base.RTMPAVCPacketTypeSeqHeader {
-		if err := s.cacheSPSPPS(msg); err != nil {
+	var err error
+	if msg.IsAVCKeySeqHeader() {
+		if s.spspps, err = avc.SPSPPSSeqHeader2AnnexB(msg.Payload); err != nil {
 			nazalog.Errorf("[%s] cache spspps failed. err=%+v", s.UniqueKey, err)
+		}
+		return
+	} else if msg.IsHEVCKeySeqHeader() {
+		if s.spspps, err = hevc.VPSSPSPPSSeqHeader2AnnexB(msg.Payload); err != nil {
+			nazalog.Errorf("[%s] cache vpsspspps failed. err=%+v", s.UniqueKey, err)
 		}
 		return
 	}
@@ -104,59 +127,77 @@ func (s *Streamer) feedVideo(msg base.RTMPMsg) {
 	// 优化这块buffer
 	out := s.videoOut[0:0]
 
-	// tag中可能有多个NALU，逐个获取
-	for i := 5; i != len(msg.Payload); {
-		if i+4 > len(msg.Payload) {
-			nazalog.Errorf("[%s] slice len not enough. i=%d, len=%d", s.UniqueKey, i, len(msg.Payload))
-			return
+	// msg中可能有多个NALU，逐个获取
+	nals, err := avc.SplitNALUAVCC(msg.Payload[5:])
+	if err != nil {
+		nazalog.Errorf("[%s] iterate nalu failed. err=%+v, payload=%s", err, s.UniqueKey, hex.Dump(nazastring.SubSliceSafety(msg.Payload, 32)))
+		return
+	}
+	for _, nal := range nals {
+		var nalType uint8
+		switch codecID {
+		case base.RTMPCodecIDAVC:
+			nalType = avc.ParseNALUType(nal[0])
+		case base.RTMPCodecIDHEVC:
+			nalType = hevc.ParseNALUType(nal[0])
 		}
-		nalBytes := int(bele.BEUint32(msg.Payload[i:]))
-		i += 4
-		if i+nalBytes > len(msg.Payload) {
-			nazalog.Errorf("[%s] slice len not enough. i=%d, payload len=%d, nalBytes=%d", s.UniqueKey, i, len(msg.Payload), nalBytes)
-			return
-		}
 
-		nalType := avc.ParseNALUType(msg.Payload[i])
+		//nazalog.Debugf("[%s] naltype=%d, len=%d(%d), cts=%d, key=%t.", s.UniqueKey, nalType, nalBytes, len(msg.Payload), cts, msg.IsVideoKeyNALU())
 
-		//nazalog.Debugf("[%s] hls: h264 NAL type=%d, len=%d(%d) cts=%d.", s.UniqueKey, nalType, nalBytes, len(msg.Payload), cts)
-
-		// sps pps前面已经缓存过了，这里就不用处理了
-		// aud有自己的生产逻辑，原流中的aud直接过滤掉
-		if nalType == avc.NALUTypeSPS || nalType == avc.NALUTypePPS || nalType == avc.NALUTypeAUD {
-			i += nalBytes
+		// 过滤掉原流中的sps pps aud
+		// sps pps前面已经缓存过了，后面有自己的写入逻辑
+		// aud有自己的写入逻辑
+		if (codecID == base.RTMPCodecIDAVC && (nalType == avc.NALUTypeSPS || nalType == avc.NALUTypePPS || nalType == avc.NALUTypeAUD)) ||
+			(codecID == base.RTMPCodecIDHEVC && (nalType == hevc.NALUTypeVPS || nalType == hevc.NALUTypeSPS || nalType == hevc.NALUTypePPS || nalType == hevc.NALUTypeAUD)) {
 			continue
 		}
 
+		// tag中的首个nalu前面写入aud
 		if !audSent {
+			// 注意，因为前面已经过滤了sps pps aud的信息，所以这里可以认为都是需要用aud分隔的，不需要单独判断了
+			//if codecID == base.RTMPCodecIDAVC && (nalType == avc.NALUTypeSEI || nalType == avc.NALUTypeIDRSlice || nalType == avc.NALUTypeSlice) {
+			switch codecID {
+			case base.RTMPCodecIDAVC:
+				out = append(out, avc.AUDNALU...)
+			case base.RTMPCodecIDHEVC:
+				out = append(out, hevc.AUDNALU...)
+			}
+			audSent = true
+		}
+
+		// 关键帧前追加sps pps
+		if codecID == base.RTMPCodecIDAVC {
+			// h264的逻辑，一个tag中，多个连续的关键帧只追加一个，不连续则每个关键帧前都追加。为什么要这样处理
 			switch nalType {
-			case avc.NALUTypeSlice, avc.NALUTypeIDRSlice, avc.NALUTypeSEI:
-				// 在前面写入aud
-				out = append(out, audNal...)
-				audSent = true
-				//case avc.NALUTypeAUD:
-				//	// 上面aud已经continue跳过了，应该进不到这个分支，可以考虑删除这个分支代码
-				//	audSent = true
-			}
-		}
-
-		switch nalType {
-		case avc.NALUTypeSlice:
-			spsppsSent = false
-		case avc.NALUTypeIDRSlice:
-			// 如果是首个关键帧，在前面写入sps pps
-			if !spsppsSent {
-				var err error
-				out, err = s.appendSPSPPS(out)
-				if err != nil {
-					nazalog.Warnf("[%s] append spspps by not exist.", s.UniqueKey)
-					return
+			case avc.NALUTypeIDRSlice:
+				if !spsppsSent {
+					if out, err = s.appendSPSPPS(out); err != nil {
+						nazalog.Warnf("[%s] append spspps by not exist.", s.UniqueKey)
+						return
+					}
 				}
+				spsppsSent = true
+			case avc.NALUTypeSlice:
+				// 这里只有P帧，没有SEI。为什么要这样处理
+				spsppsSent = false
 			}
-			spsppsSent = true
-
+		} else {
+			switch nalType {
+			case hevc.NALUTypeSliceIDR, hevc.NALUTypeSliceIDRNLP, hevc.NALUTypeSliceCRANUT:
+				if !spsppsSent {
+					if out, err = s.appendSPSPPS(out); err != nil {
+						nazalog.Warnf("[%s] append spspps by not exist.", s.UniqueKey)
+						return
+					}
+				}
+				spsppsSent = true
+			default:
+				// 这里简化了，只要不是关键帧，就刷新标志
+				spsppsSent = false
+			}
 		}
 
+		// 如果写入了aud或spspps，则用start code3，否则start code4。为什么要这样处理
 		// 这里不知为什么要区分写入两种类型的start code
 		if len(out) == 0 {
 			out = append(out, avc.NALUStartCode4...)
@@ -164,12 +205,9 @@ func (s *Streamer) feedVideo(msg base.RTMPMsg) {
 			out = append(out, avc.NALUStartCode3...)
 		}
 
-		out = append(out, msg.Payload[i:i+nalBytes]...)
-
-		i += nalBytes
+		out = append(out, nal...)
 	}
 
-	key := ftype == base.RTMPFrameTypeKey && htype == base.RTMPAVCPacketTypeNALU
 	dts := uint64(msg.Header.TimestampAbs) * 90
 
 	if s.audioCacheFrames != nil && s.audioCacheFirstFramePTS+maxAudioCacheDelayByVideo < dts {
@@ -180,7 +218,7 @@ func (s *Streamer) feedVideo(msg base.RTMPMsg) {
 	frame.CC = s.videoCC
 	frame.DTS = dts
 	frame.PTS = frame.DTS + uint64(cts)*90
-	frame.Key = key
+	frame.Key = msg.IsVideoKeyNALU()
 	frame.Raw = out
 	frame.Pid = mpegts.PidVideo
 	frame.Sid = mpegts.StreamIDVideo
@@ -252,12 +290,6 @@ func (s *Streamer) FlushAudio() {
 
 func (s *Streamer) cacheAACSeqHeader(msg base.RTMPMsg) error {
 	return s.adts.InitWithAACAudioSpecificConfig(msg.Payload[2:])
-}
-
-func (s *Streamer) cacheSPSPPS(msg base.RTMPMsg) error {
-	var err error
-	s.spspps, err = avc.SPSPPSSeqHeader2AnnexB(msg.Payload)
-	return err
 }
 
 func (s *Streamer) appendSPSPPS(out []byte) ([]byte, error) {

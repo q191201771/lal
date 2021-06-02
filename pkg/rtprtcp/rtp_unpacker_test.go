@@ -12,9 +12,78 @@ import (
 	"encoding/hex"
 	"testing"
 
+	"github.com/q191201771/naza/pkg/nazalog"
+
+	"github.com/q191201771/naza/pkg/bele"
+
 	"github.com/q191201771/lal/pkg/base"
 	"github.com/q191201771/naza/pkg/assert"
 )
+
+// #85
+func TestAVCCase1(t *testing.T) {
+	// single sps
+	// single pps
+	// FUA IDR
+	ss := []string{
+		"a06000013778b64c1921d51867640032ad84010c20086100430802184010c200843b5014005ad370101014000003000400000300ca100002",
+		"806000023778b64c1921d51868ee3cb0",
+		"806000033778b64c1921d5187c85b8000006bff0ffee6021caad8ffdd001c15e27306e7fc6bf36ca8b6bc1411afef158dc64d75094f5b2bbddec364e6904cc9a14b4069bb6b6cb6d6ab8f132e77e3324291351b52e4a58fce30dd7b64313d208df50ab636423abce5a0dcc6c3ff8397c84250042244aafef705063debcdd7fe6c6c2fd41b4c6251fe4ca318c40e4bf2eb373246f14ad1623f9f5356154b02c0c8f53fcd8b6ad452da457b48ba704ec227f16b59d9e7c0d50423bb7f78059a68d26aef86bc94ebb27723c6eee018b45977028b400e474d40f7464fcb5f0f292b23a2324486bdd500fe72b115bd93bdf5f0f9207daedfc02e4b8bed2c2b8a4b081b00c3a9172e1ce34222a870d06b925a9263c59276d4ad6bd82bdab07f8e01b3ae3263899948d345f83e4ff127b3c4d2721d3543880a0ea72d9b13ea0a4dd64ca4617f3d63b0182f9cc37c917dc620853f12487d608bc76fe3d5bc039fc9df161d4d6ca2cae273f7893ffbe78ba9e0e85217c9c2b6214e48e831cf4eed74f1e70f3050fcd72dd466d1a3d00f500b884c141625f5daba37c20e4623387406a6930819f08c0e3321ea7695d92e8da38e5d926767926ee5ebce20e4eecbd7aea2b8756489271ba7c2977c4e568a4a25c82b159cc3f5f6575f1b96ad1c589267947258bc1e62d5eed1a17a99219c019fd9167754310ad3c2ef1acbf304fe0b5342d09ae20b4b4fc49f5231ca744977d3a73ce2821f8cc76f1c0149ae8d5dadf44bf87ad989a311ce57ad19e4579bc8cdc309eb28954e875441f9c135182eca8f3016aa5792ec3d1926da40694465dfd625b8c8c836792f4cee619bcce39a71c8055827cbd5c22fedfcb7626534d07385df9247b6338e9bc68c1ee8903a4fc9309decc5ce2ca60a7331ccd15f285ddb9be2134173fada2150ce68dddc4d2ef397624d74cb0ff9dab86664e17a0bc76ec86875736e68133e3bcdf5419cd6ce19ff1108bbe7e39ea36578ea8e8a4cbe6c850095467f22c1c220aa8203f8ee16d39de0f414db0f46dbc2f7f34b4dc7062aeed316c991522efb7fd8ac10d510596638f0bc330005317ab085787db0b26ed4c6086513d059ceef9274d6788a9bf30abb1cf6b353d9e57103e10a299df9d77c688cc0d69af84f319e97f55db30d419fdf9a028b4185fa1cae5f2fdfadcb0abc68ca03968a8b4801d31d8096451b1dd54d159d81b3cf8554a43a65a80fc1581eb00719de7c606201c31af22d0fef3208889c4f0a5c0ea06ecdb13e6d99cff25f449d1fe90c3d7beadc52595b12d9e58fc647ebbc30ac4131fad7dfad3a6ea9d51948b095d9aafd48a0545378c2083406a2248f4876e104d76d22ce0a552848d89d603392dad6486554a58dd8fb154b70e52d4c4e1f093d73d731563bebf9fe61493779ba791df3dc65430cf27d00292609f6c09a682e9f4b03a4e3507459ae06ff07e66fa992b54f8d0837cf806d9921ac916b1fe064adb76e7cedfa4e2c5a9126a0f7a7927e5686b990cc87f89612b983cb81783e0763a548648ef73d855a0afeaf78192047b060fcf8b1016a46016de75983d7e57c70d5fa5259012e465531f953b27ca67b554620a5e194386b8fd6d784e989d151b7326d028ff28b2707d376147ca3657a60daa7158e630b9def41c579a02b24c6b5cbe5161c985bf5a6ba41b033be092c4a590098aca5a4a6b8aef024863ef403fe4cb4dc2010dedd3cc1c5f7c6a123e2d7f8fd8feef793afb2402a763df927316b337d83808f13354f4706af395556caa6ec0efb724a7abe587b8eff333d64623ad7556a735dcd04bfe88c8f57327625aef8f25a0b722499de91a509ad383650d3ba250e16c5dd2671d67039b9404c174863a9af5c2738dd293770488c034c1f4f9c0d1cfb8f02c9bcecfb24a17ad06c7163788f22c8bbeb30b26423ad22515aca1916a28f716aad8b970623f054537448d74ee4822",
+	}
+
+	testHelperTemplete(t, base.AVPacketPTAVC, 90000, 128, ss, func(rtpPackets []RTPPacket) []base.AVPacket {
+		return []base.AVPacket{
+			{
+				Timestamp:   10340642,
+				PayloadType: base.AVPacketPTAVC,
+				Payload:     testHelperAddPrefixLength(rtpPackets[0].Raw[12:]),
+			},
+			{
+				Timestamp:   10340642,
+				PayloadType: base.AVPacketPTAVC,
+				Payload:     testHelperAddPrefixLength(rtpPackets[1].Raw[12:]),
+			},
+		}
+	})
+}
+
+func TestHEVCCase1(t *testing.T) {
+	// single vps
+	// single sps
+	// single pps
+	// single sei
+	ss := []string{
+		"a060d3a38a27999a01c0125940010c01ffff016000000300b0000003000003007bac0901",
+		"a060d3a48a27999a01c01259420101016000000300b0000003000003007ba003c08010e58dae4914bf37010101008001",
+		"a060d3a58a27999a01c012594401c0f2c68d03b240000003",
+		"a060d3a68a27999a01c012594e01e504ebc3000080000003",
+	}
+
+	testHelperTemplete(t, base.AVPacketPTHEVC, 90000, 128, ss, func(rtpPackets []RTPPacket) []base.AVPacket {
+		return []base.AVPacket{
+			{
+				Timestamp:   25753900,
+				PayloadType: base.AVPacketPTHEVC,
+				Payload:     testHelperAddPrefixLength(rtpPackets[0].Raw[12:]),
+			},
+			{
+				Timestamp:   25753900,
+				PayloadType: base.AVPacketPTHEVC,
+				Payload:     testHelperAddPrefixLength(rtpPackets[1].Raw[12:]),
+			},
+			{
+				Timestamp:   25753900,
+				PayloadType: base.AVPacketPTHEVC,
+				Payload:     testHelperAddPrefixLength(rtpPackets[2].Raw[12:]),
+			},
+			{
+				Timestamp:   25753900,
+				PayloadType: base.AVPacketPTHEVC,
+				Payload:     testHelperAddPrefixLength(rtpPackets[3].Raw[12:]),
+			},
+		}
+	})
+}
 
 func TestAACCase1(t *testing.T) {
 	ss := []string{
@@ -24,38 +93,25 @@ func TestAACCase1(t *testing.T) {
 		"80e10e9d5684464cf0bdf2fe00102db871cdd0709ba0e0",
 	}
 
-	var pkts []RTPPacket
-	for _, s := range ss {
-		pkt, err := hexstream2rtppacket(s)
-		assert.Equal(t, nil, err)
-		pkts = append(pkts, pkt)
-	}
-
-	expected := []base.AVPacket{
-		{
-			Timestamp:   30239734,
-			PayloadType: base.AVPacketPTAAC,
-			Payload:     pkts[0].Raw[12+4:],
-		},
-		{
-			Timestamp:   30239756,
-			PayloadType: base.AVPacketPTAAC,
-			Payload:     pkts[1].Raw[12+4:],
-		},
-		{
-			Timestamp:   30239777,
-			PayloadType: base.AVPacketPTAAC,
-			Payload:     append(pkts[2].Raw[12+4:], pkts[3].Raw[12+4:]...),
-		},
-	}
-	var outPkts []base.AVPacket
-	unpacker := DefaultRTPUnpackerFactory(base.AVPacketPTAAC, 48000, 128, func(pkt base.AVPacket) {
-		outPkts = append(outPkts, pkt)
+	testHelperTemplete(t, base.AVPacketPTAAC, 48000, 128, ss, func(rtpPackets []RTPPacket) []base.AVPacket {
+		return []base.AVPacket{
+			{
+				Timestamp:   30239734,
+				PayloadType: base.AVPacketPTAAC,
+				Payload:     rtpPackets[0].Raw[12+4:],
+			},
+			{
+				Timestamp:   30239756,
+				PayloadType: base.AVPacketPTAAC,
+				Payload:     rtpPackets[1].Raw[12+4:],
+			},
+			{
+				Timestamp:   30239777,
+				PayloadType: base.AVPacketPTAAC,
+				Payload:     append(rtpPackets[2].Raw[12+4:], rtpPackets[3].Raw[12+4:]...),
+			},
+		}
 	})
-	for _, pkt := range pkts {
-		unpacker.Feed(pkt)
-	}
-	assert.Equal(t, expected, outPkts)
 }
 
 func TestAACCase2(t *testing.T) {
@@ -66,60 +122,84 @@ func TestAACCase2(t *testing.T) {
 		"80e104588424be31b06db689001016d8211c8d2ff7fffffffd1975a43251621000000006af6ba26aa2e3f904d00271b1e487d009e4320471d8f204892ad2252d72b8700260e8b4113e20831048a5a0438f1b93832a048415ff73b5bf69631c8a4e4ca6eb89fc8454ab3558b7ed96e5557083eb2ac47779eb23fa2d680f806dfa4ffd6590df3f6e990132030626063e01e73386af34ea3ff2746f376e6c8fcc3f0574828a15f1375e386521f5b50f0f4aea7ffdb9e0d27caff771bbfd4788dcbd118e539df41f01be771cf33af56f9a35090fd7b57dfd8f557cb9e398b7df5f1ac4d4bb56f69cdd2211b6f49679293c43dc7b283840528ea9f573ee24cc7c055d4b9844491583e315d70af6dd5e73fdab59fd17d532f48dda3cb452cba838dccbbdc2b7d5b4699a8e565a4b71035f2a9bd97bb88b90057c240692aa50aca5486142176a21104b5b19c1a691b086d4118810597934c2302e49091073911ba492badc8dba7ec264c5d29602f779ff3b58a48c510a681f42e7cdfd3ecf37fa7e8f6f8eda069baed02641111cea27687eba9db1f5471d5bb4734a6ca7f63caa22f5c04b5df2a7a5f75000ca648557f5c4ee3bca7e079e382643a1a808cb851d8e67222204200000000d5ed744d545c7f916413a981219ae144e8cafae1383088cb0139c294c240e3f9c9dc1d324047aaf90dd06794b20bebd8f4d73ffefb80f3d6dfde7dddd613573e886de98f79a921d12eb49909e8b4415f66cdc863a11bf1aaada975bd2d91e20d7f58ca2a3219d9bb55d873c2c399a17028a2bdc09a513165845609d47ee11f4f5e8822407a13c1f876c728291c28931eb6004cc5e86a441a29503a82c2b848200ee55e3df0880cc00dbd92d204170376d1d2c19355727b70dd508350425a031cb73d7fee9bbd887878b6b4a3ebb056e59b44b1e7a4884f1e3cfdab2b3607e594e2cf47eb553f54696c0acb08ba8b411ed053572db39a5c885723bc0bd2d97d92b27b5381d5bd555ae9fba09cde8ea4e66a7bc1b3488deebff89ad1d8aac49546b79e301c0",
 	}
 
-	var pkts []RTPPacket
-	for _, s := range ss {
-		pkt, err := hexstream2rtppacket(s)
-		assert.Equal(t, nil, err)
-		pkts = append(pkts, pkt)
-	}
-
-	expected := []base.AVPacket{
-		{
-			Timestamp:   69281105,
-			PayloadType: base.AVPacketPTAAC,
-			Payload:     pkts[0].Raw[12+2+6 : 12+2+6+24],
-		},
-		{
-			Timestamp:   69281137,
-			PayloadType: base.AVPacketPTAAC,
-			Payload:     pkts[0].Raw[12+2+6+24 : 12+2+6+24+6],
-		},
-		{
-			Timestamp:   69281169,
-			PayloadType: base.AVPacketPTAAC,
-			Payload:     pkts[0].Raw[12+2+6+24+6:],
-		},
-		{
-			Timestamp:   69281201,
-			PayloadType: base.AVPacketPTAAC,
-			Payload:     pkts[1].Raw[12+4:],
-		},
-		{
-			Timestamp:   69281233,
-			PayloadType: base.AVPacketPTAAC,
-			Payload:     pkts[2].Raw[12+4:],
-		},
-		{
-			Timestamp:   69281265,
-			PayloadType: base.AVPacketPTAAC,
-			Payload:     pkts[3].Raw[12+4:],
-		},
-	}
-	var outPkts []base.AVPacket
-	unpacker := DefaultRTPUnpackerFactory(base.AVPacketPTAAC, 32000, 128, func(pkt base.AVPacket) {
-		//nazalog.Infof("out: %d, %d", pkt.Timestamp, len(pkt.Payload))
-		outPkts = append(outPkts, pkt)
+	testHelperTemplete(t, base.AVPacketPTAAC, 32000, 128, ss, func(rtpPackets []RTPPacket) []base.AVPacket {
+		return []base.AVPacket{
+			{
+				Timestamp:   69281105,
+				PayloadType: base.AVPacketPTAAC,
+				Payload:     rtpPackets[0].Raw[12+2+6 : 12+2+6+24],
+			},
+			{
+				Timestamp:   69281137,
+				PayloadType: base.AVPacketPTAAC,
+				Payload:     rtpPackets[0].Raw[12+2+6+24 : 12+2+6+24+6],
+			},
+			{
+				Timestamp:   69281169,
+				PayloadType: base.AVPacketPTAAC,
+				Payload:     rtpPackets[0].Raw[12+2+6+24+6:],
+			},
+			{
+				Timestamp:   69281201,
+				PayloadType: base.AVPacketPTAAC,
+				Payload:     rtpPackets[1].Raw[12+4:],
+			},
+			{
+				Timestamp:   69281233,
+				PayloadType: base.AVPacketPTAAC,
+				Payload:     rtpPackets[2].Raw[12+4:],
+			},
+			{
+				Timestamp:   69281265,
+				PayloadType: base.AVPacketPTAAC,
+				Payload:     rtpPackets[3].Raw[12+4:],
+			},
+		}
 	})
-	for _, pkt := range pkts {
-		//nazalog.Infof("in: %+v %d", pkt.Header, len(pkt.Raw))
-		unpacker.Feed(pkt)
-	}
-	assert.Equal(t, expected, outPkts)
 }
 
-func hexstream2rtppacket(in string) (pkt RTPPacket, err error) {
+func testHelperTemplete(t *testing.T, payloadType base.AVPacketPT, clockRate int, maxSize int, hexRTPPackets []string, expectedFn func([]RTPPacket) []base.AVPacket) {
+	rtpPackets, err := testHelperHexstream2rtppackets(hexRTPPackets)
+	assert.Equal(t, nil, err)
+
+	expected := expectedFn(rtpPackets)
+	assert.Equal(t, expected, testHelperUnpack(payloadType, clockRate, maxSize, rtpPackets))
+}
+
+func testHelperAddPrefixLength(in []byte) (out []byte) {
+	out = make([]byte, len(in)+4)
+	bele.BEPutUint32(out, uint32(len(in)))
+	copy(out[4:], in)
+	return
+}
+
+func testHelperUnpack(payloadType base.AVPacketPT, clockRate int, maxSize int, rtpPackets []RTPPacket) []base.AVPacket {
+	var outPkts []base.AVPacket
+	unpacker := DefaultRTPUnpackerFactory(payloadType, clockRate, maxSize, func(pkt base.AVPacket) {
+		nazalog.Debugf("%s", hex.EncodeToString(pkt.Payload))
+		outPkts = append(outPkts, pkt)
+	})
+	for _, pkt := range rtpPackets {
+		unpacker.Feed(pkt)
+	}
+	return outPkts
+}
+
+func testHelperHexstream2rtppackets(hexPackets []string) (pkts []RTPPacket, err error) {
+	var pkt RTPPacket
+	for _, p := range hexPackets {
+		pkt, err = testHelperHexstream2rtppacket(p)
+		if err != nil {
+			return
+		}
+		pkts = append(pkts, pkt)
+	}
+	return
+}
+
+func testHelperHexstream2rtppacket(hexPacket string) (pkt RTPPacket, err error) {
 	var raw []byte
-	raw, err = hex.DecodeString(in)
+	raw, err = hex.DecodeString(hexPacket)
 	if err != nil {
 		return
 	}

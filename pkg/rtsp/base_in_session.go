@@ -29,17 +29,15 @@ import (
 
 // 聚合PubSession和PullSession，也即流数据是输入类型的session
 
-// BaseInSession会向上层回调两种格式的数据：
+// BaseInSession会向上层回调两种格式的数据(本质上是一份数据，业务方可自由选择使用)：
 // 1. 原始的rtp packet
 // 2. rtp合并后的av packet
+//
 type BaseInSessionObserver interface {
-	OnRTPPacket(pkt rtprtcp.RTPPacket)
+	OnSDP(sdpCtx sdp.LogicContext)
 
-	// @param asc: AAC AudioSpecificConfig，注意，如果不存在音频或音频不为AAC，则为nil
-	// @param vps, sps, pps 如果都为nil，则没有视频，如果sps, pps不为nil，则vps不为nil是H265，vps为nil是H264
-	//
-	// 注意，4个参数可能同时为nil
-	OnAVConfig(asc, vps, sps, pps []byte)
+	// 回调收到的RTP包
+	OnRTPPacket(pkt rtprtcp.RTPPacket)
 
 	// @param pkt: pkt结构体中字段含义见rtprtcp.OnAVPacket
 	OnAVPacket(pkt base.AVPacket)
@@ -134,7 +132,7 @@ func (session *BaseInSession) InitWithSDP(rawSDP []byte, sdpLogicCtx sdp.LogicCo
 	}
 
 	if session.observer != nil {
-		session.observer.OnAVConfig(session.sdpLogicCtx.ASC, session.sdpLogicCtx.VPS, session.sdpLogicCtx.SPS, session.sdpLogicCtx.PPS)
+		session.observer.OnSDP(session.sdpLogicCtx)
 	}
 }
 
@@ -142,7 +140,10 @@ func (session *BaseInSession) InitWithSDP(rawSDP []byte, sdpLogicCtx sdp.LogicCo
 func (session *BaseInSession) SetObserver(observer BaseInSessionObserver) {
 	session.observer = observer
 
-	session.observer.OnAVConfig(session.sdpLogicCtx.ASC, session.sdpLogicCtx.VPS, session.sdpLogicCtx.SPS, session.sdpLogicCtx.PPS)
+	// 避免在当前协程回调，降低业务方使用负担，不必担心设置监听对象和回调函数中锁重入
+	go func() {
+		session.observer.OnSDP(session.sdpLogicCtx)
+	}()
 }
 
 func (session *BaseInSession) SetupWithConn(uri string, rtpConn, rtcpConn *nazanet.UDPConnection) error {

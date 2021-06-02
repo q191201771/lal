@@ -28,7 +28,8 @@ func main() {
 	defer nazalog.Sync()
 
 	confFile := parseFlag()
-	logic.Entry(confFile)
+	logic.Init(confFile)
+	logic.RunLoop()
 }
 
 func parseFlag() string {
@@ -53,6 +54,9 @@ func parseFlag() string {
 		filepath.FromSlash("lalserver.conf.json"),
 		filepath.FromSlash("./conf/lalserver.conf.json"),
 		filepath.FromSlash("../conf/lalserver.conf.json"),
+		filepath.FromSlash("../lalserver.conf.json"),
+		filepath.FromSlash("../../lalserver.conf.json"),
+		filepath.FromSlash("../../conf/lalserver.conf.json"),
 	}
 	for _, dcf := range defaultConfigFileList {
 		fi, err := os.Stat(dcf)

@@ -38,7 +38,7 @@ type ClientSession struct {
 	packer         *MessagePacker
 	chunkComposer  *ChunkComposer
 	urlCtx         base.URLContext
-	hc             HandshakeClientSimple
+	hc             IHandshakeClient
 	peerWinAckSize int
 
 	conn         connection.Connection
@@ -63,15 +63,17 @@ const (
 
 type ClientSessionOption struct {
 	// 单位毫秒，如果为0，则没有超时
-	DoTimeoutMS      int // 从发起连接（包含了建立连接的时间）到收到publish或play信令结果的超时
-	ReadAVTimeoutMS  int // 读取音视频数据的超时
-	WriteAVTimeoutMS int // 发送音视频数据的超时
+	DoTimeoutMS          int  // 从发起连接（包含了建立连接的时间）到收到publish或play信令结果的超时
+	ReadAVTimeoutMS      int  // 读取音视频数据的超时
+	WriteAVTimeoutMS     int  // 发送音视频数据的超时
+	HandshakeComplexFlag bool // 握手是否使用复杂模式
 }
 
 var defaultClientSessOption = ClientSessionOption{
-	DoTimeoutMS:      0,
-	ReadAVTimeoutMS:  0,
-	WriteAVTimeoutMS: 0,
+	DoTimeoutMS:          0,
+	ReadAVTimeoutMS:      0,
+	WriteAVTimeoutMS:     0,
+	HandshakeComplexFlag: false,
 }
 
 type ModClientSessionOption func(option *ClientSessionOption)
@@ -91,6 +93,13 @@ func NewClientSession(t ClientSessionType, modOptions ...ModClientSessionOption)
 		fn(&option)
 	}
 
+	var hc IHandshakeClient
+	if option.HandshakeComplexFlag {
+		hc = &HandshakeClientComplex{}
+	} else {
+		hc = &HandshakeClientSimple{}
+	}
+
 	s := &ClientSession{
 		uniqueKey:     uk,
 		t:             t,
@@ -104,6 +113,7 @@ func NewClientSession(t ClientSessionType, modOptions ...ModClientSessionOption)
 			StartTime: time.Now().Format("2006-01-02 15:04:05.999"),
 		},
 		debugLogReadUserCtrlMsgMax: 5,
+		hc: hc,
 	}
 	nazalog.Infof("[%s] lifecycle new rtmp ClientSession. session=%p", uk, s)
 	return s
@@ -297,15 +307,20 @@ func (s *ClientSession) handshake() error {
 		return err
 	}
 
-	if err := s.hc.ReadS0S1S2(s.conn); err != nil {
+	if err := s.hc.ReadS0S1(s.conn); err != nil {
 		return err
 	}
-	nazalog.Infof("[%s] < R Handshake S0+S1+S2.", s.uniqueKey)
+	nazalog.Infof("[%s] < R Handshake S0+S1.", s.uniqueKey)
 
 	nazalog.Infof("[%s] > W Handshake C2.", s.uniqueKey)
 	if err := s.hc.WriteC2(s.conn); err != nil {
 		return err
 	}
+
+	if err := s.hc.ReadS2(s.conn); err != nil {
+		return err
+	}
+	nazalog.Infof("[%s] < R Handshake S2.", s.uniqueKey)
 	return nil
 }
 

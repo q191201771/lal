@@ -70,7 +70,8 @@ type ServerSession struct {
 	avObserver PubSessionObserver
 
 	// only for SubSession
-	IsFresh bool
+	IsFresh                 bool
+	ShouldWaitVideoKeyFrame bool
 }
 
 func NewServerSession(observer ServerSessionObserver, conn net.Conn) *ServerSession {
@@ -85,12 +86,13 @@ func NewServerSession(observer ServerSessionObserver, conn net.Conn) *ServerSess
 			StartTime:  time.Now().Format("2006-01-02 15:04:05.999"),
 			RemoteAddr: conn.RemoteAddr().String(),
 		},
-		uniqueKey:     uk,
-		observer:      observer,
-		t:             ServerSessionTypeUnknown,
-		chunkComposer: NewChunkComposer(),
-		packer:        NewMessagePacker(),
-		IsFresh:       true,
+		uniqueKey:               uk,
+		observer:                observer,
+		t:                       ServerSessionTypeUnknown,
+		chunkComposer:           NewChunkComposer(),
+		packer:                  NewMessagePacker(),
+		IsFresh:                 true,
+		ShouldWaitVideoKeyFrame: true,
 	}
 	nazalog.Infof("[%s] lifecycle new rtmp ServerSession. session=%p, remote addr=%s", uk, s, conn.RemoteAddr().String())
 	return s

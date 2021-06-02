@@ -9,7 +9,6 @@
 package hls
 
 import (
-	"net"
 	"net/http"
 
 	"github.com/q191201771/lal/pkg/base"
@@ -17,62 +16,62 @@ import (
 	"github.com/q191201771/naza/pkg/nazalog"
 )
 
-type Server struct {
-	addr    string
+type ServerHandler struct {
 	outPath string
-	ln      net.Listener
-	httpSrv *http.Server
+	//addr    string
+	//ln      net.Listener
+	//httpSrv *http.Server
 }
 
-func NewServer(addr string, outPath string) *Server {
-	return &Server{
-		addr:    addr,
+func NewServerHandler(outPath string) *ServerHandler {
+	return &ServerHandler{
 		outPath: outPath,
 	}
 }
 
-func (s *Server) Listen() (err error) {
-	if s.ln, err = net.Listen("tcp", s.addr); err != nil {
-		return
-	}
-	s.httpSrv = &http.Server{Addr: s.addr, Handler: s}
-	nazalog.Infof("start hls server listen. addr=%s", s.addr)
-	return
-}
+//
+//func (s *Server) Listen() (err error) {
+//	if s.ln, err = net.Listen("tcp", s.addr); err != nil {
+//		return
+//	}
+//	s.httpSrv = &http.Server{Addr: s.addr, Handler: s}
+//	nazalog.Infof("start hls server listen. addr=%s", s.addr)
+//	return
+//}
+//
+//func (s *Server) RunLoop() error {
+//	return s.httpSrv.Serve(s.ln)
+//}
+//
+//func (s *Server) Dispose() {
+//	if err := s.httpSrv.Close(); err != nil {
+//		nazalog.Error(err)
+//	}
+//}
 
-func (s *Server) RunLoop() error {
-	return s.httpSrv.Serve(s.ln)
-}
-
-func (s *Server) Dispose() {
-	if err := s.httpSrv.Close(); err != nil {
-		nazalog.Error(err)
-	}
-}
-
-func (s *Server) ServeHTTP(resp http.ResponseWriter, req *http.Request) {
+func (s *ServerHandler) ServeHTTP(resp http.ResponseWriter, req *http.Request) {
 	//nazalog.Debugf("%+v", req)
 
 	// TODO chef:
 	// - check appname in URI path
 
-	ri := parseRequestInfo(req.RequestURI)
+	ri := PathStrategy.GetRequestInfo(req.RequestURI, s.outPath)
 	//nazalog.Debugf("%+v", ri)
 
-	if ri.fileName == "" || ri.streamName == "" || (ri.fileType != "m3u8" && ri.fileType != "ts") {
-		nazalog.Warnf("invalid hls request. request=%+v", ri)
+	if ri.FileName == "" || ri.StreamName == "" || ri.FileNameWithPath == "" || (ri.FileType != "m3u8" && ri.FileType != "ts") {
+		nazalog.Warnf("invalid hls request. uri=%s, request=%+v", req.RequestURI, ri)
 		resp.WriteHeader(404)
 		return
 	}
 
-	content, err := readFileContent(s.outPath, ri)
+	content, err := ReadFile(ri.FileNameWithPath)
 	if err != nil {
 		nazalog.Warnf("read hls file failed. request=%+v, err=%+v", ri, err)
 		resp.WriteHeader(404)
 		return
 	}
 
-	switch ri.fileType {
+	switch ri.FileType {
 	case "m3u8":
 		resp.Header().Add("Content-Type", "application/x-mpegurl")
 		resp.Header().Add("Server", base.LALHLSM3U8Server)

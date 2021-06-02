@@ -10,6 +10,7 @@ package avc_test
 
 import (
 	"bytes"
+	"fmt"
 	"testing"
 
 	"github.com/q191201771/naza/pkg/nazabits"
@@ -152,4 +153,146 @@ func TestParsePPS_Case2(t *testing.T) {
 	assert.Equal(t, uint8(32), ctx.Level)
 	assert.Equal(t, uint32(1280), ctx.Width)
 	assert.Equal(t, uint32(960), ctx.Height)
+}
+
+func TestIterateStartCode(t *testing.T) {
+	golden := []struct {
+		nalu   []byte
+		pos    int
+		length int
+	}{
+		{
+			nalu:   []byte{0, 0, 1},
+			pos:    0,
+			length: 3,
+		},
+		{
+			nalu:   []byte{0, 0, 0, 1},
+			pos:    0,
+			length: 4,
+		},
+		{
+			nalu:   []byte{0xa, 0, 0, 0, 1},
+			pos:    1,
+			length: 4,
+		},
+		{
+			nalu:   []byte{0, 1},
+			pos:    -1,
+			length: -1,
+		},
+		{
+			nalu:   []byte{0xa, 0xb},
+			pos:    -1,
+			length: -1,
+		},
+	}
+
+	for _, v := range golden {
+		pos, length := avc.IterateNALUStartCode(v.nalu, 0)
+		assert.Equal(t, v.pos, pos)
+		assert.Equal(t, v.length, length)
+	}
+}
+
+func TestIterateNALUAnnexB(t *testing.T) {
+	golden := []struct {
+		nals    []byte
+		nalList [][]byte
+		err     error
+	}{
+		{
+			nals: []byte{0, 0, 1, 0xa, 0xb},
+			nalList: [][]byte{
+				{0xa, 0xb},
+			},
+			err: nil,
+		},
+		{
+			nals: []byte{0, 0, 0, 1, 0xa, 0xb, 0, 0, 0, 1, 0xc, 0xd},
+			nalList: [][]byte{
+				{0xa, 0xb},
+				{0xc, 0xd},
+			},
+			err: nil,
+		},
+		{
+			nals: []byte{0xa, 0xb},
+			nalList: [][]byte{
+				{0xa, 0xb},
+			},
+			err: avc.ErrAVC,
+		},
+		{
+			nals:    []byte{0, 0, 1},
+			nalList: nil,
+			err:     avc.ErrAVC,
+		},
+		{
+			nals:    []byte{0, 0, 1, 0, 0, 1},
+			nalList: nil,
+			err:     avc.ErrAVC,
+		},
+		{
+			nals:    nil,
+			nalList: nil,
+			err:     avc.ErrAVC,
+		},
+	}
+	for _, v := range golden {
+		nalList, err := avc.SplitNALUAnnexB(v.nals)
+		assert.Equal(t, v.nalList, nalList)
+		assert.Equal(t, v.err, err, fmt.Sprintf("%+v", v))
+	}
+}
+
+func TestIterateNALUAVCC(t *testing.T) {
+	golden := []struct {
+		nals    []byte
+		nalList [][]byte
+		err     error
+	}{
+		{
+			nals: []byte{0, 0, 0, 1, 0xa}, // 正常，1个
+			nalList: [][]byte{
+				{0xa},
+			},
+			err: nil,
+		},
+		{
+			nals: []byte{0, 0, 0, 1, 0xa, 0, 0, 0, 2, 0xa, 0xb}, // 正常，2个
+			nalList: [][]byte{
+				{0xa},
+				{0xa, 0xb},
+			},
+			err: nil,
+		},
+		{
+			nals:    []byte{0, 0}, // length不全
+			nalList: nil,
+			err:     avc.ErrAVC,
+		},
+		{
+			nals:    nil,
+			nalList: nil,
+			err:     avc.ErrAVC,
+		},
+		{
+			nals:    []byte{0, 0, 0, 1}, // 只有length
+			nalList: nil,
+			err:     avc.ErrAVC,
+		},
+		{
+			nals: []byte{0, 0, 0, 2, 0xa}, // 包体数据不全
+			nalList: [][]byte{
+				{0xa},
+			},
+			err: avc.ErrAVC,
+		},
+	}
+	for _, v := range golden {
+		nalList, err := avc.SplitNALUAVCC(v.nals)
+		assert.Equal(t, v.nalList, nalList)
+		assert.Equal(t, v.err, err)
+	}
 }

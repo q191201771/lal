@@ -33,23 +33,37 @@ var ErrHEVC = errors.New("lal.hevc: fxxk")
 
 var (
 	NALUStartCode4 = []byte{0x0, 0x0, 0x0, 0x1}
+
+	// aud nalu
+	AUDNALU = []byte{0x00, 0x00, 0x00, 0x01, 0x46, 0x01, 0x10}
 )
 
 var NALUTypeMapping = map[uint8]string{
-	NALUTypeSliceTrailR: "SLICE",
-	NALUTypeSliceIDR:    "I",
-	NALUTypeSliceIDRNLP: "IDR",
+	NALUTypeSliceTrailN: "TrailN",
+	NALUTypeSliceTrailR: "TrailR",
+	NALUTypeSliceIDR:    "IDR",
+	NALUTypeSliceIDRNLP: "IDRNLP",
+	NALUTypeSliceCRANUT: "CRANUT",
+	NALUTypeVPS:         "VPS",
+	NALUTypeSPS:         "SPS",
+	NALUTypePPS:         "PPS",
+	NALUTypeAUD:         "AUD",
 	NALUTypeSEI:         "SEI",
-	NALUTypeSEISuffix:   "SEI",
+	NALUTypeSEISuffix:   "SEISuffix",
 }
+
+// ISO_IEC_23008-2_2013.pdf
+// Table 7-1 – NAL unit type codes and NAL unit type classes
 var (
 	NALUTypeSliceTrailN uint8 = 0  // 0x0
 	NALUTypeSliceTrailR uint8 = 1  // 0x01
 	NALUTypeSliceIDR    uint8 = 19 // 0x13
 	NALUTypeSliceIDRNLP uint8 = 20 // 0x14
+	NALUTypeSliceCRANUT uint8 = 21 // 0x15
 	NALUTypeVPS         uint8 = 32 // 0x20
 	NALUTypeSPS         uint8 = 33 // 0x21
 	NALUTypePPS         uint8 = 34 // 0x22
+	NALUTypeAUD         uint8 = 35 // 0x23
 	NALUTypeSEI         uint8 = 39 // 0x27
 	NALUTypeSEISuffix   uint8 = 40 // 0x28
 )

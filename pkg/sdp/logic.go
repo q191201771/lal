@@ -21,6 +21,11 @@ type LogicContext struct {
 	AudioClockRate int
 	VideoClockRate int
 
+	ASC []byte
+	VPS []byte
+	SPS []byte
+	PPS []byte
+
 	audioPayloadTypeBase base.AVPacketPT // lal内部定义的类型
 	videoPayloadTypeBase base.AVPacketPT
 
@@ -28,11 +33,6 @@ type LogicContext struct {
 	videoPayloadTypeOrigin int
 	audioAControl          string
 	videoAControl          string
-
-	ASC []byte
-	VPS []byte
-	SPS []byte
-	PPS []byte
 
 	// 没有用上的
 	hasAudio bool
@@ -140,7 +140,7 @@ func ParseSDP2LogicContext(b []byte) (LogicContext, error) {
 				if md.AFmtPBase != nil {
 					ret.SPS, ret.PPS, err = ParseSPSPPS(md.AFmtPBase)
 					if err != nil {
-						return ret, err
+						nazalog.Warnf("parse sps pps from afmtp failed. err=%+v", err)
 					}
 				} else {
 					nazalog.Warnf("avc afmtp not exist.")
@@ -150,7 +150,7 @@ func ParseSDP2LogicContext(b []byte) (LogicContext, error) {
 				if md.AFmtPBase != nil {
 					ret.VPS, ret.SPS, ret.PPS, err = ParseVPSSPSPPS(md.AFmtPBase)
 					if err != nil {
-						return ret, err
+						nazalog.Warnf("parse vps sps pps from afmtp failed. err=%+v", err)
 					}
 				} else {
 					nazalog.Warnf("hevc afmtp not exist.")

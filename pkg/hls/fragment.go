@@ -10,8 +10,6 @@ package hls
 
 import (
 	"github.com/q191201771/naza/pkg/filesystemlayer"
-
-	"github.com/q191201771/lal/pkg/mpegts"
 )
 
 type Fragment struct {
@@ -23,7 +21,6 @@ func (f *Fragment) OpenFile(filename string) (err error) {
 	if err != nil {
 		return
 	}
-	err = f.WriteFile(mpegts.FixedFragmentHeader)
 	return
 }
 

@@ -199,45 +199,36 @@ func analysisVideoTag(tag httpflv.Tag) {
 			buf.WriteString(" [HEVC SeqHeader] ")
 		}
 	} else {
-		body := tag.Raw[11:]
+		body := tag.Raw[httpflv.TagHeaderSize+5 : len(tag.Raw)-httpflv.PrevTagSizeFieldSize]
+		nals, err := avc.SplitNALUAVCC(body)
+		nazalog.Assert(nil, err)
 
-		i := 5
-		for i != int(tag.Header.DataSize) {
-			if i+4 > int(tag.Header.DataSize) {
-				nazalog.Errorf("invalid nalu size. i=%d, tag size=%d", i, int(tag.Header.DataSize))
-				break
-			}
-			naluLen := bele.BEUint32(body[i:])
-			if i+int(naluLen) > int(tag.Header.DataSize) {
-				nazalog.Errorf("invalid nalu size. i=%d, naluLen=%d, tag size=%d", i, naluLen, int(tag.Header.DataSize))
-				break
-			}
+		for _, nal := range nals {
 			switch t {
 			case typeAVC:
-				if avc.ParseNALUType(body[i+4]) == avc.NALUTypeIDRSlice {
+				if avc.ParseNALUType(nal[0]) == avc.NALUTypeIDRSlice {
 					if prevIDRTS != int64(-1) {
 						diffIDRTS = int64(tag.Header.Timestamp) - prevIDRTS
 					}
 					prevIDRTS = int64(tag.Header.Timestamp)
 				}
-				if avc.ParseNALUType(body[i+4]) == avc.NALUTypeSEI {
-					delay := SEIDelayMS(body[i+4 : i+4+int(naluLen)])
+				if avc.ParseNALUType(nal[0]) == avc.NALUTypeSEI {
+					delay := SEIDelayMS(nal)
 					if delay != -1 {
 						buf.WriteString(fmt.Sprintf("delay: %dms", delay))
 					}
 				}
-				sliceTypeReadable, _ := avc.ParseSliceTypeReadable(body[i+4:])
-				buf.WriteString(fmt.Sprintf(" [%s(%s)(%d)] ", avc.ParseNALUTypeReadable(body[i+4]), sliceTypeReadable, naluLen))
+				sliceTypeReadable, _ := avc.ParseSliceTypeReadable(nal)
+				buf.WriteString(fmt.Sprintf(" [%s(%s)(%d)] ", avc.ParseNALUTypeReadable(nal[0]), sliceTypeReadable, len(nal)))
 			case typeHEVC:
-				if hevc.ParseNALUType(body[i+4]) == hevc.NALUTypeSEI {
-					delay := SEIDelayMS(body[i+4 : i+4+int(naluLen)])
+				if hevc.ParseNALUType(nal[0]) == hevc.NALUTypeSEI {
+					delay := SEIDelayMS(nal)
 					if delay != -1 {
 						buf.WriteString(fmt.Sprintf("delay: %dms", delay))
 					}
 				}
-				buf.WriteString(fmt.Sprintf(" [%s(%d)] ", hevc.ParseNALUTypeReadable(body[i+4]), body[i+4]))
+				buf.WriteString(fmt.Sprintf(" [%s(%d)] ", hevc.ParseNALUTypeReadable(nal[0]), nal[0]))
 			}
-			i = i + 4 + int(naluLen)
 		}
 	}
 	if analysisVideoTagFlag {

@@ -31,15 +31,21 @@ var ErrAVC = errors.New("lal.avc: fxxk")
 var (
 	NALUStartCode3 = []byte{0x0, 0x0, 0x1}
 	NALUStartCode4 = []byte{0x0, 0x0, 0x0, 0x1}
+
+	// aud nalu
+	AUDNALU = []byte{0x00, 0x00, 0x00, 0x01, 0x09, 0xf0}
 )
 
+// H.264-AVC-ISO_IEC_14496-15.pdf
+// Table 1 - NAL unit types in elementary streams
 var NALUTypeMapping = map[uint8]string{
-	1: "SLICE",
-	5: "IDR",
-	6: "SEI",
-	7: "SPS",
-	8: "PPS",
-	9: "AUD",
+	1:  "SLICE",
+	5:  "IDR",
+	6:  "SEI",
+	7:  "SPS",
+	8:  "PPS",
+	9:  "AUD",
+	12: "FD",
 }
 
 var SliceTypeMapping = map[uint8]string{
@@ -61,7 +67,8 @@ const (
 	NALUTypeSEI      uint8 = 6
 	NALUTypeSPS      uint8 = 7
 	NALUTypePPS      uint8 = 8
-	NALUTypeAUD      uint8 = 9 // Access Unit Delimiter
+	NALUTypeAUD      uint8 = 9  // Access Unit Delimiter
+	NALUTypeFD       uint8 = 12 // Filler Data
 )
 
 const (
@@ -191,7 +198,11 @@ func ParseSliceTypeReadable(nalu []byte) (string, error) {
 }
 
 // AVCC Seq Header -> AnnexB
-// 注意，返回的内存块为独立的内存块，不依赖指向传输参数<payload>内存块
+//
+// @param payload: rtmp message的payload部分或者flv tag的payload部分
+//                 注意，包含了头部2字节类型以及3字节的cts
+//
+// @return 注意，返回的内存块为独立的内存块，不依赖指向传输参数<payload>内存块
 //
 func SPSPPSSeqHeader2AnnexB(payload []byte) ([]byte, error) {
 	sps, pps, err := ParseSPSPPSFromSeqHeader(payload)
@@ -208,8 +219,8 @@ func SPSPPSSeqHeader2AnnexB(payload []byte) ([]byte, error) {
 
 // 从AVCC格式的Seq Header中得到SPS和PPS内存块
 //
-// @param <payload> rtmp message的payload部分或者flv tag的payload部分
-//                  注意，包含了头部2字节类型以及3字节的cts
+// @param payload: rtmp message的payload部分或者flv tag的payload部分
+//                 注意，包含了头部2字节类型以及3字节的cts
 //
 // @return 注意，返回的sps，pps内存块指向的是传入参数<payload>内存块的内存
 //
@@ -307,8 +318,8 @@ func BuildSeqHeaderFromSPSPPS(sps, pps []byte) ([]byte, error) {
 
 // AVCC -> AnnexB
 //
-// @param <payload> rtmp message的payload部分或者flv tag的payload部分
-//                  注意，包含了头部2字节类型以及3字节的cts
+// @param payload: rtmp message的payload部分或者flv tag的payload部分
+//                 注意，包含了头部2字节类型以及3字节的cts
 //
 func CaptureAVCC2AnnexB(w io.Writer, payload []byte) error {
 	// sps pps
@@ -332,3 +343,119 @@ func CaptureAVCC2AnnexB(w io.Writer, payload []byte) error {
 	}
 	return nil
 }
+
+// 遍历直到找到第一个nalu start code的位置
+//
+// @param start: 从`nalu`的start位置开始查找
+//
+// @return pos:    start code的起始位置（包含start code自身）
+//         length: start code的长度，可能是3或者4
+//         注意，如果找不到start code，则返回-1, -1
+//
+func IterateNALUStartCode(nalu []byte, start int) (pos, length int) {
+	if nalu == nil || start >= len(nalu) {
+		return -1, -1
+	}
+	count := 0
+	for i := range nalu[start:] {
+		switch nalu[start+i] {
+		case 0:
+			count++
+		case 1:
+			if count >= 2 {
+				return start + i - count, count + 1
+			}
+			count = 0
+		default:
+			count = 0
+		}
+	}
+	return -1, -1
+}
+
+// 遍历AnnexB格式，去掉start code，获取nal包，正常情况下可能为1个或多个，异常情况下可能一个也没有
+//
+// 具体见单元测试
+//
+func SplitNALUAnnexB(nals []byte) (nalList [][]byte, err error) {
+	err = IterateNALUAnnexB(nals, func(nal []byte) {
+		nalList = append(nalList, nal)
+	})
+	return
+}
+
+// 遍历AVCC格式，去掉4字节长度，获取nal包，正常情况下可能返回1个或多个，异常情况下可能一个也没有
+//
+// 具体见单元测试
+//
+func SplitNALUAVCC(nals []byte) (nalList [][]byte, err error) {
+	err = IterateNALUAVCC(nals, func(nal []byte) {
+		nalList = append(nalList, nal)
+	})
+	return
+
+}
+
+func IterateNALUAnnexB(nals []byte, handler func(nal []byte)) error {
+	if nals == nil {
+		return ErrAVC
+	}
+	prePos, preLength := IterateNALUStartCode(nals, 0)
+	if prePos == -1 {
+		handler(nals)
+		return ErrAVC
+	}
+
+	for {
+		start := prePos + preLength
+		pos, length := IterateNALUStartCode(nals, start)
+		if pos == -1 {
+			if start < len(nals) {
+				handler(nals[start:])
+				return nil
+			} else {
+				return ErrAVC
+			}
+		}
+		if start < pos {
+			handler(nals[start:pos])
+		} else {
+			return ErrAVC
+		}
+
+		prePos = pos
+		preLength = length
+	}
+}
+
+func IterateNALUAVCC(nals []byte, handler func(nal []byte)) error {
+	if nals == nil {
+		return ErrAVC
+	}
+	pos := 0
+	for {
+		if len(nals[pos:]) < 4 {
+			return ErrAVC
+		}
+		length := int(bele.BEUint32(nals[pos:]))
+		pos += 4
+		if pos == len(nals) {
+			return ErrAVC
+		}
+		epos := pos + length
+		if epos < len(nals) {
+			// 非最后一个
+			handler(nals[pos:epos])
+			pos += length
+		} else if epos == len(nals) {
+			// 最后一个
+			handler(nals[pos:epos])
+			return nil
+		} else {
+			handler(nals[pos:])
+			return ErrAVC
+		}
+	}
+}
+
+// TODO(chef): 是否需要 func NALUAVCC2AnnexB, func NALUAnnexB2AVCC

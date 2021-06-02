@@ -1,6 +1,6 @@
 {
   "# doc of config": "https://pengrl.com/lal/#/ConfigBrief",
-  "conf_version": "v0.1.1",
+  "conf_version": "v0.1.2",
   "rtmp": {
     "enable": true,
     "addr": ":1935",
@@ -31,6 +31,10 @@
   "rtsp": {
     "enable": false,
     "addr": ":5544"
+  },
+  "record": {
+    "enable_flv": false,
+    "enable_mpegts": false
   },
   "relay_push": {
     "enable": false,

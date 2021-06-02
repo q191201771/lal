@@ -17,11 +17,24 @@ const (
 	AVPacketPTAAC     AVPacketPT = RTPPacketTypeAAC
 )
 
-// 目前供package rtsp使用。以后可能被多个package使用。
-// 不排除不同package使用时，字段含义也不同的情况出现。
+// 不同场景使用时，字段含义可能不同。
 // 使用AVPacket的地方，应注明各字段的含义。
 type AVPacket struct {
 	Timestamp   uint32
 	PayloadType AVPacketPT
 	Payload     []byte
+}
+
+func (a AVPacketPT) ReadableString() string {
+	switch a {
+	case AVPacketPTUnknown:
+		return "unknown"
+	case AVPacketPTAVC:
+		return "avc"
+	case AVPacketPTHEVC:
+		return "hevc"
+	case AVPacketPTAAC:
+		return "aac"
+	}
+	return ""
 }

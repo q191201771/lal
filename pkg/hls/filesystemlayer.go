@@ -33,6 +33,10 @@ func SetUseMemoryAsDiskFlag(flag bool) {
 	})
 }
 
+func ReadFile(filename string) ([]byte, error) {
+	return fslCtx.ReadFile(filename)
+}
+
 func RemoveAll(path string) error {
 	return fslCtx.RemoveAll(path)
 }
