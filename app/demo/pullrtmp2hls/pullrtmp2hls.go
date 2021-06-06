@@ -26,17 +26,17 @@ func main() {
 	})
 	defer nazalog.Sync()
 
-	url, hlsOutPath, fragmentDurationMS, fragmentNum := parseFlag()
-	nazalog.Infof("parse flag succ. url=%s, hlsOutPath=%s, fragmentDurationMS=%d, fragmentNum=%d",
-		url, hlsOutPath, fragmentDurationMS, fragmentNum)
+	url, hlsOutPath, fragmentDurationMs, fragmentNum := parseFlag()
+	nazalog.Infof("parse flag succ. url=%s, hlsOutPath=%s, fragmentDurationMs=%d, fragmentNum=%d",
+		url, hlsOutPath, fragmentDurationMs, fragmentNum)
 
 	hlsMuxerConfig := hls.MuxerConfig{
 		OutPath:            hlsOutPath,
-		FragmentDurationMS: fragmentDurationMS,
+		FragmentDurationMs: fragmentDurationMs,
 		FragmentNum:        fragmentNum,
 	}
 
-	ctx, err := base.ParseRTMPURL(url)
+	ctx, err := base.ParseRtmpUrl(url)
 	if err != nil {
 		nazalog.Fatalf("parse rtmp url failed. url=%s, err=%+v", url, err)
 	}
@@ -46,11 +46,11 @@ func main() {
 	hlsMuexer.Start()
 
 	pullSession := rtmp.NewPullSession(func(option *rtmp.PullSessionOption) {
-		option.PullTimeoutMS = 10000
-		option.ReadAVTimeoutMS = 10000
+		option.PullTimeoutMs = 10000
+		option.ReadAvTimeoutMs = 10000
 	})
-	err = pullSession.Pull(url, func(msg base.RTMPMsg) {
-		hlsMuexer.FeedRTMPMessage(msg)
+	err = pullSession.Pull(url, func(msg base.RtmpMsg) {
+		hlsMuexer.FeedRtmpMessage(msg)
 	})
 
 	if err != nil {
@@ -60,7 +60,7 @@ func main() {
 	nazalog.Errorf("< session.Wait [%s] err=%+v", pullSession.UniqueKey(), err)
 }
 
-func parseFlag() (url string, hlsOutPath string, fragmentDurationMS int, fragmentNum int) {
+func parseFlag() (url string, hlsOutPath string, fragmentDurationMs int, fragmentNum int) {
 	i := flag.String("i", "", "specify pull rtmp url")
 	o := flag.String("o", "", "specify ouput hls file")
 	d := flag.Int("d", 3000, "specify duration of each ts file in millisecond")
@@ -73,7 +73,7 @@ func parseFlag() (url string, hlsOutPath string, fragmentDurationMS int, fragmen
   %s -i rtmp://127.0.0.1:19350/live/test110 -o %s
   %s -i rtmp://127.0.0.1:19350/live/test110 -o %s -d 5000 -n 5
 `, os.Args[0], eo, os.Args[0], eo)
-		base.OSExitAndWaitPressIfWindows(1)
+		base.OsExitAndWaitPressIfWindows(1)
 	}
 	return *i, *o, *d, *n
 }

@@ -81,12 +81,12 @@ func (c *ChunkComposer) RunLoop(reader io.Reader, cb OnCompleteMessage) error {
 				return err
 			}
 			// 包头中为绝对时间戳
-			stream.timestamp = bele.BEUint24(bootstrap)
+			stream.timestamp = bele.BeUint24(bootstrap)
 			stream.header.TimestampAbs = stream.timestamp
 			absTsFlag = true
-			stream.header.MsgLen = bele.BEUint24(bootstrap[3:])
-			stream.header.MsgTypeID = bootstrap[6]
-			stream.header.MsgStreamID = int(bele.LEUint32(bootstrap[7:]))
+			stream.header.MsgLen = bele.BeUint24(bootstrap[3:])
+			stream.header.MsgTypeId = bootstrap[6]
+			stream.header.MsgStreamId = int(bele.LeUint32(bootstrap[7:]))
 
 			stream.msg.reserve(stream.header.MsgLen)
 		case 1:
@@ -94,10 +94,10 @@ func (c *ChunkComposer) RunLoop(reader io.Reader, cb OnCompleteMessage) error {
 				return err
 			}
 			// 包头中为相对时间戳
-			stream.timestamp = bele.BEUint24(bootstrap)
+			stream.timestamp = bele.BeUint24(bootstrap)
 			//stream.header.TimestampAbs += stream.header.Timestamp
-			stream.header.MsgLen = bele.BEUint24(bootstrap[3:])
-			stream.header.MsgTypeID = bootstrap[6]
+			stream.header.MsgLen = bele.BeUint24(bootstrap[3:])
+			stream.header.MsgTypeId = bootstrap[6]
 
 			stream.msg.reserve(stream.header.MsgLen)
 		case 2:
@@ -105,7 +105,7 @@ func (c *ChunkComposer) RunLoop(reader io.Reader, cb OnCompleteMessage) error {
 				return err
 			}
 			// 包头中为相对时间戳
-			stream.timestamp = bele.BEUint24(bootstrap)
+			stream.timestamp = bele.BeUint24(bootstrap)
 			//stream.header.TimestampAbs += stream.header.Timestamp
 
 		case 3:
@@ -124,7 +124,7 @@ func (c *ChunkComposer) RunLoop(reader io.Reader, cb OnCompleteMessage) error {
 			if _, err := io.ReadAtLeast(reader, bootstrap[:4], 4); err != nil {
 				return err
 			}
-			stream.timestamp = bele.BEUint32(bootstrap)
+			stream.timestamp = bele.BeUint32(bootstrap)
 			//nazalog.Debugf("RTMP_CHUNK_COMPOSER ext. extTs=%d", stream.header.Timestamp)
 			switch fmt {
 			case 0:
@@ -158,12 +158,12 @@ func (c *ChunkComposer) RunLoop(reader io.Reader, cb OnCompleteMessage) error {
 
 		if stream.msg.len() == stream.header.MsgLen {
 			// 对端设置了chunk size
-			if stream.header.MsgTypeID == base.RTMPTypeIDSetChunkSize {
-				val := bele.BEUint32(stream.msg.buf)
+			if stream.header.MsgTypeId == base.RtmpTypeIdSetChunkSize {
+				val := bele.BeUint32(stream.msg.buf)
 				c.SetPeerChunkSize(val)
 			}
 
-			stream.header.CSID = csid
+			stream.header.Csid = csid
 			if !absTsFlag {
 				// 这么处理相当于取最后一个chunk的时间戳差值，有的协议栈是取的第一个，正常来说都可以
 				stream.header.TimestampAbs += stream.timestamp
@@ -172,7 +172,7 @@ func (c *ChunkComposer) RunLoop(reader io.Reader, cb OnCompleteMessage) error {
 			//nazalog.Debugf("RTMP_CHUNK_COMPOSER cb. fmt=%d, csid=%d, header=%+v, ctimestamp=%d, c=%p",
 			//	fmt, csid, stream.header, stream.timestamp, c)
 
-			if stream.header.MsgTypeID == base.RTMPTypeIDAggregateMessage {
+			if stream.header.MsgTypeId == base.RtmpTypeIdAggregateMessage {
 				firstSubMessage := true
 				baseTimestamp := uint32(0)
 
@@ -180,22 +180,22 @@ func (c *ChunkComposer) RunLoop(reader io.Reader, cb OnCompleteMessage) error {
 				if aggregateStream == nil {
 					aggregateStream = NewStream()
 				}
-				aggregateStream.header.CSID = stream.header.CSID
+				aggregateStream.header.Csid = stream.header.Csid
 
 				for stream.msg.len() != 0 {
 					// 读取sub message的头
 					if stream.msg.len() < 11 {
-						return ErrRTMP
+						return ErrRtmp
 					}
-					aggregateStream.header.MsgTypeID = stream.msg.buf[stream.msg.b]
+					aggregateStream.header.MsgTypeId = stream.msg.buf[stream.msg.b]
 					stream.msg.consumed(1)
-					aggregateStream.header.MsgLen = bele.BEUint24(stream.msg.buf[stream.msg.b:])
+					aggregateStream.header.MsgLen = bele.BeUint24(stream.msg.buf[stream.msg.b:])
 					stream.msg.consumed(3)
-					aggregateStream.timestamp = bele.BEUint24(stream.msg.buf[stream.msg.b:])
+					aggregateStream.timestamp = bele.BeUint24(stream.msg.buf[stream.msg.b:])
 					stream.msg.consumed(3)
 					aggregateStream.timestamp += uint32(stream.msg.buf[stream.msg.b]) << 24
 					stream.msg.consumed(1)
-					aggregateStream.header.MsgStreamID = int(bele.BEUint24(stream.msg.buf[stream.msg.b:]))
+					aggregateStream.header.MsgStreamId = int(bele.BeUint24(stream.msg.buf[stream.msg.b:]))
 					stream.msg.consumed(3)
 
 					// 计算时间戳
@@ -207,7 +207,7 @@ func (c *ChunkComposer) RunLoop(reader io.Reader, cb OnCompleteMessage) error {
 
 					// message包体
 					if stream.msg.len() < aggregateStream.header.MsgLen {
-						return ErrRTMP
+						return ErrRtmp
 					}
 					aggregateStream.msg.buf = stream.msg.buf[stream.msg.b : stream.msg.b+aggregateStream.header.MsgLen]
 					//aggregateStream.msg.b = 0
@@ -221,7 +221,7 @@ func (c *ChunkComposer) RunLoop(reader io.Reader, cb OnCompleteMessage) error {
 
 					// 跳过prev size字段
 					if stream.msg.len() < 4 {
-						return ErrRTMP
+						return ErrRtmp
 					}
 					stream.msg.consumed(4)
 				}
@@ -253,8 +253,8 @@ func (c *ChunkComposer) getOrCreateStream(csid int) *Stream {
 // 场景：ffmpeg推送test.flv至lalserver
 // 关注点：message超过chunk时，fmt和timestamp的值
 //
-// ChunkComposer chunk fmt:1 header:{CSID:6 MsgLen:143 Timestamp:40 MsgTypeID:9 MsgStreamID:1 TimestampAbs:520} csid:6 len:143 ts:520
-// ChunkComposer chunk fmt:1 header:{CSID:6 MsgLen:4511 Timestamp:40 MsgTypeID:9 MsgStreamID:1 TimestampAbs:560} csid:6 len:4511 ts:560
-// ChunkComposer chunk fmt:3 header:{CSID:6 MsgLen:4511 Timestamp:40 MsgTypeID:9 MsgStreamID:1 TimestampAbs:560} csid:6 len:4511 ts:560
+// ChunkComposer chunk fmt:1 header:{Csid:6 MsgLen:143 Timestamp:40 MsgTypeId:9 MsgStreamId:1 TimestampAbs:520} csid:6 len:143 ts:520
+// ChunkComposer chunk fmt:1 header:{Csid:6 MsgLen:4511 Timestamp:40 MsgTypeId:9 MsgStreamId:1 TimestampAbs:560} csid:6 len:4511 ts:560
+// ChunkComposer chunk fmt:3 header:{Csid:6 MsgLen:4511 Timestamp:40 MsgTypeId:9 MsgStreamId:1 TimestampAbs:560} csid:6 len:4511 ts:560
 // 此处应只给上层返回一次，也即一个message，时间戳应该是560
-// ChunkComposer chunk fmt:1 header:{CSID:6 MsgLen:904 Timestamp:40 MsgTypeID:9 MsgStreamID:1 TimestampAbs:600} csid:6 len:904 ts:600
+// ChunkComposer chunk fmt:1 header:{Csid:6 MsgLen:904 Timestamp:40 MsgTypeId:9 MsgStreamId:1 TimestampAbs:600} csid:6 len:904 ts:600

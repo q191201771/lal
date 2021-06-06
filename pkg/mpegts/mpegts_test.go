@@ -15,14 +15,14 @@ import (
 	"github.com/q191201771/naza/pkg/nazalog"
 )
 
-func TestParseFixedTSPacket(t *testing.T) {
-	h := mpegts.ParseTSPacketHeader(mpegts.FixedFragmentHeader)
+func TestParseFixedTsPacket(t *testing.T) {
+	h := mpegts.ParseTsPacketHeader(mpegts.FixedFragmentHeader)
 	nazalog.Debugf("%+v", h)
-	pat := mpegts.ParsePAT(mpegts.FixedFragmentHeader[5:])
+	pat := mpegts.ParsePat(mpegts.FixedFragmentHeader[5:])
 	nazalog.Debugf("%+v", pat)
 
-	h = mpegts.ParseTSPacketHeader(mpegts.FixedFragmentHeaderHEVC[188:])
+	h = mpegts.ParseTsPacketHeader(mpegts.FixedFragmentHeaderHevc[188:])
 	nazalog.Debugf("%+v", h)
-	pmt := mpegts.ParsePMT(mpegts.FixedFragmentHeader[188+5:])
+	pmt := mpegts.ParsePmt(mpegts.FixedFragmentHeader[188+5:])
 	nazalog.Debugf("%+v", pmt)
 }

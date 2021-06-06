@@ -12,11 +12,11 @@ import (
 	"testing"
 )
 
-func TestHTTPServerManager(t *testing.T) {
+func TestHttpServerManager(t *testing.T) {
 	//var err error
 	//
-	//var fnFLV = func(writer http.ResponseWriter, request *http.Request) {
-	//	nazalog.Debugf("> fnFLV. %+v, %+v", writer, request)
+	//var fnFlv = func(writer http.ResponseWriter, request *http.Request) {
+	//	nazalog.Debugf("> fnFlv. %+v, %+v", writer, request)
 	//	conn, bio, err := writer.(http.Hijacker).Hijack()
 	//	if err != nil {
 	//		nazalog.Errorf("hijack failed. err=%+v", err)
@@ -28,19 +28,19 @@ func TestHTTPServerManager(t *testing.T) {
 	//	nazalog.Debugf("%+v, %+v, %+v", conn, bio, err)
 	//}
 	//
-	//sm := NewHTTPServerManager()
+	//sm := NewHttpServerManager()
 	//
 	//err = sm.AddListen(
-	//	LocalAddrCtx{IsHTTPS: false, Addr: ":8080"},
+	//	LocalAddrCtx{IsHttps: false, Addr: ":8080"},
 	//	"/live/",
-	//	fnFLV,
+	//	fnFlv,
 	//)
 	//assert.Equal(t, nil, err)
 	//
 	//err = sm.AddListen(
-	//	LocalAddrCtx{IsHTTPS: true, Addr: ":4433", CertFile: "../../conf/cert.pem", KeyFile: "../../conf/key.pem"},
+	//	LocalAddrCtx{IsHttps: true, Addr: ":4433", CertFile: "../../conf/cert.pem", KeyFile: "../../conf/key.pem"},
 	//	"/live/",
-	//	fnFLV,
+	//	fnFlv,
 	//)
 	//assert.Equal(t, nil, err)
 	//

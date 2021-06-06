@@ -53,7 +53,7 @@ func main() {
 		go func(u string) {
 			pullSession := rtmp.NewPullSession()
 			b := time.Now()
-			err := pullSession.Pull(u, func(msg base.RTMPMsg) {
+			err := pullSession.Pull(u, func(msg base.RtmpMsg) {
 			})
 			cost := time.Now().Sub(b).Milliseconds()
 			mu.Lock()
@@ -110,7 +110,7 @@ func parseFlag() (urlTmpl string, num int) {
   %s -i rtmp://127.0.0.1:1935/live/test -n 1000
   %s -i rtmp://127.0.0.1:1935/live/test_{i} -n 1000
 `, os.Args[0], os.Args[0])
-		base.OSExitAndWaitPressIfWindows(1)
+		base.OsExitAndWaitPressIfWindows(1)
 	}
 	return *i, *n
 }

@@ -12,8 +12,8 @@ import (
 	"testing"
 )
 
-func TestHTTPAPIServer(t *testing.T) {
-	//s := logic.NewHTTPAPIServer(":8083")
+func TestHttpApiServer(t *testing.T) {
+	//s := logic.NewHttpApiServer(":8083")
 	//if err := s.Listen(); err != nil {
 	//	nazalog.Error(err)
 	//	return

@@ -49,7 +49,7 @@ func parseFlag() string {
 	flag.Parse()
 	if *url == "" {
 		flag.Usage()
-		base.OSExitAndWaitPressIfWindows(1)
+		base.OsExitAndWaitPressIfWindows(1)
 	}
 	return *url
 }

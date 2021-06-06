@@ -12,7 +12,7 @@ import (
 	"errors"
 )
 
-var ErrHTTPFLV = errors.New("lal.httpflv: fxxk")
+var ErrHttpflv = errors.New("lal.httpflv: fxxk")
 
 const (
 	TagHeaderSize        int = 11
@@ -33,29 +33,29 @@ const (
 )
 
 const (
-	codecIDAVC  uint8 = 7
-	codecIDHEVC uint8 = 12
+	codecIdAvc  uint8 = 7
+	codecIdHevc uint8 = 12
 )
 
 const (
-	AVCKeyFrame   = frameTypeKey<<4 | codecIDAVC
-	AVCInterFrame = frameTypeInter<<4 | codecIDAVC
+	AvcKeyFrame   = frameTypeKey<<4 | codecIdAvc
+	AvcInterFrame = frameTypeInter<<4 | codecIdAvc
 
-	HEVCKeyFrame   = frameTypeKey<<4 | codecIDHEVC
-	HEVCInterFrame = frameTypeInter<<4 | codecIDHEVC
+	HevcKeyFrame   = frameTypeKey<<4 | codecIdHevc
+	HevcInterFrame = frameTypeInter<<4 | codecIdHevc
 )
 
 const (
-	AVCPacketTypeSeqHeader uint8 = 0
-	AVCPacketTypeNALU      uint8 = 1
+	AvcPacketTypeSeqHeader uint8 = 0
+	AvcPacketTypeNalu      uint8 = 1
 
-	HEVCPacketTypeSeqHeader uint8 = 0
-	HEVCPacketTypeNALU      uint8 = 1
+	HevcPacketTypeSeqHeader uint8 = 0
+	HevcPacketTypeNalu      uint8 = 1
 
-	AACPacketTypeSeqHeader uint8 = 0
-	AACPacketTypeRaw       uint8 = 1
+	AacPacketTypeSeqHeader uint8 = 0
+	AacPacketTypeRaw       uint8 = 1
 )
 
 const (
-	SoundFormatAAC uint8 = 10
+	SoundFormatAac uint8 = 10
 )

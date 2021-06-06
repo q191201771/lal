@@ -26,17 +26,17 @@ var defaultChunkDivider = ChunkDivider{
 }
 
 // @return 返回的内存块由内部申请，不依赖参数<message>内存块
-func Message2Chunks(message []byte, header *base.RTMPHeader) []byte {
+func Message2Chunks(message []byte, header *base.RtmpHeader) []byte {
 	return defaultChunkDivider.Message2Chunks(message, header)
 }
 
 // TODO chef: 新的 message 的第一个 chunk 始终使用 fmt0 格式，没有参考前一个 message
-func (d *ChunkDivider) Message2Chunks(message []byte, header *base.RTMPHeader) []byte {
+func (d *ChunkDivider) Message2Chunks(message []byte, header *base.RtmpHeader) []byte {
 	return message2Chunks(message, header, nil, d.localChunkSize)
 }
 
 // @param 返回头的大小
-func calcHeader(header *base.RTMPHeader, prevHeader *base.RTMPHeader, out []byte) int {
+func calcHeader(header *base.RtmpHeader, prevHeader *base.RtmpHeader, out []byte) int {
 	var index int
 
 	// 计算fmt和timestamp
@@ -45,9 +45,9 @@ func calcHeader(header *base.RTMPHeader, prevHeader *base.RTMPHeader, out []byte
 	if prevHeader == nil {
 		timestamp = header.TimestampAbs
 	} else {
-		if header.MsgStreamID == prevHeader.MsgStreamID {
+		if header.MsgStreamId == prevHeader.MsgStreamId {
 			fmt++
-			if header.MsgLen == prevHeader.MsgLen && header.MsgTypeID == prevHeader.MsgTypeID {
+			if header.MsgLen == prevHeader.MsgLen && header.MsgTypeId == prevHeader.MsgTypeId {
 				fmt++
 				if header.TimestampAbs == prevHeader.TimestampAbs {
 					fmt++
@@ -69,40 +69,40 @@ func calcHeader(header *base.RTMPHeader, prevHeader *base.RTMPHeader, out []byte
 	out[index] = fmt << 6
 
 	// 设置csid
-	if header.CSID >= 2 && header.CSID <= 63 {
-		out[index] |= uint8(header.CSID)
+	if header.Csid >= 2 && header.Csid <= 63 {
+		out[index] |= uint8(header.Csid)
 		index++
-	} else if header.CSID >= 64 && header.CSID <= 319 {
+	} else if header.Csid >= 64 && header.Csid <= 319 {
 		// value 0
 		index++
-		out[index] = uint8(header.CSID - 64)
+		out[index] = uint8(header.Csid - 64)
 		index++
 	} else {
 		out[index] |= 1
 		index++
-		out[index] = uint8(header.CSID - 64)
+		out[index] = uint8(header.Csid - 64)
 		index++
-		out[index] = uint8((header.CSID - 64) >> 8)
+		out[index] = uint8((header.Csid - 64) >> 8)
 		index++
 	}
 
-	// 设置timestamp msgLen msgTypeID msgStreamID
+	// 设置timestamp msgLen msgTypeId msgStreamId
 	if fmt <= 2 {
 		if timestamp > maxTimestampInMessageHeader {
-			bele.BEPutUint24(out[index:], maxTimestampInMessageHeader)
+			bele.BePutUint24(out[index:], maxTimestampInMessageHeader)
 		} else {
-			bele.BEPutUint24(out[index:], timestamp)
+			bele.BePutUint24(out[index:], timestamp)
 		}
 		index += 3
 
 		if fmt <= 1 {
-			bele.BEPutUint24(out[index:], header.MsgLen)
+			bele.BePutUint24(out[index:], header.MsgLen)
 			index += 3
-			out[index] = header.MsgTypeID
+			out[index] = header.MsgTypeId
 			index++
 
 			if fmt == 0 {
-				bele.LEPutUint32(out[index:], uint32(header.MsgStreamID))
+				bele.LePutUint32(out[index:], uint32(header.MsgStreamId))
 				index += 4
 			}
 		}
@@ -111,16 +111,16 @@ func calcHeader(header *base.RTMPHeader, prevHeader *base.RTMPHeader, out []byte
 	// 设置扩展时间戳
 	if timestamp > maxTimestampInMessageHeader {
 		//log.Debugf("CHEFERASEME %+v %+v %d %d", header, prevHeader, timestamp, index)
-		bele.BEPutUint32(out[index:], timestamp)
+		bele.BePutUint32(out[index:], timestamp)
 		index += 4
 	}
 
 	return index
 }
 
-func message2Chunks(message []byte, header *base.RTMPHeader, prevHeader *base.RTMPHeader, chunkSize int) []byte {
-	//if header.CSID < minCSID || header.CSID > maxCSID {
-	//	return nil, ErrRTMP
+func message2Chunks(message []byte, header *base.RtmpHeader, prevHeader *base.RtmpHeader, chunkSize int) []byte {
+	//if header.Csid < minCsid || header.Csid > maxCsid {
+	//	return nil, ErrRtmp
 	//}
 
 	// 计算chunk数量，最后一个chunk的大小

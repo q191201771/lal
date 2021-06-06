@@ -48,17 +48,17 @@ var (
 
 	confFile = "testdata/lalserver.conf.json"
 
-	rFLVFileName      = "testdata/test.flv"
-	wFLVPullFileName  = "testdata/flvpull.flv"
-	wRTMPPullFileName = "testdata/rtmppull.flv"
+	rFlvFileName      = "testdata/test.flv"
+	wFlvPullFileName  = "testdata/flvpull.flv"
+	wRtmpPullFileName = "testdata/rtmppull.flv"
 
-	pushURL        string
-	httpflvPullURL string
-	rtmpPullURL    string
+	pushUrl        string
+	httpflvPullUrl string
+	rtmpPullUrl    string
 
-	fileReader    httpflv.FLVFileReader
-	httpFLVWriter httpflv.FLVFileWriter
-	rtmpWriter    httpflv.FLVFileWriter
+	fileReader    httpflv.FlvFileReader
+	httpFlvWriter httpflv.FlvFileWriter
+	rtmpWriter    httpflv.FlvFileWriter
 
 	pushSession        *rtmp.PushSession
 	httpflvPullSession *httpflv.PullSession
@@ -80,33 +80,33 @@ func InnerTestEntry(t *testing.T) {
 
 	config := logic.GetConfig()
 
-	_ = os.RemoveAll(config.HLSConfig.OutPath)
+	_ = os.RemoveAll(config.HlsConfig.OutPath)
 
-	pushURL = fmt.Sprintf("rtmp://127.0.0.1%s/live/innertest", config.RTMPConfig.Addr)
-	httpflvPullURL = fmt.Sprintf("http://127.0.0.1%s/live/innertest.flv", config.HTTPFLVConfig.HTTPListenAddr)
-	rtmpPullURL = fmt.Sprintf("rtmp://127.0.0.1%s/live/innertest", config.RTMPConfig.Addr)
+	pushUrl = fmt.Sprintf("rtmp://127.0.0.1%s/live/innertest", config.RtmpConfig.Addr)
+	httpflvPullUrl = fmt.Sprintf("http://127.0.0.1%s/live/innertest.flv", config.HttpflvConfig.HttpListenAddr)
+	rtmpPullUrl = fmt.Sprintf("rtmp://127.0.0.1%s/live/innertest", config.RtmpConfig.Addr)
 
-	err = fileReader.Open(rFLVFileName)
+	err = fileReader.Open(rFlvFileName)
 	assert.Equal(t, nil, err)
 
-	err = httpFLVWriter.Open(wFLVPullFileName)
+	err = httpFlvWriter.Open(wFlvPullFileName)
 	assert.Equal(t, nil, err)
-	err = httpFLVWriter.WriteRaw(httpflv.FLVHeader)
+	err = httpFlvWriter.WriteRaw(httpflv.FlvHeader)
 	assert.Equal(t, nil, err)
 
-	err = rtmpWriter.Open(wRTMPPullFileName)
+	err = rtmpWriter.Open(wRtmpPullFileName)
 	assert.Equal(t, nil, err)
-	err = rtmpWriter.WriteRaw(httpflv.FLVHeader)
+	err = rtmpWriter.WriteRaw(httpflv.FlvHeader)
 	assert.Equal(t, nil, err)
 
 	go func() {
 		rtmpPullSession = rtmp.NewPullSession(func(option *rtmp.PullSessionOption) {
-			option.ReadAVTimeoutMS = 500
+			option.ReadAvTimeoutMs = 500
 		})
 		err := rtmpPullSession.Pull(
-			rtmpPullURL,
-			func(msg base.RTMPMsg) {
-				tag := remux.RTMPMsg2FLVTag(msg)
+			rtmpPullUrl,
+			func(msg base.RtmpMsg) {
+				tag := remux.RtmpMsg2FlvTag(msg)
 				err := rtmpWriter.WriteTag(*tag)
 				assert.Equal(tt, nil, err)
 				rtmpPullTagCount.Increment()
@@ -120,10 +120,10 @@ func InnerTestEntry(t *testing.T) {
 
 	go func() {
 		httpflvPullSession = httpflv.NewPullSession(func(option *httpflv.PullSessionOption) {
-			option.ReadTimeoutMS = 500
+			option.ReadTimeoutMs = 500
 		})
-		err := httpflvPullSession.Pull(httpflvPullURL, func(tag httpflv.Tag) {
-			err := httpFLVWriter.WriteTag(tag)
+		err := httpflvPullSession.Pull(httpflvPullUrl, func(tag httpflv.Tag) {
+			err := httpFlvWriter.WriteTag(tag)
 			assert.Equal(t, nil, err)
 			httpflvPullTagCount.Increment()
 		})
@@ -133,7 +133,7 @@ func InnerTestEntry(t *testing.T) {
 	time.Sleep(200 * time.Millisecond)
 
 	pushSession = rtmp.NewPushSession()
-	err = pushSession.Push(pushURL)
+	err = pushSession.Push(pushUrl)
 	assert.Equal(t, nil, err)
 
 	for {
@@ -143,7 +143,7 @@ func InnerTestEntry(t *testing.T) {
 		}
 		assert.Equal(t, nil, err)
 		fileTagCount.Increment()
-		msg := remux.FLVTag2RTMPMsg(tag)
+		msg := remux.FlvTag2RtmpMsg(tag)
 		chunks := rtmp.Message2Chunks(msg.Payload, &msg.Header)
 		err = pushSession.Write(chunks)
 		assert.Equal(t, nil, err)
@@ -157,7 +157,7 @@ func InnerTestEntry(t *testing.T) {
 	pushSession.Dispose()
 	httpflvPullSession.Dispose()
 	rtmpPullSession.Dispose()
-	httpFLVWriter.Dispose()
+	httpFlvWriter.Dispose()
 	rtmpWriter.Dispose()
 	// 由于windows没有信号，会导致编译错误，所以直接调用Dispose
 	//_ = syscall.Kill(syscall.Getpid(), syscall.SIGUSR1)
@@ -169,7 +169,7 @@ func InnerTestEntry(t *testing.T) {
 	var allContent []byte
 	var fileNum int
 	err = filebatch.Walk(
-		fmt.Sprintf("%sinnertest", config.HLSConfig.OutPath),
+		fmt.Sprintf("%sinnertest", config.HlsConfig.OutPath),
 		false,
 		".ts",
 		func(path string, info os.FileInfo, content []byte, err error) []byte {
@@ -178,30 +178,30 @@ func InnerTestEntry(t *testing.T) {
 			return nil
 		})
 	assert.Equal(t, nil, err)
-	allContentMD5 := nazamd5.MD5(allContent)
+	allContentMd5 := nazamd5.Md5(allContent)
 	assert.Equal(t, 8, fileNum)
 	assert.Equal(t, 2219152, len(allContent))
-	assert.Equal(t, "48db6251d40c271fd11b05650f074e0f", allContentMD5)
+	assert.Equal(t, "48db6251d40c271fd11b05650f074e0f", allContentMd5)
 }
 
 func compareFile() {
-	r, err := ioutil.ReadFile(rFLVFileName)
+	r, err := ioutil.ReadFile(rFlvFileName)
 	assert.Equal(tt, nil, err)
-	nazalog.Debugf("%s filesize:%d", rFLVFileName, len(r))
+	nazalog.Debugf("%s filesize:%d", rFlvFileName, len(r))
 
-	w, err := ioutil.ReadFile(wFLVPullFileName)
+	w, err := ioutil.ReadFile(wFlvPullFileName)
 	assert.Equal(tt, nil, err)
-	nazalog.Debugf("%s filesize:%d", wFLVPullFileName, len(w))
+	nazalog.Debugf("%s filesize:%d", wFlvPullFileName, len(w))
 	res := bytes.Compare(r, w)
 	assert.Equal(tt, 0, res)
-	err = os.Remove(wFLVPullFileName)
+	err = os.Remove(wFlvPullFileName)
 	assert.Equal(tt, nil, err)
 
-	w2, err := ioutil.ReadFile(wRTMPPullFileName)
+	w2, err := ioutil.ReadFile(wRtmpPullFileName)
 	assert.Equal(tt, nil, err)
-	nazalog.Debugf("%s filesize:%d", wRTMPPullFileName, len(w2))
+	nazalog.Debugf("%s filesize:%d", wRtmpPullFileName, len(w2))
 	res = bytes.Compare(r, w2)
 	assert.Equal(tt, 0, res)
-	err = os.Remove(wRTMPPullFileName)
+	err = os.Remove(wRtmpPullFileName)
 	assert.Equal(tt, nil, err)
 }

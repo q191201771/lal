@@ -16,63 +16,63 @@ import "strings"
 // 并且将这些信息打入可执行文件、日志、各协议中的标准版本字段中
 
 // 版本，该变量由外部脚本修改维护
-const LALVersion = "v0.22.0"
+const LalVersion = "v0.22.0"
 
 var (
-	LALLibraryName = "lal"
-	LALGithubRepo  = "github.com/q191201771/lal"
-	LALGithubSite  = "https://github.com/q191201771/lal"
-	LALDocSite     = "https://pengrl.com/lal"
+	LalLibraryName = "lal"
+	LalGithubRepo  = "github.com/q191201771/lal"
+	LalGithubSite  = "https://github.com/q191201771/lal"
+	LalDocSite     = "https://pengrl.com/lal"
 
 	// e.g. lal v0.12.3 (github.com/q191201771/lal)
-	LALFullInfo = LALLibraryName + " " + LALVersion + " (" + LALGithubRepo + ")"
+	LalFullInfo = LalLibraryName + " " + LalVersion + " (" + LalGithubRepo + ")"
 
 	// e.g. 0.12.3
-	LALVersionDot string
+	LalVersionDot string
 
 	// e.g. 0,12,3
-	LALVersionComma string
+	LalVersionComma string
 )
 
 var (
 	// 植入rtmp握手随机字符串中
 	// e.g. lal v0.12.3 (github.com/q191201771/lal)
-	LALRTMPHandshakeWaterMark string
+	LalRtmpHandshakeWaterMark string
 
 	// 植入rtmp server中的connect result信令中
 	// 注意，有两个object，第一个object中的fmsVer我们保持通用公认的值，在第二个object中植入
 	// e.g. 0,12,3
-	LALRTMPConnectResultVersion string
+	LalRtmpConnectResultVersion string
 
 	// e.g. lal0.12.3
-	LALRTMPPushSessionConnectVersion string
+	LalRtmpPushSessionConnectVersion string
 
 	// e.g. lal0.12.3
-	LALRTMPBuildMetadataEncoder string
+	LalRtmpBuildMetadataEncoder string
 
 	// e.g. lal/0.12.3
-	LALHTTPFLVPullSessionUA string
+	LalHttpflvPullSessionUa string
 
 	// e.g. lal0.12.3
-	LALHTTPFLVSubSessionServer string
+	LalHttpflvSubSessionServer string
 
 	// e.g. lal0.12.3
-	LALHLSM3U8Server string
+	LalHlsM3u8Server string
 
 	// e.g. lal0.12.3
-	LALHLSTSServer string
+	LalHlsTsServer string
 
 	// e.g. lal0.12.3
-	LALRTSPOptionsResponseServer string
+	LalRtspOptionsResponseServer string
 
 	// e.g. lal0.12.3
-	LALHTTPTSSubSessionServer string
+	LalHttptsSubSessionServer string
 
 	// e.g. lal0.12.3
-	LALHTTPAPIServer string
+	LalHttpApiServer string
 
 	// e.g. lal/0.12.3
-	LALRTSPPullSessionUA string
+	LalRtspPullSessionUa string
 )
 
 // - rtmp handshake random buf
@@ -106,22 +106,22 @@ var (
 //     - `server:`
 
 func init() {
-	LALVersionDot = strings.TrimPrefix(LALVersion, "v")
-	LALVersionComma = strings.Replace(LALVersionDot, ".", ",", -1)
+	LalVersionDot = strings.TrimPrefix(LalVersion, "v")
+	LalVersionComma = strings.Replace(LalVersionDot, ".", ",", -1)
 
-	LALRTMPConnectResultVersion = LALVersionComma
+	LalRtmpConnectResultVersion = LalVersionComma
 
-	LALRTMPPushSessionConnectVersion = LALLibraryName + LALVersionDot
-	LALRTMPBuildMetadataEncoder = LALLibraryName + LALVersionDot
-	LALHTTPFLVSubSessionServer = LALLibraryName + LALVersionDot
-	LALHLSM3U8Server = LALLibraryName + LALVersionDot
-	LALHLSTSServer = LALLibraryName + LALVersionDot
-	LALRTSPOptionsResponseServer = LALLibraryName + LALVersionDot
-	LALHTTPTSSubSessionServer = LALLibraryName + LALVersionDot
-	LALHTTPAPIServer = LALLibraryName + LALVersionDot
+	LalRtmpPushSessionConnectVersion = LalLibraryName + LalVersionDot
+	LalRtmpBuildMetadataEncoder = LalLibraryName + LalVersionDot
+	LalHttpflvSubSessionServer = LalLibraryName + LalVersionDot
+	LalHlsM3u8Server = LalLibraryName + LalVersionDot
+	LalHlsTsServer = LalLibraryName + LalVersionDot
+	LalRtspOptionsResponseServer = LalLibraryName + LalVersionDot
+	LalHttptsSubSessionServer = LalLibraryName + LalVersionDot
+	LalHttpApiServer = LalLibraryName + LalVersionDot
 
-	LALHTTPFLVPullSessionUA = LALLibraryName + "/" + LALVersionDot
-	LALRTSPPullSessionUA = LALLibraryName + "/" + LALVersionDot
+	LalHttpflvPullSessionUa = LalLibraryName + "/" + LalVersionDot
+	LalRtspPullSessionUa = LalLibraryName + "/" + LalVersionDot
 
-	LALRTMPHandshakeWaterMark = LALFullInfo
+	LalRtmpHandshakeWaterMark = LalFullInfo
 }

@@ -10,7 +10,7 @@ package base
 
 // 文档见： https://pengrl.com/p/20100/
 
-const HTTPAPIVersion = "v0.1.4"
+const HttpApiVersion = "v0.1.4"
 
 const (
 	ErrorCodeSucc            = 0
@@ -23,46 +23,46 @@ const (
 	DespSessionNotFound      = "session not found"
 )
 
-type HTTPResponseBasic struct {
+type HttpResponseBasic struct {
 	ErrorCode int    `json:"error_code"`
 	Desp      string `json:"desp"`
 }
 
-type LALInfo struct {
-	ServerID      string `json:"server_id"`
+type LalInfo struct {
+	ServerId      string `json:"server_id"`
 	BinInfo       string `json:"bin_info"`
 	LalVersion    string `json:"lal_version"`
-	APIVersion    string `json:"api_version"`
+	ApiVersion    string `json:"api_version"`
 	NotifyVersion string `json:"notify_version"`
 	StartTime     string `json:"start_time"`
 }
 
-type APIStatLALInfo struct {
-	HTTPResponseBasic
-	Data LALInfo `json:"data"`
+type ApiStatLalInfo struct {
+	HttpResponseBasic
+	Data LalInfo `json:"data"`
 }
 
-type APIStatAllGroup struct {
-	HTTPResponseBasic
+type ApiStatAllGroup struct {
+	HttpResponseBasic
 	Data struct {
 		Groups []StatGroup `json:"groups"`
 	} `json:"data"`
 }
 
-type APIStatGroup struct {
-	HTTPResponseBasic
+type ApiStatGroup struct {
+	HttpResponseBasic
 	Data *StatGroup `json:"data"`
 }
 
-type APICtrlStartPullReq struct {
+type ApiCtrlStartPullReq struct {
 	Protocol   string `json:"protocol"`
 	Addr       string `json:"addr"`
 	AppName    string `json:"app_name"`
 	StreamName string `json:"stream_name"`
-	URLParam   string `json:"url_param"`
+	UrlParam   string `json:"url_param"`
 }
 
-type APICtrlKickOutSession struct {
+type ApiCtrlKickOutSession struct {
 	StreamName string `json:"stream_name"`
-	SessionID  string `json:"session_id"`
+	SessionId  string `json:"session_id"`
 }

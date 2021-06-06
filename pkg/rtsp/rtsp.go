@@ -26,7 +26,7 @@ import (
 // - out缺少主动发送sr
 // - pull session回调有observer interface和on func回调两种方式，是否需要统一
 
-var ErrRTSP = errors.New("lal.rtsp: fxxk")
+var ErrRtsp = errors.New("lal.rtsp: fxxk")
 
 const (
 	MethodOptions      = "OPTIONS"
@@ -48,17 +48,17 @@ const (
 	HeaderTransport       = "Transport"
 	HeaderSession         = "Session"
 	HeaderRange           = "Range"
-	HeaderWWWAuthenticate = "WWW-Authenticate"
+	HeaderWwwAuthenticate = "WWW-Authenticate"
 	HeaderAuthorization   = "Authorization"
 	HeaderPublic          = "Public"
 
 	// header value
-	HeaderAcceptApplicationSDP         = "application/sdp"
+	HeaderAcceptApplicationSdp         = "application/sdp"
 	HeaderRangeDefault                 = "npt=0.000-"
-	HeaderTransportClientPlayTmpl      = "RTP/AVP/UDP;unicast;client_port=%d-%d" // localRTPPort, localRTCPPort
-	HeaderTransportClientPlayTCPTmpl   = "RTP/AVP/TCP;unicast;interleaved=%d-%d" // rtpChannel, rtcpChannel
+	HeaderTransportClientPlayTmpl      = "RTP/AVP/UDP;unicast;client_port=%d-%d" // localRtpPort, localRtcpPort
+	HeaderTransportClientPlayTcpTmpl   = "RTP/AVP/TCP;unicast;interleaved=%d-%d" // rtpChannel, rtcpChannel
 	HeaderTransportClientRecordTmpl    = "RTP/AVP/UDP;unicast;client_port=%d-%d;mode=record"
-	HeaderTransportClientRecordTCPTmpl = "RTP/AVP/TCP;unicast;interleaved=%d-%d;mode=record"
+	HeaderTransportClientRecordTcpTmpl = "RTP/AVP/TCP;unicast;interleaved=%d-%d;mode=record"
 	HeaderTransportServerPlayTmpl      = "RTP/AVP/UDP;unicast;client_port=%d-%d;server_port=%d-%d"
 	//HeaderTransportServerPlayTCPTmpl   = "RTP/AVP/TCP;unicast;interleaved=%d-%d"
 	HeaderTransportServerRecordTmpl = "RTP/AVP/UDP;unicast;client_port=%d-%d;server_port=%d-%d;mode=record"
@@ -77,7 +77,7 @@ const (
 
 var (
 	// TODO chef: 参考协议标准，不要使用固定值
-	sessionID = "191201771"
+	sessionId = "191201771"
 
 	minServerPort = uint16(30000)
 	maxServerPort = uint16(60000)
@@ -86,13 +86,13 @@ var (
 
 	serverCommandSessionReadBufSize = 256
 
-	dummyRTPPacket = []byte{
+	dummyRtpPacket = []byte{
 		0x80, 0x00, 0x00, 0x00,
 		0x00, 0x00, 0x00, 0x00,
 		0x00, 0x00, 0x00, 0x00,
 	}
 
-	dummyRTCPPacket = []byte{
+	dummyRtcpPacket = []byte{
 		0x80, 0xc9, 0x00, 0x01,
 		0x00, 0x00, 0x00, 0x00,
 	}
@@ -102,10 +102,10 @@ type IInterleavedPacketWriter interface {
 	WriteInterleavedPacket(packet []byte, channel int) error
 }
 
-var availUDPConnPool *nazanet.AvailUDPConnPool
+var availUdpConnPool *nazanet.AvailUdpConnPool
 
-// 传入远端IP，RTPPort，RTCPPort，创建两个对应的RTP和RTCP的UDP连接对象，以及对应的本端端口
-func initConnWithClientPort(rHost string, rRTPPort, rRTCPPort uint16) (rtpConn, rtcpConn *nazanet.UDPConnection, lRTPPort, lRTCPPort uint16, err error) {
+// 传入远端IP，RtpPort，RtcpPort，创建两个对应的RTP和RTCP的UDP连接对象，以及对应的本端端口
+func initConnWithClientPort(rHost string, rRtpPort, rRtcpPort uint16) (rtpConn, rtcpConn *nazanet.UdpConnection, lRtpPort, lRtcpPort uint16, err error) {
 	// NOTICE
 	// 处理Pub时，
 	// 一路流的rtp端口和rtcp端口必须不同。
@@ -115,29 +115,29 @@ func initConnWithClientPort(rHost string, rRTPPort, rRTCPPort uint16) (rtpConn, 
 	// 我目前在Acquire2这个函数里做了保证，绑定两个可用且连续的端口。
 
 	var rtpc, rtcpc *net.UDPConn
-	rtpc, lRTPPort, rtcpc, lRTCPPort, err = availUDPConnPool.Acquire2()
+	rtpc, lRtpPort, rtcpc, lRtcpPort, err = availUdpConnPool.Acquire2()
 	if err != nil {
 		return
 	}
 
-	rtpConn, err = nazanet.NewUDPConnection(func(option *nazanet.UDPConnectionOption) {
+	rtpConn, err = nazanet.NewUdpConnection(func(option *nazanet.UdpConnectionOption) {
 		option.Conn = rtpc
-		option.RAddr = net.JoinHostPort(rHost, fmt.Sprintf("%d", rRTPPort))
-		option.MaxReadPacketSize = rtprtcp.MaxRTPRTCPPacketSize
+		option.RAddr = net.JoinHostPort(rHost, fmt.Sprintf("%d", rRtpPort))
+		option.MaxReadPacketSize = rtprtcp.MaxRtpRtcpPacketSize
 	})
 	if err != nil {
 		return
 	}
-	rtcpConn, err = nazanet.NewUDPConnection(func(option *nazanet.UDPConnectionOption) {
+	rtcpConn, err = nazanet.NewUdpConnection(func(option *nazanet.UdpConnectionOption) {
 		option.Conn = rtcpc
-		option.RAddr = net.JoinHostPort(rHost, fmt.Sprintf("%d", rRTCPPort))
-		option.MaxReadPacketSize = rtprtcp.MaxRTPRTCPPacketSize
+		option.RAddr = net.JoinHostPort(rHost, fmt.Sprintf("%d", rRtcpPort))
+		option.MaxReadPacketSize = rtprtcp.MaxRtpRtcpPacketSize
 	})
 	return
 }
 
 // 从setup消息的header中解析rtp rtcp channel
-func parseRTPRTCPChannel(setupTransport string) (rtp, rtcp uint16, err error) {
+func parseRtpRtcpChannel(setupTransport string) (rtp, rtcp uint16, err error) {
 	return parseTransport(setupTransport, TransportFieldInterleaved)
 }
 
@@ -164,7 +164,7 @@ func parseTransport(setupTransport string, key string) (first, second uint16, er
 	}
 	items = strings.Split(clientPort, "-")
 	if len(items) != 2 {
-		return 0, 0, ErrRTSP
+		return 0, 0, ErrRtsp
 	}
 	iFirst, err := strconv.Atoi(items[0])
 	if err != nil {
@@ -177,15 +177,15 @@ func parseTransport(setupTransport string, key string) (first, second uint16, er
 	return uint16(iFirst), uint16(iSecond), err
 }
 
-func makeSetupURI(urlCtx base.URLContext, aControl string) string {
+func makeSetupUri(urlCtx base.UrlContext, aControl string) string {
 	if strings.HasPrefix(aControl, "rtsp://") {
 		return aControl
 	}
-	return fmt.Sprintf("%s/%s", urlCtx.RawURLWithoutUserInfo, aControl)
+	return fmt.Sprintf("%s/%s", urlCtx.RawUrlWithoutUserInfo, aControl)
 }
 
 func init() {
-	availUDPConnPool = nazanet.NewAvailUDPConnPool(minServerPort, maxServerPort)
+	availUdpConnPool = nazanet.NewAvailUdpConnPool(minServerPort, maxServerPort)
 }
 
 // ---------------------------------------------------------------------------------------------------------------------

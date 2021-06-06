@@ -15,11 +15,11 @@ import (
 )
 
 type ServerObserver interface {
-	OnRTMPConnect(session *ServerSession, opa ObjectPairArray)
-	OnNewRTMPPubSession(session *ServerSession) bool // 返回true则允许推流，返回false则强制关闭这个连接
-	OnDelRTMPPubSession(session *ServerSession)
-	OnNewRTMPSubSession(session *ServerSession) bool // 返回true则允许拉流，返回false则强制关闭这个连接
-	OnDelRTMPSubSession(session *ServerSession)
+	OnRtmpConnect(session *ServerSession, opa ObjectPairArray)
+	OnNewRtmpPubSession(session *ServerSession) bool // 返回true则允许推流，返回false则强制关闭这个连接
+	OnDelRtmpPubSession(session *ServerSession)
+	OnNewRtmpSubSession(session *ServerSession) bool // 返回true则允许拉流，返回false则强制关闭这个连接
+	OnDelRtmpSubSession(session *ServerSession)
 }
 
 type Server struct {
@@ -49,7 +49,7 @@ func (server *Server) RunLoop() error {
 		if err != nil {
 			return err
 		}
-		go server.handleTCPConnect(conn)
+		go server.handleTcpConnect(conn)
 	}
 }
 
@@ -62,7 +62,7 @@ func (server *Server) Dispose() {
 	}
 }
 
-func (server *Server) handleTCPConnect(conn net.Conn) {
+func (server *Server) handleTcpConnect(conn net.Conn) {
 	log.Infof("accept a rtmp connection. remoteAddr=%s", conn.RemoteAddr().String())
 	session := NewServerSession(server, conn)
 	err := session.RunLoop()
@@ -71,20 +71,20 @@ func (server *Server) handleTCPConnect(conn net.Conn) {
 	case ServerSessionTypeUnknown:
 	// noop
 	case ServerSessionTypePub:
-		server.observer.OnDelRTMPPubSession(session)
+		server.observer.OnDelRtmpPubSession(session)
 	case ServerSessionTypeSub:
-		server.observer.OnDelRTMPSubSession(session)
+		server.observer.OnDelRtmpSubSession(session)
 	}
 }
 
 // ServerSessionObserver
-func (server *Server) OnRTMPConnect(session *ServerSession, opa ObjectPairArray) {
-	server.observer.OnRTMPConnect(session, opa)
+func (server *Server) OnRtmpConnect(session *ServerSession, opa ObjectPairArray) {
+	server.observer.OnRtmpConnect(session, opa)
 }
 
 // ServerSessionObserver
-func (server *Server) OnNewRTMPPubSession(session *ServerSession) {
-	if !server.observer.OnNewRTMPPubSession(session) {
+func (server *Server) OnNewRtmpPubSession(session *ServerSession) {
+	if !server.observer.OnNewRtmpPubSession(session) {
 		log.Warnf("dispose PubSession since pub exist.")
 		session.Dispose()
 		return
@@ -92,8 +92,8 @@ func (server *Server) OnNewRTMPPubSession(session *ServerSession) {
 }
 
 // ServerSessionObserver
-func (server *Server) OnNewRTMPSubSession(session *ServerSession) {
-	if !server.observer.OnNewRTMPSubSession(session) {
+func (server *Server) OnNewRtmpSubSession(session *ServerSession) {
+	if !server.observer.OnNewRtmpSubSession(session) {
 		session.Dispose()
 		return
 	}

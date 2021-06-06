@@ -58,7 +58,7 @@ func main() {
 
 	urls := collect(urlTmpl, num)
 
-	tags, err := httpflv.ReadAllTagsFromFLVFile(filename)
+	tags, err := httpflv.ReadAllTagsFromFlvFile(filename)
 	if err != nil {
 		nazalog.Fatalf("read tags from flv file failed. err=%+v", err)
 	}
@@ -96,8 +96,8 @@ func push(tags []httpflv.Tag, urls []string, isRecursive bool) {
 
 	for i := range urls {
 		ps := rtmp.NewPushSession(func(option *rtmp.PushSessionOption) {
-			option.PushTimeoutMS = 5000
-			option.WriteAVTimeoutMS = 10000
+			option.PushTimeoutMs = 5000
+			option.WriteAvTimeoutMs = 10000
 		})
 
 		err = ps.Push(urls[i])
@@ -112,12 +112,12 @@ func push(tags []httpflv.Tag, urls []string, isRecursive bool) {
 	}
 	check(sessionList)
 
-	var totalBaseTS uint32 // 每轮最后更新
-	var prevTS uint32      // 上一个tag
-	var hasReadThisBaseTS bool
-	var thisBaseTS uint32 // 每轮第一个tag
-	var hasTraceFirstTagTS bool
-	var firstTagTS uint32  // 所有轮第一个tag
+	var totalBaseTs uint32 // 每轮最后更新
+	var prevTs uint32      // 上一个tag
+	var hasReadThisBaseTs bool
+	var thisBaseTs uint32 // 每轮第一个tag
+	var hasTraceFirstTagTs bool
+	var firstTagTs uint32  // 所有轮第一个tag
 	var firstTagTick int64 // 所有轮第一个tag的物理发送时间
 
 	// 1. 保证metadata只在最初发送一次
@@ -125,18 +125,18 @@ func push(tags []httpflv.Tag, urls []string, isRecursive bool) {
 
 	// 多轮，一个循环代表一次完整文件的发送
 	for i := 0; ; i++ {
-		nazalog.Infof(" > round. i=%d, totalBaseTS=%d, prevTS=%d, thisBaseTS=%d",
-			i, totalBaseTS, prevTS, thisBaseTS)
+		nazalog.Infof(" > round. i=%d, totalBaseTs=%d, prevTs=%d, thisBaseTs=%d",
+			i, totalBaseTs, prevTs, thisBaseTs)
 
-		hasReadThisBaseTS = false
+		hasReadThisBaseTs = false
 
 		// 一轮，遍历文件的所有tag数据
 		for _, tag := range tags {
-			h := remux.FLVTagHeader2RTMPHeader(tag.Header)
+			h := remux.FlvTagHeader2RtmpHeader(tag.Header)
 
 			// metadata只发送一次
 			if tag.IsMetadata() {
-				if totalBaseTS == 0 {
+				if totalBaseTs == 0 {
 					h.TimestampAbs = 0
 					chunks := rtmp.Message2Chunks(tag.Raw[11:11+h.MsgLen], &h)
 					send(sessionList, chunks)
@@ -146,54 +146,54 @@ func push(tags []httpflv.Tag, urls []string, isRecursive bool) {
 				continue
 			}
 
-			if hasReadThisBaseTS {
+			if hasReadThisBaseTs {
 				// 本轮非第一个tag
 
 				// 之前已经读到了这轮读文件的base值，ts要减去base
-				h.TimestampAbs = tag.Header.Timestamp - thisBaseTS + totalBaseTS
+				h.TimestampAbs = tag.Header.Timestamp - thisBaseTs + totalBaseTs
 			} else {
 				// 本轮第一个tag
 
 				// 设置base，ts设置为上一轮读文件的值
-				thisBaseTS = tag.Header.Timestamp
-				h.TimestampAbs = totalBaseTS
-				hasReadThisBaseTS = true
+				thisBaseTs = tag.Header.Timestamp
+				h.TimestampAbs = totalBaseTs
+				hasReadThisBaseTs = true
 			}
 
-			if h.TimestampAbs < prevTS {
+			if h.TimestampAbs < prevTs {
 				// ts比上一个包的还小，直接设置为上一包的值，并且不sleep直接发送
-				h.TimestampAbs = prevTS
-				nazalog.Errorf("this tag timestamp less than prev timestamp. h.TimestampAbs=%d, prevTS=%d", h.TimestampAbs, prevTS)
+				h.TimestampAbs = prevTs
+				nazalog.Errorf("this tag timestamp less than prev timestamp. h.TimestampAbs=%d, prevTs=%d", h.TimestampAbs, prevTs)
 			}
 
 			chunks := rtmp.Message2Chunks(tag.Raw[11:11+h.MsgLen], &h)
 
-			if hasTraceFirstTagTS {
+			if hasTraceFirstTagTs {
 				// 所有轮的非第一个tag
 
 				// 当前距离第一个tag的物理发送时间，以及距离第一个tag的时间戳
 				// 如果物理时间短，就睡眠相应的时间
 				n := time.Now().UnixNano() / 1000000
 				diffTick := n - firstTagTick
-				diffTS := h.TimestampAbs - firstTagTS
-				if diffTick < int64(diffTS) {
-					time.Sleep(time.Duration(int64(diffTS)-diffTick) * time.Millisecond)
+				diffTs := h.TimestampAbs - firstTagTs
+				if diffTick < int64(diffTs) {
+					time.Sleep(time.Duration(int64(diffTs)-diffTick) * time.Millisecond)
 				}
 			} else {
 				// 所有轮的第一个tag
 
 				// 记录所有轮的第一个tag的物理发送时间，以及数据的时间戳
 				firstTagTick = time.Now().UnixNano() / 1000000
-				firstTagTS = h.TimestampAbs
-				hasTraceFirstTagTS = true
+				firstTagTs = h.TimestampAbs
+				hasTraceFirstTagTs = true
 			}
 
 			send(sessionList, chunks)
 
-			prevTS = h.TimestampAbs
+			prevTs = h.TimestampAbs
 		} // tags for loop
 
-		totalBaseTS = prevTS + 1
+		totalBaseTs = prevTs + 1
 
 		if !isRecursive {
 			break
@@ -263,7 +263,7 @@ func parseFlag() (filename string, urlTmpl string, num int, isRecursive bool, lo
   %s -i test.flv -o rtmp://127.0.0.1:1935/live/test -r
   %s -i test.flv -o rtmp://127.0.0.1:1935/live/test_{i} -r -n 1000
 `, os.Args[0], os.Args[0], os.Args[0])
-		base.OSExitAndWaitPressIfWindows(1)
+		base.OsExitAndWaitPressIfWindows(1)
 	}
 	return *i, *o, *n, *r, *l
 }

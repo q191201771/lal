@@ -25,12 +25,12 @@ import (
 // StreamMuxConfig
 //
 
-var ErrAAC = errors.New("lal.aac: fxxk")
+var ErrAac = errors.New("lal.aac: fxxk")
 
-const minASCLength = 2
+const minAscLength = 2
 
 // Audio Data Transport Stream
-type ADTS struct {
+type Adts struct {
 	audioObjectType        uint8
 	samplingFrequencyIndex uint8
 	channelConfiguration   uint8
@@ -50,10 +50,10 @@ type SequenceHeader struct {
 //              函数调用结束后，内部不持有<asc>内存块
 //              注意，如果是rtmp/flv的message/tag，应去除Seq Header头部的2个字节
 //
-func (a *ADTS) InitWithAACAudioSpecificConfig(asc []byte) error {
-	if len(asc) < minASCLength {
+func (a *Adts) InitWithAacAudioSpecificConfig(asc []byte) error {
+	if len(asc) < minAscLength {
 		nazalog.Warnf("aac seq header length invalid. len=%d", len(asc))
-		return ErrAAC
+		return ErrAac
 	}
 
 	// <ISO_IEC_14496-3.pdf>
@@ -84,10 +84,10 @@ func (a *ADTS) InitWithAACAudioSpecificConfig(asc []byte) error {
 //                 注意，如果是rtmp/flv的message/tag，应去除Seq Header头部的2个字节
 // @return 返回的内存块，内部会继续持有，重复使用
 //
-func (a *ADTS) CalcADTSHeader(length uint16) ([]byte, error) {
+func (a *Adts) CalcAdtsHeader(length uint16) ([]byte, error) {
 	if !a.HasInited() {
 		nazalog.Warn("calc adts header but asc not inited.")
-		return nil, ErrAAC
+		return nil, ErrAac
 	}
 	// <ISO_IEC_14496-3.pdf>
 	// <1.A.2.2.1 Fixed Header of ADTS>, <page 75/110>
@@ -140,17 +140,17 @@ func (a *ADTS) CalcADTSHeader(length uint16) ([]byte, error) {
 	return a.adtsHeader, nil
 }
 
-// 可用于判断，是否调用过ADTS.InitWithAACAudioSpecificConfig
-func (a *ADTS) HasInited() bool {
+// 可用于判断，是否调用过ADTS.InitWithAacAudioSpecificConfig
+func (a *Adts) HasInited() bool {
 	return a.adtsHeader != nil
 }
 
 // @param <b> rtmp/flv的message/tag的payload部分，包含前面2个字节
 //            函数调用结束后，内部不持有<b>内存块
-func ParseAACSeqHeader(b []byte) (sh SequenceHeader, adts ADTS, err error) {
+func ParseAacSeqHeader(b []byte) (sh SequenceHeader, adts Adts, err error) {
 	if len(b) < 4 {
 		nazalog.Warnf("aac seq header length invalid. len=%d", len(b))
-		err = ErrAAC
+		err = ErrAac
 		return
 	}
 
@@ -169,7 +169,7 @@ func ParseAACSeqHeader(b []byte) (sh SequenceHeader, adts ADTS, err error) {
 	sh.aacPacketType, _ = br.ReadBits8(8)
 	//nazalog.Debugf("%s %+v", hex.Dump(payload[:4]), sh)
 
-	err = adts.InitWithAACAudioSpecificConfig(b[2:])
+	err = adts.InitWithAacAudioSpecificConfig(b[2:])
 	return
 }
 
@@ -177,9 +177,9 @@ func ParseAACSeqHeader(b []byte) (sh SequenceHeader, adts ADTS, err error) {
 //
 // @return      返回的内存块为新申请的独立内存块
 //
-func BuildAACSeqHeader(asc []byte) ([]byte, error) {
-	if len(asc) < minASCLength {
-		return nil, ErrAAC
+func BuildAacSeqHeader(asc []byte) ([]byte, error) {
+	if len(asc) < minAscLength {
+		return nil, ErrAac
 	}
 
 	ret := make([]byte, 2+len(asc))

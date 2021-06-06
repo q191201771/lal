@@ -19,7 +19,7 @@ type RawContext struct {
 
 type MediaDesc struct {
 	M         M
-	ARTPMap   ARTPMap
+	ARtpMap   ARtpMap
 	AFmtPBase *AFmtPBase
 	AControl  AControl
 }
@@ -28,7 +28,7 @@ type M struct {
 	Media string
 }
 
-type ARTPMap struct {
+type ARtpMap struct {
 	PayloadType        int
 	EncodingName       string
 	ClockRate          int
@@ -45,7 +45,7 @@ type AControl struct {
 }
 
 // 例子见单元测试
-func ParseSDP2RawContext(b []byte) (RawContext, error) {
+func ParseSdp2RawContext(b []byte) (RawContext, error) {
 	var (
 		sdpCtx RawContext
 		md     *MediaDesc
@@ -67,14 +67,14 @@ func ParseSDP2RawContext(b []byte) (RawContext, error) {
 			}
 		}
 		if strings.HasPrefix(line, "a=rtpmap") {
-			aRTPMap, err := ParseARTPMap(line)
+			aRtpMap, err := ParseARtpMap(line)
 			if err != nil {
 				return sdpCtx, err
 			}
 			if md == nil {
 				continue
 			}
-			md.ARTPMap = aRTPMap
+			md.ARtpMap = aRtpMap
 		}
 		if strings.HasPrefix(line, "a=fmtp") {
 			aFmtPBase, err := ParseAFmtPBase(line)
@@ -108,14 +108,14 @@ func ParseM(s string) (ret M, err error) {
 	ss := strings.TrimPrefix(s, "m=")
 	items := strings.Split(ss, " ")
 	if len(items) < 1 {
-		return ret, ErrSDP
+		return ret, ErrSdp
 	}
 	ret.Media = items[0]
 	return
 }
 
 // 例子见单元测试
-func ParseARTPMap(s string) (ret ARTPMap, err error) {
+func ParseARtpMap(s string) (ret ARtpMap, err error) {
 	// rfc 3640 3.3.1.  General
 	// rfc 3640 3.3.6.  High Bit-rate AAC
 	//
@@ -124,12 +124,12 @@ func ParseARTPMap(s string) (ret ARTPMap, err error) {
 
 	items := strings.SplitN(s, ":", 2)
 	if len(items) != 2 {
-		err = ErrSDP
+		err = ErrSdp
 		return
 	}
 	items = strings.SplitN(items[1], " ", 2)
 	if len(items) != 2 {
-		err = ErrSDP
+		err = ErrSdp
 		return
 	}
 	ret.PayloadType, err = strconv.Atoi(items[0])
@@ -148,7 +148,7 @@ func ParseARTPMap(s string) (ret ARTPMap, err error) {
 			return
 		}
 	default:
-		err = ErrSDP
+		err = ErrSdp
 	}
 	return
 }
@@ -164,13 +164,13 @@ func ParseAFmtPBase(s string) (ret AFmtPBase, err error) {
 
 	items := strings.SplitN(s, ":", 2)
 	if len(items) != 2 {
-		err = ErrSDP
+		err = ErrSdp
 		return
 	}
 
 	items = strings.SplitN(items[1], " ", 2)
 	if len(items) != 2 {
-		err = ErrSDP
+		err = ErrSdp
 		return
 	}
 
@@ -184,7 +184,7 @@ func ParseAFmtPBase(s string) (ret AFmtPBase, err error) {
 		pp = strings.TrimSpace(pp)
 		kv := strings.SplitN(pp, "=", 2)
 		if len(kv) != 2 {
-			err = ErrSDP
+			err = ErrSdp
 			return
 		}
 		ret.Parameters[kv[0]] = kv[1]
@@ -195,7 +195,7 @@ func ParseAFmtPBase(s string) (ret AFmtPBase, err error) {
 
 func ParseAControl(s string) (ret AControl, err error) {
 	if !strings.HasPrefix(s, "a=control:") {
-		err = ErrSDP
+		err = ErrSdp
 		return
 	}
 	ret.Value = strings.TrimPrefix(s, "a=control:")

@@ -14,11 +14,11 @@ import (
 )
 
 // @return 返回的内存块为新申请的独立内存块
-func RTMPMsg2FLVTag(msg base.RTMPMsg) *httpflv.Tag {
+func RtmpMsg2FlvTag(msg base.RtmpMsg) *httpflv.Tag {
 	var tag httpflv.Tag
-	tag.Header.Type = msg.Header.MsgTypeID
+	tag.Header.Type = msg.Header.MsgTypeId
 	tag.Header.DataSize = msg.Header.MsgLen
 	tag.Header.Timestamp = msg.Header.TimestampAbs
-	tag.Raw = httpflv.PackHTTPFLVTag(msg.Header.MsgTypeID, msg.Header.TimestampAbs, msg.Payload)
+	tag.Raw = httpflv.PackHttpflvTag(msg.Header.MsgTypeId, msg.Header.TimestampAbs, msg.Payload)
 	return &tag
 }

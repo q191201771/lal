@@ -74,10 +74,10 @@ func (s *ServerHandler) ServeHTTP(resp http.ResponseWriter, req *http.Request) {
 	switch ri.FileType {
 	case "m3u8":
 		resp.Header().Add("Content-Type", "application/x-mpegurl")
-		resp.Header().Add("Server", base.LALHLSM3U8Server)
+		resp.Header().Add("Server", base.LalHlsM3u8Server)
 	case "ts":
 		resp.Header().Add("Content-Type", "video/mp2t")
-		resp.Header().Add("Server", base.LALHLSTSServer)
+		resp.Header().Add("Server", base.LalHlsTsServer)
 	}
 	resp.Header().Add("Cache-Control", "no-cache")
 	resp.Header().Add("Access-Control-Allow-Origin", "*")

@@ -16,25 +16,25 @@ import (
 	"github.com/q191201771/naza/pkg/nazalog"
 )
 
-var tsHTTPResponseHeader []byte
+var tsHttpResponseHeader []byte
 
 type SubSession struct {
-	*base.HTTPSubSession // 直接使用它提供的函数
+	*base.HttpSubSession // 直接使用它提供的函数
 	IsFresh              bool
 }
 
-func NewSubSession(conn net.Conn, urlCtx base.URLContext, isWebSocket bool, websocketKey string) *SubSession {
-	uk := base.GenUKTSSubSession()
+func NewSubSession(conn net.Conn, urlCtx base.UrlContext, isWebSocket bool, websocketKey string) *SubSession {
+	uk := base.GenUkTsSubSession()
 	s := &SubSession{
-		base.NewHTTPSubSession(base.HTTPSubSessionOption{
+		base.NewHttpSubSession(base.HttpSubSessionOption{
 			Conn: conn,
 			ConnModOption: func(option *connection.Option) {
 				option.WriteChanSize = SubSessionWriteChanSize
-				option.WriteTimeoutMS = SubSessionWriteTimeoutMS
+				option.WriteTimeoutMs = SubSessionWriteTimeoutMs
 			},
-			UK:           uk,
-			Protocol:     base.ProtocolHTTPTS,
-			URLCtx:       urlCtx,
+			Uk:           uk,
+			Protocol:     base.ProtocolHttpts,
+			UrlCtx:       urlCtx,
 			IsWebSocket:  isWebSocket,
 			WebSocketKey: websocketKey,
 		}),
@@ -44,19 +44,19 @@ func NewSubSession(conn net.Conn, urlCtx base.URLContext, isWebSocket bool, webs
 	return s
 }
 
-func (session *SubSession) WriteHTTPResponseHeader() {
+func (session *SubSession) WriteHttpResponseHeader() {
 	nazalog.Debugf("[%s] > W http response header.", session.UniqueKey())
-	session.HTTPSubSession.WriteHTTPResponseHeader(tsHTTPResponseHeader)
+	session.HttpSubSession.WriteHttpResponseHeader(tsHttpResponseHeader)
 }
 
 func (session *SubSession) Dispose() error {
 	nazalog.Infof("[%s] lifecycle dispose httpts SubSession.", session.UniqueKey())
-	return session.HTTPSubSession.Dispose()
+	return session.HttpSubSession.Dispose()
 }
 
 func init() {
-	tsHTTPResponseHeaderStr := "HTTP/1.1 200 OK\r\n" +
-		"Server: " + base.LALHTTPTSSubSessionServer + "\r\n" +
+	tsHttpResponseHeaderStr := "HTTP/1.1 200 OK\r\n" +
+		"Server: " + base.LalHttptsSubSessionServer + "\r\n" +
 		"Cache-Control: no-cache\r\n" +
 		"Content-Type: video/mp2t\r\n" +
 		"Connection: close\r\n" +
@@ -66,5 +66,5 @@ func init() {
 		"Access-Control-Allow-Origin: *\r\n" +
 		"\r\n"
 
-	tsHTTPResponseHeader = []byte(tsHTTPResponseHeaderStr)
+	tsHttpResponseHeader = []byte(tsHttpResponseHeaderStr)
 }

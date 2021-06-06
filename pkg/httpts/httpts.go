@@ -10,4 +10,4 @@ package httpts
 
 import "errors"
 
-var ErrHTTPTS = errors.New("lal.httpts: fxxk")
+var ErrHttpTs = errors.New("lal.httpts: fxxk")

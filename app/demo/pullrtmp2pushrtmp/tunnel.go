@@ -28,51 +28,51 @@ var ErrClosedByCaller = errors.New("tunnel closed by caller")
 
 type Tunnel struct {
 	uk          string
-	inURL       string
-	outURLList  []string
+	inUrl       string
+	outUrlList  []string
 	startTime   time.Time
-	startECChan chan ErrorCode
-	pullECChan  chan ErrorCode
-	pushECChan  chan ErrorCode
+	startEcChan chan ErrorCode
+	pullEcChan  chan ErrorCode
+	pushEcChan  chan ErrorCode
 	closeChan   chan ErrorCode
 	waitChan    chan ErrorCode
-	rtmpMsgQ    chan base.RTMPMsg
+	rtmpMsgQ    chan base.RtmpMsg
 
 	pullSession     *rtmp.PullSession
 	pushSessionList []*rtmp.PushSession
 }
 
 type ErrorCode struct {
-	code int // -1表示拉流失败或者结束，>=0表示推流失败或者结束，值对应outURLList的下标
+	code int // -1表示拉流失败或者结束，>=0表示推流失败或者结束，值对应outUrlList的下标
 	err  error
 }
 
-// @param inURL      拉流rtmp url地址
-// @param outURLList 推流rtmp url地址列表
+// @param inUrl      拉流rtmp url地址
+// @param outUrlList 推流rtmp url地址列表
 //
-func NewTunnel(inURL string, outURLList []string) *Tunnel {
+func NewTunnel(inUrl string, outUrlList []string) *Tunnel {
 	var streamName string
-	ctx, err := base.ParseRTMPURL(inURL)
+	ctx, err := base.ParseRtmpUrl(inUrl)
 	if err != nil {
-		nazalog.Errorf("parse rtmp url failed. url=%s", inURL)
+		nazalog.Errorf("parse rtmp url failed. url=%s", inUrl)
 		streamName = "invalid"
 	} else {
 		streamName = ctx.LastItemOfPath
 	}
-	originUK := unique.GenUniqueKey("TUNNEL")
-	uk := fmt.Sprintf("%s-%s", originUK, streamName)
+	originUk := unique.GenUniqueKey("TUNNEL")
+	uk := fmt.Sprintf("%s-%s", originUk, streamName)
 
 	return &Tunnel{
 		uk:          uk,
-		inURL:       inURL,
-		outURLList:  outURLList,
+		inUrl:       inUrl,
+		outUrlList:  outUrlList,
 		startTime:   time.Now(),
-		startECChan: make(chan ErrorCode, len(outURLList)+1),
-		pullECChan:  make(chan ErrorCode, 1),
-		pushECChan:  make(chan ErrorCode, len(outURLList)),
+		startEcChan: make(chan ErrorCode, len(outUrlList)+1),
+		pullEcChan:  make(chan ErrorCode, 1),
+		pushEcChan:  make(chan ErrorCode, len(outUrlList)),
 		closeChan:   make(chan ErrorCode, 1),
-		waitChan:    make(chan ErrorCode, len(outURLList)+1),
-		rtmpMsgQ:    make(chan base.RTMPMsg, 1024),
+		waitChan:    make(chan ErrorCode, len(outUrlList)+1),
+		rtmpMsgQ:    make(chan base.RtmpMsg, 1024),
 	}
 }
 
@@ -80,16 +80,16 @@ func NewTunnel(inURL string, outURLList []string) *Tunnel {
 //             不为nil时，表示任务失败，可以通过`code`得到是拉流还是推流失败
 func (t *Tunnel) Start() (ret ErrorCode) {
 	const (
-		pullTimeoutMS   = 10000
-		pushTimeoutMS   = 10000
+		pullTimeoutMs   = 10000
+		pushTimeoutMs   = 10000
 		statIntervalSec = 5
 	)
 
-	nazalog.Infof("[%s] new tunnel. inURL=%s, outURLList=%+v", t.uk, t.inURL, t.outURLList)
+	nazalog.Infof("[%s] new tunnel. inUrl=%s, outUrlList=%+v", t.uk, t.inUrl, t.outUrlList)
 
 	defer func() {
 		if ret.err != nil {
-			t.notifyStartEC(ret)
+			t.notifyStartEc(ret)
 		}
 
 		go func() {
@@ -119,7 +119,7 @@ func (t *Tunnel) Start() (ret ErrorCode) {
 					for {
 						select {
 						case err := <-t.pullSession.WaitChan():
-							t.notifyPullEC(ErrorCode{-1, err})
+							t.notifyPullEc(ErrorCode{-1, err})
 							nazalog.Debugf("[%s] < pull event loop. %s", t.uk, t.pullSession.UniqueKey())
 							return
 						}
@@ -135,7 +135,7 @@ func (t *Tunnel) Start() (ret ErrorCode) {
 						select {
 						case err := <-s.WaitChan():
 							nazalog.Errorf("[%s] push wait error. [%s] err=%+v", t.uk, s.UniqueKey(), err)
-							t.notifyPushEC(ErrorCode{ii, err})
+							t.notifyPushEc(ErrorCode{ii, err})
 							nazalog.Debugf("[%s] < push event loop. %s", t.uk, s.UniqueKey())
 							return
 						}
@@ -146,16 +146,16 @@ func (t *Tunnel) Start() (ret ErrorCode) {
 			// 主事件监听
 			for {
 				select {
-				case ec := <-t.startECChan:
-					nazalog.Errorf("[%s] exit main event loop, <- startECChan. err=%s", t.uk, ec.Stringify())
+				case ec := <-t.startEcChan:
+					nazalog.Errorf("[%s] exit main event loop, <- startEcChan. err=%s", t.uk, ec.Stringify())
 					t.notifyWait(ec)
 					return
-				case ec := <-t.pullECChan:
-					nazalog.Errorf("[%s] exit main event loop, <- pullECChan. err=%s", t.uk, ec.Stringify())
+				case ec := <-t.pullEcChan:
+					nazalog.Errorf("[%s] exit main event loop, <- pullEcChan. err=%s", t.uk, ec.Stringify())
 					t.notifyWait(ec)
 					return
-				case ec := <-t.pushECChan:
-					nazalog.Errorf("[%s] exit main event loop, <- pushECChan. err=%s", t.uk, ec.Stringify())
+				case ec := <-t.pushEcChan:
+					nazalog.Errorf("[%s] exit main event loop, <- pushEcChan. err=%s", t.uk, ec.Stringify())
 					t.notifyWait(ec)
 					return
 				case ec := <-t.closeChan:
@@ -163,7 +163,7 @@ func (t *Tunnel) Start() (ret ErrorCode) {
 					t.notifyWait(ec)
 					return
 				case m := <-t.rtmpMsgQ:
-					currHeader := remux.MakeDefaultRTMPHeader(m.Header)
+					currHeader := remux.MakeDefaultRtmpHeader(m.Header)
 					chunks := rtmp.Message2Chunks(m.Payload, &currHeader)
 					if debugWriteCount < maxDebugWriteCount {
 						nazalog.Infof("[%s] write. header=%+v, %+v, %s", t.uk, m.Header, currHeader, hex.Dump(nazastring.SubSliceSafety(m.Payload, 32)))
@@ -193,13 +193,13 @@ func (t *Tunnel) Start() (ret ErrorCode) {
 	}()
 
 	// 逐个开启push session
-	for i, outURL := range t.outURLList {
+	for i, outUrl := range t.outUrlList {
 		pushSession := rtmp.NewPushSession(func(option *rtmp.PushSessionOption) {
-			option.PushTimeoutMS = pushTimeoutMS
+			option.PushTimeoutMs = pushTimeoutMs
 		})
-		nazalog.Infof("[%s] start push. [%s] url=%s", t.uk, pushSession.UniqueKey(), outURL)
+		nazalog.Infof("[%s] start push. [%s] url=%s", t.uk, pushSession.UniqueKey(), outUrl)
 
-		err := pushSession.Push(outURL)
+		err := pushSession.Push(outUrl)
 		// 只有有一个失败就直接退出
 		if err != nil {
 			nazalog.Errorf("[%s] push error. [%s] err=%+v", t.uk, pushSession.UniqueKey(), err)
@@ -213,11 +213,11 @@ func (t *Tunnel) Start() (ret ErrorCode) {
 	}
 
 	t.pullSession = rtmp.NewPullSession(func(option *rtmp.PullSessionOption) {
-		option.PullTimeoutMS = pullTimeoutMS
+		option.PullTimeoutMs = pullTimeoutMs
 	})
-	nazalog.Infof("[%s] start pull. [%s] url=%s", t.uk, t.pullSession.UniqueKey(), t.inURL)
+	nazalog.Infof("[%s] start pull. [%s] url=%s", t.uk, t.pullSession.UniqueKey(), t.inUrl)
 
-	err := t.pullSession.Pull(t.inURL, func(msg base.RTMPMsg) {
+	err := t.pullSession.Pull(t.inUrl, func(msg base.RtmpMsg) {
 		m := msg.Clone()
 		t.rtmpMsgQ <- m
 	})
@@ -265,30 +265,30 @@ func (t *Tunnel) notifyWait(ec ErrorCode) {
 	}
 }
 
-func (t *Tunnel) notifyStartEC(ec ErrorCode) {
+func (t *Tunnel) notifyStartEc(ec ErrorCode) {
 	select {
-	case t.startECChan <- ec:
-		nazalog.Debugf("[%s] notifyStartEC. ec=%s", t.uk, ec.Stringify())
+	case t.startEcChan <- ec:
+		nazalog.Debugf("[%s] notifyStartEc. ec=%s", t.uk, ec.Stringify())
 	default:
-		nazalog.Warnf("[%s] CHEFNOTICEME notifyStartEC fail, ignore. ec=%s", t.uk, ec.Stringify())
+		nazalog.Warnf("[%s] CHEFNOTICEME notifyStartEc fail, ignore. ec=%s", t.uk, ec.Stringify())
 	}
 }
 
-func (t *Tunnel) notifyPushEC(ec ErrorCode) {
+func (t *Tunnel) notifyPushEc(ec ErrorCode) {
 	select {
-	case t.pushECChan <- ec:
-		nazalog.Debugf("[%s] notifyPushEC. ec=%s", t.uk, ec.Stringify())
+	case t.pushEcChan <- ec:
+		nazalog.Debugf("[%s] notifyPushEc. ec=%s", t.uk, ec.Stringify())
 	default:
-		nazalog.Warnf("[%s] CHEFNOTICEME notifyPushEC fail, ignore. ec=%s", t.uk, ec.Stringify())
+		nazalog.Warnf("[%s] CHEFNOTICEME notifyPushEc fail, ignore. ec=%s", t.uk, ec.Stringify())
 	}
 }
 
-func (t *Tunnel) notifyPullEC(ec ErrorCode) {
+func (t *Tunnel) notifyPullEc(ec ErrorCode) {
 	select {
-	case t.pullECChan <- ec:
-		nazalog.Debugf("[%s] notifyPullEC. ec=%s", t.uk, ec.Stringify())
+	case t.pullEcChan <- ec:
+		nazalog.Debugf("[%s] notifyPullEc. ec=%s", t.uk, ec.Stringify())
 	default:
-		nazalog.Warnf("[%s] CHEFNOTICEME notifyPullEC fail, ignore. ec=%s", t.uk, ec.Stringify())
+		nazalog.Warnf("[%s] CHEFNOTICEME notifyPullEc fail, ignore. ec=%s", t.uk, ec.Stringify())
 	}
 }
 

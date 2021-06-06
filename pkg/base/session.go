@@ -23,14 +23,14 @@ type IClientSession interface {
 	// Pull()
 
 	IClientSessionLifecycle
-	ISessionURLContext
+	ISessionUrlContext
 	IObject
 	ISessionStat
 }
 
 type IServerSession interface {
 	IServerSessionLifecycle
-	ISessionURLContext
+	ISessionUrlContext
 	IObject
 	ISessionStat
 }
@@ -78,8 +78,8 @@ type ISessionStat interface {
 // 获取和流地址相关的信息
 //
 // 调用约束：对于Client类型的Session，调用Start函数并返回成功后才能调用，否则行为未定义
-type ISessionURLContext interface {
-	URL() string
+type ISessionUrlContext interface {
+	Url() string
 	AppName() string
 	StreamName() string
 	RawQuery() string

@@ -18,31 +18,31 @@ import (
 
 var (
 	fh    []byte
-	poped []base.RTMPMsg
+	poped []base.RtmpMsg
 )
 
 type qo struct {
 }
 
-func (q *qo) OnPATPMT(b []byte) {
+func (q *qo) OnPatPmt(b []byte) {
 	fh = b
 }
 
-func (q *qo) OnPop(msg base.RTMPMsg) {
+func (q *qo) OnPop(msg base.RtmpMsg) {
 	poped = append(poped, msg)
 }
 
 func TestQueue(t *testing.T) {
-	goldenRTMPMsg := []base.RTMPMsg{
+	goldenRtmpMsg := []base.RtmpMsg{
 		{
-			Header: base.RTMPHeader{
-				MsgTypeID: base.RTMPTypeIDAudio,
+			Header: base.RtmpHeader{
+				MsgTypeId: base.RtmpTypeIdAudio,
 			},
 			Payload: []byte{0xAF},
 		},
 		{
-			Header: base.RTMPHeader{
-				MsgTypeID: base.RTMPTypeIDVideo,
+			Header: base.RtmpHeader{
+				MsgTypeId: base.RtmpTypeIdVideo,
 			},
 			Payload: []byte{0x17},
 		},
@@ -50,9 +50,9 @@ func TestQueue(t *testing.T) {
 
 	q := &qo{}
 	queue := NewQueue(8, q)
-	for i := range goldenRTMPMsg {
-		queue.Push(goldenRTMPMsg[i])
+	for i := range goldenRtmpMsg {
+		queue.Push(goldenRtmpMsg[i])
 	}
 	assert.Equal(t, mpegts.FixedFragmentHeader, fh)
-	assert.Equal(t, goldenRTMPMsg, poped)
+	assert.Equal(t, goldenRtmpMsg, poped)
 }

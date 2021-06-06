@@ -29,43 +29,43 @@ import (
 // |F|   Type    |  LayerId  | TID |
 // +-------------+-----------------+
 
-var ErrHEVC = errors.New("lal.hevc: fxxk")
+var ErrHevc = errors.New("lal.hevc: fxxk")
 
 var (
-	NALUStartCode4 = []byte{0x0, 0x0, 0x0, 0x1}
+	NaluStartCode4 = []byte{0x0, 0x0, 0x0, 0x1}
 
 	// aud nalu
-	AUDNALU = []byte{0x00, 0x00, 0x00, 0x01, 0x46, 0x01, 0x10}
+	AudNalu = []byte{0x00, 0x00, 0x00, 0x01, 0x46, 0x01, 0x10}
 )
 
-var NALUTypeMapping = map[uint8]string{
-	NALUTypeSliceTrailN: "TrailN",
-	NALUTypeSliceTrailR: "TrailR",
-	NALUTypeSliceIDR:    "IDR",
-	NALUTypeSliceIDRNLP: "IDRNLP",
-	NALUTypeSliceCRANUT: "CRANUT",
-	NALUTypeVPS:         "VPS",
-	NALUTypeSPS:         "SPS",
-	NALUTypePPS:         "PPS",
-	NALUTypeAUD:         "AUD",
-	NALUTypeSEI:         "SEI",
-	NALUTypeSEISuffix:   "SEISuffix",
+var NaluTypeMapping = map[uint8]string{
+	NaluTypeSliceTrailN: "TrailN",
+	NaluTypeSliceTrailR: "TrailR",
+	NaluTypeSliceIdr:    "IDR",
+	NaluTypeSliceIdrNlp: "IDRNLP",
+	NaluTypeSliceCranut: "CRANUT",
+	NaluTypeVps:         "VPS",
+	NaluTypeSps:         "SPS",
+	NaluTypePps:         "PPS",
+	NaluTypeAud:         "AUD",
+	NaluTypeSei:         "SEI",
+	NaluTypeSeiSuffix:   "SEISuffix",
 }
 
 // ISO_IEC_23008-2_2013.pdf
 // Table 7-1 – NAL unit type codes and NAL unit type classes
 var (
-	NALUTypeSliceTrailN uint8 = 0  // 0x0
-	NALUTypeSliceTrailR uint8 = 1  // 0x01
-	NALUTypeSliceIDR    uint8 = 19 // 0x13
-	NALUTypeSliceIDRNLP uint8 = 20 // 0x14
-	NALUTypeSliceCRANUT uint8 = 21 // 0x15
-	NALUTypeVPS         uint8 = 32 // 0x20
-	NALUTypeSPS         uint8 = 33 // 0x21
-	NALUTypePPS         uint8 = 34 // 0x22
-	NALUTypeAUD         uint8 = 35 // 0x23
-	NALUTypeSEI         uint8 = 39 // 0x27
-	NALUTypeSEISuffix   uint8 = 40 // 0x28
+	NaluTypeSliceTrailN uint8 = 0  // 0x0
+	NaluTypeSliceTrailR uint8 = 1  // 0x01
+	NaluTypeSliceIdr    uint8 = 19 // 0x13
+	NaluTypeSliceIdrNlp uint8 = 20 // 0x14
+	NaluTypeSliceCranut uint8 = 21 // 0x15
+	NaluTypeVps         uint8 = 32 // 0x20
+	NaluTypeSps         uint8 = 33 // 0x21
+	NaluTypePps         uint8 = 34 // 0x22
+	NaluTypeAud         uint8 = 35 // 0x23
+	NaluTypeSei         uint8 = 39 // 0x27
+	NaluTypeSeiSuffix   uint8 = 40 // 0x28
 )
 
 type Context struct {
@@ -76,10 +76,10 @@ type Context struct {
 
 	generalProfileSpace              uint8
 	generalTierFlag                  uint8
-	generalProfileIDC                uint8
+	generalProfileIdc                uint8
 	generalProfileCompatibilityFlags uint32
 	generalConstraintIndicatorFlags  uint64
-	generalLevelIDC                  uint8
+	generalLevelIdc                  uint8
 
 	lengthSizeMinusOne uint8
 
@@ -91,8 +91,8 @@ type Context struct {
 	bitDepthChromaMinus8 uint8
 }
 
-func ParseNALUTypeReadable(v uint8) string {
-	b, ok := NALUTypeMapping[ParseNALUType(v)]
+func ParseNaluTypeReadable(v uint8) string {
+	b, ok := NaluTypeMapping[ParseNaluType(v)]
 	if !ok {
 		return "unknown"
 	}
@@ -100,27 +100,27 @@ func ParseNALUTypeReadable(v uint8) string {
 }
 
 // @param v 第一个字节
-func ParseNALUType(v uint8) uint8 {
+func ParseNaluType(v uint8) uint8 {
 	// 6 bit in middle
 	// 0*** ***0
 	// or return (nalu[0] >> 1) & 0x3F
 	return (v & 0x7E) >> 1
 }
 
-// HVCC Seq Header -> AnnexB
+// HVCC Seq Header -> Annexb
 // 注意，返回的内存块为独立的内存块，不依赖指向传输参数<payload>内存块
 //
-func VPSSPSPPSSeqHeader2AnnexB(payload []byte) ([]byte, error) {
-	vps, sps, pps, err := ParseVPSSPSPPSFromSeqHeader(payload)
+func VpsSpsPpsSeqHeader2Annexb(payload []byte) ([]byte, error) {
+	vps, sps, pps, err := ParseVpsSpsPpsFromSeqHeader(payload)
 	if err != nil {
-		return nil, ErrHEVC
+		return nil, ErrHevc
 	}
 	var ret []byte
-	ret = append(ret, NALUStartCode4...)
+	ret = append(ret, NaluStartCode4...)
 	ret = append(ret, vps...)
-	ret = append(ret, NALUStartCode4...)
+	ret = append(ret, NaluStartCode4...)
 	ret = append(ret, sps...)
-	ret = append(ret, NALUStartCode4...)
+	ret = append(ret, NaluStartCode4...)
 	ret = append(ret, pps...)
 	return ret, nil
 }
@@ -132,69 +132,69 @@ func VPSSPSPPSSeqHeader2AnnexB(payload []byte) ([]byte, error) {
 //
 // @return 注意，返回的vps，sps，pps内存块指向的是传入参数<payload>内存块的内存
 //
-func ParseVPSSPSPPSFromSeqHeader(payload []byte) (vps, sps, pps []byte, err error) {
+func ParseVpsSpsPpsFromSeqHeader(payload []byte) (vps, sps, pps []byte, err error) {
 	if len(payload) < 5 {
-		return nil, nil, nil, ErrHEVC
+		return nil, nil, nil, ErrHevc
 	}
 
 	if payload[0] != 0x1c || payload[1] != 0x00 || payload[2] != 0 || payload[3] != 0 || payload[4] != 0 {
-		return nil, nil, nil, ErrHEVC
+		return nil, nil, nil, ErrHevc
 	}
 	//nazalog.Debugf("%s", hex.Dump(payload))
 
 	if len(payload) < 33 {
-		return nil, nil, nil, ErrHEVC
+		return nil, nil, nil, ErrHevc
 	}
 
 	index := 27
 	if numOfArrays := payload[index]; numOfArrays != 3 && numOfArrays != 4 {
-		return nil, nil, nil, ErrHEVC
+		return nil, nil, nil, ErrHevc
 	}
 	index++
 
-	if payload[index] != NALUTypeVPS&0x3f {
-		return nil, nil, nil, ErrHEVC
+	if payload[index] != NaluTypeVps&0x3f {
+		return nil, nil, nil, ErrHevc
 	}
-	if numNalus := int(bele.BEUint16(payload[index+1:])); numNalus != 1 {
-		return nil, nil, nil, ErrHEVC
+	if numNalus := int(bele.BeUint16(payload[index+1:])); numNalus != 1 {
+		return nil, nil, nil, ErrHevc
 	}
-	vpsLen := int(bele.BEUint16(payload[index+3:]))
+	vpsLen := int(bele.BeUint16(payload[index+3:]))
 
 	if len(payload) < 33+vpsLen {
-		return nil, nil, nil, ErrHEVC
+		return nil, nil, nil, ErrHevc
 	}
 
 	vps = payload[index+5 : index+5+vpsLen]
 	index += 5 + vpsLen
 
 	if len(payload) < 38+vpsLen {
-		return nil, nil, nil, ErrHEVC
+		return nil, nil, nil, ErrHevc
 	}
-	if payload[index] != NALUTypeSPS&0x3f {
-		return nil, nil, nil, ErrHEVC
+	if payload[index] != NaluTypeSps&0x3f {
+		return nil, nil, nil, ErrHevc
 	}
-	if numNalus := int(bele.BEUint16(payload[index+1:])); numNalus != 1 {
-		return nil, nil, nil, ErrHEVC
+	if numNalus := int(bele.BeUint16(payload[index+1:])); numNalus != 1 {
+		return nil, nil, nil, ErrHevc
 	}
-	spsLen := int(bele.BEUint16(payload[index+3:]))
+	spsLen := int(bele.BeUint16(payload[index+3:]))
 	if len(payload) < 38+vpsLen+spsLen {
-		return nil, nil, nil, ErrHEVC
+		return nil, nil, nil, ErrHevc
 	}
 	sps = payload[index+5 : index+5+spsLen]
 	index += 5 + spsLen
 
 	if len(payload) < 43+vpsLen+spsLen {
-		return nil, nil, nil, ErrHEVC
+		return nil, nil, nil, ErrHevc
 	}
-	if payload[index] != NALUTypePPS&0x3f {
-		return nil, nil, nil, ErrHEVC
+	if payload[index] != NaluTypePps&0x3f {
+		return nil, nil, nil, ErrHevc
 	}
-	if numNalus := int(bele.BEUint16(payload[index+1:])); numNalus != 1 {
-		return nil, nil, nil, ErrHEVC
+	if numNalus := int(bele.BeUint16(payload[index+1:])); numNalus != 1 {
+		return nil, nil, nil, ErrHevc
 	}
-	ppsLen := int(bele.BEUint16(payload[index+3:]))
+	ppsLen := int(bele.BeUint16(payload[index+3:]))
 	if len(payload) < 43+vpsLen+spsLen+ppsLen {
-		return nil, nil, nil, ErrHEVC
+		return nil, nil, nil, ErrHevc
 	}
 	pps = payload[index+5 : index+5+ppsLen]
 
@@ -202,7 +202,7 @@ func ParseVPSSPSPPSFromSeqHeader(payload []byte) (vps, sps, pps []byte, err erro
 }
 
 // 返回的内存块为新申请的独立内存块
-func BuildSeqHeaderFromVPSSPSPPS(vps, sps, pps []byte) ([]byte, error) {
+func BuildSeqHeaderFromVpsSpsPps(vps, sps, pps []byte) ([]byte, error) {
 	var sh []byte
 	sh = make([]byte, 43+len(vps)+len(sps)+len(pps))
 	sh[0] = 0x1c
@@ -215,31 +215,31 @@ func BuildSeqHeaderFromVPSSPSPPS(vps, sps, pps []byte) ([]byte, error) {
 	sh[5] = 0x1
 
 	ctx := newContext()
-	if err := ParseVPS(vps, ctx); err != nil {
+	if err := ParseVps(vps, ctx); err != nil {
 		return nil, err
 	}
-	if err := ParseSPS(sps, ctx); err != nil {
+	if err := ParseSps(sps, ctx); err != nil {
 		return nil, err
 	}
 
 	// unsigned int(2) general_profile_space;
 	// unsigned int(1) general_tier_flag;
 	// unsigned int(5) general_profile_idc;
-	sh[6] = ctx.generalProfileSpace<<6 | ctx.generalTierFlag<<5 | ctx.generalProfileIDC
+	sh[6] = ctx.generalProfileSpace<<6 | ctx.generalTierFlag<<5 | ctx.generalProfileIdc
 	// unsigned int(32) general_profile_compatibility_flags
-	bele.BEPutUint32(sh[7:], ctx.generalProfileCompatibilityFlags)
+	bele.BePutUint32(sh[7:], ctx.generalProfileCompatibilityFlags)
 	// unsigned int(48) general_constraint_indicator_flags
-	bele.BEPutUint32(sh[11:], uint32(ctx.generalConstraintIndicatorFlags>>16))
-	bele.BEPutUint16(sh[15:], uint16(ctx.generalConstraintIndicatorFlags))
+	bele.BePutUint32(sh[11:], uint32(ctx.generalConstraintIndicatorFlags>>16))
+	bele.BePutUint16(sh[15:], uint16(ctx.generalConstraintIndicatorFlags))
 	// unsigned int(8) general_level_idc;
-	sh[17] = ctx.generalLevelIDC
+	sh[17] = ctx.generalLevelIdc
 
 	// bit(4) reserved = ‘1111’b;
 	// unsigned int(12) min_spatial_segmentation_idc;
 	// bit(6) reserved = ‘111111’b;
 	// unsigned int(2) parallelismType;
 	// TODO chef: 这两个字段没有解析
-	bele.BEPutUint16(sh[18:], 0xf000)
+	bele.BePutUint16(sh[18:], 0xf000)
 	sh[20] = 0xfc
 
 	// bit(6) reserved = ‘111111’b;
@@ -255,7 +255,7 @@ func BuildSeqHeaderFromVPSSPSPPS(vps, sps, pps []byte) ([]byte, error) {
 	sh[23] = ctx.bitDepthChromaMinus8 | 0xf8
 
 	// bit(16) avgFrameRate;
-	bele.BEPutUint16(sh[24:], 0)
+	bele.BePutUint16(sh[24:], 0)
 
 	// bit(2) constantFrameRate;
 	// bit(3) numTemporalLayers;
@@ -266,29 +266,29 @@ func BuildSeqHeaderFromVPSSPSPPS(vps, sps, pps []byte) ([]byte, error) {
 	// num of vps sps pps
 	sh[27] = 0x03
 	i := 28
-	sh[i] = NALUTypeVPS
+	sh[i] = NaluTypeVps
 	// num of vps
-	bele.BEPutUint16(sh[i+1:], 1)
+	bele.BePutUint16(sh[i+1:], 1)
 	// length
-	bele.BEPutUint16(sh[i+3:], uint16(len(vps)))
+	bele.BePutUint16(sh[i+3:], uint16(len(vps)))
 	copy(sh[i+5:], vps)
 	i = i + 5 + len(vps)
-	sh[i] = NALUTypeSPS
-	bele.BEPutUint16(sh[i+1:], 1)
-	bele.BEPutUint16(sh[i+3:], uint16(len(sps)))
+	sh[i] = NaluTypeSps
+	bele.BePutUint16(sh[i+1:], 1)
+	bele.BePutUint16(sh[i+3:], uint16(len(sps)))
 	copy(sh[i+5:], sps)
 	i = i + 5 + len(sps)
-	sh[i] = NALUTypePPS
-	bele.BEPutUint16(sh[i+1:], 1)
-	bele.BEPutUint16(sh[i+3:], uint16(len(pps)))
+	sh[i] = NaluTypePps
+	bele.BePutUint16(sh[i+1:], 1)
+	bele.BePutUint16(sh[i+3:], uint16(len(pps)))
 	copy(sh[i+5:], pps)
 
 	return sh, nil
 }
 
-func ParseVPS(vps []byte, ctx *Context) error {
+func ParseVps(vps []byte, ctx *Context) error {
 	if len(vps) < 2 {
-		return ErrHEVC
+		return ErrHevc
 	}
 
 	rbsp := nal2rbsp(vps[2:])
@@ -299,12 +299,12 @@ func ParseVPS(vps []byte, ctx *Context) error {
 	// vps_reserved_three_2bits   u(2)
 	// vps_max_layers_minus1      u(6)
 	if _, err := br.ReadBits16(12); err != nil {
-		return ErrHEVC
+		return ErrHevc
 	}
 
 	vpsMaxSubLayersMinus1, err := br.ReadBits8(3)
 	if err != nil {
-		return ErrHEVC
+		return ErrHevc
 	}
 	if vpsMaxSubLayersMinus1+1 > ctx.numTemporalLayers {
 		ctx.numTemporalLayers = vpsMaxSubLayersMinus1 + 1
@@ -314,17 +314,17 @@ func ParseVPS(vps []byte, ctx *Context) error {
 	// vps_temporal_id_nesting_flag u(1)
 	// vps_reserved_0xffff_16bits   u(16)
 	if _, err := br.ReadBits32(17); err != nil {
-		return ErrHEVC
+		return ErrHevc
 	}
 
-	return parsePTL(&br, ctx, vpsMaxSubLayersMinus1)
+	return parsePtl(&br, ctx, vpsMaxSubLayersMinus1)
 }
 
-func ParseSPS(sps []byte, ctx *Context) error {
+func ParseSps(sps []byte, ctx *Context) error {
 	var err error
 
 	if len(sps) < 2 {
-		return ErrHEVC
+		return ErrHevc
 	}
 
 	rbsp := nal2rbsp(sps[2:])
@@ -349,7 +349,7 @@ func ParseSPS(sps []byte, ctx *Context) error {
 		return err
 	}
 
-	if err = parsePTL(&br, ctx, spsMaxSubLayersMinus1); err != nil {
+	if err = parsePtl(&br, ctx, spsMaxSubLayersMinus1); err != nil {
 		return err
 	}
 
@@ -454,7 +454,7 @@ func ParseSPS(sps []byte, ctx *Context) error {
 	return nil
 }
 
-func parsePTL(br *nazabits.BitReader, ctx *Context, maxSubLayersMinus1 uint8) error {
+func parsePtl(br *nazabits.BitReader, ctx *Context, maxSubLayersMinus1 uint8) error {
 	var err error
 	var ptl Context
 	if ptl.generalProfileSpace, err = br.ReadBits8(2); err != nil {
@@ -463,7 +463,7 @@ func parsePTL(br *nazabits.BitReader, ctx *Context, maxSubLayersMinus1 uint8) er
 	if ptl.generalTierFlag, err = br.ReadBit(); err != nil {
 		return err
 	}
-	if ptl.generalProfileIDC, err = br.ReadBits8(5); err != nil {
+	if ptl.generalProfileIdc, err = br.ReadBits8(5); err != nil {
 		return err
 	}
 	if ptl.generalProfileCompatibilityFlags, err = br.ReadBits32(32); err != nil {
@@ -472,10 +472,10 @@ func parsePTL(br *nazabits.BitReader, ctx *Context, maxSubLayersMinus1 uint8) er
 	if ptl.generalConstraintIndicatorFlags, err = br.ReadBits64(48); err != nil {
 		return err
 	}
-	if ptl.generalLevelIDC, err = br.ReadBits8(8); err != nil {
+	if ptl.generalLevelIdc, err = br.ReadBits8(8); err != nil {
 		return err
 	}
-	updatePTL(ctx, &ptl)
+	updatePtl(ctx, &ptl)
 
 	if maxSubLayersMinus1 == 0 {
 		return nil
@@ -522,21 +522,21 @@ func parsePTL(br *nazabits.BitReader, ctx *Context, maxSubLayersMinus1 uint8) er
 	return nil
 }
 
-func updatePTL(ctx, ptl *Context) {
+func updatePtl(ctx, ptl *Context) {
 	ctx.generalProfileSpace = ptl.generalProfileSpace
 
 	if ptl.generalTierFlag > ctx.generalTierFlag {
-		ctx.generalLevelIDC = ptl.generalLevelIDC
+		ctx.generalLevelIdc = ptl.generalLevelIdc
 
 		ctx.generalTierFlag = ptl.generalTierFlag
 	} else {
-		if ptl.generalLevelIDC > ctx.generalLevelIDC {
-			ctx.generalLevelIDC = ptl.generalLevelIDC
+		if ptl.generalLevelIdc > ctx.generalLevelIdc {
+			ctx.generalLevelIdc = ptl.generalLevelIdc
 		}
 	}
 
-	if ptl.generalProfileIDC > ctx.generalProfileIDC {
-		ctx.generalProfileIDC = ptl.generalProfileIDC
+	if ptl.generalProfileIdc > ctx.generalProfileIdc {
+		ctx.generalProfileIdc = ptl.generalProfileIdc
 	}
 
 	ctx.generalProfileCompatibilityFlags &= ptl.generalProfileCompatibilityFlags

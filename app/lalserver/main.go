@@ -39,7 +39,7 @@ func parseFlag() string {
 
 	if *binInfoFlag {
 		_, _ = fmt.Fprint(os.Stderr, bininfo.StringifyMultiLine())
-		_, _ = fmt.Fprintln(os.Stderr, base.LALFullInfo)
+		_, _ = fmt.Fprintln(os.Stderr, base.LalFullInfo)
 		os.Exit(0)
 	}
 
@@ -76,7 +76,7 @@ Example:
 
 Github: %s
 Doc: %s
-`, os.Args[0], filepath.FromSlash("./conf/lalserver.conf.json"), base.LALGithubSite, base.LALDocSite)
-	base.OSExitAndWaitPressIfWindows(1)
+`, os.Args[0], filepath.FromSlash("./conf/lalserver.conf.json"), base.LalGithubSite, base.LalDocSite)
+	base.OsExitAndWaitPressIfWindows(1)
 	return *cf
 }

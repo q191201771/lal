@@ -18,13 +18,13 @@ import (
 )
 
 type PushSessionOption struct {
-	PushTimeoutMS int
-	OverTCP       bool
+	PushTimeoutMs int
+	OverTcp       bool
 }
 
 var defaultPushSessionOption = PushSessionOption{
-	PushTimeoutMS: 10000,
-	OverTCP:       false,
+	PushTimeoutMs: 10000,
+	OverTcp:       false,
 }
 
 type PushSession struct {
@@ -41,13 +41,13 @@ func NewPushSession(modOptions ...ModPushSessionOption) *PushSession {
 		fn(&option)
 	}
 
-	uk := base.GenUKRTSPPushSession()
+	uk := base.GenUkRtspPushSession()
 	s := &PushSession{
 		uniqueKey: uk,
 	}
-	cmdSession := NewClientCommandSession(CCSTPushSession, uk, s, func(opt *ClientCommandSessionOption) {
-		opt.DoTimeoutMS = option.PushTimeoutMS
-		opt.OverTCP = option.OverTCP
+	cmdSession := NewClientCommandSession(CcstPushSession, uk, s, func(opt *ClientCommandSessionOption) {
+		opt.DoTimeoutMs = option.PushTimeoutMs
+		opt.OverTcp = option.OverTcp
 	})
 	baseOutSession := NewBaseOutSession(uk, s)
 	s.cmdSession = cmdSession
@@ -57,15 +57,15 @@ func NewPushSession(modOptions ...ModPushSessionOption) *PushSession {
 }
 
 // 阻塞直到和对端完成推流前，握手部分的工作（也即收到RTSP Record response），或者发生错误
-func (session *PushSession) Push(rawURL string, rawSDP []byte, sdpLogicCtx sdp.LogicContext) error {
-	nazalog.Debugf("[%s] push. url=%s", session.uniqueKey, rawURL)
-	session.cmdSession.InitWithSDP(rawSDP, sdpLogicCtx)
-	session.baseOutSession.InitWithSDP(rawSDP, sdpLogicCtx)
-	return session.cmdSession.Do(rawURL)
+func (session *PushSession) Push(rawUrl string, rawSdp []byte, sdpLogicCtx sdp.LogicContext) error {
+	nazalog.Debugf("[%s] push. url=%s", session.uniqueKey, rawUrl)
+	session.cmdSession.InitWithSdp(rawSdp, sdpLogicCtx)
+	session.baseOutSession.InitWithSdp(rawSdp, sdpLogicCtx)
+	return session.cmdSession.Do(rawUrl)
 }
 
-func (session *PushSession) WriteRTPPacket(packet rtprtcp.RTPPacket) {
-	session.baseOutSession.WriteRTPPacket(packet)
+func (session *PushSession) WriteRtpPacket(packet rtprtcp.RtpPacket) {
+	session.baseOutSession.WriteRtpPacket(packet)
 }
 
 // 文档请参考： interface IClientSessionLifecycle
@@ -81,22 +81,22 @@ func (session *PushSession) WaitChan() <-chan error {
 	return session.cmdSession.WaitChan()
 }
 
-// 文档请参考： interface ISessionURLContext
-func (session *PushSession) URL() string {
-	return session.cmdSession.URL()
+// 文档请参考： interface ISessionUrlContext
+func (session *PushSession) Url() string {
+	return session.cmdSession.Url()
 }
 
-// 文档请参考： interface ISessionURLContext
+// 文档请参考： interface ISessionUrlContext
 func (session *PushSession) AppName() string {
 	return session.cmdSession.AppName()
 }
 
-// 文档请参考： interface ISessionURLContext
+// 文档请参考： interface ISessionUrlContext
 func (session *PushSession) StreamName() string {
 	return session.cmdSession.StreamName()
 }
 
-// 文档请参考： interface ISessionURLContext
+// 文档请参考： interface ISessionUrlContext
 func (session *PushSession) RawQuery() string {
 	return session.cmdSession.RawQuery()
 }
@@ -129,12 +129,12 @@ func (session *PushSession) OnConnectResult() {
 }
 
 // ClientCommandSessionObserver, callback by ClientCommandSession
-func (session *PushSession) OnDescribeResponse(rawSDP []byte, sdpLogicCtx sdp.LogicContext) {
+func (session *PushSession) OnDescribeResponse(rawSdp []byte, sdpLogicCtx sdp.LogicContext) {
 	// noop
 }
 
 // ClientCommandSessionObserver, callback by ClientCommandSession
-func (session *PushSession) OnSetupWithConn(uri string, rtpConn, rtcpConn *nazanet.UDPConnection) {
+func (session *PushSession) OnSetupWithConn(uri string, rtpConn, rtcpConn *nazanet.UdpConnection) {
 	_ = session.baseOutSession.SetupWithConn(uri, rtpConn, rtcpConn)
 }
 

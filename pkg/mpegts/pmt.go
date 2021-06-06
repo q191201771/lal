@@ -40,7 +40,7 @@ import (
 // --------------
 // CRC32                    [32b] ****
 // ----------------------------------------
-type PMT struct {
+type Pmt struct {
 	tid             uint8
 	ssi             uint8
 	sl              uint16
@@ -51,17 +51,17 @@ type PMT struct {
 	lsn             uint8
 	pp              uint16
 	pil             uint16
-	ProgramElements []PMTProgramElement
+	ProgramElements []PmtProgramElement
 	crc32           uint32
 }
 
-type PMTProgramElement struct {
+type PmtProgramElement struct {
 	StreamType uint8
 	Pid        uint16
 	Length     uint16
 }
 
-func ParsePMT(b []byte) (pmt PMT) {
+func ParsePmt(b []byte) (pmt Pmt) {
 	br := nazabits.NewBitReader(b)
 	pmt.tid, _ = br.ReadBits8(8)
 	pmt.ssi, _ = br.ReadBits8(1)
@@ -84,7 +84,7 @@ func ParsePMT(b []byte) (pmt PMT) {
 	}
 
 	for i := uint16(0); i < len; i += 5 {
-		var ppe PMTProgramElement
+		var ppe PmtProgramElement
 		ppe.StreamType, _ = br.ReadBits8(8)
 		_, _ = br.ReadBits8(3)
 		ppe.Pid, _ = br.ReadBits16(13)
@@ -100,7 +100,7 @@ func ParsePMT(b []byte) (pmt PMT) {
 	return
 }
 
-func (pmt *PMT) SearchPID(pid uint16) *PMTProgramElement {
+func (pmt *Pmt) SearchPid(pid uint16) *PmtProgramElement {
 	for _, ppe := range pmt.ProgramElements {
 		if ppe.Pid == pid {
 			return &ppe

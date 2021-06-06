@@ -15,7 +15,7 @@ import (
 	"github.com/q191201771/naza/pkg/assert"
 )
 
-func TestCalcM3U8Duration(t *testing.T) {
+func TestCalcM3u8Duration(t *testing.T) {
 	golden := []byte(`
 #EXTM3U
 #EXT-X-VERSION:3
@@ -45,7 +45,7 @@ func TestCalcM3U8Duration(t *testing.T) {
 1607342320-9.ts
 #EXT-X-ENDLIST
 `)
-	duration, err := hls.CalcM3U8Duration(golden)
+	duration, err := hls.CalcM3u8Duration(golden)
 	assert.Equal(t, nil, err)
 	assert.Equal(t, float64(39.2), duration)
 }

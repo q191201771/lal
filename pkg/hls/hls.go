@@ -31,7 +31,7 @@ import (
 
 // 进来的数据称为Frame帧，188字节的封装称为TSPacket包，TS文件称为Fragment
 
-var ErrHLS = errors.New("lal.hls: fxxk")
+var ErrHls = errors.New("lal.hls: fxxk")
 
 const (
 	// TODO chef 这些在配置项中提供
@@ -40,9 +40,9 @@ const (
 	maxAudioCacheDelayByVideo uint64 = 300 * 90  // 单位（毫秒*90）
 )
 
-func SplitFragment2TSPackets(content []byte) (ret [][]byte, err error) {
+func SplitFragment2TsPackets(content []byte) (ret [][]byte, err error) {
 	if len(content)%188 != 0 {
-		err = ErrHLS
+		err = ErrHls
 		return
 	}
 	for {

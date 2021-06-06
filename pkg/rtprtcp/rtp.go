@@ -31,10 +31,10 @@ import (
 // |                             ....                              |
 // +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
 
-var ErrRTP = errors.New("lal.rtp: fxxk")
+var ErrRtp = errors.New("lal.rtp: fxxk")
 
 const (
-	RTPFixedHeaderLength = 12
+	RtpFixedHeaderLength = 12
 )
 
 // rfc3984 5.2.  Common Structure of the RTP Payload Format
@@ -53,24 +53,24 @@ const (
 // 30-31  undefined                                    -
 
 const (
-	NALUTypeAVCSingleMax = 23
-	NALUTypeAVCSTAPA     = 24 // one packet, multiple nals
-	NALUTypeAVCFUA       = 28
+	NaluTypeAvcSingleMax = 23
+	NaluTypeAvcStapa     = 24 // one packet, multiple nals
+	NaluTypeAvcFua       = 28
 )
 
 const (
-	NALUTypeHEVCFUA = 49
+	NaluTypeHevcFua = 49
 )
 
 const (
 	PositionTypeSingle    uint8 = 1
-	PositionTypeFUAStart  uint8 = 2
-	PositionTypeFUAMiddle uint8 = 3
-	PositionTypeFUAEnd    uint8 = 4
-	PositionTypeSTAPA     uint8 = 5
+	PositionTypeFuaStart  uint8 = 2
+	PositionTypeFuaMiddle uint8 = 3
+	PositionTypeFuaEnd    uint8 = 4
+	PositionTypeStapa     uint8 = 5
 )
 
-type RTPHeader struct {
+type RtpHeader struct {
 	Version    uint8  // 2b  *
 	Padding    uint8  // 1b
 	Extension  uint8  // 1
@@ -79,21 +79,21 @@ type RTPHeader struct {
 	PacketType uint8  // 7b
 	Seq        uint16 // 16b **
 	Timestamp  uint32 // 32b ****
-	SSRC       uint32 // 32b **** Synchronization source
+	Ssrc       uint32 // 32b **** Synchronization source
 
 	payloadOffset uint32
 }
 
-type RTPPacket struct {
-	Header RTPHeader
+type RtpPacket struct {
+	Header RtpHeader
 	Raw    []byte // 包含header内存
 
 	positionType uint8
 }
 
-func ParseRTPHeader(b []byte) (h RTPHeader, err error) {
-	if len(b) < RTPFixedHeaderLength {
-		err = ErrRTP
+func ParseRtpHeader(b []byte) (h RtpHeader, err error) {
+	if len(b) < RtpFixedHeaderLength {
+		err = ErrRtp
 		return
 	}
 
@@ -103,17 +103,17 @@ func ParseRTPHeader(b []byte) (h RTPHeader, err error) {
 	h.CsrcCount = b[0] & 0xF
 	h.Mark = b[1] >> 7
 	h.PacketType = b[1] & 0x7F
-	h.Seq = bele.BEUint16(b[2:])
-	h.Timestamp = bele.BEUint32(b[4:])
-	h.SSRC = bele.BEUint32(b[8:])
+	h.Seq = bele.BeUint16(b[2:])
+	h.Timestamp = bele.BeUint32(b[4:])
+	h.Ssrc = bele.BeUint32(b[8:])
 
-	h.payloadOffset = RTPFixedHeaderLength
+	h.payloadOffset = RtpFixedHeaderLength
 	return
 }
 
 // 函数调用结束后，不持有参数<b>的内存块
-func ParseRTPPacket(b []byte) (pkt RTPPacket, err error) {
-	pkt.Header, err = ParseRTPHeader(b)
+func ParseRtpPacket(b []byte) (pkt RtpPacket, err error) {
+	pkt.Header, err = ParseRtpHeader(b)
 	if err != nil {
 		return
 	}

@@ -14,25 +14,25 @@ import (
 	"github.com/q191201771/lal/pkg/rtmp"
 )
 
-func FLVTagHeader2RTMPHeader(in httpflv.TagHeader) (out base.RTMPHeader) {
+func FlvTagHeader2RtmpHeader(in httpflv.TagHeader) (out base.RtmpHeader) {
 	out.MsgLen = in.DataSize
-	out.MsgTypeID = in.Type
-	out.MsgStreamID = rtmp.MSID1
+	out.MsgTypeId = in.Type
+	out.MsgStreamId = rtmp.Msid1
 	switch in.Type {
 	case httpflv.TagTypeMetadata:
-		out.CSID = rtmp.CSIDAMF
+		out.Csid = rtmp.CsidAmf
 	case httpflv.TagTypeAudio:
-		out.CSID = rtmp.CSIDAudio
+		out.Csid = rtmp.CsidAudio
 	case httpflv.TagTypeVideo:
-		out.CSID = rtmp.CSIDVideo
+		out.Csid = rtmp.CsidVideo
 	}
 	out.TimestampAbs = in.Timestamp
 	return
 }
 
 // @return 返回的内存块引用参数输入的内存块
-func FLVTag2RTMPMsg(tag httpflv.Tag) (msg base.RTMPMsg) {
-	msg.Header = FLVTagHeader2RTMPHeader(tag.Header)
+func FlvTag2RtmpMsg(tag httpflv.Tag) (msg base.RtmpMsg) {
+	msg.Header = FlvTagHeader2RtmpHeader(tag.Header)
 	msg.Payload = tag.Raw[11 : 11+msg.Header.MsgLen]
 	return
 }

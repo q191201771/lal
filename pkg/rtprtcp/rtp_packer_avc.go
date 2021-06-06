@@ -14,7 +14,7 @@ const (
 	fuaHeaderSize = 2
 )
 
-type RTPPackerAVC struct {
+type RtpPackerAvc struct {
 }
 
 // @param nalu: AVCC格式
@@ -22,12 +22,12 @@ type RTPPackerAVC struct {
 // @return 返回RTP(only body)的数组
 //         内存块为独立申请，函数返回后，内部不再持有该内存块
 //
-func (*RTPPackerAVC) Pack(nalu []byte, maxSize int) (ret [][]byte) {
+func (*RtpPackerAvc) Pack(nalu []byte, maxSize int) (ret [][]byte) {
 	if nalu == nil || maxSize <= 0 {
 		return
 	}
 
-	nals, err := avc.SplitNALUAVCC(nalu)
+	nals, err := avc.SplitNaluAvcc(nalu)
 	if err != nil {
 		return
 	}
@@ -36,7 +36,7 @@ func (*RTPPackerAVC) Pack(nalu []byte, maxSize int) (ret [][]byte) {
 		nalType := nal[0] & 0x1F
 		nri := nal[0] & 0x60
 
-		if nalType == avc.NALUTypeAUD {
+		if nalType == avc.NaluTypeAud {
 			continue
 		}
 
@@ -58,7 +58,7 @@ func (*RTPPackerAVC) Pack(nalu []byte, maxSize int) (ret [][]byte) {
 				length = maxSize
 				item := make([]byte, maxSize)
 				// fuIndicator
-				item[0] = NALUTypeAVCFUA
+				item[0] = NaluTypeAvcFua
 				item[0] |= nri
 				// fuHeader
 				item[1] = nalType
@@ -75,7 +75,7 @@ func (*RTPPackerAVC) Pack(nalu []byte, maxSize int) (ret [][]byte) {
 			length = epos - bpos + fuaHeaderSize
 			item := make([]byte, length)
 			// fuIndicator
-			item[0] = NALUTypeAVCFUA
+			item[0] = NaluTypeAvcFua
 			item[0] |= nri
 			// fuHeader
 			item[1] = nalType | 0x40 // end

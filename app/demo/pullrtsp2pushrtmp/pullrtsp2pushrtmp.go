@@ -28,27 +28,27 @@ func main() {
 	})
 	defer nazalog.Sync()
 
-	inURL, outURL, overTCP := parseFlag()
+	inUrl, outUrl, overTcp := parseFlag()
 
 	pushSession := rtmp.NewPushSession(func(option *rtmp.PushSessionOption) {
-		option.PushTimeoutMS = 5000
-		option.WriteAVTimeoutMS = 5000
+		option.PushTimeoutMs = 5000
+		option.WriteAvTimeoutMs = 5000
 	})
 
-	err := pushSession.Push(outURL)
+	err := pushSession.Push(outUrl)
 	nazalog.Assert(nil, err)
 	defer pushSession.Dispose()
 
-	remuxer := remux.NewAVPacket2RTMPRemuxer(func(msg base.RTMPMsg) {
+	remuxer := remux.NewAvPacket2RtmpRemuxer(func(msg base.RtmpMsg) {
 		err = pushSession.Write(rtmp.Message2Chunks(msg.Payload, &msg.Header))
 		nazalog.Assert(nil, err)
 	})
 	pullSession := rtsp.NewPullSession(remuxer, func(option *rtsp.PullSessionOption) {
-		option.PullTimeoutMS = 5000
-		option.OverTCP = overTCP != 0
+		option.PullTimeoutMs = 5000
+		option.OverTcp = overTcp != 0
 	})
 
-	err = pullSession.Pull(inURL)
+	err = pullSession.Pull(inUrl)
 	nazalog.Assert(nil, err)
 	defer pullSession.Dispose()
 
@@ -75,7 +75,7 @@ func main() {
 	}
 }
 
-func parseFlag() (inURL string, outFilename string, overTCP int) {
+func parseFlag() (inUrl string, outFilename string, overTcp int) {
 	i := flag.String("i", "", "specify pull rtsp url")
 	o := flag.String("o", "", "specify push rtmp url")
 	t := flag.Int("t", 0, "specify interleaved mode(rtp/rtcp over tcp)")
@@ -86,7 +86,7 @@ func parseFlag() (inURL string, outFilename string, overTCP int) {
   %s -i rtsp://localhost:5544/live/test110 -o rtmp://localhost:19350/live/test220 -t 0
   %s -i rtsp://localhost:5544/live/test110 -o rtmp://localhost:19350/live/test220 -t 1
 `, os.Args[0], os.Args[0])
-		base.OSExitAndWaitPressIfWindows(1)
+		base.OsExitAndWaitPressIfWindows(1)
 	}
 	return *i, *o, *t
 }

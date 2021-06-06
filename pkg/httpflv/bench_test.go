@@ -14,10 +14,10 @@ import (
 	"github.com/q191201771/naza/pkg/assert"
 )
 
-func BenchmarkFLVFileReader(b *testing.B) {
+func BenchmarkFlvFileReader(b *testing.B) {
 	var tmp uint32
 	for i := 0; i < b.N; i++ {
-		var r FLVFileReader
+		var r FlvFileReader
 		err := r.Open("testdata/test.flv")
 		assert.Equal(b, nil, err)
 		for {
@@ -34,7 +34,7 @@ func BenchmarkFLVFileReader(b *testing.B) {
 
 func BenchmarkCloneTag(b *testing.B) {
 	var tmp uint32
-	var r FLVFileReader
+	var r FlvFileReader
 	err := r.Open("testdata/test.flv")
 	assert.Equal(b, nil, err)
 	tag, err := r.ReadTag()

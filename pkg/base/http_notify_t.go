@@ -10,23 +10,23 @@ package base
 
 // 文档见： https://pengrl.com/p/20101/
 
-const HTTPNotifyVersion = "v0.1.0"
+const HttpNotifyVersion = "v0.1.0"
 
 type SessionEventCommonInfo struct {
 	Protocol      string `json:"protocol"`
-	SessionID     string `json:"session_id"`
+	SessionId     string `json:"session_id"`
 	RemoteAddr    string `json:"remote_addr"`
-	ServerID      string `json:"server_id"`
-	URL           string `json:"url"`
+	ServerId      string `json:"server_id"`
+	Url           string `json:"url"`
 	AppName       string `json:"app_name"`
 	StreamName    string `json:"stream_name"`
-	URLParam      string `json:"url_param"`
+	UrlParam      string `json:"url_param"`
 	HasInSession  bool   `json:"has_in_session"`
 	HasOutSession bool   `json:"has_out_session"`
 }
 
 type UpdateInfo struct {
-	ServerID string      `json:"server_id"`
+	ServerId string      `json:"server_id"`
 	Groups   []StatGroup `json:"groups"`
 }
 
@@ -46,11 +46,11 @@ type SubStopInfo struct {
 	SessionEventCommonInfo
 }
 
-type RTMPConnectInfo struct {
-	ServerID   string `json:"server_id"`
-	SessionID  string `json:"session_id"`
+type RtmpConnectInfo struct {
+	ServerId   string `json:"server_id"`
+	SessionId  string `json:"session_id"`
 	RemoteAddr string `json:"remote_addr"`
 	App        string `json:"app"`
 	FlashVer   string `json:"flashVer"`
-	TCURL      string `json:"tcUrl"`
+	TcUrl      string `json:"tcUrl"`
 }

@@ -23,14 +23,14 @@ func TestCase1(t *testing.T) {
 		"0000002c67640032ad84010c20086100430802184010c200843b5014005ad370101014000003000400000300ca100002",
 		"0000000468ee3cb0",
 	}
-	golden := []base.AVPacket{
+	golden := []base.AvPacket{
 		{
 			Timestamp:   10340642,
-			PayloadType: base.AVPacketPTAVC,
+			PayloadType: base.AvPacketPtAvc,
 		},
 		{
 			Timestamp:   10340642,
-			PayloadType: base.AVPacketPTAVC,
+			PayloadType: base.AvPacketPtAvc,
 		},
 	}
 	for i := range ps {
@@ -38,11 +38,11 @@ func TestCase1(t *testing.T) {
 		golden[i].Payload = p
 	}
 
-	remuxer := remux.NewAVPacket2RTMPRemuxer(func(msg base.RTMPMsg) {
+	remuxer := remux.NewAvPacket2RtmpRemuxer(func(msg base.RtmpMsg) {
 		nazalog.Debugf("%+v", msg)
 	})
 	for _, p := range golden {
-		remuxer.FeedAVPacket(p)
+		remuxer.FeedAvPacket(p)
 	}
 }
 
@@ -53,22 +53,22 @@ func TestCase2(t *testing.T) {
 		"0000000c4401c0f2c68d03b240000003",
 		"0000000c4e01e504ebc3000080000003",
 	}
-	golden := []base.AVPacket{
+	golden := []base.AvPacket{
 		{
 			Timestamp:   25753900,
-			PayloadType: base.AVPacketPTHEVC,
+			PayloadType: base.AvPacketPtHevc,
 		},
 		{
 			Timestamp:   25753900,
-			PayloadType: base.AVPacketPTHEVC,
+			PayloadType: base.AvPacketPtHevc,
 		},
 		{
 			Timestamp:   25753900,
-			PayloadType: base.AVPacketPTHEVC,
+			PayloadType: base.AvPacketPtHevc,
 		},
 		{
 			Timestamp:   25753900,
-			PayloadType: base.AVPacketPTHEVC,
+			PayloadType: base.AvPacketPtHevc,
 		},
 	}
 
@@ -77,10 +77,10 @@ func TestCase2(t *testing.T) {
 		golden[i].Payload = p
 	}
 
-	remuxer := remux.NewAVPacket2RTMPRemuxer(func(msg base.RTMPMsg) {
+	remuxer := remux.NewAvPacket2RtmpRemuxer(func(msg base.RtmpMsg) {
 		nazalog.Debugf("%+v", msg)
 	})
 	for _, p := range golden {
-		remuxer.FeedAVPacket(p)
+		remuxer.FeedAvPacket(p)
 	}
 }

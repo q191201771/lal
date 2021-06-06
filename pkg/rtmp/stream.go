@@ -27,7 +27,7 @@ type StreamMsg struct {
 }
 
 type Stream struct {
-	header base.RTMPHeader
+	header base.RtmpHeader
 	msg    StreamMsg
 
 	timestamp uint32 // 注意，是rtmp chunk协议header中的时间戳，可能是绝对的，也可能是相对的。上层不应该使用这个字段，而应该使用Header.TimestampAbs
@@ -48,12 +48,12 @@ func (stream *Stream) toDebugString() string {
 		stream.header, stream.msg.b, hex.Dump(stream.msg.buf[:stream.msg.e]))
 }
 
-func (stream *Stream) toAVMsg() base.RTMPMsg {
+func (stream *Stream) toAvMsg() base.RtmpMsg {
 	// TODO chef: 考虑可能出现header中的len和buf的大小不一致的情况
 	if stream.header.MsgLen != uint32(len(stream.msg.buf[stream.msg.b:stream.msg.e])) {
-		nazalog.Errorf("toAVMsg. headerMsgLen=%d, bufLen=%d", stream.header.MsgLen, len(stream.msg.buf[stream.msg.b:stream.msg.e]))
+		nazalog.Errorf("toAvMsg. headerMsgLen=%d, bufLen=%d", stream.header.MsgLen, len(stream.msg.buf[stream.msg.b:stream.msg.e]))
 	}
-	return base.RTMPMsg{
+	return base.RtmpMsg{
 		Header:  stream.header,
 		Payload: stream.msg.buf[stream.msg.b:stream.msg.e],
 	}
@@ -101,12 +101,12 @@ func (msg *StreamMsg) clear() {
 //}
 
 func (msg *StreamMsg) peekStringWithType() (string, error) {
-	str, _, err := AMF0.ReadString(msg.buf[msg.b:msg.e])
+	str, _, err := Amf0.ReadString(msg.buf[msg.b:msg.e])
 	return str, err
 }
 
 func (msg *StreamMsg) readStringWithType() (string, error) {
-	str, l, err := AMF0.ReadString(msg.buf[msg.b:msg.e])
+	str, l, err := Amf0.ReadString(msg.buf[msg.b:msg.e])
 	if err == nil {
 		msg.consumed(uint32(l))
 	}
@@ -114,7 +114,7 @@ func (msg *StreamMsg) readStringWithType() (string, error) {
 }
 
 func (msg *StreamMsg) readNumberWithType() (int, error) {
-	val, l, err := AMF0.ReadNumber(msg.buf[msg.b:msg.e])
+	val, l, err := Amf0.ReadNumber(msg.buf[msg.b:msg.e])
 	if err == nil {
 		msg.consumed(uint32(l))
 	}
@@ -122,7 +122,7 @@ func (msg *StreamMsg) readNumberWithType() (int, error) {
 }
 
 func (msg *StreamMsg) readObjectWithType() (ObjectPairArray, error) {
-	opa, l, err := AMF0.ReadObject(msg.buf[msg.b:msg.e])
+	opa, l, err := Amf0.ReadObject(msg.buf[msg.b:msg.e])
 	if err == nil {
 		msg.consumed(uint32(l))
 	}
@@ -130,7 +130,7 @@ func (msg *StreamMsg) readObjectWithType() (ObjectPairArray, error) {
 }
 
 func (msg *StreamMsg) readNull() error {
-	l, err := AMF0.ReadNull(msg.buf[msg.b:msg.e])
+	l, err := Amf0.ReadNull(msg.buf[msg.b:msg.e])
 	if err == nil {
 		msg.consumed(uint32(l))
 	}

@@ -39,21 +39,21 @@ func Init(confFile string) {
 	nazalog.Infof("wd: %s", dir)
 	nazalog.Infof("args: %s", strings.Join(os.Args, " "))
 	nazalog.Infof("bininfo: %s", bininfo.StringifySingleLine())
-	nazalog.Infof("version: %s", base.LALFullInfo)
-	nazalog.Infof("github: %s", base.LALGithubSite)
-	nazalog.Infof("doc: %s", base.LALDocSite)
+	nazalog.Infof("version: %s", base.LalFullInfo)
+	nazalog.Infof("github: %s", base.LalGithubSite)
+	nazalog.Infof("doc: %s", base.LalDocSite)
 
-	if config.HLSConfig.Enable && config.HLSConfig.UseMemoryAsDiskFlag {
+	if config.HlsConfig.Enable && config.HlsConfig.UseMemoryAsDiskFlag {
 		nazalog.Infof("hls use memory as disk.")
 		hls.SetUseMemoryAsDiskFlag(true)
 	}
 
-	if config.RecordConfig.EnableFLV {
-		if err := os.MkdirAll(config.RecordConfig.FLVOutPath, 0777); err != nil {
-			nazalog.Errorf("record flv mkdir error. path=%s, err=%+v", config.RecordConfig.FLVOutPath, err)
+	if config.RecordConfig.EnableFlv {
+		if err := os.MkdirAll(config.RecordConfig.FlvOutPath, 0777); err != nil {
+			nazalog.Errorf("record flv mkdir error. path=%s, err=%+v", config.RecordConfig.FlvOutPath, err)
 		}
-		if err := os.MkdirAll(config.RecordConfig.MPEGTSOutPath, 0777); err != nil {
-			nazalog.Errorf("record mpegts mkdir error. path=%s, err=%+v", config.RecordConfig.MPEGTSOutPath, err)
+		if err := os.MkdirAll(config.RecordConfig.MpegtsOutPath, 0777); err != nil {
+			nazalog.Errorf("record mpegts mkdir error. path=%s, err=%+v", config.RecordConfig.MpegtsOutPath, err)
 		}
 	}
 }
@@ -61,8 +61,8 @@ func Init(confFile string) {
 func RunLoop() {
 	sm = NewServerManager()
 
-	if config.PProfConfig.Enable {
-		go runWebPProf(config.PProfConfig.Addr)
+	if config.PprofConfig.Enable {
+		go runWebPprof(config.PprofConfig.Addr)
 	}
 	go runSignalHandler(func() {
 		sm.Dispose()
@@ -76,7 +76,7 @@ func Dispose() {
 	sm.Dispose()
 }
 
-func runWebPProf(addr string) {
+func runWebPprof(addr string) {
 	nazalog.Infof("start web pprof listen. addr=%s", addr)
 
 	//nazalog.Warn("start fgprof.")

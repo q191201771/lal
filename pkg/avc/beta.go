@@ -19,19 +19,19 @@ import (
 	"github.com/q191201771/naza/pkg/nazastring"
 )
 
-func ParseSPS(payload []byte, ctx *Context) error {
+func ParseSps(payload []byte, ctx *Context) error {
 	br := nazabits.NewBitReader(payload)
-	var sps SPS
-	if err := parseSPSBasic(&br, &sps); err != nil {
-		nazalog.Errorf("parseSPSBasic failed. err=%+v, payload=%s", err, hex.Dump(nazastring.SubSliceSafety(payload, 128)))
+	var sps Sps
+	if err := parseSpsBasic(&br, &sps); err != nil {
+		nazalog.Errorf("parseSpsBasic failed. err=%+v, payload=%s", err, hex.Dump(nazastring.SubSliceSafety(payload, 128)))
 		return err
 	}
 	ctx.Profile = sps.ProfileIdc
 	ctx.Level = sps.LevelIdc
 
-	if err := parseSPSBeta(&br, &sps); err != nil {
+	if err := parseSpsBeta(&br, &sps); err != nil {
 		// 注意，这里不将错误返回给上层，因为可能是Beta自身解析的问题
-		nazalog.Errorf("parseSPSBeta failed. err=%+v, payload=%s", err, hex.Dump(nazastring.SubSliceSafety(payload, 128)))
+		nazalog.Errorf("parseSpsBeta failed. err=%+v, payload=%s", err, hex.Dump(nazastring.SubSliceSafety(payload, 128)))
 	}
 	ctx.Width = (sps.PicWidthInMbsMinusOne+1)*16 - (sps.FrameCropLeftOffset+sps.FrameCropRightOffset)*2
 	ctx.Height = (2-uint32(sps.FrameMbsOnlyFlag))*(sps.PicHeightInMapUnitsMinusOne+1)*16 - (sps.FrameCropTopOffset+sps.FrameCropBottomOffset)*2
@@ -39,7 +39,7 @@ func ParseSPS(payload []byte, ctx *Context) error {
 }
 
 // 尝试解析PPS所有字段，实验中，请勿直接使用该函数
-func TryParsePPS(payload []byte) error {
+func TryParsePps(payload []byte) error {
 	// ISO-14496-10.pdf
 	// 7.3.2.2 Picture parameter set RBSP syntax
 
@@ -54,10 +54,10 @@ func TryParsePPS(payload []byte) error {
 //
 func TryParseSeqHeader(payload []byte) error {
 	if len(payload) < 5 {
-		return ErrAVC
+		return ErrAvc
 	}
 	if payload[0] != 0x17 || payload[1] != 0x00 || payload[2] != 0 || payload[3] != 0 || payload[4] != 0 {
-		return ErrAVC
+		return ErrAvc
 	}
 
 	// H.264-AVC-ISO_IEC_14496-15.pdf
@@ -68,43 +68,43 @@ func TryParseSeqHeader(payload []byte) error {
 
 	// TODO check error
 	dcr.ConfigurationVersion, err = br.ReadBits8(8)
-	dcr.AVCProfileIndication, err = br.ReadBits8(8)
+	dcr.AvcProfileIndication, err = br.ReadBits8(8)
 	dcr.ProfileCompatibility, err = br.ReadBits8(8)
-	dcr.AVCLevelIndication, err = br.ReadBits8(8)
+	dcr.AvcLevelIndication, err = br.ReadBits8(8)
 	_, err = br.ReadBits8(6) // reserved = '111111'b
 	dcr.LengthSizeMinusOne, err = br.ReadBits8(2)
 
 	_, err = br.ReadBits8(3) // reserved = '111'b
-	dcr.NumOfSPS, err = br.ReadBits8(5)
+	dcr.NumOfSps, err = br.ReadBits8(5)
 	b, err := br.ReadBytes(2)
-	dcr.SPSLength = bele.BEUint16(b)
+	dcr.SpsLength = bele.BeUint16(b)
 
-	_, _ = br.ReadBytes(uint(dcr.SPSLength))
+	_, _ = br.ReadBytes(uint(dcr.SpsLength))
 
 	_, err = br.ReadBits8(3) // reserved = '111'b
-	dcr.NumOfPPS, err = br.ReadBits8(5)
+	dcr.NumOfPps, err = br.ReadBits8(5)
 	b, err = br.ReadBytes(2)
-	dcr.PPSLength = bele.BEUint16(b)
+	dcr.PpsLength = bele.BeUint16(b)
 
 	nazalog.Debugf("%+v", dcr)
 
 	// 5 + 5 + 1 + 2
 	var ctx Context
-	_ = ParseSPS(payload[13:13+dcr.SPSLength], &ctx)
+	_ = ParseSps(payload[13:13+dcr.SpsLength], &ctx)
 	// 13 + 1 + 2
-	_ = TryParsePPS(payload[16 : 16+dcr.PPSLength])
+	_ = TryParsePps(payload[16 : 16+dcr.PpsLength])
 
 	return err
 }
 
-func parseSPSBasic(br *nazabits.BitReader, sps *SPS) error {
+func parseSpsBasic(br *nazabits.BitReader, sps *Sps) error {
 	t, err := br.ReadBits8(8) //nalType SPS should be 0x67
 	if err != nil {
 		return nazaerrors.Wrap(err)
 	}
 	_ = t
 	//if t != 0x67 {
-	//	return Context{}, ErrAVC
+	//	return Context{}, ErrAvc
 	//}
 
 	sps.ProfileIdc, err = br.ReadBits8(8)
@@ -131,17 +131,17 @@ func parseSPSBasic(br *nazabits.BitReader, sps *SPS) error {
 	if err != nil {
 		return nazaerrors.Wrap(err)
 	}
-	sps.SPSId, err = br.ReadGolomb()
+	sps.SpsId, err = br.ReadGolomb()
 	if err != nil {
 		return nazaerrors.Wrap(err)
 	}
-	if sps.SPSId >= 32 {
-		return nazaerrors.Wrap(ErrAVC)
+	if sps.SpsId >= 32 {
+		return nazaerrors.Wrap(ErrAvc)
 	}
 	return nil
 }
 
-func parseSPSBeta(br *nazabits.BitReader, sps *SPS) error {
+func parseSpsBeta(br *nazabits.BitReader, sps *Sps) error {
 	var err error
 
 	// 100 High profile
@@ -151,7 +151,7 @@ func parseSPSBeta(br *nazabits.BitReader, sps *SPS) error {
 			return nazaerrors.Wrap(err)
 		}
 		if sps.ChromaFormatIdc > 3 {
-			return nazaerrors.Wrap(ErrAVC)
+			return nazaerrors.Wrap(ErrAvc)
 		}
 
 		if sps.ChromaFormatIdc == 3 {
@@ -174,7 +174,7 @@ func parseSPSBeta(br *nazabits.BitReader, sps *SPS) error {
 		sps.BitDepthChroma += 8
 
 		if sps.BitDepthChroma != sps.BitDepthLuma || sps.BitDepthChroma < 8 || sps.BitDepthChroma > 14 {
-			return nazaerrors.Wrap(ErrAVC)
+			return nazaerrors.Wrap(ErrAvc)
 		}
 
 		sps.TransFormBypass, err = br.ReadBits8(1)
@@ -206,7 +206,7 @@ func parseSPSBeta(br *nazabits.BitReader, sps *SPS) error {
 		return nazaerrors.Wrap(err)
 	}
 	if sps.Log2MaxFrameNumMinus4 > 12 {
-		return nazaerrors.Wrap(ErrAVC)
+		return nazaerrors.Wrap(ErrAvc)
 	}
 	sps.PicOrderCntType, err = br.ReadGolomb()
 	if err != nil {
@@ -220,7 +220,7 @@ func parseSPSBeta(br *nazabits.BitReader, sps *SPS) error {
 		// noop
 	} else {
 		nazalog.Debugf("not impl yet. sps.PicOrderCntType=%d", sps.PicOrderCntType)
-		return nazaerrors.Wrap(ErrAVC)
+		return nazaerrors.Wrap(ErrAvc)
 	}
 
 	sps.NumRefFrames, err = br.ReadGolomb()

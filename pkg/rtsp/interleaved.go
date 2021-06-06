@@ -37,7 +37,7 @@ func readInterleaved(r *bufio.Reader) (isInterleaved bool, packet []byte, channe
 	if err != nil {
 		return false, nil, 0, err
 	}
-	rtpLen := int(bele.BEUint16(rtpLenBuf))
+	rtpLen := int(bele.BeUint16(rtpLenBuf))
 	// TODO chef: 这里为了安全性，应该检查大小
 	rtpBuf := make([]byte, rtpLen)
 	_, err = io.ReadFull(r, rtpBuf)
@@ -52,7 +52,7 @@ func packInterleaved(channel int, rtpPacket []byte) []byte {
 	ret := make([]byte, 4+len(rtpPacket))
 	ret[0] = Interleaved
 	ret[1] = uint8(channel)
-	bele.BEPutUint16(ret[2:], uint16(len(rtpPacket)))
+	bele.BePutUint16(ret[2:], uint16(len(rtpPacket)))
 	copy(ret[4:], rtpPacket)
 	return ret
 }

@@ -30,17 +30,17 @@ type PullType int
 
 const (
 	PullTypeUnknown PullType = iota
-	PullTypeRTMP
-	PullTypeHTTPFLV
+	PullTypeRtmp
+	PullTypeHttpflv
 )
 
 func (pt PullType) Readable() string {
 	switch pt {
 	case PullTypeUnknown:
 		return "unknown"
-	case PullTypeRTMP:
+	case PullTypeRtmp:
 		return "rtmp"
-	case PullTypeHTTPFLV:
+	case PullTypeHttpflv:
 		return "httpflv"
 	}
 
@@ -58,22 +58,22 @@ func main() {
 	var delays []int64
 	var mu sync.Mutex
 
-	filename, pushURL, pullURL, pullType := parseFlag()
-	nazalog.Infof("parse flag succ. filename=%s, pushURL=%s, pullURL=%s, pullType=%s",
-		filename, pushURL, pullURL, pullType.Readable())
+	filename, pushUrl, pullUrl, pullType := parseFlag()
+	nazalog.Infof("parse flag succ. filename=%s, pushUrl=%s, pullUrl=%s, pullType=%s",
+		filename, pushUrl, pullUrl, pullType.Readable())
 
-	tags, err := httpflv.ReadAllTagsFromFLVFile(filename)
+	tags, err := httpflv.ReadAllTagsFromFlvFile(filename)
 	if err != nil {
 		nazalog.Fatalf("read tags from flv file failed. err=%+v", err)
 	}
 	nazalog.Infof("read tags from flv file succ. len of tags=%d", len(tags))
 
 	pushSession := rtmp.NewPushSession(func(option *rtmp.PushSessionOption) {
-		option.PushTimeoutMS = 10000
+		option.PushTimeoutMs = 10000
 	})
-	err = pushSession.Push(pushURL)
+	err = pushSession.Push(pushUrl)
 	if err != nil {
-		nazalog.Fatalf("push rtmp failed. url=%s, err=%+v", pushURL, err)
+		nazalog.Fatalf("push rtmp failed. url=%s, err=%+v", pushUrl, err)
 	}
 	nazalog.Info("push rtmp succ.")
 	defer pushSession.Dispose()
@@ -82,7 +82,7 @@ func main() {
 	var httpflvPullSession *httpflv.PullSession
 
 	handleReadPayloadFn := func(payload []byte) {
-		tagKey := nazamd5.MD5(payload)
+		tagKey := nazamd5.Md5(payload)
 		mu.Lock()
 		t, exist := tagKey2writeTime[tagKey]
 		if !exist {
@@ -96,9 +96,9 @@ func main() {
 	}
 
 	switch pullType {
-	case PullTypeHTTPFLV:
+	case PullTypeHttpflv:
 		httpflvPullSession = httpflv.NewPullSession()
-		err = httpflvPullSession.Pull(pullURL, func(tag httpflv.Tag) {
+		err = httpflvPullSession.Pull(pullUrl, func(tag httpflv.Tag) {
 			handleReadPayloadFn(tag.Payload())
 		})
 		if err != nil {
@@ -106,9 +106,9 @@ func main() {
 		}
 		nazalog.Info("pull flv succ.")
 		defer httpflvPullSession.Dispose()
-	case PullTypeRTMP:
+	case PullTypeRtmp:
 		rtmpPullSession = rtmp.NewPullSession()
-		err = rtmpPullSession.Pull(pullURL, func(msg base.RTMPMsg) {
+		err = rtmpPullSession.Pull(pullUrl, func(msg base.RtmpMsg) {
 			handleReadPayloadFn(msg.Payload)
 		})
 		if err != nil {
@@ -124,10 +124,10 @@ func main() {
 			pushSession.UpdateStat(1)
 			var pullBitrate int
 			switch pullType {
-			case PullTypeRTMP:
+			case PullTypeRtmp:
 				rtmpPullSession.UpdateStat(1)
 				pullBitrate = rtmpPullSession.GetStat().Bitrate
-			case PullTypeHTTPFLV:
+			case PullTypeHttpflv:
 				httpflvPullSession.UpdateStat(1)
 				pullBitrate = httpflvPullSession.GetStat().Bitrate
 			}
@@ -135,19 +135,19 @@ func main() {
 		}
 	}()
 
-	prevTS := int64(-1)
+	prevTs := int64(-1)
 	for _, tag := range tags {
-		h := remux.FLVTagHeader2RTMPHeader(tag.Header)
+		h := remux.FlvTagHeader2RtmpHeader(tag.Header)
 		chunks := rtmp.Message2Chunks(tag.Raw[11:11+h.MsgLen], &h)
 
-		if prevTS >= 0 && int64(h.TimestampAbs) > prevTS {
-			diff := int64(h.TimestampAbs) - prevTS
+		if prevTs >= 0 && int64(h.TimestampAbs) > prevTs {
+			diff := int64(h.TimestampAbs) - prevTs
 			time.Sleep(time.Duration(diff) * time.Millisecond)
 		}
-		prevTS = int64(h.TimestampAbs)
+		prevTs = int64(h.TimestampAbs)
 
 		mu.Lock()
-		tagKey := nazamd5.MD5(tag.Raw[11 : 11+h.MsgLen])
+		tagKey := nazamd5.Md5(tag.Raw[11 : 11+h.MsgLen])
 		if _, exist := tagKey2writeTime[tagKey]; exist {
 			nazalog.Errorf("tag key already exist. key=%s", tagKey)
 		}
@@ -185,15 +185,15 @@ func main() {
 	nazalog.Debugf("len(tagKey2writeTime)=%d, delays(len=%d, avg=%d, min=%d, max=%d), detailFilename=%s", len(tagKey2writeTime), len(delays), avg, min, max, detailFilename)
 }
 
-func parseFlag() (filename, pushURL, pullURL string, pullType PullType) {
+func parseFlag() (filename, pushUrl, pullUrl string, pullType PullType) {
 	f := flag.String("f", "", "specify flv file")
 	o := flag.String("o", "", "specify rtmp/httpflv push url")
 	i := flag.String("i", "", "specify rtmp/httpflv pull url")
 	flag.Parse()
 	if strings.HasPrefix(*i, "rtmp") {
-		pullType = PullTypeRTMP
+		pullType = PullTypeRtmp
 	} else if strings.HasSuffix(*i, ".flv") {
-		pullType = PullTypeHTTPFLV
+		pullType = PullTypeHttpflv
 	} else {
 		pullType = PullTypeUnknown
 	}
@@ -203,10 +203,10 @@ func parseFlag() (filename, pushURL, pullURL string, pullType PullType) {
   %s -f test.flv -o rtmp://127.0.0.1:1935/live/test -i rtmp://127.0.0.1:1935/live/test
   %s -f test.flv -o rtmp://127.0.0.1:1935/live/test -i http://127.0.0.1:8080/live/test.flv
 `, os.Args[0], os.Args[0])
-		base.OSExitAndWaitPressIfWindows(1)
+		base.OsExitAndWaitPressIfWindows(1)
 	}
 	filename = *f
-	pushURL = *o
-	pullURL = *i
+	pushUrl = *o
+	pullUrl = *i
 	return
 }

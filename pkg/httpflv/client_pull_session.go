@@ -25,14 +25,14 @@ import (
 type PullSessionOption struct {
 	// 从调用Pull函数，到接收音视频数据的前一步，也即发送完HTTP请求的超时时间
 	// 如果为0，则没有超时时间
-	PullTimeoutMS int
+	PullTimeoutMs int
 
-	ReadTimeoutMS int // 接收数据超时，单位毫秒，如果为0，则不设置超时
+	ReadTimeoutMs int // 接收数据超时，单位毫秒，如果为0，则不设置超时
 }
 
 var defaultPullSessionOption = PullSessionOption{
-	PullTimeoutMS: 10000,
-	ReadTimeoutMS: 0,
+	PullTimeoutMs: 10000,
+	ReadTimeoutMs: 0,
 }
 
 type PullSession struct {
@@ -44,7 +44,7 @@ type PullSession struct {
 	staleStat    *connection.Stat
 	stat         base.StatSession
 
-	urlCtx base.URLContext
+	urlCtx base.UrlContext
 
 	waitChan chan error
 }
@@ -57,7 +57,7 @@ func NewPullSession(modOptions ...ModPullSessionOption) *PullSession {
 		fn(&option)
 	}
 
-	uk := base.GenUKFLVPullSession()
+	uk := base.GenUkFlvPullSession()
 	s := &PullSession{
 		uniqueKey: uk,
 		option:    option,
@@ -68,29 +68,29 @@ func NewPullSession(modOptions ...ModPullSessionOption) *PullSession {
 }
 
 // @param tag: 底层保证回调上来的Raw数据长度是完整的（但是不会分析Raw内部的编码数据）
-type OnReadFLVTag func(tag Tag)
+type OnReadFlvTag func(tag Tag)
 
 // 阻塞直到和对端完成拉流前，握手部分的工作（也即发送完HTTP Request），或者发生错误
 //
-// @param rawURL 支持如下两种格式。（当然，关键点是对端支持）
+// @param rawUrl 支持如下两种格式。（当然，关键点是对端支持）
 //               http://{domain}/{app_name}/{stream_name}.flv
 //               http://{ip}/{domain}/{app_name}/{stream_name}.flv
 //
-// @param onReadFLVTag 读取到 flv tag 数据时回调。回调结束后，PullSession 不会再使用这块 <tag> 数据。
-func (session *PullSession) Pull(rawURL string, onReadFLVTag OnReadFLVTag) error {
-	nazalog.Debugf("[%s] pull. url=%s", session.uniqueKey, rawURL)
+// @param onReadFlvTag 读取到 flv tag 数据时回调。回调结束后，PullSession 不会再使用这块 <tag> 数据。
+func (session *PullSession) Pull(rawUrl string, onReadFlvTag OnReadFlvTag) error {
+	nazalog.Debugf("[%s] pull. url=%s", session.uniqueKey, rawUrl)
 
 	var (
 		ctx    context.Context
 		cancel context.CancelFunc
 	)
-	if session.option.PullTimeoutMS == 0 {
+	if session.option.PullTimeoutMs == 0 {
 		ctx, cancel = context.WithCancel(context.Background())
 	} else {
-		ctx, cancel = context.WithTimeout(context.Background(), time.Duration(session.option.PullTimeoutMS)*time.Millisecond)
+		ctx, cancel = context.WithTimeout(context.Background(), time.Duration(session.option.PullTimeoutMs)*time.Millisecond)
 	}
 	defer cancel()
-	return session.pullContext(ctx, rawURL, onReadFLVTag)
+	return session.pullContext(ctx, rawUrl, onReadFlvTag)
 }
 
 // 文档请参考： interface IClientSessionLifecycle
@@ -107,22 +107,22 @@ func (session *PullSession) WaitChan() <-chan error {
 	return session.waitChan
 }
 
-// 文档请参考： interface ISessionURLContext
-func (session *PullSession) URL() string {
-	return session.urlCtx.URL
+// 文档请参考： interface ISessionUrlContext
+func (session *PullSession) Url() string {
+	return session.urlCtx.Url
 }
 
-// 文档请参考： interface ISessionURLContext
+// 文档请参考： interface ISessionUrlContext
 func (session *PullSession) AppName() string {
 	return session.urlCtx.PathWithoutLastItem
 }
 
-// 文档请参考： interface ISessionURLContext
+// 文档请参考： interface ISessionUrlContext
 func (session *PullSession) StreamName() string {
 	return session.urlCtx.LastItemOfPath
 }
 
-// 文档请参考： interface ISessionURLContext
+// 文档请参考： interface ISessionUrlContext
 func (session *PullSession) RawQuery() string {
 	return session.urlCtx.RawQuery
 }
@@ -166,15 +166,15 @@ func (session *PullSession) IsAlive() (readAlive, writeAlive bool) {
 	return
 }
 
-func (session *PullSession) pullContext(ctx context.Context, rawURL string, onReadFLVTag OnReadFLVTag) error {
+func (session *PullSession) pullContext(ctx context.Context, rawUrl string, onReadFlvTag OnReadFlvTag) error {
 	errChan := make(chan error, 1)
 
 	go func() {
-		if err := session.connect(rawURL); err != nil {
+		if err := session.connect(rawUrl); err != nil {
 			errChan <- err
 			return
 		}
-		if err := session.writeHTTPRequest(); err != nil {
+		if err := session.writeHttpRequest(); err != nil {
 			errChan <- err
 			return
 		}
@@ -191,12 +191,12 @@ func (session *PullSession) pullContext(ctx context.Context, rawURL string, onRe
 		}
 	}
 
-	go session.runReadLoop(onReadFLVTag)
+	go session.runReadLoop(onReadFlvTag)
 	return nil
 }
 
-func (session *PullSession) connect(rawURL string) (err error) {
-	session.urlCtx, err = base.ParseHTTPFLVURL(rawURL, false)
+func (session *PullSession) connect(rawUrl string) (err error) {
+	session.urlCtx, err = base.ParseHttpflvUrl(rawUrl, false)
 	if err != nil {
 		return
 	}
@@ -210,27 +210,27 @@ func (session *PullSession) connect(rawURL string) (err error) {
 	}
 	session.conn = connection.New(conn, func(option *connection.Option) {
 		option.ReadBufSize = readBufSize
-		option.WriteTimeoutMS = session.option.ReadTimeoutMS // TODO chef: 为什么是 Read 赋值给 Write
-		option.ReadTimeoutMS = session.option.ReadTimeoutMS
+		option.WriteTimeoutMs = session.option.ReadTimeoutMs // TODO chef: 为什么是 Read 赋值给 Write
+		option.ReadTimeoutMs = session.option.ReadTimeoutMs
 	})
 	return nil
 }
 
-func (session *PullSession) writeHTTPRequest() error {
+func (session *PullSession) writeHttpRequest() error {
 	// # 发送 http GET 请求
 	nazalog.Debugf("[%s] > W http request. GET %s", session.uniqueKey, session.urlCtx.PathWithRawQuery)
 	req := fmt.Sprintf("GET %s HTTP/1.0\r\nUser-Agent: %s\r\nAccept: */*\r\nRange: byte=0-\r\nConnection: close\r\nHost: %s\r\nIcy-MetaData: 1\r\n\r\n",
-		session.urlCtx.PathWithRawQuery, base.LALHTTPFLVPullSessionUA, session.urlCtx.StdHost)
+		session.urlCtx.PathWithRawQuery, base.LalHttpflvPullSessionUa, session.urlCtx.StdHost)
 	_, err := session.conn.Write([]byte(req))
 	return err
 }
 
-func (session *PullSession) readHTTPRespHeader() (statusLine string, headers map[string]string, err error) {
+func (session *PullSession) readHttpRespHeader() (statusLine string, headers map[string]string, err error) {
 	// TODO chef: timeout
-	if statusLine, headers, err = nazahttp.ReadHTTPHeader(session.conn); err != nil {
+	if statusLine, headers, err = nazahttp.ReadHttpHeader(session.conn); err != nil {
 		return
 	}
-	_, code, _, err := nazahttp.ParseHTTPStatusLine(statusLine)
+	_, code, _, err := nazahttp.ParseHttpStatusLine(statusLine)
 	if err != nil {
 		return
 	}
@@ -239,7 +239,7 @@ func (session *PullSession) readHTTPRespHeader() (statusLine string, headers map
 	return
 }
 
-func (session *PullSession) readFLVHeader() ([]byte, error) {
+func (session *PullSession) readFlvHeader() ([]byte, error) {
 	flvHeader := make([]byte, flvHeaderSize)
 	_, err := session.conn.ReadAtLeast(flvHeader, flvHeaderSize)
 	if err != nil {
@@ -255,13 +255,13 @@ func (session *PullSession) readTag() (Tag, error) {
 	return readTag(session.conn)
 }
 
-func (session *PullSession) runReadLoop(onReadFLVTag OnReadFLVTag) {
-	if _, _, err := session.readHTTPRespHeader(); err != nil {
+func (session *PullSession) runReadLoop(onReadFlvTag OnReadFlvTag) {
+	if _, _, err := session.readHttpRespHeader(); err != nil {
 		session.waitChan <- err
 		return
 	}
 
-	if _, err := session.readFLVHeader(); err != nil {
+	if _, err := session.readFlvHeader(); err != nil {
 		session.waitChan <- err
 		return
 	}
@@ -272,6 +272,6 @@ func (session *PullSession) runReadLoop(onReadFLVTag OnReadFLVTag) {
 			session.waitChan <- err
 			return
 		}
-		onReadFLVTag(tag)
+		onReadFlvTag(tag)
 	}
 }

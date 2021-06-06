@@ -24,15 +24,15 @@ type PubSessionObserver interface {
 
 type PubSession struct {
 	uniqueKey     string
-	urlCtx        base.URLContext
+	urlCtx        base.UrlContext
 	cmdSession    *ServerCommandSession
 	baseInSession *BaseInSession
 
 	observer PubSessionObserver
 }
 
-func NewPubSession(urlCtx base.URLContext, cmdSession *ServerCommandSession) *PubSession {
-	uk := base.GenUKRTSPPubSession()
+func NewPubSession(urlCtx base.UrlContext, cmdSession *ServerCommandSession) *PubSession {
+	uk := base.GenUkRtspPubSession()
 	s := &PubSession{
 		uniqueKey:  uk,
 		urlCtx:     urlCtx,
@@ -44,15 +44,15 @@ func NewPubSession(urlCtx base.URLContext, cmdSession *ServerCommandSession) *Pu
 	return s
 }
 
-func (session *PubSession) InitWithSDP(rawSDP []byte, sdpLogicCtx sdp.LogicContext) {
-	session.baseInSession.InitWithSDP(rawSDP, sdpLogicCtx)
+func (session *PubSession) InitWithSdp(rawSdp []byte, sdpLogicCtx sdp.LogicContext) {
+	session.baseInSession.InitWithSdp(rawSdp, sdpLogicCtx)
 }
 
 func (session *PubSession) SetObserver(observer PubSessionObserver) {
 	session.baseInSession.SetObserver(observer)
 }
 
-func (session *PubSession) SetupWithConn(uri string, rtpConn, rtcpConn *nazanet.UDPConnection) error {
+func (session *PubSession) SetupWithConn(uri string, rtpConn, rtcpConn *nazanet.UdpConnection) error {
 	return session.baseInSession.SetupWithConn(uri, rtpConn, rtcpConn)
 }
 
@@ -67,16 +67,16 @@ func (session *PubSession) Dispose() error {
 	return nazaerrors.CombineErrors(e1, e2)
 }
 
-func (session *PubSession) GetSDP() ([]byte, sdp.LogicContext) {
-	return session.baseInSession.GetSDP()
+func (session *PubSession) GetSdp() ([]byte, sdp.LogicContext) {
+	return session.baseInSession.GetSdp()
 }
 
 func (session *PubSession) HandleInterleavedPacket(b []byte, channel int) {
 	session.baseInSession.HandleInterleavedPacket(b, channel)
 }
 
-func (session *PubSession) URL() string {
-	return session.urlCtx.URL
+func (session *PubSession) Url() string {
+	return session.urlCtx.Url
 }
 
 func (session *PubSession) AppName() string {

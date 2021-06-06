@@ -16,8 +16,8 @@ import (
 	"github.com/q191201771/naza/pkg/connection"
 )
 
-type HTTPSubSession struct {
-	HTTPSubSessionOption
+type HttpSubSession struct {
+	HttpSubSessionOption
 
 	suffix       string
 	conn         connection.Connection
@@ -26,23 +26,23 @@ type HTTPSubSession struct {
 	stat         StatSession
 }
 
-type HTTPSubSessionOption struct {
+type HttpSubSessionOption struct {
 	Conn          net.Conn
 	ConnModOption connection.ModOption
-	UK            string // unique key
+	Uk            string // unique key
 	Protocol      string
-	URLCtx        URLContext
+	UrlCtx        UrlContext
 	IsWebSocket   bool
 	WebSocketKey  string
 }
 
-func NewHTTPSubSession(option HTTPSubSessionOption) *HTTPSubSession {
-	s := &HTTPSubSession{
-		HTTPSubSessionOption: option,
+func NewHttpSubSession(option HttpSubSessionOption) *HttpSubSession {
+	s := &HttpSubSession{
+		HttpSubSessionOption: option,
 		conn:                 connection.New(option.Conn, option.ConnModOption),
 		stat: StatSession{
 			Protocol:   option.Protocol,
-			SessionID:  option.UK,
+			SessionId:  option.Uk,
 			StartTime:  time.Now().Format("2006-01-02 15:04:05.999"),
 			RemoteAddr: option.Conn.RemoteAddr().String(),
 		},
@@ -50,13 +50,13 @@ func NewHTTPSubSession(option HTTPSubSessionOption) *HTTPSubSession {
 	return s
 }
 
-func (session *HTTPSubSession) RunLoop() error {
+func (session *HttpSubSession) RunLoop() error {
 	buf := make([]byte, 128)
 	_, err := session.conn.Read(buf)
 	return err
 }
 
-func (session *HTTPSubSession) WriteHTTPResponseHeader(b []byte) {
+func (session *HttpSubSession) WriteHttpResponseHeader(b []byte) {
 	if session.IsWebSocket {
 		session.write(UpdateWebSocketHeader(session.WebSocketKey))
 	} else {
@@ -64,63 +64,63 @@ func (session *HTTPSubSession) WriteHTTPResponseHeader(b []byte) {
 	}
 }
 
-func (session *HTTPSubSession) Write(b []byte) {
+func (session *HttpSubSession) Write(b []byte) {
 	if session.IsWebSocket {
-		wsHeader := WSHeader{
+		wsHeader := WsHeader{
 			Fin:           true,
 			Rsv1:          false,
 			Rsv2:          false,
 			Rsv3:          false,
-			Opcode:        WSO_Binary,
+			Opcode:        Wso_Binary,
 			PayloadLength: uint64(len(b)),
 			Masked:        false,
 		}
-		session.write(MakeWSFrameHeader(wsHeader))
+		session.write(MakeWsFrameHeader(wsHeader))
 	}
 	session.write(b)
 }
 
-func (session *HTTPSubSession) Dispose() error {
+func (session *HttpSubSession) Dispose() error {
 	return session.conn.Close()
 }
 
-func (session *HTTPSubSession) URL() string {
-	return session.URLCtx.URL
+func (session *HttpSubSession) Url() string {
+	return session.UrlCtx.Url
 }
 
-func (session *HTTPSubSession) AppName() string {
-	return session.URLCtx.PathWithoutLastItem
+func (session *HttpSubSession) AppName() string {
+	return session.UrlCtx.PathWithoutLastItem
 }
 
-func (session *HTTPSubSession) StreamName() string {
+func (session *HttpSubSession) StreamName() string {
 	var suffix string
 	switch session.Protocol {
-	case ProtocolHTTPFLV:
+	case ProtocolHttpflv:
 		suffix = ".flv"
-	case ProtocolHTTPTS:
+	case ProtocolHttpts:
 		suffix = ".ts"
 	default:
-		Logger.Warnf("[%s] acquire stream name but protocol unknown.", session.UK)
+		Logger.Warnf("[%s] acquire stream name but protocol unknown.", session.Uk)
 	}
-	return strings.TrimSuffix(session.URLCtx.LastItemOfPath, suffix)
+	return strings.TrimSuffix(session.UrlCtx.LastItemOfPath, suffix)
 }
 
-func (session *HTTPSubSession) RawQuery() string {
-	return session.URLCtx.RawQuery
+func (session *HttpSubSession) RawQuery() string {
+	return session.UrlCtx.RawQuery
 }
 
-func (session *HTTPSubSession) UniqueKey() string {
-	return session.UK
+func (session *HttpSubSession) UniqueKey() string {
+	return session.Uk
 }
 
-func (session *HTTPSubSession) GetStat() StatSession {
+func (session *HttpSubSession) GetStat() StatSession {
 	currStat := session.conn.GetStat()
 	session.stat.ReadBytesSum = currStat.ReadBytesSum
 	session.stat.WroteBytesSum = currStat.WroteBytesSum
 	return session.stat
 }
 
-func (session *HTTPSubSession) UpdateStat(intervalSec uint32) {
+func (session *HttpSubSession) UpdateStat(intervalSec uint32) {
 	currStat := session.conn.GetStat()
 	rDiff := currStat.ReadBytesSum - session.prevConnStat.ReadBytesSum
 	session.stat.ReadBitrate = int(rDiff * 8 / 1024 / uint64(intervalSec))
@@ -130,7 +130,7 @@ func (session *HTTPSubSession) UpdateStat(intervalSec uint32) {
 	session.prevConnStat = currStat
 }
 
-func (session *HTTPSubSession) IsAlive() (readAlive, writeAlive bool) {
+func (session *HttpSubSession) IsAlive() (readAlive, writeAlive bool) {
 	currStat := session.conn.GetStat()
 	if session.staleStat == nil {
 		session.staleStat = new(connection.Stat)
@@ -144,6 +144,6 @@ func (session *HTTPSubSession) IsAlive() (readAlive, writeAlive bool) {
 	return
 }
 
-func (session *HTTPSubSession) write(b []byte) {
+func (session *HttpSubSession) write(b []byte) {
 	_, _ = session.conn.Write(b)
 }
