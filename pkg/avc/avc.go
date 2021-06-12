@@ -202,10 +202,10 @@ func ParseSliceTypeReadable(nalu []byte) (string, error) {
 // @param payload: rtmp message的payload部分或者flv tag的payload部分
 //                 注意，包含了头部2字节类型以及3字节的cts
 //
-// @return 注意，返回的内存块为独立的内存块，不依赖指向传输参数<payload>内存块
+// @return 返回的内存块为内部独立新申请
 //
 func SpsPpsSeqHeader2Annexb(payload []byte) ([]byte, error) {
-	sps, pps, err := ParseSpsPpsFromSeqHeader(payload)
+	sps, pps, err := ParseSpsPpsFromSeqHeaderWithoutMalloc(payload)
 	if err != nil {
 		return nil, ErrAvc
 	}
@@ -217,14 +217,28 @@ func SpsPpsSeqHeader2Annexb(payload []byte) ([]byte, error) {
 	return ret, nil
 }
 
+// 见func ParseSpsPpsFromSeqHeaderWithoutMalloc
+//
+// @return sps, pps: 内存块为内部独立新申请
+//
+func ParseSpsPpsFromSeqHeader(payload []byte) (sps, pps []byte, err error) {
+	s, p, e := ParseSpsPpsFromSeqHeaderWithoutMalloc(payload)
+	if e != nil {
+		return nil, nil, e
+	}
+	sps = append(sps, s...)
+	pps = append(pps, p...)
+	return
+}
+
 // 从AVCC格式的Seq Header中得到SPS和PPS内存块
 //
 // @param payload: rtmp message的payload部分或者flv tag的payload部分
 //                 注意，包含了头部2字节类型以及3字节的cts
 //
-// @return 注意，返回的sps，pps内存块指向的是传入参数<payload>内存块的内存
+// @return sps, pps: 复用传入参数`payload`的内存块
 //
-func ParseSpsPpsFromSeqHeader(payload []byte) (sps, pps []byte, err error) {
+func ParseSpsPpsFromSeqHeaderWithoutMalloc(payload []byte) (sps, pps []byte, err error) {
 	if len(payload) < 5 {
 		return nil, nil, ErrAvc
 	}
@@ -272,7 +286,8 @@ func ParseSpsPpsFromSeqHeader(payload []byte) (sps, pps []byte, err error) {
 	return
 }
 
-// 返回的内存块为新申请的独立内存块
+// @return 内存块为内部独立新申请
+//
 func BuildSeqHeaderFromSpsPps(sps, pps []byte) ([]byte, error) {
 	var sh []byte
 	sh = make([]byte, 16+len(sps)+len(pps))
