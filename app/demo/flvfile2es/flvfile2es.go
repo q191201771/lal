@@ -51,7 +51,7 @@ func main() {
 	defer vfp.Close()
 	nazalog.Infof("open es h264 file succ.")
 
-	var adts aac.Adts
+	var ascCtx aac.AscContext
 
 	for {
 		tag, err := ffr.ReadTag()
@@ -66,12 +66,11 @@ func main() {
 		switch tag.Header.Type {
 		case httpflv.TagTypeAudio:
 			if payload[1] == 0 {
-				err = adts.InitWithAacAudioSpecificConfig(payload[2:])
+				err = ascCtx.Unpack(payload[2:])
 				nazalog.Assert(nil, err)
 			}
 
-			d, err := adts.CalcAdtsHeader(uint16(len(payload) - 2))
-			nazalog.Assert(nil, err)
+			d := ascCtx.PackAdtsHeader(len(payload) - 2)
 			_, _ = afp.Write(d)
 			_, _ = afp.Write(payload[2:])
 		case httpflv.TagTypeVideo:

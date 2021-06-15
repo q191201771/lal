@@ -34,7 +34,6 @@ func (ffr *FlvFileReader) ReadTag() (Tag, error) {
 	// lazy read flv header
 	if !ffr.hasReadFlvHeader {
 		_, _ = ffr.ReadFlvHeader()
-		ffr.hasReadFlvHeader = true
 	}
 
 	return readTag(ffr.fp)

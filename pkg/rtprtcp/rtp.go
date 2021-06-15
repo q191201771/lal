@@ -10,32 +10,9 @@ package rtprtcp
 
 import (
 	"errors"
-
-	"github.com/q191201771/naza/pkg/bele"
 )
-
-// -----------------------------------
-// rfc3550 5.1 RTP Fixed Header Fields
-// -----------------------------------
-//
-// 0                   1                   2                   3
-// 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
-// +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-// |V=2|P|X|  CC   |M|     PT      |       sequence number         |
-// +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-// |                           timestamp                           |
-// +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-// |           synchronization source (SSRC) identifier            |
-// +=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+
-// |            contributing source (CSRC) identifiers             |
-// |                             ....                              |
-// +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
 
 var ErrRtp = errors.New("lal.rtp: fxxk")
-
-const (
-	RtpFixedHeaderLength = 12
-)
 
 // rfc3984 5.2.  Common Structure of the RTP Payload Format
 // Table 1.  Summary of NAL unit types and their payload structures
@@ -61,66 +38,6 @@ const (
 const (
 	NaluTypeHevcFua = 49
 )
-
-const (
-	PositionTypeSingle    uint8 = 1
-	PositionTypeFuaStart  uint8 = 2
-	PositionTypeFuaMiddle uint8 = 3
-	PositionTypeFuaEnd    uint8 = 4
-	PositionTypeStapa     uint8 = 5
-)
-
-type RtpHeader struct {
-	Version    uint8  // 2b  *
-	Padding    uint8  // 1b
-	Extension  uint8  // 1
-	CsrcCount  uint8  // 4b
-	Mark       uint8  // 1b  *
-	PacketType uint8  // 7b
-	Seq        uint16 // 16b **
-	Timestamp  uint32 // 32b ****
-	Ssrc       uint32 // 32b **** Synchronization source
-
-	payloadOffset uint32
-}
-
-type RtpPacket struct {
-	Header RtpHeader
-	Raw    []byte // 包含header内存
-
-	positionType uint8
-}
-
-func ParseRtpHeader(b []byte) (h RtpHeader, err error) {
-	if len(b) < RtpFixedHeaderLength {
-		err = ErrRtp
-		return
-	}
-
-	h.Version = b[0] >> 6
-	h.Padding = (b[0] >> 5) & 0x1
-	h.Extension = (b[0] >> 4) & 0x1
-	h.CsrcCount = b[0] & 0xF
-	h.Mark = b[1] >> 7
-	h.PacketType = b[1] & 0x7F
-	h.Seq = bele.BeUint16(b[2:])
-	h.Timestamp = bele.BeUint32(b[4:])
-	h.Ssrc = bele.BeUint32(b[8:])
-
-	h.payloadOffset = RtpFixedHeaderLength
-	return
-}
-
-// 函数调用结束后，不持有参数<b>的内存块
-func ParseRtpPacket(b []byte) (pkt RtpPacket, err error) {
-	pkt.Header, err = ParseRtpHeader(b)
-	if err != nil {
-		return
-	}
-	pkt.Raw = make([]byte, len(b))
-	copy(pkt.Raw, b)
-	return
-}
 
 // 比较序号的值，内部处理序号翻转问题，见单元测试中的例子
 // @return  0 a和b相等

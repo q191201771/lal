@@ -42,7 +42,7 @@ type Streamer struct {
 	calcFragmentHeaderQueue *Queue
 	videoOut                []byte // Annexb TODO chef: 优化这块buff
 	spspps                  []byte // Annexb 也可能是vps+sps+pps
-	adts                    aac.Adts
+	ascCtx                  *aac.AscContext
 	audioCacheFrames        []byte // 缓存音频帧数据，注意，可能包含多个音频帧 TODO chef: 优化这块buff
 	audioCacheFirstFramePts uint64 // audioCacheFrames中第一个音频帧的时间戳 TODO chef: rename to DTS
 	audioCc                 uint8
@@ -83,7 +83,7 @@ func (s *Streamer) OnPop(msg base.RtmpMsg) {
 }
 
 func (s *Streamer) AudioSeqHeaderCached() bool {
-	return s.adts.HasInited()
+	return s.ascCtx != nil
 }
 
 func (s *Streamer) VideoSeqHeaderCached() bool {
@@ -245,7 +245,7 @@ func (s *Streamer) feedAudio(msg base.RtmpMsg) {
 		return
 	}
 
-	if !s.adts.HasInited() {
+	if !s.AudioSeqHeaderCached() {
 		nazalog.Warnf("[%s] feed audio message but aac seq header not exist.", s.UniqueKey)
 		return
 	}
@@ -260,7 +260,7 @@ func (s *Streamer) feedAudio(msg base.RtmpMsg) {
 		s.audioCacheFirstFramePts = pts
 	}
 
-	adtsHeader, _ := s.adts.CalcAdtsHeader(uint16(msg.Header.MsgLen - 2))
+	adtsHeader := s.ascCtx.PackAdtsHeader(int(msg.Header.MsgLen - 2))
 	s.audioCacheFrames = append(s.audioCacheFrames, adtsHeader...)
 	s.audioCacheFrames = append(s.audioCacheFrames, msg.Payload[2:]...)
 }
@@ -289,7 +289,9 @@ func (s *Streamer) FlushAudio() {
 }
 
 func (s *Streamer) cacheAacSeqHeader(msg base.RtmpMsg) error {
-	return s.adts.InitWithAacAudioSpecificConfig(msg.Payload[2:])
+	var err error
+	s.ascCtx, err = aac.NewAscContext(msg.Payload[2:])
+	return err
 }
 
 func (s *Streamer) appendSpsPps(out []byte) ([]byte, error) {

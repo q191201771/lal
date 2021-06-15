@@ -80,7 +80,7 @@ func (r *AvPacket2RtmpRemuxer) InitWithAvConfig(asc, vps, sps, pps []byte) {
 	}
 
 	if r.audioType != base.AvPacketPtUnknown {
-		bAsh, err = aac.BuildAacSeqHeader(asc)
+		bAsh, err = aac.MakeAudioDataSeqHeaderWithAsc(asc)
 		if err != nil {
 			nazalog.Errorf("build aac seq header failed. err=%+v", err)
 			return
