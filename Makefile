@@ -16,7 +16,7 @@ deps:
 
 .PHONY: image
 image:
-	docker build -f build/Dockerfile -t lal:latest .
+	docker build -f Dockerfile -t lal:latest .
 
 .PHONY: clean
 clean:
