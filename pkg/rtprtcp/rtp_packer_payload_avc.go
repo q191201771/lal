@@ -96,7 +96,9 @@ func (r *RtpPackerPayloadAvc) PackNal(nal []byte, maxSize int) (out [][]byte) {
 
 	// FU-A
 	var length int
-	bpos := 0
+	// 注意，跳过输入的nal type那个字节，使用FU-A自己的两个字节的头，避免重复
+	bpos := 1
+
 	epos := len(nal)
 	for {
 		if epos-bpos > maxSize-fuaHeaderSize {
@@ -108,7 +110,8 @@ func (r *RtpPackerPayloadAvc) PackNal(nal []byte, maxSize int) (out [][]byte) {
 			item[0] |= nri
 			// fuHeader
 			item[1] = nalType
-			if bpos == 0 {
+			// 当前帧切割后的首个RTP包
+			if bpos == 1 {
 				item[1] |= 0x80 // start
 			}
 			//
