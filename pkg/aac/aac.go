@@ -29,7 +29,7 @@ var ErrAac = errors.New("lal.aac: fxxk")
 
 const (
 	minAscLength     = 2
-	adtsHeaderLength = 7
+	AdtsHeaderLength = 7
 )
 
 // <ISO_IEC_14496-3.pdf>
@@ -91,7 +91,7 @@ func (ascCtx *AscContext) Pack() (asc []byte) {
 // @return h: 内存块为独立新申请；函数调用结束后，内部不持有该内存块
 //
 func (ascCtx *AscContext) PackAdtsHeader(frameLength int) (out []byte) {
-	out = make([]byte, adtsHeaderLength)
+	out = make([]byte, AdtsHeaderLength)
 	_ = ascCtx.PackToAdtsHeader(out, frameLength)
 	return
 }
@@ -99,7 +99,7 @@ func (ascCtx *AscContext) PackAdtsHeader(frameLength int) (out []byte) {
 // @param out: 函数调用结束后，内部不持有该内存块
 //
 func (ascCtx *AscContext) PackToAdtsHeader(out []byte, frameLength int) error {
-	if len(out) < adtsHeaderLength {
+	if len(out) < AdtsHeaderLength {
 		return ErrAac
 	}
 
@@ -142,7 +142,7 @@ func (ascCtx *AscContext) PackToAdtsHeader(out []byte, frameLength int) error {
 	// origin/copy, home, copyright_identification_bit, copyright_identification_start 3(4)
 	bw.WriteBits8(4, 0)
 	// 3(2) 4(8) 5(3)
-	bw.WriteBits16(13, uint16(frameLength+adtsHeaderLength))
+	bw.WriteBits16(13, uint16(frameLength+AdtsHeaderLength))
 	// adts_buffer_fullness 5(5) 6(6)
 	bw.WriteBits16(11, 0x7FF)
 	// no_raw_data_blocks_in_frame 6(2)
@@ -167,7 +167,7 @@ func NewAdtsHeaderContext(adtsHeader []byte) (*AdtsHeaderContext, error) {
 // @param adtsHeader: 函数调用结束后，内部不持有该内存块
 //
 func (ctx *AdtsHeaderContext) Unpack(adtsHeader []byte) error {
-	if len(adtsHeader) < adtsHeaderLength {
+	if len(adtsHeader) < AdtsHeaderLength {
 		return ErrAac
 	}
 
