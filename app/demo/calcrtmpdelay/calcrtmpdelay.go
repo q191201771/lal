@@ -121,14 +121,14 @@ func main() {
 	go func() {
 		for {
 			time.Sleep(5 * time.Second)
-			pushSession.UpdateStat(1)
+			pushSession.UpdateStat(5)
 			var pullBitrate int
 			switch pullType {
 			case PullTypeRtmp:
-				rtmpPullSession.UpdateStat(1)
+				rtmpPullSession.UpdateStat(5)
 				pullBitrate = rtmpPullSession.GetStat().Bitrate
 			case PullTypeHttpflv:
-				httpflvPullSession.UpdateStat(1)
+				httpflvPullSession.UpdateStat(5)
 				pullBitrate = httpflvPullSession.GetStat().Bitrate
 			}
 			nazalog.Debugf("stat bitrate. push=%+v, pull=%+v", pushSession.GetStat().Bitrate, pullBitrate)
