@@ -107,11 +107,13 @@ func (sm *ServerManager) RunLoop() error {
 		return err
 	}
 
-	go func() {
-		if err := sm.httpServerManager.RunLoop(); err != nil {
-			nazalog.Error(err)
-		}
-	}()
+	if sm.httpServerManager != nil {
+		go func() {
+			if err := sm.httpServerManager.RunLoop(); err != nil {
+				nazalog.Error(err)
+			}
+		}()
+	}
 
 	if sm.rtmpServer != nil {
 		if err := sm.rtmpServer.Listen(); err != nil {
