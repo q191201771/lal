@@ -424,3 +424,37 @@ a=appversion:1.0
 	assert.Equal(t, nil, err)
 	_ = ctx
 }
+
+func TestCase9(t *testing.T) {
+	golden := `v=0
+o=- 13362557 1 IN IP4 192.168.1.100
+s=RTSP/RTP stream from VZ Smart-IPC
+i=h264
+t=0 0
+a=tool:LIVE555 Streaming Media v2016.07.19
+a=type:broadcast
+a=control:*
+a=range:npt=0-
+a=x-qt-text-nam:RTSP/RTP stream from VZ Smart-IPC
+a=x-qt-text-inf:h264
+m=video 0 RTP/AVP 96
+c=IN IP4 0.0.0.0
+b=AS:4000
+a=rtpmap:96 H264/90000
+a=fmtp:96 packetization-mode=1;profile-level-id=000042;sprop-parameter-sets=
+a=control:track1
+m=audio 0 RTP/AVP 0
+c=IN IP4 0.0.0.0
+b=AS:64
+a=control:track2
+m=vzinfo 0 RTP/AVP 108
+c=IN IP4 0.0.0.0
+b=AS:5
+a=rtpmap:108 VND.ONVIF.METADATA/90000
+a=control:track3
+`
+	golden = strings.ReplaceAll(golden, "\n", "\r\n")
+	ctx, err := ParseSdp2LogicContext([]byte(golden))
+	assert.Equal(t, nil, err)
+	_ = ctx
+}
