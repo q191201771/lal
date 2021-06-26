@@ -24,7 +24,7 @@ import (
 	"github.com/q191201771/naza/pkg/nazamd5"
 )
 
-const detailFilename = "delay.txt"
+const outDetailFilename = "delay.txt"
 
 type PullType int
 
@@ -54,24 +54,18 @@ func main() {
 	})
 	defer nazalog.Sync()
 
+	var mu sync.Mutex
 	tagKey2writeTime := make(map[string]time.Time)
 	var delays []int64
-	var mu sync.Mutex
 
 	filename, pushUrl, pullUrl, pullType := parseFlag()
 	nazalog.Infof("parse flag succ. filename=%s, pushUrl=%s, pullUrl=%s, pullType=%s",
 		filename, pushUrl, pullUrl, pullType.Readable())
 
-	tags, err := httpflv.ReadAllTagsFromFlvFile(filename)
-	if err != nil {
-		nazalog.Fatalf("read tags from flv file failed. err=%+v", err)
-	}
-	nazalog.Infof("read tags from flv file succ. len of tags=%d", len(tags))
-
 	pushSession := rtmp.NewPushSession(func(option *rtmp.PushSessionOption) {
 		option.PushTimeoutMs = 10000
 	})
-	err = pushSession.Push(pushUrl)
+	err := pushSession.Push(pushUrl)
 	if err != nil {
 		nazalog.Fatalf("push rtmp failed. url=%s, err=%+v", pushUrl, err)
 	}
@@ -135,16 +129,13 @@ func main() {
 		}
 	}()
 
-	prevTs := int64(-1)
-	for _, tag := range tags {
+	// 读取flv文件
+	flvFilePump := httpflv.NewFileFilePump(func(option *httpflv.FlvFilePumpOption) {
+		option.IsRecursive = false
+	})
+	err = flvFilePump.Pump(filename, func(tag httpflv.Tag) bool {
 		h := remux.FlvTagHeader2RtmpHeader(tag.Header)
 		chunks := rtmp.Message2Chunks(tag.Raw[11:11+h.MsgLen], &h)
-
-		if prevTs >= 0 && int64(h.TimestampAbs) > prevTs {
-			diff := int64(h.TimestampAbs) - prevTs
-			time.Sleep(time.Duration(diff) * time.Millisecond)
-		}
-		prevTs = int64(h.TimestampAbs)
 
 		mu.Lock()
 		tagKey := nazamd5.Md5(tag.Raw[11 : 11+h.MsgLen])
@@ -157,18 +148,24 @@ func main() {
 		err = pushSession.Write(chunks)
 		if err != nil {
 			nazalog.Fatalf("write failed. err=%+v", err)
+			return false
 		}
-		//nazalog.Debugf("sent. %d", i)
+		return true
+	})
+	if err != nil {
+		nazalog.Fatalf("pump flv file failed. err=%+v", err)
 	}
+
 	_ = pushSession.Flush()
 	time.Sleep(300 * time.Millisecond)
 
+	// 信息分析汇总输出
 	min := int64(2147483647)
 	max := int64(0)
 	avg := int64(0)
 	sum := int64(0)
-	fp, _ := os.Create(detailFilename)
-	defer fp.Close()
+	outDetailFp, _ := os.Create(outDetailFilename)
+	defer outDetailFp.Close()
 	for _, d := range delays {
 		if d < min {
 			min = d
@@ -177,12 +174,12 @@ func main() {
 			max = d
 		}
 		sum += d
-		_, _ = fp.WriteString(fmt.Sprintf("%d\n", d))
+		_, _ = outDetailFp.WriteString(fmt.Sprintf("%d\n", d))
 	}
 	if len(delays) > 0 {
 		avg = sum / int64(len(delays))
 	}
-	nazalog.Debugf("len(tagKey2writeTime)=%d, delays(len=%d, avg=%d, min=%d, max=%d), detailFilename=%s", len(tagKey2writeTime), len(delays), avg, min, max, detailFilename)
+	nazalog.Debugf("len(tagKey2writeTime)=%d, delays(len=%d, avg=%d, min=%d, max=%d), detailFilename=%s", len(tagKey2writeTime), len(delays), avg, min, max, outDetailFilename)
 }
 
 func parseFlag() (filename, pushUrl, pullUrl string, pullType PullType) {
