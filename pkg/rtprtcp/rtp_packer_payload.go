@@ -14,4 +14,4 @@ type IRtpPackerPayload interface {
 	Pack(in []byte, maxSize int) (out [][]byte)
 }
 
-var _ IRtpPackerPayload = &RtpPackerPayloadAvc{}
+var _ IRtpPackerPayload = &RtpPackerPayloadAvcHevc{}

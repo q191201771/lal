@@ -54,7 +54,7 @@ var NaluTypeMapping = map[uint8]string{
 
 // ISO_IEC_23008-2_2013.pdf
 // Table 7-1 – NAL unit type codes and NAL unit type classes
-var (
+const (
 	NaluTypeSliceTrailN uint8 = 0  // 0x0
 	NaluTypeSliceTrailR uint8 = 1  // 0x01
 	NaluTypeSliceIdr    uint8 = 19 // 0x13

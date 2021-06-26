@@ -131,6 +131,8 @@ func (unpacker *RtpUnpackerAvcHevc) TryUnpackOne(list *RtpPacketList) (unpackedF
 
 					buf := first.Packet.Raw[first.Packet.Header.payloadOffset:]
 					fuType := buf[2] & 0x3f
+					// ffmpeg rtpdec_hevc.c
+					// 取buf[0]的头尾各1位
 					naluType[0] = (buf[0] & 0x81) | (fuType << 1)
 					naluType[1] = buf[1]
 				}

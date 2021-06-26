@@ -49,9 +49,13 @@ func NewPullSession(modOptions ...ModPullSessionOption) *PullSession {
 	}
 }
 
-// 阻塞直到和对端完成拉流前，握手部分的工作（也即收到RTMP Play response），或者发生错误
+// 阻塞直到和对端完成拉流前的所有准备工作（也即收到RTMP Play response），或者发生错误
 //
-// @param onReadRtmpAvMsg: 注意，回调结束后，内存块会被PullSession重复使用
+// @param onReadRtmpAvMsg: msg: 注意，回调结束后，`msg`的内存块会被`PullSession`重复使用
+//                              也即多次回调的`msg`是复用的同一块内存块
+//                              如果业务方需要在回调结束后，依然持有`msg`，那么需要对`msg`进行拷贝，比如调用`msg.Clone()`
+//                              只在回调中使用`msg`，则不需要拷贝
+//
 func (s *PullSession) Pull(rawUrl string, onReadRtmpAvMsg OnReadRtmpAvMsg) error {
 	s.core.onReadRtmpAvMsg = onReadRtmpAvMsg
 	return s.core.Do(rawUrl)

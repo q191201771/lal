@@ -33,9 +33,7 @@ const (
 	NaluTypeAvcSingleMax = 23
 	NaluTypeAvcStapa     = 24 // one packet, multiple nals
 	NaluTypeAvcFua       = 28
-)
 
-const (
 	NaluTypeHevcFua = 49
 )
 
