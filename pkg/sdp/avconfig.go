@@ -10,7 +10,7 @@ package sdp
 
 import (
 	"encoding/base64"
-	"strconv"
+	"encoding/hex"
 	"strings"
 
 	"github.com/q191201771/lal/pkg/base"
@@ -28,17 +28,7 @@ func ParseAsc(a *AFmtPBase) ([]byte, error) {
 	if len(v) < 4 || (len(v)%2) != 0 {
 		return nil, ErrSdp
 	}
-	l := len(v) / 2
-	r := make([]byte, l)
-	for i := 0; i < l; i++ {
-		b, err := strconv.ParseInt(v[i*2:i*2+2], 16, 0)
-		if err != nil {
-			return nil, ErrSdp
-		}
-		r[i] = uint8(b)
-	}
-
-	return r, nil
+	return hex.DecodeString(v)
 }
 
 func ParseVpsSpsPps(a *AFmtPBase) (vps, sps, pps []byte, err error) {

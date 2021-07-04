@@ -73,6 +73,9 @@ var (
 
 	// e.g. lal/0.12.3
 	LalRtspPullSessionUa string
+
+	// e.g. lal 0.12.3
+	LalPackSdp string
 )
 
 // - rtmp handshake random buf
@@ -124,4 +127,6 @@ func init() {
 	LalRtspPullSessionUa = LalLibraryName + "/" + LalVersionDot
 
 	LalRtmpHandshakeWaterMark = LalFullInfo
+
+	LalPackSdp = LalLibraryName + " " + LalVersionDot
 }
