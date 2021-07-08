@@ -26,7 +26,7 @@ import (
 //
 // TODO chef: 有的代码考虑弄到pkg/hls中
 
-type M3U8PullSession struct {
+type M3u8PullSession struct {
 }
 
 type frag struct {
@@ -34,7 +34,7 @@ type frag struct {
 	filename string
 }
 
-func parseM3U8(content string) (ret []frag) {
+func parseM3u8(content string) (ret []frag) {
 	var err error
 
 	lines := strings.Split(content, "\n")
@@ -54,10 +54,10 @@ func parseM3U8(content string) (ret []frag) {
 	return
 }
 
-func getTSURL(m3u8URL string, tsFilename string) string {
-	index := strings.LastIndex(m3u8URL, "/")
+func getTsUrl(m3u8Url string, tsFilename string) string {
+	index := strings.LastIndex(m3u8Url, "/")
 	nazalog.Assert(true, index != -1)
-	path := m3u8URL[:index+1]
+	path := m3u8Url[:index+1]
 	return path + tsFilename
 }
 
@@ -67,8 +67,8 @@ func main() {
 	})
 	defer nazalog.Sync()
 
-	m3u8URL := parseFlag()
-	nazalog.Infof("m3u8 url=%s", m3u8URL)
+	m3u8Url := parseFlag()
+	nazalog.Infof("m3u8 url=%s", m3u8Url)
 
 	cache := lru.New(1024)
 
@@ -77,14 +77,14 @@ func main() {
 
 	go func() {
 		for {
-			content, err := nazahttp.GetHTTPFile(m3u8URL, 3000)
+			content, err := nazahttp.GetHttpFile(m3u8Url, 3000)
 			if err != nil {
 				nazalog.Error(err)
 				return
 			}
 			//nazalog.Debugf("\n-----m3u8-----\n%s", string(content))
 
-			currFrags := parseM3U8(string(content))
+			currFrags := parseM3u8(string(content))
 			//nazalog.Debugf("%+v", currFrags)
 
 			m.Lock()
@@ -111,9 +111,9 @@ func main() {
 
 		for _, f := range currFrags {
 			nazalog.Infof("< new frag. filename=%s", f.filename)
-			tsURL := getTSURL(m3u8URL, f.filename)
-			nazalog.Debug(tsURL)
-			content, err := nazahttp.GetHTTPFile(tsURL, 3000)
+			tsUrl := getTsUrl(m3u8Url, f.filename)
+			nazalog.Debug(tsUrl)
+			content, err := nazahttp.GetHttpFile(tsUrl, 3000)
 			nazalog.Assert(nil, err)
 			nazalog.Debugf("TS len=%d", len(content))
 		}
@@ -127,7 +127,7 @@ func parseFlag() string {
 	flag.Parse()
 	if *url == "" {
 		flag.Usage()
-		base.OSExitAndWaitPressIfWindows(1)
+		base.OsExitAndWaitPressIfWindows(1)
 	}
 	return *url
 }

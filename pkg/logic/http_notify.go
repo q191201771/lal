@@ -29,50 +29,50 @@ type PostTask struct {
 	info interface{}
 }
 
-type HTTPNotify struct {
+type HttpNotify struct {
 	taskQueue chan PostTask
 	client    *http.Client
 }
 
-var httpNotify *HTTPNotify
+var httpNotify *HttpNotify
 
 // 注意，这里的函数命名以On开头并不是因为是回调函数，而是notify给业务方的接口叫做on_server_start
-func (h *HTTPNotify) OnServerStart() {
-	var info base.LALInfo
+func (h *HttpNotify) OnServerStart() {
+	var info base.LalInfo
 	info.BinInfo = bininfo.StringifySingleLine()
-	info.LalVersion = base.LALVersion
-	info.APIVersion = base.HTTPAPIVersion
-	info.NotifyVersion = base.HTTPNotifyVersion
+	info.LalVersion = base.LalVersion
+	info.ApiVersion = base.HttpApiVersion
+	info.NotifyVersion = base.HttpNotifyVersion
 	info.StartTime = serverStartTime
-	info.ServerID = config.ServerID
-	h.asyncPost(config.HTTPNotifyConfig.OnServerStart, info)
+	info.ServerId = config.ServerId
+	h.asyncPost(config.HttpNotifyConfig.OnServerStart, info)
 }
 
-func (h *HTTPNotify) OnUpdate(info base.UpdateInfo) {
-	h.asyncPost(config.HTTPNotifyConfig.OnUpdate, info)
+func (h *HttpNotify) OnUpdate(info base.UpdateInfo) {
+	h.asyncPost(config.HttpNotifyConfig.OnUpdate, info)
 }
 
-func (h *HTTPNotify) OnPubStart(info base.PubStartInfo) {
-	h.asyncPost(config.HTTPNotifyConfig.OnPubStart, info)
+func (h *HttpNotify) OnPubStart(info base.PubStartInfo) {
+	h.asyncPost(config.HttpNotifyConfig.OnPubStart, info)
 }
 
-func (h *HTTPNotify) OnPubStop(info base.PubStopInfo) {
-	h.asyncPost(config.HTTPNotifyConfig.OnPubStop, info)
+func (h *HttpNotify) OnPubStop(info base.PubStopInfo) {
+	h.asyncPost(config.HttpNotifyConfig.OnPubStop, info)
 }
 
-func (h *HTTPNotify) OnSubStart(info base.SubStartInfo) {
-	h.asyncPost(config.HTTPNotifyConfig.OnSubStart, info)
+func (h *HttpNotify) OnSubStart(info base.SubStartInfo) {
+	h.asyncPost(config.HttpNotifyConfig.OnSubStart, info)
 }
 
-func (h *HTTPNotify) OnSubStop(info base.SubStopInfo) {
-	h.asyncPost(config.HTTPNotifyConfig.OnSubStop, info)
+func (h *HttpNotify) OnSubStop(info base.SubStopInfo) {
+	h.asyncPost(config.HttpNotifyConfig.OnSubStop, info)
 }
 
-func (h *HTTPNotify) OnRTMPConnect(info base.RTMPConnectInfo) {
-	h.asyncPost(config.HTTPNotifyConfig.OnRTMPConnect, info)
+func (h *HttpNotify) OnRtmpConnect(info base.RtmpConnectInfo) {
+	h.asyncPost(config.HttpNotifyConfig.OnRtmpConnect, info)
 }
 
-func (h *HTTPNotify) RunLoop() {
+func (h *HttpNotify) RunLoop() {
 	for {
 		select {
 		case t := <-h.taskQueue:
@@ -81,8 +81,8 @@ func (h *HTTPNotify) RunLoop() {
 	}
 }
 
-func (h *HTTPNotify) asyncPost(url string, info interface{}) {
-	if !config.HTTPNotifyConfig.Enable || url == "" {
+func (h *HttpNotify) asyncPost(url string, info interface{}) {
+	if !config.HttpNotifyConfig.Enable || url == "" {
 		return
 	}
 
@@ -94,7 +94,7 @@ func (h *HTTPNotify) asyncPost(url string, info interface{}) {
 	}
 }
 
-func (h *HTTPNotify) post(url string, info interface{}) {
+func (h *HttpNotify) post(url string, info interface{}) {
 	if _, err := nazahttp.PostJson(url, info, h.client); err != nil {
 		nazalog.Errorf("http notify post error. err=%+v", err)
 	}
@@ -103,7 +103,7 @@ func (h *HTTPNotify) post(url string, info interface{}) {
 // TODO chef: dispose
 
 func init() {
-	httpNotify = &HTTPNotify{
+	httpNotify = &HttpNotify{
 		taskQueue: make(chan PostTask, maxTaskLen),
 		client: &http.Client{
 			Timeout: time.Duration(notifyTimeoutSec) * time.Second,

@@ -21,18 +21,18 @@ type LogicContext struct {
 	AudioClockRate int
 	VideoClockRate int
 
-	audioPayloadTypeBase base.AVPacketPT // lal内部定义的类型
-	videoPayloadTypeBase base.AVPacketPT
+	Asc []byte
+	Vps []byte
+	Sps []byte
+	Pps []byte
+
+	audioPayloadTypeBase base.AvPacketPt // lal内部定义的类型
+	videoPayloadTypeBase base.AvPacketPt
 
 	audioPayloadTypeOrigin int // 原始类型，sdp或rtp中的类型
 	videoPayloadTypeOrigin int
 	audioAControl          string
 	videoAControl          string
-
-	ASC []byte
-	VPS []byte
-	SPS []byte
-	PPS []byte
 
 	// 没有用上的
 	hasAudio bool
@@ -52,19 +52,19 @@ func (lc *LogicContext) IsPayloadTypeOrigin(t int) bool {
 }
 
 func (lc *LogicContext) IsAudioUnpackable() bool {
-	return lc.audioPayloadTypeBase == base.AVPacketPTAAC
+	return lc.audioPayloadTypeBase == base.AvPacketPtAac
 }
 
 func (lc *LogicContext) IsVideoUnpackable() bool {
-	return lc.videoPayloadTypeBase == base.AVPacketPTAVC ||
-		lc.videoPayloadTypeBase == base.AVPacketPTHEVC
+	return lc.videoPayloadTypeBase == base.AvPacketPtAvc ||
+		lc.videoPayloadTypeBase == base.AvPacketPtHevc
 }
 
-func (lc *LogicContext) IsAudioURI(uri string) bool {
+func (lc *LogicContext) IsAudioUri(uri string) bool {
 	return lc.audioAControl != "" && strings.HasSuffix(uri, lc.audioAControl)
 }
 
-func (lc *LogicContext) IsVideoURI(uri string) bool {
+func (lc *LogicContext) IsVideoUri(uri string) bool {
 	return lc.videoAControl != "" && strings.HasSuffix(uri, lc.videoAControl)
 }
 
@@ -76,33 +76,33 @@ func (lc *LogicContext) HasVideoAControl() bool {
 	return lc.videoAControl != ""
 }
 
-func (lc *LogicContext) MakeAudioSetupURI(uri string) string {
-	return lc.makeSetupURI(uri, lc.audioAControl)
+func (lc *LogicContext) MakeAudioSetupUri(uri string) string {
+	return lc.makeSetupUri(uri, lc.audioAControl)
 }
 
-func (lc *LogicContext) MakeVideoSetupURI(uri string) string {
-	return lc.makeSetupURI(uri, lc.videoAControl)
+func (lc *LogicContext) MakeVideoSetupUri(uri string) string {
+	return lc.makeSetupUri(uri, lc.videoAControl)
 }
 
-func (lc *LogicContext) GetAudioPayloadTypeBase() base.AVPacketPT {
+func (lc *LogicContext) GetAudioPayloadTypeBase() base.AvPacketPt {
 	return lc.audioPayloadTypeBase
 }
 
-func (lc *LogicContext) GetVideoPayloadTypeBase() base.AVPacketPT {
+func (lc *LogicContext) GetVideoPayloadTypeBase() base.AvPacketPt {
 	return lc.videoPayloadTypeBase
 }
 
-func (lc *LogicContext) makeSetupURI(uri string, aControl string) string {
+func (lc *LogicContext) makeSetupUri(uri string, aControl string) string {
 	if strings.HasPrefix(aControl, "rtsp://") {
 		return aControl
 	}
 	return fmt.Sprintf("%s/%s", uri, aControl)
 }
 
-func ParseSDP2LogicContext(b []byte) (LogicContext, error) {
+func ParseSdp2LogicContext(b []byte) (LogicContext, error) {
 	var ret LogicContext
 
-	c, err := ParseSDP2RawContext(b)
+	c, err := ParseSdp2RawContext(b)
 	if err != nil {
 		return ret, err
 	}
@@ -111,14 +111,14 @@ func ParseSDP2LogicContext(b []byte) (LogicContext, error) {
 		switch md.M.Media {
 		case "audio":
 			ret.hasAudio = true
-			ret.AudioClockRate = md.ARTPMap.ClockRate
+			ret.AudioClockRate = md.ARtpMap.ClockRate
 			ret.audioAControl = md.AControl.Value
 
-			ret.audioPayloadTypeOrigin = md.ARTPMap.PayloadType
-			if md.ARTPMap.EncodingName == ARTPMapEncodingNameAAC {
-				ret.audioPayloadTypeBase = base.AVPacketPTAAC
+			ret.audioPayloadTypeOrigin = md.ARtpMap.PayloadType
+			if md.ARtpMap.EncodingName == ARtpMapEncodingNameAac {
+				ret.audioPayloadTypeBase = base.AvPacketPtAac
 				if md.AFmtPBase != nil {
-					ret.ASC, err = ParseASC(md.AFmtPBase)
+					ret.Asc, err = ParseAsc(md.AFmtPBase)
 					if err != nil {
 						return ret, err
 					}
@@ -126,37 +126,37 @@ func ParseSDP2LogicContext(b []byte) (LogicContext, error) {
 					nazalog.Warnf("aac afmtp not exist.")
 				}
 			} else {
-				ret.audioPayloadTypeBase = base.AVPacketPTUnknown
+				ret.audioPayloadTypeBase = base.AvPacketPtUnknown
 			}
 		case "video":
 			ret.hasVideo = true
-			ret.VideoClockRate = md.ARTPMap.ClockRate
+			ret.VideoClockRate = md.ARtpMap.ClockRate
 			ret.videoAControl = md.AControl.Value
 
-			ret.videoPayloadTypeOrigin = md.ARTPMap.PayloadType
-			switch md.ARTPMap.EncodingName {
-			case ARTPMapEncodingNameH264:
-				ret.videoPayloadTypeBase = base.AVPacketPTAVC
+			ret.videoPayloadTypeOrigin = md.ARtpMap.PayloadType
+			switch md.ARtpMap.EncodingName {
+			case ARtpMapEncodingNameH264:
+				ret.videoPayloadTypeBase = base.AvPacketPtAvc
 				if md.AFmtPBase != nil {
-					ret.SPS, ret.PPS, err = ParseSPSPPS(md.AFmtPBase)
+					ret.Sps, ret.Pps, err = ParseSpsPps(md.AFmtPBase)
 					if err != nil {
-						return ret, err
+						nazalog.Warnf("parse sps pps from afmtp failed. err=%+v", err)
 					}
 				} else {
 					nazalog.Warnf("avc afmtp not exist.")
 				}
-			case ARTPMapEncodingNameH265:
-				ret.videoPayloadTypeBase = base.AVPacketPTHEVC
+			case ARtpMapEncodingNameH265:
+				ret.videoPayloadTypeBase = base.AvPacketPtHevc
 				if md.AFmtPBase != nil {
-					ret.VPS, ret.SPS, ret.PPS, err = ParseVPSSPSPPS(md.AFmtPBase)
+					ret.Vps, ret.Sps, ret.Pps, err = ParseVpsSpsPps(md.AFmtPBase)
 					if err != nil {
-						return ret, err
+						nazalog.Warnf("parse vps sps pps from afmtp failed. err=%+v", err)
 					}
 				} else {
 					nazalog.Warnf("hevc afmtp not exist.")
 				}
 			default:
-				ret.videoPayloadTypeBase = base.AVPacketPTUnknown
+				ret.videoPayloadTypeBase = base.AvPacketPtUnknown
 			}
 		}
 	}

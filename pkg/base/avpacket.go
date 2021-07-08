@@ -8,32 +8,32 @@
 
 package base
 
-type AVPacketPT int
+type AvPacketPt int
 
 const (
-	AVPacketPTUnknown AVPacketPT = -1
-	AVPacketPTAVC     AVPacketPT = RTPPacketTypeAVCOrHEVC
-	AVPacketPTHEVC    AVPacketPT = RTPPacketTypeHEVC
-	AVPacketPTAAC     AVPacketPT = RTPPacketTypeAAC
+	AvPacketPtUnknown AvPacketPt = -1
+	AvPacketPtAvc     AvPacketPt = RtpPacketTypeAvcOrHevc
+	AvPacketPtHevc    AvPacketPt = RtpPacketTypeHevc
+	AvPacketPtAac     AvPacketPt = RtpPacketTypeAac
 )
 
 // 不同场景使用时，字段含义可能不同。
-// 使用AVPacket的地方，应注明各字段的含义。
-type AVPacket struct {
+// 使用AvPacket的地方，应注明各字段的含义。
+type AvPacket struct {
 	Timestamp   uint32
-	PayloadType AVPacketPT
+	PayloadType AvPacketPt
 	Payload     []byte
 }
 
-func (a AVPacketPT) ReadableString() string {
+func (a AvPacketPt) ReadableString() string {
 	switch a {
-	case AVPacketPTUnknown:
+	case AvPacketPtUnknown:
 		return "unknown"
-	case AVPacketPTAVC:
+	case AvPacketPtAvc:
 		return "avc"
-	case AVPacketPTHEVC:
+	case AvPacketPtHevc:
 		return "hevc"
-	case AVPacketPTAAC:
+	case AvPacketPtAac:
 		return "aac"
 	}
 	return ""

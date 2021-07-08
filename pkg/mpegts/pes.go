@@ -35,7 +35,7 @@ import (
 // PES_extension_flag        [1b]  *
 // PES_header_data_length    [8b]  *
 // -----------------------------------------------------------
-type PES struct {
+type Pes struct {
 	pscp       uint32
 	sid        uint8
 	ppl        uint16
@@ -47,7 +47,7 @@ type PES struct {
 	dts        uint64
 }
 
-func ParsePES(b []byte) (pes PES, length int) {
+func ParsePes(b []byte) (pes Pes, length int) {
 	br := nazabits.NewBitReader(b)
 	pes.pscp, _ = br.ReadBits32(24)
 	pes.sid, _ = br.ReadBits8(8)
@@ -63,10 +63,10 @@ func ParsePES(b []byte) (pes PES, length int) {
 
 	// 处理得不是特别标准
 	if pes.ptsDtsFlag&0x2 != 0 {
-		_, pes.pts = readPTS(b[9:])
+		_, pes.pts = readPts(b[9:])
 	}
 	if pes.ptsDtsFlag&0x1 != 0 {
-		_, pes.dts = readPTS(b[14:])
+		_, pes.dts = readPts(b[14:])
 	} else {
 		pes.dts = pes.pts
 	}
@@ -77,7 +77,7 @@ func ParsePES(b []byte) (pes PES, length int) {
 }
 
 // read pts or dts
-func readPTS(b []byte) (fb uint8, pts uint64) {
+func readPts(b []byte) (fb uint8, pts uint64) {
 	fb = b[0] >> 4
 	pts |= uint64((b[0]>>1)&0x07) << 30
 	pts |= (uint64(b[1])<<8 | uint64(b[2])) >> 1 << 15

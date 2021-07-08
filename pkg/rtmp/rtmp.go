@@ -13,20 +13,20 @@ import (
 )
 
 var (
-	ErrRTMP = errors.New("lal.rtmp: fxxk")
+	ErrRtmp = errors.New("lal.rtmp: fxxk")
 )
 
 const (
-	CSIDAMF   = 5
-	CSIDAudio = 6
-	CSIDVideo = 7
+	CsidAmf   = 5
+	CsidAudio = 6
+	CsidVideo = 7
 
 	csidProtocolControl = 2
 	csidOverConnection  = 3
 	csidOverStream      = 5
 
-	//minCSID = 2
-	//maxCSID = 65599
+	//minCsid = 2
+	//maxCsid = 65599
 )
 
 const (
@@ -46,7 +46,7 @@ const defaultChunkSize = 128 // 未收到对端设置chunk size时的默认值
 
 const (
 	//MSID0 = 0 // 所有除 publish、play、onStatus 之外的信令
-	MSID1 = 1 // publish、play、onStatus 以及 音视频数据
+	Msid1 = 1 // publish、play、onStatus 以及 音视频数据
 )
 
 // ---------------------------------------------------------------------------------------------------------------------

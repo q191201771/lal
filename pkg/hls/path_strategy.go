@@ -46,7 +46,7 @@ type IPathWriteStrategy interface {
 	// 获取单个流对应的m3u8文件路径
 	//
 	// @param outPath: func GetMuxerOutPath的结果
-	GetLiveM3U8FileName(outPath string, streamName string) string
+	GetLiveM3u8FileName(outPath string, streamName string) string
 
 	// 获取单个流对应的record类型的m3u8文件路径
 	//
@@ -54,15 +54,15 @@ type IPathWriteStrategy interface {
 	// live记录的是当前最近的可播放内容，record记录的是从流开始时的可播放内容
 	//
 	// @param outPath: func GetMuxerOutPath的结果
-	GetRecordM3U8FileName(outPath string, streamName string) string
+	GetRecordM3u8FileName(outPath string, streamName string) string
 
 	// 获取单个流对应的ts文件路径
 	//
 	// @param outPath: func GetMuxerOutPath的结果
-	GetTSFileNameWithPath(outPath string, fileName string) string
+	GetTsFileNameWithPath(outPath string, fileName string) string
 
 	// ts文件名的生成策略
-	GetTSFileName(streamName string, index int, timestamp int) string
+	GetTsFileName(streamName string, index int, timestamp int) string
 }
 
 // ---------------------------------------------------------------------------------------------------------------------
@@ -122,7 +122,7 @@ func (dps *DefaultPathStrategy) GetRequestInfo(uri string, rootOutPath string) (
 			ri.FileNameWithPath = filepath.Join(rootOutPath, ri.StreamName, playlistM3u8FileName)
 		}
 	} else if ri.FileType == "ts" {
-		ri.StreamName = dps.getStreamNameFromTSFileName(ri.FileName)
+		ri.StreamName = dps.getStreamNameFromTsFileName(ri.FileName)
 		ri.FileNameWithPath = filepath.Join(rootOutPath, ri.StreamName, ri.FileName)
 	}
 
@@ -134,22 +134,22 @@ func (*DefaultPathStrategy) GetMuxerOutPath(rootOutPath string, streamName strin
 	return filepath.Join(rootOutPath, streamName)
 }
 
-func (*DefaultPathStrategy) GetLiveM3U8FileName(outPath string, streamName string) string {
+func (*DefaultPathStrategy) GetLiveM3u8FileName(outPath string, streamName string) string {
 	return filepath.Join(outPath, playlistM3u8FileName)
 }
 
-func (*DefaultPathStrategy) GetRecordM3U8FileName(outPath string, streamName string) string {
+func (*DefaultPathStrategy) GetRecordM3u8FileName(outPath string, streamName string) string {
 	return filepath.Join(outPath, recordM3u8FileName)
 }
 
-func (*DefaultPathStrategy) GetTSFileNameWithPath(outPath string, fileName string) string {
+func (*DefaultPathStrategy) GetTsFileNameWithPath(outPath string, fileName string) string {
 	return filepath.Join(outPath, fileName)
 }
 
-func (*DefaultPathStrategy) GetTSFileName(streamName string, index int, timestamp int) string {
+func (*DefaultPathStrategy) GetTsFileName(streamName string, index int, timestamp int) string {
 	return fmt.Sprintf("%s-%d-%d.ts", streamName, timestamp, index)
 }
 
-func (*DefaultPathStrategy) getStreamNameFromTSFileName(fileName string) string {
+func (*DefaultPathStrategy) getStreamNameFromTsFileName(fileName string) string {
 	return strings.Split(fileName, "-")[0]
 }

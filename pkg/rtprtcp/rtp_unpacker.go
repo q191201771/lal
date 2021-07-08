@@ -17,23 +17,23 @@ import (
 // 一路音频或一路视频各对应一个对象
 
 var (
-	_ IRTPUnpacker         = &RTPUnpackContainer{}
-	_ IRTPUnpackContainer  = &RTPUnpackContainer{}
-	_ IRTPUnpackerProtocol = &RTPUnpackerAAC{}
-	_ IRTPUnpackerProtocol = &RTPUnpackerAVCHEVC{}
+	_ IRtpUnpacker         = &RtpUnpackContainer{}
+	_ IRtpUnpackContainer  = &RtpUnpackContainer{}
+	_ IRtpUnpackerProtocol = &RtpUnpackerAac{}
+	_ IRtpUnpackerProtocol = &RtpUnpackerAvcHevc{}
 )
 
-type IRTPUnpacker interface {
-	IRTPUnpackContainer
+type IRtpUnpacker interface {
+	IRtpUnpackContainer
 }
 
-type IRTPUnpackContainer interface {
-	Feed(pkt RTPPacket)
+type IRtpUnpackContainer interface {
+	Feed(pkt RtpPacket)
 }
 
-type IRTPUnpackerProtocol interface {
+type IRtpUnpackerProtocol interface {
 	// 计算rtp包处于帧中的位置
-	CalcPositionIfNeeded(pkt *RTPPacket)
+	CalcPositionIfNeeded(pkt *RtpPacket)
 
 	// 尝试合成一个完整帧
 	//
@@ -44,30 +44,34 @@ type IRTPUnpackerProtocol interface {
 	//
 	// @return unpackedFlag 本次调用是否成功合成
 	// @return unpackedSeq  如果成功合成，合成使用的最后一个seq号；如果失败，则为0
-	TryUnpackOne(list *RTPPacketList) (unpackedFlag bool, unpackedSeq uint16)
+	TryUnpackOne(list *RtpPacketList) (unpackedFlag bool, unpackedSeq uint16)
 }
 
 // @param pkt: pkt.Timestamp   RTP包头中的时间戳(pts)经过clockrate换算后的时间戳，单位毫秒
 //                             注意，不支持带B帧的视频流，pts和dts永远相同
-//             pkt.PayloadType base.AVPacketPTXXX
-//             pkt.Payload     如果是AAC，返回的是raw frame，一个AVPacket只包含一帧
-//                             如果是AVC或HEVC，是AVCC格式，每个NAL前包含4字节NAL的长度
-//                             AAC引用的是接收到的RTP包中的内存块
-//                             AVC或者HEVC是新申请的内存块，回调结束后，内部不再使用该内存块
-type OnAVPacket func(pkt base.AVPacket)
+//             pkt.PayloadType base.AvPacketPTXXX
+//             pkt.Payload     AAC:
+//                               返回的是raw frame，一个AvPacket只包含一帧
+//                               引用的是接收到的RTP包中的内存块
+//                             AVC或HEVC:
+//                               AVCC格式，每个NAL前包含4字节NAL的长度
+//                               新申请的内存块，回调结束后，内部不再使用该内存块
+//                               注意，这一层只做RTP包的合并，假如sps和pps是两个RTP single包，则合并结果为两个AvPacket，
+//                               假如sps和pps是一个stapA包，则合并结果为一个AvPacket
+type OnAvPacket func(pkt base.AvPacket)
 
-// 目前支持AVC，HEVC和AAC MPEG4-GENERIC/44100/2，业务方也可以自己实现IRTPUnpackerProtocol，甚至是IRTPUnpackContainer
-func DefaultRTPUnpackerFactory(payloadType base.AVPacketPT, clockRate int, maxSize int, onAVPacket OnAVPacket) IRTPUnpacker {
-	var protocol IRTPUnpackerProtocol
+// 目前支持AVC，HEVC和AAC MPEG4-GENERIC/44100/2，业务方也可以自己实现IRtpUnpackerProtocol，甚至是IRtpUnpackContainer
+func DefaultRtpUnpackerFactory(payloadType base.AvPacketPt, clockRate int, maxSize int, onAvPacket OnAvPacket) IRtpUnpacker {
+	var protocol IRtpUnpackerProtocol
 	switch payloadType {
-	case base.AVPacketPTAAC:
-		protocol = NewRTPUnpackerAAC(payloadType, clockRate, onAVPacket)
-	case base.AVPacketPTAVC:
+	case base.AvPacketPtAac:
+		protocol = NewRtpUnpackerAac(payloadType, clockRate, onAvPacket)
+	case base.AvPacketPtAvc:
 		fallthrough
-	case base.AVPacketPTHEVC:
-		protocol = NewRTPUnpackerAVCHEVC(payloadType, clockRate, onAVPacket)
+	case base.AvPacketPtHevc:
+		protocol = NewRtpUnpackerAvcHevc(payloadType, clockRate, onAvPacket)
 	default:
 		nazalog.Fatalf("payload type not support yet. payloadType=%d", payloadType)
 	}
-	return NewRTPUnpackContainer(maxSize, protocol)
+	return NewRtpUnpackContainer(maxSize, protocol)
 }

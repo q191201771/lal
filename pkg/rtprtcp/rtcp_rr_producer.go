@@ -12,9 +12,9 @@ import "time"
 
 // 通过收到的rtp包和rtcp sr包，产生rtcp rr包
 
-type RRProducer struct {
-	senderSSRC uint32
-	mediaSSRC  uint32
+type RrProducer struct {
+	senderSsrc uint32
+	mediaSsrc  uint32
 
 	clockRate int
 
@@ -31,8 +31,8 @@ type RRProducer struct {
 	receivedPrior uint32
 }
 
-func NewRRProducer(clockRate int) *RRProducer {
-	return &RRProducer{
+func NewRrProducer(clockRate int) *RrProducer {
+	return &RrProducer{
 		clockRate: clockRate,
 		baseSeq:   -1,
 		maxSeq:    -1,
@@ -41,7 +41,7 @@ func NewRRProducer(clockRate int) *RRProducer {
 }
 
 // 每次收到rtp包，都将seq序号传入这个函数
-func (r *RRProducer) FeedRTPPacket(seq uint16) {
+func (r *RrProducer) FeedRtpPacket(seq uint16) {
 	r.received++
 
 	if r.baseSeq == -1 {
@@ -64,10 +64,10 @@ func (r *RRProducer) FeedRTPPacket(seq uint16) {
 
 // 收到sr包时，产生rr包
 //
-// @param lsr: 从sr包中获取，见func SR.GetMiddleNTP
+// @param lsr: 从sr包中获取，见func SR.GetMiddleNtp
 // @return:    rr包的二进制数据
 //
-func (r *RRProducer) Produce(lsr uint32) []byte {
+func (r *RrProducer) Produce(lsr uint32) []byte {
 	if r.baseSeq == -1 {
 		return nil
 	}
@@ -92,9 +92,9 @@ func (r *RRProducer) Produce(lsr uint32) []byte {
 		fraction = uint8((lostInterval << 8) / expectedInterval)
 	}
 
-	var rr RR
-	rr.senderSSRC = r.senderSSRC
-	rr.mediaSSRC = r.mediaSSRC
+	var rr Rr
+	rr.senderSsrc = r.senderSsrc
+	rr.mediaSsrc = r.mediaSsrc
 	rr.fraction = fraction
 	rr.lost = lost
 	rr.cycles = uint16(r.cycles)
@@ -106,7 +106,7 @@ func (r *RRProducer) Produce(lsr uint32) []byte {
 }
 
 // @param timestamp 当前收到的rtp包头中的时间戳
-func (r *RRProducer) updateJitter(timestamp uint32) {
+func (r *RrProducer) updateJitter(timestamp uint32) {
 	// rfc3550 6.4.1 SR: Sender Report RTCP Packet
 	// rfc3550 A.8 Estimating the Interarrival Jitter
 
@@ -138,6 +138,6 @@ func (r *RRProducer) updateJitter(timestamp uint32) {
 	r.jitter = r.jitter + uint32(d) - ((r.jitter + 8) >> 4)
 }
 
-func (r *RRProducer) getJitter() uint32 {
+func (r *RrProducer) getJitter() uint32 {
 	return r.jitter >> 4
 }

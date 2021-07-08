@@ -16,21 +16,21 @@ import (
 )
 
 type in struct {
-	rawURL      string
+	rawUrl      string
 	defaultPort int
 }
 
 // TODO chef: 测试IPv6的case
 
-func TestParseURL(t *testing.T) {
+func TestParseUrl(t *testing.T) {
 	// 非法url
-	_, err := base.ParseURL("invalidurl", -1)
+	_, err := base.ParseUrl("invalidurl", -1)
 	assert.IsNotNil(t, err)
 
-	golden := map[in]base.URLContext{
+	golden := map[in]base.UrlContext{
 		// 常见url，url中无端口，另外设置默认端口
-		in{rawURL: "rtmp://127.0.0.1/live/test110", defaultPort: 1935}: {
-			URL:                   "rtmp://127.0.0.1/live/test110",
+		in{rawUrl: "rtmp://127.0.0.1/live/test110", defaultPort: 1935}: {
+			Url:                   "rtmp://127.0.0.1/live/test110",
 			Scheme:                "rtmp",
 			StdHost:               "127.0.0.1",
 			HostWithPort:          "127.0.0.1:1935",
@@ -41,11 +41,11 @@ func TestParseURL(t *testing.T) {
 			PathWithoutLastItem:   "live",
 			LastItemOfPath:        "test110",
 			RawQuery:              "",
-			RawURLWithoutUserInfo: "rtmp://127.0.0.1/live/test110",
+			RawUrlWithoutUserInfo: "rtmp://127.0.0.1/live/test110",
 		},
 		// 域名url
-		in{rawURL: "rtmp://localhost/live/test110", defaultPort: 1935}: {
-			URL:                   "rtmp://localhost/live/test110",
+		in{rawUrl: "rtmp://localhost/live/test110", defaultPort: 1935}: {
+			Url:                   "rtmp://localhost/live/test110",
 			Scheme:                "rtmp",
 			StdHost:               "localhost",
 			HostWithPort:          "localhost:1935",
@@ -56,11 +56,11 @@ func TestParseURL(t *testing.T) {
 			PathWithoutLastItem:   "live",
 			LastItemOfPath:        "test110",
 			RawQuery:              "",
-			RawURLWithoutUserInfo: "rtmp://localhost/live/test110",
+			RawUrlWithoutUserInfo: "rtmp://localhost/live/test110",
 		},
 		// 带参数url
-		in{rawURL: "rtmp://127.0.0.1/live/test110?a=1", defaultPort: 1935}: {
-			URL:                   "rtmp://127.0.0.1/live/test110?a=1",
+		in{rawUrl: "rtmp://127.0.0.1/live/test110?a=1", defaultPort: 1935}: {
+			Url:                   "rtmp://127.0.0.1/live/test110?a=1",
 			Scheme:                "rtmp",
 			StdHost:               "127.0.0.1",
 			HostWithPort:          "127.0.0.1:1935",
@@ -71,11 +71,11 @@ func TestParseURL(t *testing.T) {
 			PathWithoutLastItem:   "live",
 			LastItemOfPath:        "test110",
 			RawQuery:              "a=1",
-			RawURLWithoutUserInfo: "rtmp://127.0.0.1/live/test110?a=1",
+			RawUrlWithoutUserInfo: "rtmp://127.0.0.1/live/test110?a=1",
 		},
 		// path多级
-		in{rawURL: "rtmp://127.0.0.1:19350/a/b/test110", defaultPort: 1935}: {
-			URL:                   "rtmp://127.0.0.1:19350/a/b/test110",
+		in{rawUrl: "rtmp://127.0.0.1:19350/a/b/test110", defaultPort: 1935}: {
+			Url:                   "rtmp://127.0.0.1:19350/a/b/test110",
 			Scheme:                "rtmp",
 			StdHost:               "127.0.0.1:19350",
 			HostWithPort:          "127.0.0.1:19350",
@@ -86,11 +86,11 @@ func TestParseURL(t *testing.T) {
 			PathWithoutLastItem:   "a/b",
 			LastItemOfPath:        "test110",
 			RawQuery:              "",
-			RawURLWithoutUserInfo: "rtmp://127.0.0.1:19350/a/b/test110",
+			RawUrlWithoutUserInfo: "rtmp://127.0.0.1:19350/a/b/test110",
 		},
 		// url中无端口，没有设置默认端口
-		in{rawURL: "rtmp://127.0.0.1/live/test110?a=1", defaultPort: -1}: {
-			URL:                   "rtmp://127.0.0.1/live/test110?a=1",
+		in{rawUrl: "rtmp://127.0.0.1/live/test110?a=1", defaultPort: -1}: {
+			Url:                   "rtmp://127.0.0.1/live/test110?a=1",
 			Scheme:                "rtmp",
 			StdHost:               "127.0.0.1",
 			HostWithPort:          "127.0.0.1",
@@ -101,11 +101,11 @@ func TestParseURL(t *testing.T) {
 			PathWithoutLastItem:   "live",
 			LastItemOfPath:        "test110",
 			RawQuery:              "a=1",
-			RawURLWithoutUserInfo: "rtmp://127.0.0.1/live/test110?a=1",
+			RawUrlWithoutUserInfo: "rtmp://127.0.0.1/live/test110?a=1",
 		},
 		// url中有端口，设置默认端口
-		in{rawURL: "rtmp://127.0.0.1:19350/live/test110?a=1", defaultPort: 1935}: {
-			URL:                   "rtmp://127.0.0.1:19350/live/test110?a=1",
+		in{rawUrl: "rtmp://127.0.0.1:19350/live/test110?a=1", defaultPort: 1935}: {
+			Url:                   "rtmp://127.0.0.1:19350/live/test110?a=1",
 			Scheme:                "rtmp",
 			StdHost:               "127.0.0.1:19350",
 			HostWithPort:          "127.0.0.1:19350",
@@ -116,11 +116,11 @@ func TestParseURL(t *testing.T) {
 			PathWithoutLastItem:   "live",
 			LastItemOfPath:        "test110",
 			RawQuery:              "a=1",
-			RawURLWithoutUserInfo: "rtmp://127.0.0.1:19350/live/test110?a=1",
+			RawUrlWithoutUserInfo: "rtmp://127.0.0.1:19350/live/test110?a=1",
 		},
 		// 无path
-		in{rawURL: "rtmp://127.0.0.1:19350", defaultPort: 1935}: {
-			URL:                   "rtmp://127.0.0.1:19350",
+		in{rawUrl: "rtmp://127.0.0.1:19350", defaultPort: 1935}: {
+			Url:                   "rtmp://127.0.0.1:19350",
 			Scheme:                "rtmp",
 			StdHost:               "127.0.0.1:19350",
 			HostWithPort:          "127.0.0.1:19350",
@@ -131,11 +131,11 @@ func TestParseURL(t *testing.T) {
 			PathWithoutLastItem:   "",
 			LastItemOfPath:        "",
 			RawQuery:              "",
-			RawURLWithoutUserInfo: "rtmp://127.0.0.1:19350",
+			RawUrlWithoutUserInfo: "rtmp://127.0.0.1:19350",
 		},
 		// 无path2
-		in{rawURL: "rtmp://127.0.0.1:19350/", defaultPort: 1935}: {
-			URL:                   "rtmp://127.0.0.1:19350/",
+		in{rawUrl: "rtmp://127.0.0.1:19350/", defaultPort: 1935}: {
+			Url:                   "rtmp://127.0.0.1:19350/",
 			Scheme:                "rtmp",
 			StdHost:               "127.0.0.1:19350",
 			HostWithPort:          "127.0.0.1:19350",
@@ -146,11 +146,11 @@ func TestParseURL(t *testing.T) {
 			PathWithoutLastItem:   "",
 			LastItemOfPath:        "",
 			RawQuery:              "",
-			RawURLWithoutUserInfo: "rtmp://127.0.0.1:19350/",
+			RawUrlWithoutUserInfo: "rtmp://127.0.0.1:19350/",
 		},
 		// path不完整
-		in{rawURL: "rtmp://127.0.0.1:19350/live", defaultPort: 1935}: {
-			URL:                   "rtmp://127.0.0.1:19350/live",
+		in{rawUrl: "rtmp://127.0.0.1:19350/live", defaultPort: 1935}: {
+			Url:                   "rtmp://127.0.0.1:19350/live",
 			Scheme:                "rtmp",
 			StdHost:               "127.0.0.1:19350",
 			HostWithPort:          "127.0.0.1:19350",
@@ -161,11 +161,11 @@ func TestParseURL(t *testing.T) {
 			PathWithoutLastItem:   "",
 			LastItemOfPath:        "live",
 			RawQuery:              "",
-			RawURLWithoutUserInfo: "rtmp://127.0.0.1:19350/live",
+			RawUrlWithoutUserInfo: "rtmp://127.0.0.1:19350/live",
 		},
 		// path不完整2
-		in{rawURL: "rtmp://127.0.0.1:19350/live/", defaultPort: 1935}: {
-			URL:                   "rtmp://127.0.0.1:19350/live/",
+		in{rawUrl: "rtmp://127.0.0.1:19350/live/", defaultPort: 1935}: {
+			Url:                   "rtmp://127.0.0.1:19350/live/",
 			Scheme:                "rtmp",
 			StdHost:               "127.0.0.1:19350",
 			HostWithPort:          "127.0.0.1:19350",
@@ -176,22 +176,22 @@ func TestParseURL(t *testing.T) {
 			PathWithoutLastItem:   "live",
 			LastItemOfPath:        "",
 			RawQuery:              "",
-			RawURLWithoutUserInfo: "rtmp://127.0.0.1:19350/live/",
+			RawUrlWithoutUserInfo: "rtmp://127.0.0.1:19350/live/",
 		},
 	}
 
 	for k, v := range golden {
-		ctx, err := base.ParseURL(k.rawURL, k.defaultPort)
+		ctx, err := base.ParseUrl(k.rawUrl, k.defaultPort)
 		assert.Equal(t, nil, err)
-		assert.Equal(t, v, ctx, k.rawURL)
+		assert.Equal(t, v, ctx, k.rawUrl)
 	}
 }
 
-func TestParseRTMPURL(t *testing.T) {
-	golden := map[string]base.URLContext{
-		// 其他测试见ParseURL
+func TestParseRtmpUrl(t *testing.T) {
+	golden := map[string]base.UrlContext{
+		// 其他测试见ParseUrl
 		"rtmp://127.0.0.1/test110": {
-			URL:                   "rtmp://127.0.0.1/test110",
+			Url:                   "rtmp://127.0.0.1/test110",
 			Scheme:                "rtmp",
 			StdHost:               "127.0.0.1",
 			HostWithPort:          "127.0.0.1:1935",
@@ -202,21 +202,21 @@ func TestParseRTMPURL(t *testing.T) {
 			PathWithoutLastItem:   "test110",
 			LastItemOfPath:        "",
 			RawQuery:              "",
-			RawURLWithoutUserInfo: "rtmp://127.0.0.1/test110",
+			RawUrlWithoutUserInfo: "rtmp://127.0.0.1/test110",
 		},
 	}
 	for k, v := range golden {
-		ctx, err := base.ParseRTMPURL(k)
+		ctx, err := base.ParseRtmpUrl(k)
 		assert.Equal(t, nil, err)
 		assert.Equal(t, v, ctx, k)
 	}
 }
 
-func TestParseRTSPURL(t *testing.T) {
-	golden := map[string]base.URLContext{
-		// 其他测试见ParseURL
+func TestParseRtspUrl(t *testing.T) {
+	golden := map[string]base.UrlContext{
+		// 其他测试见ParseUrl
 		"rtsp://admin:P!@1988@127.0.0.1:5554/h264/ch33/main/av_stream": {
-			URL:                   "rtsp://admin:P!@1988@127.0.0.1:5554/h264/ch33/main/av_stream",
+			Url:                   "rtsp://admin:P!@1988@127.0.0.1:5554/h264/ch33/main/av_stream",
 			Scheme:                "rtsp",
 			Username:              "admin",
 			Password:              "P!@1988",
@@ -229,11 +229,11 @@ func TestParseRTSPURL(t *testing.T) {
 			PathWithoutLastItem:   "h264/ch33/main",
 			LastItemOfPath:        "av_stream",
 			RawQuery:              "",
-			RawURLWithoutUserInfo: "rtsp://127.0.0.1:5554/h264/ch33/main/av_stream",
+			RawUrlWithoutUserInfo: "rtsp://127.0.0.1:5554/h264/ch33/main/av_stream",
 		},
 	}
 	for k, v := range golden {
-		ctx, err := base.ParseRTSPURL(k)
+		ctx, err := base.ParseRtspUrl(k)
 		assert.Equal(t, nil, err)
 		assert.Equal(t, v, ctx, k)
 	}

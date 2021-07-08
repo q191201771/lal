@@ -80,7 +80,7 @@ func main() {
 
 func pull(url string, filename string) {
 	var (
-		w   httpflv.FLVFileWriter
+		w   httpflv.FlvFileWriter
 		err error
 	)
 
@@ -88,18 +88,18 @@ func pull(url string, filename string) {
 		err = w.Open(filename)
 		nazalog.Assert(nil, err)
 		defer w.Dispose()
-		err = w.WriteRaw(httpflv.FLVHeader)
+		err = w.WriteRaw(httpflv.FlvHeader)
 		nazalog.Assert(nil, err)
 	}
 
 	session := rtmp.NewPullSession(func(option *rtmp.PullSessionOption) {
-		option.PullTimeoutMS = 10000
-		option.ReadAVTimeoutMS = 10000
+		option.PullTimeoutMs = 10000
+		option.ReadAvTimeoutMs = 10000
 	})
 
-	err = session.Pull(url, func(msg base.RTMPMsg) {
+	err = session.Pull(url, func(msg base.RtmpMsg) {
 		if filename != "" {
-			tag := remux.RTMPMsg2FLVTag(msg)
+			tag := remux.RtmpMsg2FlvTag(msg)
 			err := w.WriteTag(*tag)
 			nazalog.Assert(nil, err)
 		}
@@ -136,7 +136,7 @@ func parseFlag() (urlTmpl string, fileNameTmpl string, num int) {
   %s -i rtmp://127.0.0.1:1935/live/test -n 1000
   %s -i rtmp://127.0.0.1:1935/live/test_{i} -n 1000
 `, os.Args[0], os.Args[0], os.Args[0])
-		base.OSExitAndWaitPressIfWindows(1)
+		base.OsExitAndWaitPressIfWindows(1)
 	}
 	return *i, *o, *n
 }

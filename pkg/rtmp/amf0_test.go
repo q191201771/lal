@@ -30,9 +30,9 @@ func TestAmf0_WriteNumber_ReadNumber(t *testing.T) {
 
 	for _, item := range cases {
 		out := &bytes.Buffer{}
-		err := AMF0.WriteNumber(out, item)
+		err := Amf0.WriteNumber(out, item)
 		assert.Equal(t, nil, err)
-		v, l, err := AMF0.ReadNumber(out.Bytes())
+		v, l, err := Amf0.ReadNumber(out.Bytes())
 		assert.Equal(t, item, v)
 		assert.Equal(t, l, 9)
 		assert.Equal(t, nil, err)
@@ -48,9 +48,9 @@ func TestAmf0_WriteString_ReadString(t *testing.T) {
 	}
 	for _, item := range cases {
 		out := &bytes.Buffer{}
-		err := AMF0.WriteString(out, item)
+		err := Amf0.WriteString(out, item)
 		assert.Equal(t, nil, err)
-		v, l, err := AMF0.ReadString(out.Bytes())
+		v, l, err := Amf0.ReadString(out.Bytes())
 		assert.Equal(t, item, v)
 		assert.Equal(t, l, len(item)+3)
 		assert.Equal(t, nil, err)
@@ -58,9 +58,9 @@ func TestAmf0_WriteString_ReadString(t *testing.T) {
 
 	longStr := strings.Repeat("1", 65536)
 	out := &bytes.Buffer{}
-	err := AMF0.WriteString(out, longStr)
+	err := Amf0.WriteString(out, longStr)
 	assert.Equal(t, nil, err)
-	v, l, err := AMF0.ReadString(out.Bytes())
+	v, l, err := Amf0.ReadString(out.Bytes())
 	assert.Equal(t, longStr, v)
 	assert.Equal(t, l, len(longStr)+5)
 	assert.Equal(t, nil, err)
@@ -73,9 +73,9 @@ func TestAmf0_WriteObject_ReadObject(t *testing.T) {
 		{Key: "ban", Value: "cat"},
 		{Key: "dog", Value: true},
 	}
-	err := AMF0.WriteObject(out, objs)
+	err := Amf0.WriteObject(out, objs)
 	assert.Equal(t, nil, err)
-	v, _, err := AMF0.ReadObject(out.Bytes())
+	v, _, err := Amf0.ReadObject(out.Bytes())
 	assert.Equal(t, nil, err)
 	assert.Equal(t, 3, len(v))
 	assert.Equal(t, float64(3), v.Find("air"))
@@ -85,9 +85,9 @@ func TestAmf0_WriteObject_ReadObject(t *testing.T) {
 
 func TestAmf0_WriteNull_readNull(t *testing.T) {
 	out := &bytes.Buffer{}
-	err := AMF0.WriteNull(out)
+	err := Amf0.WriteNull(out)
 	assert.Equal(t, nil, err)
-	l, err := AMF0.ReadNull(out.Bytes())
+	l, err := Amf0.ReadNull(out.Bytes())
 	assert.Equal(t, 1, l)
 	assert.Equal(t, nil, err)
 }
@@ -97,9 +97,9 @@ func TestAmf0_WriteBoolean_ReadBoolean(t *testing.T) {
 
 	for i := range cases {
 		out := &bytes.Buffer{}
-		err := AMF0.WriteBoolean(out, cases[i])
+		err := Amf0.WriteBoolean(out, cases[i])
 		assert.Equal(t, nil, err)
-		v, l, err := AMF0.ReadBoolean(out.Bytes())
+		v, l, err := Amf0.ReadBoolean(out.Bytes())
 		assert.Equal(t, cases[i], v)
 		assert.Equal(t, 2, l)
 		assert.Equal(t, nil, err)
@@ -109,7 +109,7 @@ func TestAmf0_WriteBoolean_ReadBoolean(t *testing.T) {
 func TestAmf0_ReadArray(t *testing.T) {
 	gold := []byte{0x08, 0x00, 0x00, 0x00, 0x10, 0x00, 0x08, 0x64, 0x75, 0x72, 0x61, 0x74, 0x69, 0x6f, 0x6e, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x05, 0x77, 0x69, 0x64, 0x74, 0x68, 0x00, 0x40, 0x88, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x06, 0x68, 0x65, 0x69, 0x67, 0x68, 0x74, 0x00, 0x40, 0x74, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x0d, 0x76, 0x69, 0x64, 0x65, 0x6f, 0x64, 0x61, 0x74, 0x61, 0x72, 0x61, 0x74, 0x65, 0x00, 0x40, 0x69, 0xe8, 0x50, 0x00, 0x00, 0x00, 0x00, 0x00, 0x09, 0x66, 0x72, 0x61, 0x6d, 0x65, 0x72, 0x61, 0x74, 0x65, 0x00, 0x40, 0x39, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x0c, 0x76, 0x69, 0x64, 0x65, 0x6f, 0x63, 0x6f, 0x64, 0x65, 0x63, 0x69, 0x64, 0x00, 0x40, 0x1c, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x0d, 0x61, 0x75, 0x64, 0x69, 0x6f, 0x64, 0x61, 0x74, 0x61, 0x72, 0x61, 0x74, 0x65, 0x00, 0x40, 0x3d, 0x54, 0x40, 0x00, 0x00, 0x00, 0x00, 0x00, 0x0f, 0x61, 0x75, 0x64, 0x69, 0x6f, 0x73, 0x61, 0x6d, 0x70, 0x6c, 0x65, 0x72, 0x61, 0x74, 0x65, 0x00, 0x40, 0xe5, 0x88, 0x80, 0x00, 0x00, 0x00, 0x00, 0x00, 0x0f, 0x61, 0x75, 0x64, 0x69, 0x6f, 0x73, 0x61, 0x6d, 0x70, 0x6c, 0x65, 0x73, 0x69, 0x7a, 0x65, 0x00, 0x40, 0x30, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x06, 0x73, 0x74, 0x65, 0x72, 0x65, 0x6f, 0x01, 0x01, 0x00, 0x0c, 0x61, 0x75, 0x64, 0x69, 0x6f, 0x63, 0x6f, 0x64, 0x65, 0x63, 0x69, 0x64, 0x00, 0x40, 0x24, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x0b, 0x6d, 0x61, 0x6a, 0x6f, 0x72, 0x5f, 0x62, 0x72, 0x61, 0x6e, 0x64, 0x02, 0x00, 0x04, 0x69, 0x73, 0x6f, 0x6d, 0x00, 0x0d, 0x6d, 0x69, 0x6e, 0x6f, 0x72, 0x5f, 0x76, 0x65, 0x72, 0x73, 0x69, 0x6f, 0x6e, 0x02, 0x00, 0x03, 0x35, 0x31, 0x32, 0x00, 0x11, 0x63, 0x6f, 0x6d, 0x70, 0x61, 0x74, 0x69, 0x62, 0x6c, 0x65, 0x5f, 0x62, 0x72, 0x61, 0x6e, 0x64, 0x73, 0x02, 0x00, 0x10, 0x69, 0x73, 0x6f, 0x6d, 0x69, 0x73, 0x6f, 0x32, 0x61, 0x76, 0x63, 0x31, 0x6d, 0x70, 0x34, 0x31, 0x00, 0x07, 0x65, 0x6e, 0x63, 0x6f, 0x64, 0x65, 0x72, 0x02, 0x00, 0x0d, 0x4c, 0x61, 0x76, 0x66, 0x35, 0x37, 0x2e, 0x38, 0x33, 0x2e, 0x31, 0x30, 0x30, 0x00, 0x08, 0x66, 0x69, 0x6c, 0x65, 0x73, 0x69, 0x7a, 0x65, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x09}
 
-	ops, l, err := AMF0.ReadArray(gold)
+	ops, l, err := Amf0.ReadArray(gold)
 	assert.Equal(t, nil, err)
 	assert.Equal(t, 16, len(ops))
 	assert.Equal(t, 359, len(gold))
@@ -117,7 +117,7 @@ func TestAmf0_ReadArray(t *testing.T) {
 	nazalog.Debug(ops)
 }
 
-func TestAMF0Corner(t *testing.T) {
+func TestAmf0Corner(t *testing.T) {
 	var (
 		mw   *fake.Writer
 		err  error
@@ -130,38 +130,38 @@ func TestAMF0Corner(t *testing.T) {
 	)
 
 	mw = fake.NewWriter(fake.WriterTypeReturnError)
-	err = AMF0.WriteNumber(mw, 0)
+	err = Amf0.WriteNumber(mw, 0)
 	assert.IsNotNil(t, err)
 
 	mw = fake.NewWriter(fake.WriterTypeReturnError)
-	err = AMF0.WriteBoolean(mw, true)
+	err = Amf0.WriteBoolean(mw, true)
 	assert.IsNotNil(t, err)
 
 	// WriteString 调用 三次写
 	mw = fake.NewWriter(fake.WriterTypeDoNothing)
 	mw.SetSpecificType(map[uint32]fake.WriterType{0: fake.WriterTypeReturnError})
-	err = AMF0.WriteString(mw, "0")
+	err = Amf0.WriteString(mw, "0")
 	assert.IsNotNil(t, err)
 	mw = fake.NewWriter(fake.WriterTypeDoNothing)
 	mw.SetSpecificType(map[uint32]fake.WriterType{1: fake.WriterTypeReturnError})
-	err = AMF0.WriteString(mw, "1")
+	err = Amf0.WriteString(mw, "1")
 	assert.IsNotNil(t, err)
 	mw = fake.NewWriter(fake.WriterTypeDoNothing)
 	mw.SetSpecificType(map[uint32]fake.WriterType{2: fake.WriterTypeReturnError})
-	err = AMF0.WriteString(mw, "2")
+	err = Amf0.WriteString(mw, "2")
 	assert.IsNotNil(t, err)
 	longStr := strings.Repeat("1", 65536)
 	mw = fake.NewWriter(fake.WriterTypeDoNothing)
 	mw.SetSpecificType(map[uint32]fake.WriterType{0: fake.WriterTypeReturnError})
-	err = AMF0.WriteString(mw, longStr)
+	err = Amf0.WriteString(mw, longStr)
 	assert.IsNotNil(t, err)
 	mw = fake.NewWriter(fake.WriterTypeDoNothing)
 	mw.SetSpecificType(map[uint32]fake.WriterType{1: fake.WriterTypeReturnError})
-	err = AMF0.WriteString(mw, longStr)
+	err = Amf0.WriteString(mw, longStr)
 	assert.IsNotNil(t, err)
 	mw = fake.NewWriter(fake.WriterTypeDoNothing)
 	mw.SetSpecificType(map[uint32]fake.WriterType{2: fake.WriterTypeReturnError})
-	err = AMF0.WriteString(mw, longStr)
+	err = Amf0.WriteString(mw, longStr)
 	assert.IsNotNil(t, err)
 
 	objs = []ObjectPair{
@@ -172,85 +172,85 @@ func TestAMF0Corner(t *testing.T) {
 	for i := uint32(0); i < 14; i++ {
 		mw = fake.NewWriter(fake.WriterTypeDoNothing)
 		mw.SetSpecificType(map[uint32]fake.WriterType{i: fake.WriterTypeReturnError})
-		err = AMF0.WriteObject(mw, objs)
+		err = Amf0.WriteObject(mw, objs)
 		assert.IsNotNil(t, err)
 	}
 
 	b = nil
-	str, l, err = AMF0.ReadStringWithoutType(b)
+	str, l, err = Amf0.ReadStringWithoutType(b)
 	assert.Equal(t, str, "")
 	assert.Equal(t, 0, l)
-	assert.Equal(t, ErrAMFTooShort, err)
+	assert.Equal(t, ErrAmfTooShort, err)
 	b = []byte{1, 1}
-	str, l, err = AMF0.ReadStringWithoutType(b)
+	str, l, err = Amf0.ReadStringWithoutType(b)
 	assert.Equal(t, str, "")
 	assert.Equal(t, 0, l)
-	assert.Equal(t, ErrAMFTooShort, err)
+	assert.Equal(t, ErrAmfTooShort, err)
 
 	b = nil
-	str, l, err = AMF0.ReadLongStringWithoutType(b)
+	str, l, err = Amf0.ReadLongStringWithoutType(b)
 	assert.Equal(t, str, "")
 	assert.Equal(t, 0, l)
-	assert.Equal(t, ErrAMFTooShort, err)
+	assert.Equal(t, ErrAmfTooShort, err)
 	b = []byte{1, 1, 1, 1}
-	str, l, err = AMF0.ReadLongStringWithoutType(b)
+	str, l, err = Amf0.ReadLongStringWithoutType(b)
 	assert.Equal(t, str, "")
 	assert.Equal(t, 0, l)
-	assert.Equal(t, ErrAMFTooShort, err)
+	assert.Equal(t, ErrAmfTooShort, err)
 
 	b = nil
-	str, l, err = AMF0.ReadString(b)
+	str, l, err = Amf0.ReadString(b)
 	assert.Equal(t, str, "")
 	assert.Equal(t, 0, l)
-	assert.Equal(t, ErrAMFTooShort, err)
+	assert.Equal(t, ErrAmfTooShort, err)
 	b = []byte{1}
-	str, l, err = AMF0.ReadString(b)
+	str, l, err = Amf0.ReadString(b)
 	assert.Equal(t, str, "")
 	assert.Equal(t, 0, l)
-	assert.Equal(t, ErrAMFInvalidType, err)
+	assert.Equal(t, ErrAmfInvalidType, err)
 
 	b = nil
-	num, l, err = AMF0.ReadNumber(b)
+	num, l, err = Amf0.ReadNumber(b)
 	assert.Equal(t, int(num), 0)
 	assert.Equal(t, 0, l)
-	assert.Equal(t, ErrAMFTooShort, err)
+	assert.Equal(t, ErrAmfTooShort, err)
 	str = strings.Repeat("1", 16)
 	b = []byte(str)
-	num, l, err = AMF0.ReadNumber(b)
+	num, l, err = Amf0.ReadNumber(b)
 	assert.Equal(t, int(num), 0)
 	assert.Equal(t, 0, l)
-	assert.Equal(t, ErrAMFInvalidType, err)
+	assert.Equal(t, ErrAmfInvalidType, err)
 
 	b = nil
-	flag, l, err = AMF0.ReadBoolean(b)
+	flag, l, err = Amf0.ReadBoolean(b)
 	assert.Equal(t, flag, false)
 	assert.Equal(t, 0, l)
-	assert.Equal(t, ErrAMFTooShort, err)
+	assert.Equal(t, ErrAmfTooShort, err)
 	b = []byte{0, 0}
-	flag, l, err = AMF0.ReadBoolean(b)
+	flag, l, err = Amf0.ReadBoolean(b)
 	assert.Equal(t, flag, false)
 	assert.Equal(t, 0, l)
-	assert.Equal(t, ErrAMFInvalidType, err)
+	assert.Equal(t, ErrAmfInvalidType, err)
 
 	b = nil
-	l, err = AMF0.ReadNull(b)
+	l, err = Amf0.ReadNull(b)
 	assert.Equal(t, 0, l)
-	assert.Equal(t, ErrAMFTooShort, err)
+	assert.Equal(t, ErrAmfTooShort, err)
 	b = []byte{0}
-	l, err = AMF0.ReadNull(b)
+	l, err = Amf0.ReadNull(b)
 	assert.Equal(t, 0, l)
-	assert.Equal(t, ErrAMFInvalidType, err)
+	assert.Equal(t, ErrAmfInvalidType, err)
 
 	b = nil
-	objs, l, err = AMF0.ReadObject(b)
+	objs, l, err = Amf0.ReadObject(b)
 	assert.Equal(t, nil, objs)
 	assert.Equal(t, 0, l)
-	assert.Equal(t, ErrAMFTooShort, err)
+	assert.Equal(t, ErrAmfTooShort, err)
 	b = []byte{0}
-	objs, l, err = AMF0.ReadObject(b)
+	objs, l, err = Amf0.ReadObject(b)
 	assert.Equal(t, nil, objs)
 	assert.Equal(t, 0, l)
-	assert.Equal(t, ErrAMFInvalidType, err)
+	assert.Equal(t, ErrAmfInvalidType, err)
 
 	defer func() {
 		recover()
@@ -258,7 +258,7 @@ func TestAMF0Corner(t *testing.T) {
 	objs = []ObjectPair{
 		{Key: "key", Value: []byte{1}},
 	}
-	_ = AMF0.WriteObject(mw, objs)
+	_ = Amf0.WriteObject(mw, objs)
 }
 
 func BenchmarkAmf0_ReadObject(b *testing.B) {
@@ -268,9 +268,9 @@ func BenchmarkAmf0_ReadObject(b *testing.B) {
 		{Key: "ban", Value: "cat"},
 		{Key: "dog", Value: true},
 	}
-	_ = AMF0.WriteObject(out, objs)
+	_ = Amf0.WriteObject(out, objs)
 	for i := 0; i < b.N; i++ {
-		_, _, _ = AMF0.ReadObject(out.Bytes())
+		_, _, _ = Amf0.ReadObject(out.Bytes())
 	}
 }
 
@@ -282,6 +282,6 @@ func BenchmarkAmf0_WriteObject(b *testing.B) {
 		{Key: "dog", Value: true},
 	}
 	for i := 0; i < b.N; i++ {
-		_ = AMF0.WriteObject(out, objs)
+		_ = Amf0.WriteObject(out, objs)
 	}
 }

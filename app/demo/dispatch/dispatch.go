@@ -33,14 +33,14 @@ import (
 
 var config = Config{
 	ListenAddr: ":10101",
-	ServerID2Server: map[string]Server{
+	ServerId2Server: map[string]Server{
 		"1": {
-			RTMPAddr: "127.0.0.1:19350",
-			APIAddr:  "127.0.0.1:8083",
+			RtmpAddr: "127.0.0.1:19350",
+			ApiAddr:  "127.0.0.1:8083",
 		},
 		"2": {
-			RTMPAddr: "127.0.0.1:19550",
-			APIAddr:  "127.0.0.1:8283",
+			RtmpAddr: "127.0.0.1:19550",
+			ApiAddr:  "127.0.0.1:8283",
 		},
 	},
 	PullSecretParam:  "lal_cluster_inner_pull=1",
@@ -60,32 +60,32 @@ func OnPubStartHandler(w http.ResponseWriter, r *http.Request) {
 	nazalog.Infof("[%s] on_pub_start. info=%+v", id, info)
 
 	// 演示如何踢掉session，服务于鉴权失败等场景
-	//if info.URLParam == "" {
-	//if info.SessionID == "RTMPPUBSUB1" {
-	//	reqServer, exist := config.ServerID2Server[info.ServerID]
+	//if info.UrlParam == "" {
+	//if info.SessionId == "RTMPPUBSUB1" {
+	//	reqServer, exist := config.ServerId2Server[info.ServerId]
 	//	if !exist {
 	//		nazalog.Errorf("[%s] req server id invalid.", id)
 	//		return
 	//	}
-	//	url := fmt.Sprintf("http://%s/api/ctrl/kick_out_session", reqServer.APIAddr)
-	//	var b base.APICtrlKickOutSession
+	//	url := fmt.Sprintf("http://%s/api/ctrl/kick_out_session", reqServer.ApiAddr)
+	//	var b base.ApiCtrlKickOutSession
 	//	b.StreamName = info.StreamName
-	//	b.SessionID = info.SessionID
+	//	b.SessionId = info.SessionId
 	//
-	//	nazalog.Infof("[%s] ctrl kick out session. send to %s with %+v", id, reqServer.APIAddr, b)
+	//	nazalog.Infof("[%s] ctrl kick out session. send to %s with %+v", id, reqServer.ApiAddr, b)
 	//	if _, err := nazahttp.PostJson(url, b, nil); err != nil {
 	//		nazalog.Errorf("[%s] post json error. err=%+v", id, err)
 	//	}
 	//	return
 	//}
 
-	if _, exist := config.ServerID2Server[info.ServerID]; !exist {
-		nazalog.Errorf("server id has not config. serverID=%s", info.ServerID)
+	if _, exist := config.ServerId2Server[info.ServerId]; !exist {
+		nazalog.Errorf("server id has not config. serverId=%s", info.ServerId)
 		return
 	}
 
-	nazalog.Infof("add pub. streamName=%s, serverID=%s", info.StreamName, info.ServerID)
-	dataManager.AddPub(info.StreamName, info.ServerID)
+	nazalog.Infof("add pub. streamName=%s, serverId=%s", info.StreamName, info.ServerId)
+	dataManager.AddPub(info.StreamName, info.ServerId)
 }
 
 func OnPubStopHandler(w http.ResponseWriter, r *http.Request) {
@@ -98,13 +98,13 @@ func OnPubStopHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	nazalog.Infof("[%s] on_pub_stop. info=%+v", id, info)
 
-	if _, exist := config.ServerID2Server[info.ServerID]; !exist {
-		nazalog.Errorf("server id has not config. serverID=%s", info.ServerID)
+	if _, exist := config.ServerId2Server[info.ServerId]; !exist {
+		nazalog.Errorf("server id has not config. serverId=%s", info.ServerId)
 		return
 	}
 
-	nazalog.Infof("del pub. streamName=%s, serverID=%s", info.StreamName, info.ServerID)
-	dataManager.DelPub(info.StreamName, info.ServerID)
+	nazalog.Infof("del pub. streamName=%s, serverId=%s", info.StreamName, info.ServerId)
+	dataManager.DelPub(info.StreamName, info.ServerId)
 }
 
 func OnSubStartHandler(w http.ResponseWriter, r *http.Request) {
@@ -119,7 +119,7 @@ func OnSubStartHandler(w http.ResponseWriter, r *http.Request) {
 
 	// sub拉流时，判断是否需要触发pull级联拉流
 	// 1. 是内部级联拉流，不需要触发
-	if strings.Contains(info.URLParam, config.PullSecretParam) {
+	if strings.Contains(info.UrlParam, config.PullSecretParam) {
 		nazalog.Infof("[%s] sub is pull by other node, ignore.", id)
 		return
 	}
@@ -130,32 +130,32 @@ func OnSubStartHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// 3. 非法节点，本服务没有配置汇报的节点
-	reqServer, exist := config.ServerID2Server[info.ServerID]
+	reqServer, exist := config.ServerId2Server[info.ServerId]
 	if !exist {
 		nazalog.Errorf("[%s] req server id invalid.", id)
 		return
 	}
 
-	pubServerID, exist := dataManager.QueryPub(info.StreamName)
+	pubServerId, exist := dataManager.QueryPub(info.StreamName)
 	// 4. 没有查到流所在节点，不需要触发
 	if !exist {
 		nazalog.Infof("[%s] pub not exist, ignore.", id)
 		return
 	}
 
-	pubServer, exist := config.ServerID2Server[pubServerID]
+	pubServer, exist := config.ServerId2Server[pubServerId]
 	nazalog.Assert(true, exist)
 
 	// 向汇报节点，发送pull级联拉流的命令，其中包含pub所在节点信息
-	url := fmt.Sprintf("http://%s/api/ctrl/start_pull", reqServer.APIAddr)
-	var b base.APICtrlStartPullReq
-	b.Protocol = base.ProtocolRTMP
-	b.Addr = pubServer.RTMPAddr
+	url := fmt.Sprintf("http://%s/api/ctrl/start_pull", reqServer.ApiAddr)
+	var b base.ApiCtrlStartPullReq
+	b.Protocol = base.ProtocolRtmp
+	b.Addr = pubServer.RtmpAddr
 	b.AppName = info.AppName
 	b.StreamName = info.StreamName
-	b.URLParam = config.PullSecretParam
+	b.UrlParam = config.PullSecretParam
 
-	nazalog.Infof("[%s] ctrl pull. send to %s with %+v", id, reqServer.APIAddr, b)
+	nazalog.Infof("[%s] ctrl pull. send to %s with %+v", id, reqServer.ApiAddr, b)
 	if _, err := nazahttp.PostJson(url, b, nil); err != nil {
 		nazalog.Errorf("[%s] post json error. err=%+v", id, err)
 	}
@@ -185,11 +185,11 @@ func OnUpdateHandler(w http.ResponseWriter, r *http.Request) {
 	var streamNameList []string
 	for _, g := range info.Groups {
 		// pub exist
-		if g.StatPub.SessionID != "" {
+		if g.StatPub.SessionId != "" {
 			streamNameList = append(streamNameList, g.StreamName)
 		}
 	}
-	dataManager.UpdatePub(info.ServerID, streamNameList)
+	dataManager.UpdatePub(info.ServerId, streamNameList)
 }
 
 func logHandler(w http.ResponseWriter, r *http.Request) {
@@ -203,7 +203,7 @@ func main() {
 	})
 	defer nazalog.Sync()
 
-	dataManager = datamanager.NewDataManager(datamanager.DMTMemory, config.ServerTimeoutSec)
+	dataManager = datamanager.NewDataManager(datamanager.DmtMemory, config.ServerTimeoutSec)
 
 	l, err := net.Listen("tcp", config.ListenAddr)
 	nazalog.Assert(nil, err)

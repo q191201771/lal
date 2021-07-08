@@ -13,7 +13,7 @@ const (
 	// 但是我还遇到过：
 	// HEVC使用96
 	// AVC使用105
-	RTPPacketTypeAVCOrHEVC = 96
-	RTPPacketTypeAAC       = 97
-	RTPPacketTypeHEVC      = 98
+	RtpPacketTypeAvcOrHevc = 96
+	RtpPacketTypeAac       = 97
+	RtpPacketTypeHevc      = 98
 )

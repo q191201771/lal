@@ -29,20 +29,18 @@ import (
 
 // 聚合PubSession和PullSession，也即流数据是输入类型的session
 
-// BaseInSession会向上层回调两种格式的数据：
+// BaseInSession会向上层回调两种格式的数据(本质上是一份数据，业务方可自由选择使用)：
 // 1. 原始的rtp packet
 // 2. rtp合并后的av packet
+//
 type BaseInSessionObserver interface {
-	OnRTPPacket(pkt rtprtcp.RTPPacket)
+	OnSdp(sdpCtx sdp.LogicContext)
 
-	// @param asc: AAC AudioSpecificConfig，注意，如果不存在音频或音频不为AAC，则为nil
-	// @param vps, sps, pps 如果都为nil，则没有视频，如果sps, pps不为nil，则vps不为nil是H265，vps为nil是H264
-	//
-	// 注意，4个参数可能同时为nil
-	OnAVConfig(asc, vps, sps, pps []byte)
+	// 回调收到的RTP包
+	OnRtpPacket(pkt rtprtcp.RtpPacket)
 
-	// @param pkt: pkt结构体中字段含义见rtprtcp.OnAVPacket
-	OnAVPacket(pkt base.AVPacket)
+	// @param pkt: pkt结构体中字段含义见rtprtcp.OnAvPacket
+	OnAvPacket(pkt base.AvPacket)
 }
 
 type BaseInSession struct {
@@ -51,14 +49,14 @@ type BaseInSession struct {
 
 	observer BaseInSessionObserver
 
-	audioRTPConn     *nazanet.UDPConnection
-	videoRTPConn     *nazanet.UDPConnection
-	audioRTCPConn    *nazanet.UDPConnection
-	videoRTCPConn    *nazanet.UDPConnection
-	audioRTPChannel  int
-	audioRTCPChannel int
-	videoRTPChannel  int
-	videoRTCPChannel int
+	audioRtpConn     *nazanet.UdpConnection
+	videoRtpConn     *nazanet.UdpConnection
+	audioRtcpConn    *nazanet.UdpConnection
+	videoRtcpConn    *nazanet.UdpConnection
+	audioRtpChannel  int
+	audioRtcpChannel int
+	videoRtpChannel  int
+	videoRtcpChannel int
 
 	currConnStat connection.StatAtomic
 	prevConnStat connection.Stat
@@ -66,32 +64,32 @@ type BaseInSession struct {
 	stat         base.StatSession
 
 	mu              sync.Mutex
-	rawSDP          []byte           // const after set
+	rawSdp          []byte           // const after set
 	sdpLogicCtx     sdp.LogicContext // const after set
-	avPacketQueue   *AVPacketQueue
-	audioRRProducer *rtprtcp.RRProducer
-	videoRRProducer *rtprtcp.RRProducer
+	avPacketQueue   *AvPacketQueue
+	audioRrProducer *rtprtcp.RrProducer
+	videoRrProducer *rtprtcp.RrProducer
 
-	audioUnpacker rtprtcp.IRTPUnpacker
-	videoUnpacker rtprtcp.IRTPUnpacker
+	audioUnpacker rtprtcp.IRtpUnpacker
+	videoUnpacker rtprtcp.IRtpUnpacker
 
-	audioSSRC nazaatomic.Uint32
-	videoSSRC nazaatomic.Uint32
+	audioSsrc nazaatomic.Uint32
+	videoSsrc nazaatomic.Uint32
 
 	// only for debug log
 	debugLogMaxCount        uint32
-	loggedReadAudioRTPCount nazaatomic.Uint32
-	loggedReadVideoRTPCount nazaatomic.Uint32
-	loggedReadRTCPCount     nazaatomic.Uint32
-	loggedReadSRCount       nazaatomic.Uint32
+	loggedReadAudioRtpCount nazaatomic.Uint32
+	loggedReadVideoRtpCount nazaatomic.Uint32
+	loggedReadRtcpCount     nazaatomic.Uint32
+	loggedReadSrCount       nazaatomic.Uint32
 }
 
 func NewBaseInSession(uniqueKey string, cmdSession IInterleavedPacketWriter) *BaseInSession {
 	s := &BaseInSession{
 		uniqueKey: uniqueKey,
 		stat: base.StatSession{
-			Protocol:  base.ProtocolRTSP,
-			SessionID: uniqueKey,
+			Protocol:  base.ProtocolRtsp,
+			SessionId: uniqueKey,
 			StartTime: time.Now().Format("2006-01-02 15:04:05.999"),
 		},
 		cmdSession:       cmdSession,
@@ -107,126 +105,129 @@ func NewBaseInSessionWithObserver(uniqueKey string, cmdSession IInterleavedPacke
 	return s
 }
 
-func (session *BaseInSession) InitWithSDP(rawSDP []byte, sdpLogicCtx sdp.LogicContext) {
+func (session *BaseInSession) InitWithSdp(rawSdp []byte, sdpLogicCtx sdp.LogicContext) {
 	session.mu.Lock()
-	session.rawSDP = rawSDP
+	session.rawSdp = rawSdp
 	session.sdpLogicCtx = sdpLogicCtx
 	session.mu.Unlock()
 
 	if session.sdpLogicCtx.IsAudioUnpackable() {
-		session.audioUnpacker = rtprtcp.DefaultRTPUnpackerFactory(session.sdpLogicCtx.GetAudioPayloadTypeBase(), session.sdpLogicCtx.AudioClockRate, unpackerItemMaxSize, session.onAVPacketUnpacked)
+		session.audioUnpacker = rtprtcp.DefaultRtpUnpackerFactory(session.sdpLogicCtx.GetAudioPayloadTypeBase(), session.sdpLogicCtx.AudioClockRate, unpackerItemMaxSize, session.onAvPacketUnpacked)
 	} else {
 		nazalog.Warnf("[%s] audio unpacker not support for this type yet.", session.uniqueKey)
 	}
 	if session.sdpLogicCtx.IsVideoUnpackable() {
-		session.videoUnpacker = rtprtcp.DefaultRTPUnpackerFactory(session.sdpLogicCtx.GetVideoPayloadTypeBase(), session.sdpLogicCtx.VideoClockRate, unpackerItemMaxSize, session.onAVPacketUnpacked)
+		session.videoUnpacker = rtprtcp.DefaultRtpUnpackerFactory(session.sdpLogicCtx.GetVideoPayloadTypeBase(), session.sdpLogicCtx.VideoClockRate, unpackerItemMaxSize, session.onAvPacketUnpacked)
 	} else {
 		nazalog.Warnf("[%s] video unpacker not support this type yet.", session.uniqueKey)
 	}
 
-	session.audioRRProducer = rtprtcp.NewRRProducer(session.sdpLogicCtx.AudioClockRate)
-	session.videoRRProducer = rtprtcp.NewRRProducer(session.sdpLogicCtx.VideoClockRate)
+	session.audioRrProducer = rtprtcp.NewRrProducer(session.sdpLogicCtx.AudioClockRate)
+	session.videoRrProducer = rtprtcp.NewRrProducer(session.sdpLogicCtx.VideoClockRate)
 
 	if session.sdpLogicCtx.IsAudioUnpackable() && session.sdpLogicCtx.IsVideoUnpackable() {
 		session.mu.Lock()
-		session.avPacketQueue = NewAVPacketQueue(session.onAVPacket)
+		session.avPacketQueue = NewAvPacketQueue(session.onAvPacket)
 		session.mu.Unlock()
 	}
 
 	if session.observer != nil {
-		session.observer.OnAVConfig(session.sdpLogicCtx.ASC, session.sdpLogicCtx.VPS, session.sdpLogicCtx.SPS, session.sdpLogicCtx.PPS)
+		session.observer.OnSdp(session.sdpLogicCtx)
 	}
 }
 
-// 如果没有设置回调监听对象，可以通过该函数设置，调用方保证调用该函数发生在调用InitWithSDP之后
+// 如果没有设置回调监听对象，可以通过该函数设置，调用方保证调用该函数发生在调用InitWithSdp之后
 func (session *BaseInSession) SetObserver(observer BaseInSessionObserver) {
 	session.observer = observer
 
-	session.observer.OnAVConfig(session.sdpLogicCtx.ASC, session.sdpLogicCtx.VPS, session.sdpLogicCtx.SPS, session.sdpLogicCtx.PPS)
+	// 避免在当前协程回调，降低业务方使用负担，不必担心设置监听对象和回调函数中锁重入
+	go func() {
+		session.observer.OnSdp(session.sdpLogicCtx)
+	}()
 }
 
-func (session *BaseInSession) SetupWithConn(uri string, rtpConn, rtcpConn *nazanet.UDPConnection) error {
-	if session.sdpLogicCtx.IsAudioURI(uri) {
-		session.audioRTPConn = rtpConn
-		session.audioRTCPConn = rtcpConn
-	} else if session.sdpLogicCtx.IsVideoURI(uri) {
-		session.videoRTPConn = rtpConn
-		session.videoRTCPConn = rtcpConn
+func (session *BaseInSession) SetupWithConn(uri string, rtpConn, rtcpConn *nazanet.UdpConnection) error {
+	if session.sdpLogicCtx.IsAudioUri(uri) {
+		session.audioRtpConn = rtpConn
+		session.audioRtcpConn = rtcpConn
+	} else if session.sdpLogicCtx.IsVideoUri(uri) {
+		session.videoRtpConn = rtpConn
+		session.videoRtcpConn = rtcpConn
 	} else {
-		return ErrRTSP
+		return ErrRtsp
 	}
 
-	go rtpConn.RunLoop(session.onReadRTPPacket)
-	go rtcpConn.RunLoop(session.onReadRTCPPacket)
+	go rtpConn.RunLoop(session.onReadRtpPacket)
+	go rtcpConn.RunLoop(session.onReadRtcpPacket)
 
 	return nil
 }
 
 func (session *BaseInSession) SetupWithChannel(uri string, rtpChannel, rtcpChannel int) error {
-	if session.sdpLogicCtx.IsAudioURI(uri) {
-		session.audioRTPChannel = rtpChannel
-		session.audioRTCPChannel = rtcpChannel
+	if session.sdpLogicCtx.IsAudioUri(uri) {
+		session.audioRtpChannel = rtpChannel
+		session.audioRtcpChannel = rtcpChannel
 		return nil
-	} else if session.sdpLogicCtx.IsVideoURI(uri) {
-		session.videoRTPChannel = rtpChannel
-		session.videoRTCPChannel = rtcpChannel
+	} else if session.sdpLogicCtx.IsVideoUri(uri) {
+		session.videoRtpChannel = rtpChannel
+		session.videoRtcpChannel = rtcpChannel
 		return nil
 	}
-	return ErrRTSP
+	return ErrRtsp
 }
 
 func (session *BaseInSession) Dispose() error {
 	nazalog.Infof("[%s] lifecycle dispose rtsp BaseInSession. session=%p", session.uniqueKey, session)
 	var e1, e2, e3, e4 error
-	if session.audioRTPConn != nil {
-		e1 = session.audioRTPConn.Dispose()
+	if session.audioRtpConn != nil {
+		e1 = session.audioRtpConn.Dispose()
 	}
-	if session.audioRTCPConn != nil {
-		e2 = session.audioRTCPConn.Dispose()
+	if session.audioRtcpConn != nil {
+		e2 = session.audioRtcpConn.Dispose()
 	}
-	if session.videoRTPConn != nil {
-		e3 = session.videoRTPConn.Dispose()
+	if session.videoRtpConn != nil {
+		e3 = session.videoRtpConn.Dispose()
 	}
-	if session.videoRTCPConn != nil {
-		e4 = session.videoRTCPConn.Dispose()
+	if session.videoRtcpConn != nil {
+		e4 = session.videoRtcpConn.Dispose()
 	}
 	return nazaerrors.CombineErrors(e1, e2, e3, e4)
 }
 
-func (session *BaseInSession) GetSDP() ([]byte, sdp.LogicContext) {
+func (session *BaseInSession) GetSdp() ([]byte, sdp.LogicContext) {
 	session.mu.Lock()
 	defer session.mu.Unlock()
-	return session.rawSDP, session.sdpLogicCtx
+	return session.rawSdp, session.sdpLogicCtx
 }
 
 func (session *BaseInSession) HandleInterleavedPacket(b []byte, channel int) {
 	switch channel {
-	case session.audioRTPChannel:
+	case session.audioRtpChannel:
 		fallthrough
-	case session.videoRTPChannel:
-		_ = session.handleRTPPacket(b)
-	case session.audioRTCPChannel:
+	case session.videoRtpChannel:
+		_ = session.handleRtpPacket(b)
+	case session.audioRtcpChannel:
 		fallthrough
-	case session.videoRTCPChannel:
-		_ = session.handleRTCPPacket(b, nil)
+	case session.videoRtcpChannel:
+		_ = session.handleRtcpPacket(b, nil)
 	default:
 		nazalog.Errorf("[%s] read interleaved packet but channel invalid. channel=%d", session.uniqueKey, channel)
 	}
 }
 
 // 发现pull时，需要先给对端发送数据，才能收到数据
-func (session *BaseInSession) WriteRTPRTCPDummy() {
-	if session.videoRTPConn != nil {
-		_ = session.videoRTPConn.Write(dummyRTPPacket)
+func (session *BaseInSession) WriteRtpRtcpDummy() {
+	if session.videoRtpConn != nil {
+		_ = session.videoRtpConn.Write(dummyRtpPacket)
 	}
-	if session.videoRTCPConn != nil {
-		_ = session.videoRTCPConn.Write(dummyRTCPPacket)
+	if session.videoRtcpConn != nil {
+		_ = session.videoRtcpConn.Write(dummyRtcpPacket)
 	}
-	if session.audioRTPConn != nil {
-		_ = session.audioRTPConn.Write(dummyRTPPacket)
+	if session.audioRtpConn != nil {
+		_ = session.audioRtpConn.Write(dummyRtpPacket)
 	}
-	if session.audioRTCPConn != nil {
-		_ = session.audioRTCPConn.Write(dummyRTCPPacket)
+	if session.audioRtcpConn != nil {
+		_ = session.audioRtcpConn.Write(dummyRtcpPacket)
 	}
 }
 
@@ -270,157 +271,157 @@ func (session *BaseInSession) UniqueKey() string {
 }
 
 // callback by RTPUnpacker
-func (session *BaseInSession) onAVPacketUnpacked(pkt base.AVPacket) {
+func (session *BaseInSession) onAvPacketUnpacked(pkt base.AvPacket) {
 	session.mu.Lock()
 	defer session.mu.Unlock()
 
 	if session.avPacketQueue != nil {
 		session.avPacketQueue.Feed(pkt)
 	} else {
-		session.observer.OnAVPacket(pkt)
+		session.observer.OnAvPacket(pkt)
 	}
 }
 
 // callback by avpacket queue
-func (session *BaseInSession) onAVPacket(pkt base.AVPacket) {
-	session.observer.OnAVPacket(pkt)
+func (session *BaseInSession) onAvPacket(pkt base.AvPacket) {
+	session.observer.OnAvPacket(pkt)
 }
 
 // callback by UDPConnection
-func (session *BaseInSession) onReadRTPPacket(b []byte, rAddr *net.UDPAddr, err error) bool {
+func (session *BaseInSession) onReadRtpPacket(b []byte, rAddr *net.UDPAddr, err error) bool {
 	if err != nil {
 		nazalog.Errorf("[%s] read udp packet failed. err=%+v", session.uniqueKey, err)
 		return true
 	}
 
-	_ = session.handleRTPPacket(b)
+	_ = session.handleRtpPacket(b)
 	return true
 }
 
 // callback by UDPConnection
-func (session *BaseInSession) onReadRTCPPacket(b []byte, rAddr *net.UDPAddr, err error) bool {
+func (session *BaseInSession) onReadRtcpPacket(b []byte, rAddr *net.UDPAddr, err error) bool {
 	if err != nil {
 		nazalog.Errorf("[%s] read udp packet failed. err=%+v", session.uniqueKey, err)
 		return true
 	}
 
-	_ = session.handleRTCPPacket(b, rAddr)
+	_ = session.handleRtcpPacket(b, rAddr)
 	return true
 }
 
 // @param rAddr 对端地址，往对端发送数据时使用，注意，如果nil，则表示是interleaved模式，我们直接往TCP连接发数据
-func (session *BaseInSession) handleRTCPPacket(b []byte, rAddr *net.UDPAddr) error {
+func (session *BaseInSession) handleRtcpPacket(b []byte, rAddr *net.UDPAddr) error {
 	session.currConnStat.ReadBytesSum.Add(uint64(len(b)))
 
 	if len(b) <= 0 {
-		nazalog.Errorf("[%s] handleRTCPPacket but length invalid. len=%d", session.uniqueKey, len(b))
-		return ErrRTSP
+		nazalog.Errorf("[%s] handleRtcpPacket but length invalid. len=%d", session.uniqueKey, len(b))
+		return ErrRtsp
 	}
 
-	if session.loggedReadRTCPCount.Load() < session.debugLogMaxCount {
+	if session.loggedReadRtcpCount.Load() < session.debugLogMaxCount {
 		nazalog.Debugf("[%s] LOGPACKET. read rtcp=%s", session.uniqueKey, hex.Dump(nazastring.SubSliceSafety(b, 32)))
-		session.loggedReadRTCPCount.Increment()
+		session.loggedReadRtcpCount.Increment()
 	}
 
 	packetType := b[1]
 
 	switch packetType {
-	case rtprtcp.RTCPPacketTypeSR:
-		sr := rtprtcp.ParseSR(b)
-		if session.loggedReadSRCount.Load() < session.debugLogMaxCount {
+	case rtprtcp.RtcpPacketTypeSr:
+		sr := rtprtcp.ParseSr(b)
+		if session.loggedReadSrCount.Load() < session.debugLogMaxCount {
 			nazalog.Debugf("[%s] LOGPACKET. %+v", session.uniqueKey, sr)
-			session.loggedReadSRCount.Increment()
+			session.loggedReadSrCount.Increment()
 		}
 		var rrBuf []byte
-		switch sr.SenderSSRC {
-		case session.audioSSRC.Load():
+		switch sr.SenderSsrc {
+		case session.audioSsrc.Load():
 			session.mu.Lock()
-			rrBuf = session.audioRRProducer.Produce(sr.GetMiddleNTP())
+			rrBuf = session.audioRrProducer.Produce(sr.GetMiddleNtp())
 			session.mu.Unlock()
 			if rrBuf != nil {
 				if rAddr != nil {
-					_ = session.audioRTCPConn.Write2Addr(rrBuf, rAddr)
+					_ = session.audioRtcpConn.Write2Addr(rrBuf, rAddr)
 				} else {
-					_ = session.cmdSession.WriteInterleavedPacket(rrBuf, session.audioRTCPChannel)
+					_ = session.cmdSession.WriteInterleavedPacket(rrBuf, session.audioRtcpChannel)
 				}
 				session.currConnStat.WroteBytesSum.Add(uint64(len(b)))
 			}
-		case session.videoSSRC.Load():
+		case session.videoSsrc.Load():
 			session.mu.Lock()
-			rrBuf = session.videoRRProducer.Produce(sr.GetMiddleNTP())
+			rrBuf = session.videoRrProducer.Produce(sr.GetMiddleNtp())
 			session.mu.Unlock()
 			if rrBuf != nil {
 				if rAddr != nil {
-					_ = session.videoRTCPConn.Write2Addr(rrBuf, rAddr)
+					_ = session.videoRtcpConn.Write2Addr(rrBuf, rAddr)
 				} else {
-					_ = session.cmdSession.WriteInterleavedPacket(rrBuf, session.videoRTCPChannel)
+					_ = session.cmdSession.WriteInterleavedPacket(rrBuf, session.videoRtcpChannel)
 				}
 				session.currConnStat.WroteBytesSum.Add(uint64(len(b)))
 			}
 		default:
 			// ffmpeg推流时，会在发送第一个RTP包之前就发送一个SR，所以关闭这个警告日志
-			//nazalog.Warnf("[%s] read rtcp sr but senderSSRC invalid. senderSSRC=%d, audio=%d, video=%d",
-			//	p.uniqueKey, sr.SenderSSRC, p.audioSSRC, p.videoSSRC)
-			return ErrRTSP
+			//nazalog.Warnf("[%s] read rtcp sr but senderSsrc invalid. senderSsrc=%d, audio=%d, video=%d",
+			//	p.uniqueKey, sr.SenderSsrc, p.audioSsrc, p.videoSsrc)
+			return ErrRtsp
 		}
 	default:
-		nazalog.Warnf("[%s] handleRTCPPacket but type unknown. type=%d", session.uniqueKey, b[1])
-		return ErrRTSP
+		nazalog.Warnf("[%s] handleRtcpPacket but type unknown. type=%d", session.uniqueKey, b[1])
+		return ErrRtsp
 	}
 
 	return nil
 }
 
-func (session *BaseInSession) handleRTPPacket(b []byte) error {
+func (session *BaseInSession) handleRtpPacket(b []byte) error {
 	session.currConnStat.ReadBytesSum.Add(uint64(len(b)))
 
-	if len(b) < rtprtcp.RTPFixedHeaderLength {
-		nazalog.Errorf("[%s] handleRTPPacket but length invalid. len=%d", session.uniqueKey, len(b))
-		return ErrRTSP
+	if len(b) < rtprtcp.RtpFixedHeaderLength {
+		nazalog.Errorf("[%s] handleRtpPacket but length invalid. len=%d", session.uniqueKey, len(b))
+		return ErrRtsp
 	}
 
 	packetType := int(b[1] & 0x7F)
 	if !session.sdpLogicCtx.IsPayloadTypeOrigin(packetType) {
-		nazalog.Errorf("[%s] handleRTPPacket but type invalid. type=%d", session.uniqueKey, packetType)
-		return ErrRTSP
+		nazalog.Errorf("[%s] handleRtpPacket but type invalid. type=%d", session.uniqueKey, packetType)
+		return ErrRtsp
 	}
 
-	h, err := rtprtcp.ParseRTPHeader(b)
+	h, err := rtprtcp.ParseRtpHeader(b)
 	if err != nil {
-		nazalog.Errorf("[%s] handleRTPPacket invalid rtp packet. err=%+v", session.uniqueKey, err)
+		nazalog.Errorf("[%s] handleRtpPacket invalid rtp packet. err=%+v", session.uniqueKey, err)
 		return err
 	}
 
-	var pkt rtprtcp.RTPPacket
+	var pkt rtprtcp.RtpPacket
 	pkt.Header = h
 	pkt.Raw = b
 
 	// 接收数据时，保证了sdp的原始类型对应
 	if session.sdpLogicCtx.IsAudioPayloadTypeOrigin(packetType) {
-		if session.loggedReadAudioRTPCount.Load() < session.debugLogMaxCount {
+		if session.loggedReadAudioRtpCount.Load() < session.debugLogMaxCount {
 			nazalog.Debugf("[%s] LOGPACKET. read audio rtp=%+v, len=%d", session.uniqueKey, h, len(b))
-			session.loggedReadAudioRTPCount.Increment()
+			session.loggedReadAudioRtpCount.Increment()
 		}
 
-		session.audioSSRC.Store(h.SSRC)
-		session.observer.OnRTPPacket(pkt)
+		session.audioSsrc.Store(h.Ssrc)
+		session.observer.OnRtpPacket(pkt)
 		session.mu.Lock()
-		session.audioRRProducer.FeedRTPPacket(h.Seq)
+		session.audioRrProducer.FeedRtpPacket(h.Seq)
 		session.mu.Unlock()
 
 		if session.audioUnpacker != nil {
 			session.audioUnpacker.Feed(pkt)
 		}
 	} else if session.sdpLogicCtx.IsVideoPayloadTypeOrigin(packetType) {
-		if session.loggedReadVideoRTPCount.Load() < session.debugLogMaxCount {
+		if session.loggedReadVideoRtpCount.Load() < session.debugLogMaxCount {
 			nazalog.Debugf("[%s] LOGPACKET. read video rtp=%+v, len=%d", session.uniqueKey, h, len(b))
-			session.loggedReadVideoRTPCount.Increment()
+			session.loggedReadVideoRtpCount.Increment()
 		}
 
-		session.videoSSRC.Store(h.SSRC)
-		session.observer.OnRTPPacket(pkt)
+		session.videoSsrc.Store(h.Ssrc)
+		session.observer.OnRtpPacket(pkt)
 		session.mu.Lock()
-		session.videoRRProducer.FeedRTPPacket(h.Seq)
+		session.videoRrProducer.FeedRtpPacket(h.Seq)
 		session.mu.Unlock()
 
 		if session.videoUnpacker != nil {

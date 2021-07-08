@@ -9,11 +9,11 @@
 package logic
 
 //var relayPushCheckIntervalMS = 1000
-var relayPushTimeoutMS = 5000
-var relayPushWriteAVTimeoutMS = 5000
+var relayPushTimeoutMs = 5000
+var relayPushWriteAvTimeoutMs = 5000
 
-var relayPullTimeoutMS = 5000
-var relayPullReadAVTimeoutMS = 5000
+var relayPullTimeoutMs = 5000
+var relayPullReadAvTimeoutMs = 5000
 
 var calcSessionStatIntervalSec uint32 = 5
 

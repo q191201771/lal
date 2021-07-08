@@ -18,42 +18,44 @@ import (
 	"github.com/q191201771/naza/pkg/nazalog"
 )
 
-var flvHTTPResponseHeader []byte
+var flvHttpResponseHeader []byte
 
 type SubSession struct {
-	*base.HTTPSubSession // 直接使用它提供的函数
-	IsFresh              bool
+	*base.HttpSubSession    // 直接使用它提供的函数
+	IsFresh                 bool
+	ShouldWaitVideoKeyFrame bool
 }
 
-func NewSubSession(conn net.Conn, urlCtx base.URLContext, isWebSocket bool, websocketKey string) *SubSession {
-	uk := base.GenUKFLVSubSession()
+func NewSubSession(conn net.Conn, urlCtx base.UrlContext, isWebSocket bool, websocketKey string) *SubSession {
+	uk := base.GenUkFlvSubSession()
 	s := &SubSession{
-		base.NewHTTPSubSession(base.HTTPSubSessionOption{
+		HttpSubSession: base.NewHttpSubSession(base.HttpSubSessionOption{
 			Conn: conn,
 			ConnModOption: func(option *connection.Option) {
 				option.WriteChanSize = SubSessionWriteChanSize
-				option.WriteTimeoutMS = SubSessionWriteTimeoutMS
+				option.WriteTimeoutMs = SubSessionWriteTimeoutMs
 			},
-			UK:           uk,
-			Protocol:     base.ProtocolHTTPFLV,
-			URLCtx:       urlCtx,
+			Uk:           uk,
+			Protocol:     base.ProtocolHttpflv,
+			UrlCtx:       urlCtx,
 			IsWebSocket:  isWebSocket,
 			WebSocketKey: websocketKey,
 		}),
-		true,
+		IsFresh:                 true,
+		ShouldWaitVideoKeyFrame: true,
 	}
 	nazalog.Infof("[%s] lifecycle new httpflv SubSession. session=%p, remote addr=%s", uk, s, conn.RemoteAddr().String())
 	return s
 }
 
-func (session *SubSession) WriteHTTPResponseHeader() {
+func (session *SubSession) WriteHttpResponseHeader() {
 	nazalog.Debugf("[%s] > W http response header.", session.UniqueKey())
-	session.HTTPSubSession.WriteHTTPResponseHeader(flvHTTPResponseHeader)
+	session.HttpSubSession.WriteHttpResponseHeader(flvHttpResponseHeader)
 }
 
-func (session *SubSession) WriteFLVHeader() {
+func (session *SubSession) WriteFlvHeader() {
 	nazalog.Debugf("[%s] > W http flv header.", session.UniqueKey())
-	session.Write(FLVHeader)
+	session.Write(FlvHeader)
 }
 
 func (session *SubSession) WriteTag(tag *Tag) {
@@ -62,12 +64,12 @@ func (session *SubSession) WriteTag(tag *Tag) {
 
 func (session *SubSession) Dispose() error {
 	nazalog.Infof("[%s] lifecycle dispose httpflv SubSession.", session.UniqueKey())
-	return session.HTTPSubSession.Dispose()
+	return session.HttpSubSession.Dispose()
 }
 
 func init() {
-	flvHTTPResponseHeaderStr := "HTTP/1.1 200 OK\r\n" +
-		"Server: " + base.LALHTTPFLVSubSessionServer + "\r\n" +
+	flvHttpResponseHeaderStr := "HTTP/1.1 200 OK\r\n" +
+		"Server: " + base.LalHttpflvSubSessionServer + "\r\n" +
 		"Cache-Control: no-cache\r\n" +
 		"Content-Type: video/x-flv\r\n" +
 		"Connection: close\r\n" +
@@ -77,5 +79,5 @@ func init() {
 		"Access-Control-Allow-Origin: *\r\n" +
 		"\r\n"
 
-	flvHTTPResponseHeader = []byte(flvHTTPResponseHeaderStr)
+	flvHttpResponseHeader = []byte(flvHttpResponseHeaderStr)
 }

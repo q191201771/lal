@@ -28,32 +28,32 @@ import (
 type ClientCommandSessionType int
 
 const (
-	readBufSize                   = 256
-	writeGetParameterIntervalMSec = 10000
+	readBufSize                 = 256
+	writeGetParameterIntervalMs = 10000
 )
 
 const (
-	CCSTPullSession ClientCommandSessionType = iota
-	CCSTPushSession
+	CcstPullSession ClientCommandSessionType = iota
+	CcstPushSession
 )
 
 type ClientCommandSessionOption struct {
-	DoTimeoutMS int
-	OverTCP     bool
+	DoTimeoutMs int
+	OverTcp     bool
 }
 
 var defaultClientCommandSessionOption = ClientCommandSessionOption{
-	DoTimeoutMS: 10000,
-	OverTCP:     false,
+	DoTimeoutMs: 10000,
+	OverTcp:     false,
 }
 
 type ClientCommandSessionObserver interface {
 	OnConnectResult()
 
 	// only for PullSession
-	OnDescribeResponse(rawSDP []byte, sdpLogicCtx sdp.LogicContext)
+	OnDescribeResponse(rawSdp []byte, sdpLogicCtx sdp.LogicContext)
 
-	OnSetupWithConn(uri string, rtpConn, rtcpConn *nazanet.UDPConnection)
+	OnSetupWithConn(uri string, rtpConn, rtcpConn *nazanet.UdpConnection)
 	OnSetupWithChannel(uri string, rtpChannel, rtcpChannel int)
 	OnSetupResult()
 
@@ -68,18 +68,18 @@ type ClientCommandSession struct {
 	observer  ClientCommandSessionObserver
 	option    ClientCommandSessionOption
 
-	rawURL string
-	urlCtx base.URLContext
+	rawUrl string
+	urlCtx base.UrlContext
 	conn   connection.Connection
 
 	cseq                        int
 	methodGetParameterSupported bool
 	auth                        Auth
 
-	rawSDP      []byte
+	rawSdp      []byte
 	sdpLogicCtx sdp.LogicContext
 
-	sessionID string
+	sessionId string
 	channel   int
 
 	waitChan chan error
@@ -104,23 +104,23 @@ func NewClientCommandSession(t ClientCommandSessionType, uniqueKey string, obser
 }
 
 // only for PushSession
-func (session *ClientCommandSession) InitWithSDP(rawSDP []byte, sdpLogicCtx sdp.LogicContext) {
-	session.rawSDP = rawSDP
+func (session *ClientCommandSession) InitWithSdp(rawSdp []byte, sdpLogicCtx sdp.LogicContext) {
+	session.rawSdp = rawSdp
 	session.sdpLogicCtx = sdpLogicCtx
 }
 
-func (session *ClientCommandSession) Do(rawURL string) error {
+func (session *ClientCommandSession) Do(rawUrl string) error {
 	var (
 		ctx    context.Context
 		cancel context.CancelFunc
 	)
-	if session.option.DoTimeoutMS == 0 {
+	if session.option.DoTimeoutMs == 0 {
 		ctx, cancel = context.WithCancel(context.Background())
 	} else {
-		ctx, cancel = context.WithTimeout(context.Background(), time.Duration(session.option.DoTimeoutMS)*time.Millisecond)
+		ctx, cancel = context.WithTimeout(context.Background(), time.Duration(session.option.DoTimeoutMs)*time.Millisecond)
 	}
 	defer cancel()
-	return session.doContext(ctx, rawURL)
+	return session.doContext(ctx, rawUrl)
 }
 
 func (session *ClientCommandSession) WaitChan() <-chan error {
@@ -150,8 +150,8 @@ func (session *ClientCommandSession) RemoteAddr() string {
 	return session.conn.RemoteAddr().String()
 }
 
-func (session *ClientCommandSession) URL() string {
-	return session.urlCtx.URL
+func (session *ClientCommandSession) Url() string {
+	return session.urlCtx.Url
 }
 
 func (session *ClientCommandSession) AppName() string {
@@ -170,11 +170,11 @@ func (session *ClientCommandSession) UniqueKey() string {
 	return session.uniqueKey
 }
 
-func (session *ClientCommandSession) doContext(ctx context.Context, rawURL string) error {
+func (session *ClientCommandSession) doContext(ctx context.Context, rawUrl string) error {
 	errChan := make(chan error, 1)
 
 	go func() {
-		if err := session.connect(rawURL); err != nil {
+		if err := session.connect(rawUrl); err != nil {
 			errChan <- err
 			return
 		}
@@ -185,7 +185,7 @@ func (session *ClientCommandSession) doContext(ctx context.Context, rawURL strin
 		}
 
 		switch session.t {
-		case CCSTPullSession:
+		case CcstPullSession:
 			if err := session.writeDescribe(); err != nil {
 				errChan <- err
 				return
@@ -201,7 +201,7 @@ func (session *ClientCommandSession) doContext(ctx context.Context, rawURL strin
 				errChan <- err
 				return
 			}
-		case CCSTPushSession:
+		case CcstPushSession:
 			if err := session.writeAnnounce(); err != nil {
 				errChan <- err
 				return
@@ -238,7 +238,7 @@ func (session *ClientCommandSession) doContext(ctx context.Context, rawURL strin
 func (session *ClientCommandSession) runReadLoop() {
 	if !session.methodGetParameterSupported {
 		// TCP模式，需要收取数据进行处理
-		if session.option.OverTCP {
+		if session.option.OverTcp {
 			var r = bufio.NewReader(session.conn)
 			for {
 				isInterleaved, packet, channel, err := readInterleaved(r)
@@ -264,15 +264,15 @@ func (session *ClientCommandSession) runReadLoop() {
 
 	nazalog.Debugf("[%s] start get_parameter timer.", session.uniqueKey)
 	var r = bufio.NewReader(session.conn)
-	t := time.NewTicker(writeGetParameterIntervalMSec * time.Millisecond)
+	t := time.NewTicker(writeGetParameterIntervalMs * time.Millisecond)
 	defer t.Stop()
 
-	if session.option.OverTCP {
+	if session.option.OverTcp {
 		for {
 			select {
 			case <-t.C:
 				session.cseq++
-				if err := session.writeCmd(MethodGetParameter, session.urlCtx.RawURLWithoutUserInfo, nil, ""); err != nil {
+				if err := session.writeCmd(MethodGetParameter, session.urlCtx.RawUrlWithoutUserInfo, nil, ""); err != nil {
 					session.waitChan <- err
 					return
 				}
@@ -288,7 +288,7 @@ func (session *ClientCommandSession) runReadLoop() {
 			if isInterleaved {
 				session.observer.OnInterleavedPacket(packet, int(channel))
 			} else {
-				if _, err := nazahttp.ReadHTTPResponseMessage(r); err != nil {
+				if _, err := nazahttp.ReadHttpResponseMessage(r); err != nil {
 					session.waitChan <- err
 					return
 				}
@@ -301,7 +301,7 @@ func (session *ClientCommandSession) runReadLoop() {
 		select {
 		case <-t.C:
 			session.cseq++
-			if _, err := session.writeCmdReadResp(MethodGetParameter, session.urlCtx.RawURLWithoutUserInfo, nil, ""); err != nil {
+			if _, err := session.writeCmdReadResp(MethodGetParameter, session.urlCtx.RawUrlWithoutUserInfo, nil, ""); err != nil {
 				session.waitChan <- err
 				return
 			}
@@ -312,10 +312,10 @@ func (session *ClientCommandSession) runReadLoop() {
 	}
 }
 
-func (session *ClientCommandSession) connect(rawURL string) (err error) {
-	session.rawURL = rawURL
+func (session *ClientCommandSession) connect(rawUrl string) (err error) {
+	session.rawUrl = rawUrl
 
-	session.urlCtx, err = base.ParseRTSPURL(rawURL)
+	session.urlCtx, err = base.ParseRtspUrl(rawUrl)
 	if err != nil {
 		return err
 	}
@@ -336,7 +336,7 @@ func (session *ClientCommandSession) connect(rawURL string) (err error) {
 	return nil
 }
 func (session *ClientCommandSession) writeOptions() error {
-	ctx, err := session.writeCmdReadResp(MethodOptions, session.urlCtx.RawURLWithoutUserInfo, nil, "")
+	ctx, err := session.writeCmdReadResp(MethodOptions, session.urlCtx.RawUrlWithoutUserInfo, nil, "")
 	if err != nil {
 		return err
 	}
@@ -353,36 +353,36 @@ func (session *ClientCommandSession) writeOptions() error {
 
 func (session *ClientCommandSession) writeDescribe() error {
 	headers := map[string]string{
-		HeaderAccept: HeaderAcceptApplicationSDP,
+		HeaderAccept: HeaderAcceptApplicationSdp,
 	}
-	ctx, err := session.writeCmdReadResp(MethodDescribe, session.urlCtx.RawURLWithoutUserInfo, headers, "")
+	ctx, err := session.writeCmdReadResp(MethodDescribe, session.urlCtx.RawUrlWithoutUserInfo, headers, "")
 	if err != nil {
 		return err
 	}
 
-	sdpLogicCtx, err := sdp.ParseSDP2LogicContext(ctx.Body)
+	sdpLogicCtx, err := sdp.ParseSdp2LogicContext(ctx.Body)
 	if err != nil {
 		return err
 	}
-	session.rawSDP = ctx.Body
+	session.rawSdp = ctx.Body
 	session.sdpLogicCtx = sdpLogicCtx
-	session.observer.OnDescribeResponse(session.rawSDP, session.sdpLogicCtx)
+	session.observer.OnDescribeResponse(session.rawSdp, session.sdpLogicCtx)
 	return nil
 }
 
 func (session *ClientCommandSession) writeAnnounce() error {
 	headers := map[string]string{
-		HeaderAccept: HeaderAcceptApplicationSDP,
+		HeaderAccept: HeaderAcceptApplicationSdp,
 	}
-	_, err := session.writeCmdReadResp(MethodAnnounce, session.urlCtx.RawURLWithoutUserInfo, headers, string(session.rawSDP))
+	_, err := session.writeCmdReadResp(MethodAnnounce, session.urlCtx.RawUrlWithoutUserInfo, headers, string(session.rawSdp))
 	return err
 }
 
 func (session *ClientCommandSession) writeSetup() error {
 	if session.sdpLogicCtx.HasVideoAControl() {
-		uri := session.sdpLogicCtx.MakeVideoSetupURI(session.urlCtx.RawURLWithoutUserInfo)
-		if session.option.OverTCP {
-			if err := session.writeOneSetupTCP(uri); err != nil {
+		uri := session.sdpLogicCtx.MakeVideoSetupUri(session.urlCtx.RawUrlWithoutUserInfo)
+		if session.option.OverTcp {
+			if err := session.writeOneSetupTcp(uri); err != nil {
 				return err
 			}
 		} else {
@@ -393,9 +393,9 @@ func (session *ClientCommandSession) writeSetup() error {
 	}
 	// can't else if
 	if session.sdpLogicCtx.HasAudioAControl() {
-		uri := session.sdpLogicCtx.MakeAudioSetupURI(session.urlCtx.RawURLWithoutUserInfo)
-		if session.option.OverTCP {
-			if err := session.writeOneSetupTCP(uri); err != nil {
+		uri := session.sdpLogicCtx.MakeAudioSetupUri(session.urlCtx.RawUrlWithoutUserInfo)
+		if session.option.OverTcp {
+			if err := session.writeOneSetupTcp(uri); err != nil {
 				return err
 			}
 		} else {
@@ -407,83 +407,83 @@ func (session *ClientCommandSession) writeSetup() error {
 	return nil
 }
 
-func (session *ClientCommandSession) writeOneSetup(setupURI string) error {
-	rtpC, lRTPPort, rtcpC, lRTCPPort, err := availUDPConnPool.Acquire2()
+func (session *ClientCommandSession) writeOneSetup(setupUri string) error {
+	rtpC, lRtpPort, rtcpC, lRtcpPort, err := availUdpConnPool.Acquire2()
 	if err != nil {
 		return err
 	}
 
 	var htv string
 	switch session.t {
-	case CCSTPushSession:
-		htv = fmt.Sprintf(HeaderTransportClientRecordTmpl, lRTPPort, lRTCPPort)
-	case CCSTPullSession:
-		htv = fmt.Sprintf(HeaderTransportClientPlayTmpl, lRTPPort, lRTCPPort)
+	case CcstPushSession:
+		htv = fmt.Sprintf(HeaderTransportClientRecordTmpl, lRtpPort, lRtcpPort)
+	case CcstPullSession:
+		htv = fmt.Sprintf(HeaderTransportClientPlayTmpl, lRtpPort, lRtcpPort)
 	}
 	headers := map[string]string{
 		HeaderTransport: htv,
 	}
-	ctx, err := session.writeCmdReadResp(MethodSetup, setupURI, headers, "")
+	ctx, err := session.writeCmdReadResp(MethodSetup, setupUri, headers, "")
 	if err != nil {
 		return err
 	}
 
-	session.sessionID = strings.Split(ctx.Headers[HeaderSession], ";")[0]
+	session.sessionId = strings.Split(ctx.Headers[HeaderSession], ";")[0]
 
-	rRTPPort, rRTCPPort, err := parseServerPort(ctx.Headers[HeaderTransport])
+	rRtpPort, rRtcpPort, err := parseServerPort(ctx.Headers[HeaderTransport])
 	if err != nil {
 		return err
 	}
 
-	nazalog.Debugf("[%s] init conn. lRTPPort=%d, lRTCPPort=%d, rRTPPort=%d, rRTCPPort=%d",
-		session.uniqueKey, lRTPPort, lRTCPPort, rRTPPort, rRTCPPort)
+	nazalog.Debugf("[%s] init conn. lRtpPort=%d, lRtcpPort=%d, rRtpPort=%d, rRtcpPort=%d",
+		session.uniqueKey, lRtpPort, lRtcpPort, rRtpPort, rRtcpPort)
 
-	rtpConn, err := nazanet.NewUDPConnection(func(option *nazanet.UDPConnectionOption) {
+	rtpConn, err := nazanet.NewUdpConnection(func(option *nazanet.UdpConnectionOption) {
 		option.Conn = rtpC
-		option.RAddr = net.JoinHostPort(session.urlCtx.Host, fmt.Sprintf("%d", rRTPPort))
-		option.MaxReadPacketSize = rtprtcp.MaxRTPRTCPPacketSize
+		option.RAddr = net.JoinHostPort(session.urlCtx.Host, fmt.Sprintf("%d", rRtpPort))
+		option.MaxReadPacketSize = rtprtcp.MaxRtpRtcpPacketSize
 	})
 	if err != nil {
 		return err
 	}
 
-	rtcpConn, err := nazanet.NewUDPConnection(func(option *nazanet.UDPConnectionOption) {
+	rtcpConn, err := nazanet.NewUdpConnection(func(option *nazanet.UdpConnectionOption) {
 		option.Conn = rtcpC
-		option.RAddr = net.JoinHostPort(session.urlCtx.Host, fmt.Sprintf("%d", rRTCPPort))
-		option.MaxReadPacketSize = rtprtcp.MaxRTPRTCPPacketSize
+		option.RAddr = net.JoinHostPort(session.urlCtx.Host, fmt.Sprintf("%d", rRtcpPort))
+		option.MaxReadPacketSize = rtprtcp.MaxRtpRtcpPacketSize
 	})
 	if err != nil {
 		return err
 	}
 
-	session.observer.OnSetupWithConn(setupURI, rtpConn, rtcpConn)
+	session.observer.OnSetupWithConn(setupUri, rtpConn, rtcpConn)
 	return nil
 }
 
-func (session *ClientCommandSession) writeOneSetupTCP(setupURI string) error {
+func (session *ClientCommandSession) writeOneSetupTcp(setupUri string) error {
 	rtpChannel := session.channel
 	rtcpChannel := session.channel + 1
 	session.channel += 2
 
 	var htv string
 	switch session.t {
-	case CCSTPushSession:
-		htv = fmt.Sprintf(HeaderTransportClientRecordTCPTmpl, rtpChannel, rtcpChannel)
-	case CCSTPullSession:
-		htv = fmt.Sprintf(HeaderTransportClientPlayTCPTmpl, rtpChannel, rtcpChannel)
+	case CcstPushSession:
+		htv = fmt.Sprintf(HeaderTransportClientRecordTcpTmpl, rtpChannel, rtcpChannel)
+	case CcstPullSession:
+		htv = fmt.Sprintf(HeaderTransportClientPlayTcpTmpl, rtpChannel, rtcpChannel)
 	}
 	headers := map[string]string{
 		HeaderTransport: htv,
 	}
-	ctx, err := session.writeCmdReadResp(MethodSetup, setupURI, headers, "")
+	ctx, err := session.writeCmdReadResp(MethodSetup, setupUri, headers, "")
 	if err != nil {
 		return err
 	}
 
-	session.sessionID = strings.Split(ctx.Headers[HeaderSession], ";")[0]
+	session.sessionId = strings.Split(ctx.Headers[HeaderSession], ";")[0]
 
 	// TODO chef: 这里没有解析回传的channel id了，因为我假定了它和request中的是一致的
-	session.observer.OnSetupWithChannel(setupURI, rtpChannel, rtcpChannel)
+	session.observer.OnSetupWithChannel(setupUri, rtpChannel, rtcpChannel)
 	return nil
 }
 
@@ -491,7 +491,7 @@ func (session *ClientCommandSession) writePlay() error {
 	headers := map[string]string{
 		HeaderRange: HeaderRangeDefault,
 	}
-	_, err := session.writeCmdReadResp(MethodPlay, session.urlCtx.RawURLWithoutUserInfo, headers, "")
+	_, err := session.writeCmdReadResp(MethodPlay, session.urlCtx.RawUrlWithoutUserInfo, headers, "")
 	return err
 }
 
@@ -499,7 +499,7 @@ func (session *ClientCommandSession) writeRecord() error {
 	headers := map[string]string{
 		HeaderRange: HeaderRangeDefault,
 	}
-	_, err := session.writeCmdReadResp(MethodRecord, session.urlCtx.RawURLWithoutUserInfo, headers, "")
+	_, err := session.writeCmdReadResp(MethodRecord, session.urlCtx.RawUrlWithoutUserInfo, headers, "")
 	return err
 }
 
@@ -509,19 +509,19 @@ func (session *ClientCommandSession) writeCmd(method, uri string, headers map[st
 		headers = make(map[string]string)
 	}
 	headers[HeaderCSeq] = fmt.Sprintf("%d", session.cseq)
-	headers[HeaderUserAgent] = base.LALRTSPPullSessionUA
+	headers[HeaderUserAgent] = base.LalRtspPullSessionUa
 	if body != "" {
 		headers[HeaderContentLength] = fmt.Sprintf("%d", len(body))
 	}
 
-	// 鉴权时固定用RawURLWithoutUserInfo
-	auth := session.auth.MakeAuthorization(method, session.urlCtx.RawURLWithoutUserInfo)
+	// 鉴权时固定用RawUrlWithoutUserInfo
+	auth := session.auth.MakeAuthorization(method, session.urlCtx.RawUrlWithoutUserInfo)
 	if auth != "" {
 		headers[HeaderAuthorization] = auth
 	}
 
-	if session.sessionID != "" {
-		headers[HeaderSession] = session.sessionID
+	if session.sessionId != "" {
+		headers[HeaderSession] = session.sessionId
 	}
 
 	req := PackRequest(method, uri, headers, body)
@@ -533,13 +533,13 @@ func (session *ClientCommandSession) writeCmd(method, uri string, headers map[st
 
 // @param headers 可以为nil
 // @param body 可以为空
-func (session *ClientCommandSession) writeCmdReadResp(method, uri string, headers map[string]string, body string) (ctx nazahttp.HTTPRespMsgCtx, err error) {
+func (session *ClientCommandSession) writeCmdReadResp(method, uri string, headers map[string]string, body string) (ctx nazahttp.HttpRespMsgCtx, err error) {
 	for i := 0; i < 2; i++ {
 		if err = session.writeCmd(method, uri, headers, body); err != nil {
 			return
 		}
 
-		ctx, err = nazahttp.ReadHTTPResponseMessage(session.conn)
+		ctx, err = nazahttp.ReadHttpResponseMessage(session.conn)
 		if err != nil {
 			return
 		}
@@ -550,9 +550,9 @@ func (session *ClientCommandSession) writeCmdReadResp(method, uri string, header
 			return
 		}
 
-		session.auth.FeedWWWAuthenticate(ctx.Headers[HeaderWWWAuthenticate], session.urlCtx.Username, session.urlCtx.Password)
+		session.auth.FeedWwwAuthenticate(ctx.Headers[HeaderWwwAuthenticate], session.urlCtx.Username, session.urlCtx.Password)
 	}
 
-	err = ErrRTSP
+	err = ErrRtsp
 	return
 }

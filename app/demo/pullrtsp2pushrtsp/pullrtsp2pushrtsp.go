@@ -14,26 +14,28 @@ import (
 	"os"
 	"time"
 
+	"github.com/q191201771/lal/pkg/sdp"
+
 	"github.com/q191201771/lal/pkg/base"
 	"github.com/q191201771/lal/pkg/rtprtcp"
 	"github.com/q191201771/lal/pkg/rtsp"
 	"github.com/q191201771/naza/pkg/nazalog"
 )
 
-var rtpPacketChan = make(chan rtprtcp.RTPPacket, 1024)
+var rtpPacketChan = make(chan rtprtcp.RtpPacket, 1024)
 
 type Observer struct {
 }
 
-func (o *Observer) OnRTPPacket(pkt rtprtcp.RTPPacket) {
+func (o *Observer) OnRtpPacket(pkt rtprtcp.RtpPacket) {
 	rtpPacketChan <- pkt
 }
 
-func (o *Observer) OnAVConfig(asc, vps, sps, pps []byte) {
+func (o *Observer) OnSdp(sdpCtx sdp.LogicContext) {
 	// noop
 }
 
-func (o *Observer) OnAVPacket(pkt base.AVPacket) {
+func (o *Observer) OnAvPacket(pkt base.AvPacket) {
 	// noop
 }
 
@@ -43,25 +45,25 @@ func main() {
 	})
 	defer nazalog.Sync()
 
-	inURL, outURL, pullOverTCP, pushOverTCP := parseFlag()
+	inUrl, outUrl, pullOverTcp, pushOverTcp := parseFlag()
 
 	o := &Observer{}
 	pullSession := rtsp.NewPullSession(o, func(option *rtsp.PullSessionOption) {
-		option.PullTimeoutMS = 5000
-		option.OverTCP = pullOverTCP != 0
+		option.PullTimeoutMs = 5000
+		option.OverTcp = pullOverTcp != 0
 	})
 
-	err := pullSession.Pull(inURL)
+	err := pullSession.Pull(inUrl)
 	nazalog.Assert(nil, err)
 	defer pullSession.Dispose()
-	rawSDP, sdpLogicCtx := pullSession.GetSDP()
+	rawSdp, sdpLogicCtx := pullSession.GetSdp()
 
 	pushSession := rtsp.NewPushSession(func(option *rtsp.PushSessionOption) {
-		option.PushTimeoutMS = 5000
-		option.OverTCP = pushOverTCP != 0
+		option.PushTimeoutMs = 5000
+		option.OverTcp = pushOverTcp != 0
 	})
 
-	err = pushSession.Push(outURL, rawSDP, sdpLogicCtx)
+	err = pushSession.Push(outUrl, rawSdp, sdpLogicCtx)
 	nazalog.Assert(nil, err)
 	defer pushSession.Dispose()
 
@@ -93,13 +95,13 @@ func main() {
 			time.Sleep(1 * time.Second)
 			return
 		case pkt := <-rtpPacketChan:
-			pushSession.WriteRTPPacket(pkt)
+			pushSession.WriteRtpPacket(pkt)
 		}
 	}
 
 }
 
-func parseFlag() (inURL string, outURL string, pullOverTCP int, pushOverTCP int) {
+func parseFlag() (inUrl string, outUrl string, pullOverTcp int, pushOverTcp int) {
 	i := flag.String("i", "", "specify pull rtsp url")
 	o := flag.String("o", "", "specify push rtsp url")
 	t := flag.Int("t", 0, "specify pull interleaved mode(rtp/rtcp over tcp)")
@@ -111,7 +113,7 @@ func parseFlag() (inURL string, outURL string, pullOverTCP int, pushOverTCP int)
   %s -i rtsp://localhost:5544/live/test110 -o rtsp://localhost:5544/live/test220
   %s -i rtsp://localhost:5544/live/test110 -o rtsp://localhost:5544/live/test220 -t 1 -y 1
 `, os.Args[0], os.Args[0])
-		base.OSExitAndWaitPressIfWindows(1)
+		base.OsExitAndWaitPressIfWindows(1)
 	}
 	return *i, *o, *t, *y
 }

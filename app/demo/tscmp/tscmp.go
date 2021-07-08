@@ -26,7 +26,7 @@ var filename2 = "/tmp/lal/hls/innertest.bak/innertest-7.ts"
 
 func skipPacketFilter(tss [][]byte) (ret [][]byte) {
 	for _, ts := range tss {
-		h := mpegts.ParseTSPacketHeader(ts)
+		h := mpegts.ParseTsPacketHeader(ts)
 		if h.Pid == mpegts.PidAudio {
 			continue
 		}
@@ -36,16 +36,16 @@ func skipPacketFilter(tss [][]byte) (ret [][]byte) {
 }
 
 func parsePacket(packet []byte) {
-	h := mpegts.ParseTSPacketHeader(packet)
+	h := mpegts.ParseTsPacketHeader(packet)
 	nazalog.Debugf("%+v", h)
 	index := 4
 
-	var adaptation mpegts.TSPacketAdaptation
+	var adaptation mpegts.TsPacketAdaptation
 	switch h.Adaptation {
 	case mpegts.AdaptationFieldControlNo:
 		// noop
 	case mpegts.AdaptationFieldControlFollowed:
-		adaptation = mpegts.ParseTSPacketAdaptation(packet[4:])
+		adaptation = mpegts.ParseTsPacketAdaptation(packet[4:])
 		index++
 	default:
 		nazalog.Warn(h.Adaptation)
@@ -53,7 +53,7 @@ func parsePacket(packet []byte) {
 	index += int(adaptation.Length)
 
 	if h.PayloadUnitStart == 1 && h.Pid == 256 {
-		pes, length := mpegts.ParsePES(packet[index:])
+		pes, length := mpegts.ParsePes(packet[index:])
 		nazalog.Debugf("%+v, %d", pes, length)
 	}
 }
@@ -70,8 +70,8 @@ func main() {
 	content2, err := ioutil.ReadFile(filename2)
 	nazalog.Assert(nil, err)
 
-	tss1, _ := hls.SplitFragment2TSPackets(content1)
-	tss2, _ := hls.SplitFragment2TSPackets(content2)
+	tss1, _ := hls.SplitFragment2TsPackets(content1)
+	tss2, _ := hls.SplitFragment2TsPackets(content2)
 
 	nazalog.Debugf("num of ts1=%d, num of ts2=%d", len(tss1), len(tss2))
 

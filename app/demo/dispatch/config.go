@@ -14,9 +14,9 @@ type Config struct {
 	ListenAddr string
 
 	// 配置向本服务汇报的节点信息
-	ServerID2Server map[string]Server
+	ServerId2Server map[string]Server
 
-	// 级联拉流时，携带该URL参数，使得我们可以区分是级联拉流还是用户拉流
+	// 级联拉流时，携带该Url参数，使得我们可以区分是级联拉流还是用户拉流
 	PullSecretParam string
 
 	// 检测lal节点update报活的超时时间
@@ -25,6 +25,6 @@ type Config struct {
 
 // lal节点静态配置信息
 type Server struct {
-	RTMPAddr string // 可用于级联拉流的RTMP地址
-	APIAddr  string // HTTP API接口地址
+	RtmpAddr string // 可用于级联拉流的RTMP地址
+	ApiAddr  string // HTTP API接口地址
 }

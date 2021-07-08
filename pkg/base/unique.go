@@ -11,115 +11,115 @@ package base
 import "github.com/q191201771/naza/pkg/unique"
 
 const (
-	UKPreRTMPServerSession        = "RTMPPUBSUB"
-	UKPreRTMPPushSession          = "RTMPPUSH"
-	UKPreRTMPPullSession          = "RTMPPULL"
-	UKPreRTSPServerCommandSession = "RTSPSRVCMD"
-	UKPreRTSPPubSession           = "RTSPPUB"
-	UKPreRTSPSubSession           = "RTSPSUB"
-	UKPreRTSPPushSession          = "RTSPPUSH"
-	UKPreRTSPPullSession          = "RTSPPULL"
-	UKPreFLVSubSession            = "FLVSUB"
-	UKPreTSSubSession             = "TSSUB"
-	UKPreFLVPullSession           = "FLVPULL"
+	UkPreRtmpServerSession        = "RTMPPUBSUB"
+	UkPreRtmpPushSession          = "RTMPPUSH"
+	UkPreRtmpPullSession          = "RTMPPULL"
+	UkPreRtspServerCommandSession = "RTSPSRVCMD"
+	UkPreRtspPubSession           = "RTSPPUB"
+	UkPreRtspSubSession           = "RTSPSUB"
+	UkPreRtspPushSession          = "RTSPPUSH"
+	UkPreRtspPullSession          = "RTSPPULL"
+	UkPreFlvSubSession            = "FLVSUB"
+	UkPreTsSubSession             = "TSSUB"
+	UkPreFlvPullSession           = "FLVPULL"
 
-	UKPreGroup    = "GROUP"
-	UKPreHLSMuxer = "HLSMUXER"
-	UKPreStreamer = "STREAMER"
+	UkPreGroup    = "GROUP"
+	UkPreHlsMuxer = "HLSMUXER"
+	UkPreStreamer = "STREAMER"
 )
 
-//func GenUK(prefix string) string {
+//func GenUk(prefix string) string {
 //	return unique.GenUniqueKey(prefix)
 //}
 
-func GenUKRTMPServerSession() string {
-	return siUKRTMPServerSession.GenUniqueKey()
+func GenUkRtmpServerSession() string {
+	return siUkRtmpServerSession.GenUniqueKey()
 }
 
-func GenUKRTMPPushSession() string {
-	return siUKRTMPPushSession.GenUniqueKey()
+func GenUkRtmpPushSession() string {
+	return siUkRtmpPushSession.GenUniqueKey()
 }
 
-func GenUKRTMPPullSession() string {
-	return siUKRTMPPullSession.GenUniqueKey()
+func GenUkRtmpPullSession() string {
+	return siUkRtmpPullSession.GenUniqueKey()
 }
 
-func GenUKRTSPServerCommandSession() string {
-	return siUKRTSPServerCommandSession.GenUniqueKey()
+func GenUkRtspServerCommandSession() string {
+	return siUkRtspServerCommandSession.GenUniqueKey()
 }
 
-func GenUKRTSPPubSession() string {
-	return siUKRTSPPubSession.GenUniqueKey()
+func GenUkRtspPubSession() string {
+	return siUkRtspPubSession.GenUniqueKey()
 }
 
-func GenUKRTSPSubSession() string {
-	return siUKRTSPSubSession.GenUniqueKey()
+func GenUkRtspSubSession() string {
+	return siUkRtspSubSession.GenUniqueKey()
 }
 
-func GenUKRTSPPushSession() string {
-	return siUKRTSPPushSession.GenUniqueKey()
+func GenUkRtspPushSession() string {
+	return siUkRtspPushSession.GenUniqueKey()
 }
 
-func GenUKRTSPPullSession() string {
-	return siUKRTSPPullSession.GenUniqueKey()
+func GenUkRtspPullSession() string {
+	return siUkRtspPullSession.GenUniqueKey()
 }
 
-func GenUKFLVSubSession() string {
-	return siUKFLVSubSession.GenUniqueKey()
+func GenUkFlvSubSession() string {
+	return siUkFlvSubSession.GenUniqueKey()
 }
 
-func GenUKTSSubSession() string {
-	return siUKTSSubSession.GenUniqueKey()
+func GenUkTsSubSession() string {
+	return siUkTsSubSession.GenUniqueKey()
 }
 
-func GenUKFLVPullSession() string {
-	return siUKFLVPullSession.GenUniqueKey()
+func GenUkFlvPullSession() string {
+	return siUkFlvPullSession.GenUniqueKey()
 }
 
-func GenUKGroup() string {
-	return siUKGroup.GenUniqueKey()
+func GenUkGroup() string {
+	return siUkGroup.GenUniqueKey()
 }
 
-func GenUKHLSMuxer() string {
-	return siUKHLSMuxer.GenUniqueKey()
+func GenUkHlsMuxer() string {
+	return siUkHlsMuxer.GenUniqueKey()
 }
 
-func GenUKStreamer() string {
-	return siUKStreamer.GenUniqueKey()
+func GenUkStreamer() string {
+	return siUkStreamer.GenUniqueKey()
 }
 
 var (
-	siUKRTMPServerSession        *unique.SingleGenerator
-	siUKRTMPPushSession          *unique.SingleGenerator
-	siUKRTMPPullSession          *unique.SingleGenerator
-	siUKRTSPServerCommandSession *unique.SingleGenerator
-	siUKRTSPPubSession           *unique.SingleGenerator
-	siUKRTSPSubSession           *unique.SingleGenerator
-	siUKRTSPPushSession          *unique.SingleGenerator
-	siUKRTSPPullSession          *unique.SingleGenerator
-	siUKFLVSubSession            *unique.SingleGenerator
-	siUKTSSubSession             *unique.SingleGenerator
-	siUKFLVPullSession           *unique.SingleGenerator
+	siUkRtmpServerSession        *unique.SingleGenerator
+	siUkRtmpPushSession          *unique.SingleGenerator
+	siUkRtmpPullSession          *unique.SingleGenerator
+	siUkRtspServerCommandSession *unique.SingleGenerator
+	siUkRtspPubSession           *unique.SingleGenerator
+	siUkRtspSubSession           *unique.SingleGenerator
+	siUkRtspPushSession          *unique.SingleGenerator
+	siUkRtspPullSession          *unique.SingleGenerator
+	siUkFlvSubSession            *unique.SingleGenerator
+	siUkTsSubSession             *unique.SingleGenerator
+	siUkFlvPullSession           *unique.SingleGenerator
 
-	siUKGroup    *unique.SingleGenerator
-	siUKHLSMuxer *unique.SingleGenerator
-	siUKStreamer *unique.SingleGenerator
+	siUkGroup    *unique.SingleGenerator
+	siUkHlsMuxer *unique.SingleGenerator
+	siUkStreamer *unique.SingleGenerator
 )
 
 func init() {
-	siUKRTMPServerSession = unique.NewSingleGenerator(UKPreRTMPServerSession)
-	siUKRTMPPushSession = unique.NewSingleGenerator(UKPreRTMPPushSession)
-	siUKRTMPPullSession = unique.NewSingleGenerator(UKPreRTMPPullSession)
-	siUKRTSPServerCommandSession = unique.NewSingleGenerator(UKPreRTSPServerCommandSession)
-	siUKRTSPPubSession = unique.NewSingleGenerator(UKPreRTSPPubSession)
-	siUKRTSPSubSession = unique.NewSingleGenerator(UKPreRTSPSubSession)
-	siUKRTSPPushSession = unique.NewSingleGenerator(UKPreRTSPPushSession)
-	siUKRTSPPullSession = unique.NewSingleGenerator(UKPreRTSPPullSession)
-	siUKFLVSubSession = unique.NewSingleGenerator(UKPreFLVSubSession)
-	siUKTSSubSession = unique.NewSingleGenerator(UKPreTSSubSession)
-	siUKFLVPullSession = unique.NewSingleGenerator(UKPreFLVPullSession)
+	siUkRtmpServerSession = unique.NewSingleGenerator(UkPreRtmpServerSession)
+	siUkRtmpPushSession = unique.NewSingleGenerator(UkPreRtmpPushSession)
+	siUkRtmpPullSession = unique.NewSingleGenerator(UkPreRtmpPullSession)
+	siUkRtspServerCommandSession = unique.NewSingleGenerator(UkPreRtspServerCommandSession)
+	siUkRtspPubSession = unique.NewSingleGenerator(UkPreRtspPubSession)
+	siUkRtspSubSession = unique.NewSingleGenerator(UkPreRtspSubSession)
+	siUkRtspPushSession = unique.NewSingleGenerator(UkPreRtspPushSession)
+	siUkRtspPullSession = unique.NewSingleGenerator(UkPreRtspPullSession)
+	siUkFlvSubSession = unique.NewSingleGenerator(UkPreFlvSubSession)
+	siUkTsSubSession = unique.NewSingleGenerator(UkPreTsSubSession)
+	siUkFlvPullSession = unique.NewSingleGenerator(UkPreFlvPullSession)
 
-	siUKGroup = unique.NewSingleGenerator(UKPreGroup)
-	siUKHLSMuxer = unique.NewSingleGenerator(UKPreHLSMuxer)
-	siUKStreamer = unique.NewSingleGenerator(UKPreStreamer)
+	siUkGroup = unique.NewSingleGenerator(UkPreGroup)
+	siUkHlsMuxer = unique.NewSingleGenerator(UkPreHlsMuxer)
+	siUkStreamer = unique.NewSingleGenerator(UkPreStreamer)
 }

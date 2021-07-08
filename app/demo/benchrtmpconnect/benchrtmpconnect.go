@@ -25,6 +25,7 @@ import (
 func main() {
 	_ = nazalog.Init(func(option *nazalog.Option) {
 		option.AssertBehavior = nazalog.AssertFatal
+		option.Level = nazalog.LevelLogNothing
 	})
 	defer nazalog.Sync()
 
@@ -51,11 +52,22 @@ func main() {
 	totalB := time.Now()
 	for _, url := range urls {
 		go func(u string) {
-			pullSession := rtmp.NewPullSession()
-			b := time.Now()
-			err := pullSession.Pull(u, func(msg base.RTMPMsg) {
+			pullSession := rtmp.NewPullSession(func(option *rtmp.PullSessionOption) {
+				option.PullTimeoutMs = 30000
+				option.ReadAvTimeoutMs = 30000
+				option.HandshakeComplexFlag = false
 			})
-			cost := time.Now().Sub(b).Milliseconds()
+			b := time.Now()
+			err := pullSession.Pull(u, func(msg base.RtmpMsg) {
+			})
+			e := time.Now()
+			cost := e.Sub(b).Milliseconds()
+			// 耗时不够1毫秒，我们将值取整到1毫秒，并打印更精确的实际耗时
+			if cost == 0 {
+				_, _ = fmt.Fprintf(os.Stderr, "round to 1 ms but actual is %s\n", e.Sub(b).String())
+				cost = 1
+			}
+
 			mu.Lock()
 			if err == nil {
 				succCosts = append(succCosts, cost)
@@ -67,7 +79,12 @@ func main() {
 		}(url)
 	}
 	wg.Wait()
-	totalCost := time.Now().Sub(totalB).Milliseconds()
+	totalE := time.Now()
+	totalCost := totalE.Sub(totalB).Milliseconds()
+	if totalCost == 0 {
+		_, _ = fmt.Fprintf(os.Stderr, "round to 1 ms but actual is %s\n", totalE.Sub(totalB).String())
+		totalCost = 1
+	}
 	min, max, avg := analyse(succCosts)
 	_, _ = fmt.Fprintf(os.Stderr, "task(num): total=%d, succ=%d, fail=%d\n", len(urls), len(succCosts), len(failCosts))
 	_, _ = fmt.Fprintf(os.Stderr, " cost(ms): total=%d, avg=%d, min=%d, max=%d\n", totalCost, avg, min, max)
@@ -110,7 +127,7 @@ func parseFlag() (urlTmpl string, num int) {
   %s -i rtmp://127.0.0.1:1935/live/test -n 1000
   %s -i rtmp://127.0.0.1:1935/live/test_{i} -n 1000
 `, os.Args[0], os.Args[0])
-		base.OSExitAndWaitPressIfWindows(1)
+		base.OsExitAndWaitPressIfWindows(1)
 	}
 	return *i, *n
 }

@@ -23,7 +23,7 @@ var (
 	diffV = uint32(40)
 )
 
-var golden = []base.AVPacket{
+var golden = []base.AvPacket{
 	v(0), // 注意一个小细节，音频视频相等时，视频先输出
 	a(0),
 	a(23),
@@ -36,11 +36,11 @@ var golden = []base.AVPacket{
 	v(120),
 }
 
-func TestAVPacketQueue(t *testing.T) {
-	var in []base.AVPacket
+func TestAvPacketQueue(t *testing.T) {
+	var in []base.AvPacket
 
 	// case. 只有音频，且数量小于队列容量
-	oneCase(t, []base.AVPacket{
+	oneCase(t, []base.AvPacket{
 		a(1),
 	}, nil)
 
@@ -62,7 +62,7 @@ func TestAVPacketQueue(t *testing.T) {
 	oneCase(t, golden, golden[:len(golden)-1])
 
 	// case. 音频和视频之间不完全有序
-	oneCase(t, []base.AVPacket{
+	oneCase(t, []base.AvPacket{
 		a(0),
 		a(23),
 		a(46),
@@ -79,7 +79,7 @@ func TestAVPacketQueue(t *testing.T) {
 	in = nil
 	for _, pkt := range golden {
 		pkt2 := pkt
-		if pkt2.PayloadType == base.AVPacketPTAAC {
+		if pkt2.PayloadType == base.AvPacketPtAac {
 			pkt2.Timestamp += 100
 		} else {
 			pkt2.Timestamp += 10000
@@ -89,7 +89,7 @@ func TestAVPacketQueue(t *testing.T) {
 	oneCase(t, in, golden[:len(golden)-1])
 
 	// case. 起始非0，且起始不对齐，且乱序
-	oneCase(t, []base.AVPacket{
+	oneCase(t, []base.AvPacket{
 		a(0 + 99),
 		a(23 + 99),
 		a(46 + 99),
@@ -103,11 +103,11 @@ func TestAVPacketQueue(t *testing.T) {
 	}, golden[:len(golden)-1])
 
 	// case.
-	oneCase(t, []base.AVPacket{
+	oneCase(t, []base.AvPacket{
 		a(4294967293),
 		v(4294967294),
 		a(4294967295),
-	}, []base.AVPacket{
+	}, []base.AvPacket{
 		v(0),
 	})
 
@@ -117,7 +117,7 @@ func TestAVPacketQueue(t *testing.T) {
 	// q:[ A(46) ]
 	ab := uint32(4294967295 - diffA*3) // max 4294967295
 	vb := uint32(66666)
-	in = []base.AVPacket{
+	in = []base.AvPacket{
 		a(ab),           // 0: 0
 		v(vb),           // 0
 		a(ab + diffA),   // 23
@@ -131,7 +131,7 @@ func TestAVPacketQueue(t *testing.T) {
 		a(ab + diffA*6), // 138
 		v(vb + diffV*4), // 160
 	}
-	expects := [][]base.AVPacket{
+	expects := [][]base.AvPacket{
 		nil,
 		{v(0)},
 		{v(0)},
@@ -160,7 +160,7 @@ func TestAVPacketQueue(t *testing.T) {
 	// q:[ A(46) ]
 	ab = uint32(12345)
 	vb = uint32(4294967295 - diffV*2) // max 4294967295
-	in = []base.AVPacket{
+	in = []base.AvPacket{
 		v(vb),           // 0
 		a(ab),           // 0
 		a(ab + diffA),   // 23
@@ -176,7 +176,7 @@ func TestAVPacketQueue(t *testing.T) {
 		a(ab + diffA*7), // 161
 		a(ab + diffA*8), // 184
 	}
-	expects = [][]base.AVPacket{
+	expects = [][]base.AvPacket{
 		nil,
 		{v(0)},
 		{v(0)},
@@ -197,28 +197,28 @@ func TestAVPacketQueue(t *testing.T) {
 	}
 }
 
-func a(t uint32) base.AVPacket {
-	return base.AVPacket{
-		PayloadType: base.AVPacketPTAAC,
+func a(t uint32) base.AvPacket {
+	return base.AvPacket{
+		PayloadType: base.AvPacketPtAac,
 		Timestamp:   t,
 	}
 }
 
-func v(t uint32) base.AVPacket {
-	return base.AVPacket{
-		PayloadType: base.AVPacketPTAVC,
+func v(t uint32) base.AvPacket {
+	return base.AvPacket{
+		PayloadType: base.AvPacketPtAvc,
 		Timestamp:   t,
 	}
 }
 
-func oneCase(t *testing.T, in []base.AVPacket, expected []base.AVPacket) (out []base.AVPacket, q *AVPacketQueue) {
+func oneCase(t *testing.T, in []base.AvPacket, expected []base.AvPacket) (out []base.AvPacket, q *AvPacketQueue) {
 	out, q = calc(in)
 	assert.Equal(t, expected, out)
 	return out, q
 }
 
-func calc(in []base.AVPacket) (out []base.AVPacket, q *AVPacketQueue) {
-	q = NewAVPacketQueue(func(pkt base.AVPacket) {
+func calc(in []base.AvPacket) (out []base.AvPacket, q *AvPacketQueue) {
+	q = NewAvPacketQueue(func(pkt base.AvPacket) {
 		out = append(out, pkt)
 	})
 	for _, pkt := range in {
@@ -227,11 +227,11 @@ func calc(in []base.AVPacket) (out []base.AVPacket, q *AVPacketQueue) {
 	return out, q
 }
 
-func packetsReadable(pkts []base.AVPacket) string {
+func packetsReadable(pkts []base.AvPacket) string {
 	var buf bytes.Buffer
 	buf.WriteString("[")
 	for _, pkt := range pkts {
-		if pkt.PayloadType == base.AVPacketPTAAC {
+		if pkt.PayloadType == base.AvPacketPtAac {
 			buf.WriteString(fmt.Sprintf(" A(%d) ", pkt.Timestamp))
 		} else {
 			buf.WriteString(fmt.Sprintf(" V(%d) ", pkt.Timestamp))
@@ -241,16 +241,16 @@ func packetsReadable(pkts []base.AVPacket) string {
 	return buf.String()
 }
 
-func peekQueuePackets(q *AVPacketQueue) []base.AVPacket {
-	var out []base.AVPacket
+func peekQueuePackets(q *AvPacketQueue) []base.AvPacket {
+	var out []base.AvPacket
 	for i := 0; i < q.audioQueue.Size(); i++ {
 		pkt, _ := q.audioQueue.At(i)
-		ppkt := pkt.(base.AVPacket)
+		ppkt := pkt.(base.AvPacket)
 		out = append(out, ppkt)
 	}
 	for i := 0; i < q.videoQueue.Size(); i++ {
 		pkt, _ := q.videoQueue.At(i)
-		ppkt := pkt.(base.AVPacket)
+		ppkt := pkt.(base.AvPacket)
 		out = append(out, ppkt)
 	}
 	return out

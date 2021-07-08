@@ -21,7 +21,7 @@ func (fw *FileWriter) Create(filename string) (err error) {
 
 func (fw *FileWriter) Write(b []byte) (err error) {
 	if fw.fp == nil {
-		return ErrMPEGTS
+		return ErrMpegts
 	}
 	_, err = fw.fp.Write(b)
 	return
@@ -29,7 +29,7 @@ func (fw *FileWriter) Write(b []byte) (err error) {
 
 func (fw *FileWriter) Dispose() error {
 	if fw.fp == nil {
-		return ErrMPEGTS
+		return ErrMpegts
 	}
 	return fw.fp.Close()
 }

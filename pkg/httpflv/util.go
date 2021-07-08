@@ -10,10 +10,10 @@ package httpflv
 
 import "io"
 
-func ReadAllTagsFromFLVFile(filename string) ([]Tag, error) {
+func ReadAllTagsFromFlvFile(filename string) ([]Tag, error) {
 	var tags []Tag
 
-	var ffr FLVFileReader
+	var ffr FlvFileReader
 	err := ffr.Open(filename)
 	if err != nil {
 		return nil, err

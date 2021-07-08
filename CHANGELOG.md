@@ -1,3 +1,20 @@
+#### v0.23.0 (2021-06-06)
+
+- [feat] HTTP端口复用：HTTP-FLV, HTTP-TS, HLS可使用相同的监听端口。HTTPS也支持端口复用 #64
+- [feat] HTTPS：HTTP-FLV，HTTP-TS，HLS都支持HTTPS。WebSocket-FLV，WebSocket-TS都支持WebSockets #76
+- [feat] 配置HTTP流的URL路径: HTTP-FLV，HTTP-TS，HLS的URL路由路径可以在配置文件中配置 #77
+- [feat] RTMP支持合并发送 #84
+- [refactor] 重构整个项目的命名风格 #87
+- [fix] RTMP GOP缓存设置为0时，可能花屏 #86
+- [feat] 支持海康威视NVR、大华IPC的RTSP流（SDP不包含SPS、PPS等数据，而是通过RTP包发送） #74 #85
+- [feat] 配置灵活易用话。增加`default_http`。HTTP-FLV，HTTP-TS，HLS可以独立配置监听地址相关的项，也可以使用公共的`default_http`
+- [feat] HLS默认提供两种播放URL地址 #64
+- [refactor] package hls: 将HTTP URL路径格式，文件存储路径格式，文件命名格式，映射关系抽象出来，业务方可在外层实现IPathSolver接口做定制 #77
+- [feat] 增加几个默认的配置文件加载路径
+- [feat] package rtprtcp: 增加用于将H264 Nalu包切割成RTP包的代码 #83
+- [refactor] package avc: 增加拆分AnndexB和AVCC Nalu包的代码 #79
+- [refactor] 重构httpflv.SubSession和httpts.SubSession的重复代码
+
 #### v0.22.0 (2021-05-03)
 
 - [feat] 录制新增支持：flv和mpegts文件。 录制支持列表见： https://pengrl.com/lal/#/LALServer (#14)

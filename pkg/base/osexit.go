@@ -15,7 +15,7 @@ import (
 	"runtime"
 )
 
-func OSExitAndWaitPressIfWindows(code int) {
+func OsExitAndWaitPressIfWindows(code int) {
 	if runtime.GOOS == "windows" {
 		_, _ = fmt.Fprintf(os.Stderr, "Press Enter to exit...")
 		r := bufio.NewReader(os.Stdin)

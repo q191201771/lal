@@ -16,19 +16,19 @@ import (
 
 func ParseMetadata(b []byte) (ObjectPairArray, error) {
 	pos := 0
-	v, l, err := AMF0.ReadString(b[pos:])
+	v, l, err := Amf0.ReadString(b[pos:])
 	if err != nil {
 		return nil, err
 	}
 	pos += l
 	if v == "@setDataFrame" {
-		_, l, err = AMF0.ReadString(b[pos:])
+		_, l, err = Amf0.ReadString(b[pos:])
 		if err != nil {
 			return nil, err
 		}
 		pos += l
 	}
-	opa, _, err := AMF0.ReadObjectOrArray(b[pos:])
+	opa, _, err := Amf0.ReadObjectOrArray(b[pos:])
 	return opa, err
 }
 
@@ -63,7 +63,7 @@ func ParseMetadata(b []byte) (ObjectPairArray, error) {
 // @return 返回的内存块为新申请的独立内存块
 func BuildMetadata(width int, height int, audiocodecid int, videocodecid int) ([]byte, error) {
 	buf := &bytes.Buffer{}
-	if err := AMF0.WriteString(buf, "onMetaData"); err != nil {
+	if err := Amf0.WriteString(buf, "onMetaData"); err != nil {
 		return nil, err
 	}
 
@@ -94,10 +94,10 @@ func BuildMetadata(width int, height int, audiocodecid int, videocodecid int) ([
 	}
 	opa = append(opa, ObjectPair{
 		Key:   "version",
-		Value: base.LALRTMPBuildMetadataEncoder,
+		Value: base.LalRtmpBuildMetadataEncoder,
 	})
 
-	if err := AMF0.WriteObject(buf, opa); err != nil {
+	if err := Amf0.WriteObject(buf, opa); err != nil {
 		return nil, err
 	}
 

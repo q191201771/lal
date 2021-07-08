@@ -9,9 +9,9 @@
 package mpegts
 
 type Frame struct {
-	PTS uint64 // =(毫秒 * 90)
-	DTS uint64
-	CC  uint8 // continuity_counter of TS Header
+	Pts uint64 // =(毫秒 * 90)
+	Dts uint64
+	Cc  uint8 // continuity_counter of TS Header
 
 	// PID of PES Header
 	// 音频 mpegts.PidAudio
@@ -19,8 +19,8 @@ type Frame struct {
 	Pid uint16
 
 	// stream_id of PES Header
-	// 音频 mpegts.StreamIDAudio
-	// 视频 mpegts.StreamIDVideo
+	// 音频 mpegts.StreamIdAudio
+	// 视频 mpegts.StreamIdVideo
 	Sid uint8
 
 	// 音频 全部为false
@@ -28,23 +28,23 @@ type Frame struct {
 	Key bool
 
 	// 音频AAC 格式为2字节ADTS头加raw frame
-	// 视频AVC 格式为AnnexB
+	// 视频AVC 格式为Annexb
 	Raw []byte
 }
 
 // @param packet: 188字节大小的TS包，注意，一次Pack对应的多个TSPacket，复用的是一块内存
 //
-type OnTSPacket func(packet []byte)
+type OnTsPacket func(packet []byte)
 
-// AnnexB格式的流转换为mpegts packet
+// Annexb格式的流转换为mpegts packet
 //
 // @param frame: 各字段含义见mpegts.Frame结构体定义
 //               frame.CC  注意，内部会修改frame.CC的值，外部在调用结束后，可保存CC的值，供下次调用时使用
 //               frame.Raw 函数调用结束后，内部不会持有该内存块
 //
-// @param onTSPacket: 注意，一次函数调用，可能对应多次回调
+// @param onTsPacket: 注意，一次函数调用，可能对应多次回调
 //
-func PackTSPacket(frame *Frame, onTSPacket OnTSPacket) {
+func PackTsPacket(frame *Frame, onTsPacket OnTsPacket) {
 	wpos := 0              // 当前packet的写入位置
 	lpos := 0              // 当前帧的处理位置
 	rpos := len(frame.Raw) // 当前帧大小
@@ -53,7 +53,7 @@ func PackTSPacket(frame *Frame, onTSPacket OnTSPacket) {
 
 	for lpos != rpos {
 		wpos = 0
-		frame.CC++
+		frame.Cc++
 
 		// 每个packet都需要添加TS Header
 		// -----TS Header----------------
@@ -76,7 +76,7 @@ func PackTSPacket(frame *Frame, onTSPacket OnTSPacket) {
 
 		// adaptation_field_control 先设置成无Adaptation
 		// continuity_counter
-		packet[3] = 0x10 | (frame.CC & 0x0f)
+		packet[3] = 0x10 | (frame.Cc & 0x0f)
 		wpos += 4
 
 		if first {
@@ -99,7 +99,7 @@ func PackTSPacket(frame *Frame, onTSPacket OnTSPacket) {
 				packet[3] |= 0x20                    // adaptation_field_control 设置Adaptation
 				packet[4] = 7                        // adaptation_field_length
 				packet[5] = 0x50                     // random_access_indicator + PCR_flag
-				packPCR(packet[6:], frame.DTS-delay) // using 6 byte
+				packPcr(packet[6:], frame.Dts-delay) // using 6 byte
 				wpos += 8
 			}
 
@@ -134,7 +134,7 @@ func PackTSPacket(frame *Frame, onTSPacket OnTSPacket) {
 			headerSize := uint8(5)
 			flags := uint8(0x80)
 			// DTS相关
-			if frame.DTS != frame.PTS {
+			if frame.Dts != frame.Pts {
 				headerSize += 5
 				flags |= 0x40
 			}
@@ -152,11 +152,11 @@ func PackTSPacket(frame *Frame, onTSPacket OnTSPacket) {
 			wpos += 5
 
 			// 写入PTS的值
-			packPTS(packet[wpos:], flags>>6, frame.PTS+delay)
+			packPts(packet[wpos:], flags>>6, frame.Pts+delay)
 			wpos += 5
 			// 写入DTS的值
-			if frame.PTS != frame.DTS {
-				packPTS(packet[wpos:], 1, frame.DTS+delay)
+			if frame.Pts != frame.Dts {
+				packPts(packet[wpos:], 1, frame.Dts+delay)
 				wpos += 5
 			}
 
@@ -221,11 +221,11 @@ func PackTSPacket(frame *Frame, onTSPacket OnTSPacket) {
 			lpos = rpos
 		}
 
-		onTSPacket(packet)
+		onTsPacket(packet)
 	}
 }
 
-func packPCR(out []byte, pcr uint64) {
+func packPcr(out []byte, pcr uint64) {
 	out[0] = uint8(pcr >> 25)
 	out[1] = uint8(pcr >> 17)
 	out[2] = uint8(pcr >> 9)
@@ -235,7 +235,7 @@ func packPCR(out []byte, pcr uint64) {
 }
 
 // 注意，除PTS外，DTS也使用这个函数打包
-func packPTS(out []byte, fb uint8, pts uint64) {
+func packPts(out []byte, fb uint8, pts uint64) {
 	var val uint64
 	out[0] = (fb << 4) | (uint8(pts>>30) & 0x07) | 1
 

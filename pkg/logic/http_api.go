@@ -23,27 +23,27 @@ import (
 
 var serverStartTime string
 
-type HTTPAPIServerObserver interface {
+type HttpApiServerObserver interface {
 	OnStatAllGroup() []base.StatGroup
 	OnStatGroup(streamName string) *base.StatGroup
-	OnCtrlStartPull(info base.APICtrlStartPullReq)
-	OnCtrlKickOutSession(info base.APICtrlKickOutSession) base.HTTPResponseBasic
+	OnCtrlStartPull(info base.ApiCtrlStartPullReq)
+	OnCtrlKickOutSession(info base.ApiCtrlKickOutSession) base.HttpResponseBasic
 }
 
-type HTTPAPIServer struct {
+type HttpApiServer struct {
 	addr     string
-	observer HTTPAPIServerObserver
+	observer HttpApiServerObserver
 	ln       net.Listener
 }
 
-func NewHTTPAPIServer(addr string, observer HTTPAPIServerObserver) *HTTPAPIServer {
-	return &HTTPAPIServer{
+func NewHttpApiServer(addr string, observer HttpApiServerObserver) *HttpApiServer {
+	return &HttpApiServer{
 		addr:     addr,
 		observer: observer,
 	}
 }
 
-func (h *HTTPAPIServer) Listen() (err error) {
+func (h *HttpApiServer) Listen() (err error) {
 	if h.ln, err = net.Listen("tcp", h.addr); err != nil {
 		return
 	}
@@ -51,11 +51,11 @@ func (h *HTTPAPIServer) Listen() (err error) {
 	return
 }
 
-func (h *HTTPAPIServer) Runloop() error {
+func (h *HttpApiServer) Runloop() error {
 	mux := http.NewServeMux()
 
 	mux.HandleFunc("/api/list", h.apiListHandler)
-	mux.HandleFunc("/api/stat/lal_info", h.statLALInfoHandler)
+	mux.HandleFunc("/api/stat/lal_info", h.statLalInfoHandler)
 	mux.HandleFunc("/api/stat/group", h.statGroupHandler)
 	mux.HandleFunc("/api/stat/all_group", h.statAllGroupHandler)
 	mux.HandleFunc("/api/ctrl/start_pull", h.ctrlStartPullHandler)
@@ -68,7 +68,7 @@ func (h *HTTPAPIServer) Runloop() error {
 
 // TODO chef: dispose
 
-func (h *HTTPAPIServer) apiListHandler(w http.ResponseWriter, req *http.Request) {
+func (h *HttpApiServer) apiListHandler(w http.ResponseWriter, req *http.Request) {
 	// TODO chef: 写完api list页面
 	b := []byte(`
 <html>
@@ -94,34 +94,34 @@ func (h *HTTPAPIServer) apiListHandler(w http.ResponseWriter, req *http.Request)
 </html>
 `)
 
-	w.Header().Add("Server", base.LALHTTPAPIServer)
+	w.Header().Add("Server", base.LalHttpApiServer)
 	_, _ = w.Write(b)
 }
 
-func (h *HTTPAPIServer) statLALInfoHandler(w http.ResponseWriter, req *http.Request) {
-	var v base.APIStatLALInfo
+func (h *HttpApiServer) statLalInfoHandler(w http.ResponseWriter, req *http.Request) {
+	var v base.ApiStatLalInfo
 	v.ErrorCode = base.ErrorCodeSucc
 	v.Desp = base.DespSucc
 	v.Data.BinInfo = bininfo.StringifySingleLine()
-	v.Data.LalVersion = base.LALVersion
-	v.Data.APIVersion = base.HTTPAPIVersion
-	v.Data.NotifyVersion = base.HTTPNotifyVersion
+	v.Data.LalVersion = base.LalVersion
+	v.Data.ApiVersion = base.HttpApiVersion
+	v.Data.NotifyVersion = base.HttpNotifyVersion
 	v.Data.StartTime = serverStartTime
-	v.Data.ServerID = config.ServerID
+	v.Data.ServerId = config.ServerId
 	feedback(v, w)
 }
 
-func (h *HTTPAPIServer) statAllGroupHandler(w http.ResponseWriter, req *http.Request) {
+func (h *HttpApiServer) statAllGroupHandler(w http.ResponseWriter, req *http.Request) {
 	gs := h.observer.OnStatAllGroup()
-	var v base.APIStatAllGroup
+	var v base.ApiStatAllGroup
 	v.ErrorCode = base.ErrorCodeSucc
 	v.Desp = base.DespSucc
 	v.Data.Groups = gs
 	feedback(v, w)
 }
 
-func (h *HTTPAPIServer) statGroupHandler(w http.ResponseWriter, req *http.Request) {
-	var v base.APIStatGroup
+func (h *HttpApiServer) statGroupHandler(w http.ResponseWriter, req *http.Request) {
+	var v base.ApiStatGroup
 
 	q := req.URL.Query()
 	streamName := q.Get("stream_name")
@@ -146,9 +146,9 @@ func (h *HTTPAPIServer) statGroupHandler(w http.ResponseWriter, req *http.Reques
 	return
 }
 
-func (h *HTTPAPIServer) ctrlStartPullHandler(w http.ResponseWriter, req *http.Request) {
-	var v base.HTTPResponseBasic
-	var info base.APICtrlStartPullReq
+func (h *HttpApiServer) ctrlStartPullHandler(w http.ResponseWriter, req *http.Request) {
+	var v base.HttpResponseBasic
+	var info base.ApiCtrlStartPullReq
 
 	err := nazahttp.UnmarshalRequestJsonBody(req, &info, "protocol", "addr", "app_name", "stream_name")
 	if err != nil {
@@ -167,9 +167,9 @@ func (h *HTTPAPIServer) ctrlStartPullHandler(w http.ResponseWriter, req *http.Re
 	return
 }
 
-func (h *HTTPAPIServer) ctrlKickOutSessionHandler(w http.ResponseWriter, req *http.Request) {
-	var v base.HTTPResponseBasic
-	var info base.APICtrlKickOutSession
+func (h *HttpApiServer) ctrlKickOutSessionHandler(w http.ResponseWriter, req *http.Request) {
+	var v base.HttpResponseBasic
+	var info base.ApiCtrlKickOutSession
 
 	err := nazahttp.UnmarshalRequestJsonBody(req, &info, "stream_name", "session_id")
 	if err != nil {
@@ -188,7 +188,7 @@ func (h *HTTPAPIServer) ctrlKickOutSessionHandler(w http.ResponseWriter, req *ht
 
 func feedback(v interface{}, w http.ResponseWriter) {
 	resp, _ := json.Marshal(v)
-	w.Header().Add("Server", base.LALHTTPAPIServer)
+	w.Header().Add("Server", base.LalHttpApiServer)
 	_, _ = w.Write(resp)
 }
 

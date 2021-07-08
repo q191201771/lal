@@ -24,69 +24,69 @@ import (
 const ConfVersion = "v0.2.2"
 
 const (
-	defaultHLSCleanupMode    = hls.CleanupModeInTheEnd
-	defaultHTTPFLVURLPattern = "/live/"
-	defaultHTTPTSURLPattern  = "/live/"
-	defaultHLSURLPattern     = "/hls/"
+	defaultHlsCleanupMode    = hls.CleanupModeInTheEnd
+	defaultHttpflvUrlPattern = "/live/"
+	defaultHttptsUrlPattern  = "/live/"
+	defaultHlsUrlPattern     = "/hls/"
 )
 
 type Config struct {
 	ConfVersion       string            `json:"conf_version"`
-	RTMPConfig        RTMPConfig        `json:"rtmp"`
-	DefaultHTTPConfig DefaultHTTPConfig `json:"default_http"`
-	HTTPFLVConfig     HTTPFLVConfig     `json:"httpflv"`
-	HLSConfig         HLSConfig         `json:"hls"`
-	HTTPTSConfig      HTTPTSConfig      `json:"httpts"`
-	RTSPConfig        RTSPConfig        `json:"rtsp"`
+	RtmpConfig        RtmpConfig        `json:"rtmp"`
+	DefaultHttpConfig DefaultHttpConfig `json:"default_http"`
+	HttpflvConfig     HttpflvConfig     `json:"httpflv"`
+	HlsConfig         HlsConfig         `json:"hls"`
+	HttptsConfig      HttptsConfig      `json:"httpts"`
+	RtspConfig        RtspConfig        `json:"rtsp"`
 	RecordConfig      RecordConfig      `json:"record"`
 	RelayPushConfig   RelayPushConfig   `json:"relay_push"`
 	RelayPullConfig   RelayPullConfig   `json:"relay_pull"`
 
-	HTTPAPIConfig    HTTPAPIConfig    `json:"http_api"`
-	ServerID         string           `json:"server_id"`
-	HTTPNotifyConfig HTTPNotifyConfig `json:"http_notify"`
-	PProfConfig      PProfConfig      `json:"pprof"`
+	HttpApiConfig    HttpApiConfig    `json:"http_api"`
+	ServerId         string           `json:"server_id"`
+	HttpNotifyConfig HttpNotifyConfig `json:"http_notify"`
+	PprofConfig      PprofConfig      `json:"pprof"`
 	LogConfig        nazalog.Option   `json:"log"`
 }
 
-type RTMPConfig struct {
+type RtmpConfig struct {
 	Enable         bool   `json:"enable"`
 	Addr           string `json:"addr"`
-	GOPNum         int    `json:"gop_num"`
+	GopNum         int    `json:"gop_num"`
 	MergeWriteSize int    `json:"merge_write_size"`
 }
 
-type DefaultHTTPConfig struct {
-	CommonHTTPAddrConfig
+type DefaultHttpConfig struct {
+	CommonHttpAddrConfig
 }
 
-type HTTPFLVConfig struct {
-	CommonHTTPServerConfig
+type HttpflvConfig struct {
+	CommonHttpServerConfig
 
-	GOPNum int `json:"gop_num"`
+	GopNum int `json:"gop_num"`
 }
 
-type HTTPTSConfig struct {
-	CommonHTTPServerConfig
+type HttptsConfig struct {
+	CommonHttpServerConfig
 }
 
-type HLSConfig struct {
-	CommonHTTPServerConfig
+type HlsConfig struct {
+	CommonHttpServerConfig
 
 	UseMemoryAsDiskFlag bool `json:"use_memory_as_disk_flag"`
 	hls.MuxerConfig
 }
 
-type RTSPConfig struct {
+type RtspConfig struct {
 	Enable bool   `json:"enable"`
 	Addr   string `json:"addr"`
 }
 
 type RecordConfig struct {
-	EnableFLV     bool   `json:"enable_flv"`
-	FLVOutPath    string `json:"flv_out_path"`
-	EnableMPEGTS  bool   `json:"enable_mpegts"`
-	MPEGTSOutPath string `json:"mpegts_out_path"`
+	EnableFlv     bool   `json:"enable_flv"`
+	FlvOutPath    string `json:"flv_out_path"`
+	EnableMpegts  bool   `json:"enable_mpegts"`
+	MpegtsOutPath string `json:"mpegts_out_path"`
 }
 
 type RelayPushConfig struct {
@@ -99,12 +99,12 @@ type RelayPullConfig struct {
 	Addr   string `json:"addr"`
 }
 
-type HTTPAPIConfig struct {
+type HttpApiConfig struct {
 	Enable bool   `json:"enable"`
 	Addr   string `json:"addr"`
 }
 
-type HTTPNotifyConfig struct {
+type HttpNotifyConfig struct {
 	Enable            bool   `json:"enable"`
 	UpdateIntervalSec int    `json:"update_interval_sec"`
 	OnServerStart     string `json:"on_server_start"`
@@ -113,27 +113,27 @@ type HTTPNotifyConfig struct {
 	OnPubStop         string `json:"on_pub_stop"`
 	OnSubStart        string `json:"on_sub_start"`
 	OnSubStop         string `json:"on_sub_stop"`
-	OnRTMPConnect     string `json:"on_rtmp_connect"`
+	OnRtmpConnect     string `json:"on_rtmp_connect"`
 }
 
-type PProfConfig struct {
+type PprofConfig struct {
 	Enable bool   `json:"enable"`
 	Addr   string `json:"addr"`
 }
 
-type CommonHTTPServerConfig struct {
-	CommonHTTPAddrConfig
+type CommonHttpServerConfig struct {
+	CommonHttpAddrConfig
 
 	Enable      bool   `json:"enable"`
-	EnableHTTPS bool   `json:"enable_https"`
-	URLPattern  string `json:"url_pattern"`
+	EnableHttps bool   `json:"enable_https"`
+	UrlPattern  string `json:"url_pattern"`
 }
 
-type CommonHTTPAddrConfig struct {
-	HTTPListenAddr  string `json:"http_listen_addr"`
-	HTTPSListenAddr string `json:"https_listen_addr"`
-	HTTPSCertFile   string `json:"https_cert_file"`
-	HTTPSKeyFile    string `json:"https_key_file"`
+type CommonHttpAddrConfig struct {
+	HttpListenAddr  string `json:"http_listen_addr"`
+	HttpsListenAddr string `json:"https_listen_addr"`
+	HttpsCertFile   string `json:"https_cert_file"`
+	HttpsKeyFile    string `json:"https_key_file"`
 }
 
 func LoadConfAndInitLog(confFile string) *Config {
@@ -141,16 +141,16 @@ func LoadConfAndInitLog(confFile string) *Config {
 	rawContent, err := ioutil.ReadFile(confFile)
 	if err != nil {
 		_, _ = fmt.Fprintf(os.Stderr, "read conf file failed. file=%s err=%+v", confFile, err)
-		base.OSExitAndWaitPressIfWindows(1)
+		base.OsExitAndWaitPressIfWindows(1)
 	}
 	if err = json.Unmarshal(rawContent, &config); err != nil {
 		_, _ = fmt.Fprintf(os.Stderr, "unmarshal conf file failed. file=%s err=%+v", confFile, err)
-		base.OSExitAndWaitPressIfWindows(1)
+		base.OsExitAndWaitPressIfWindows(1)
 	}
 	j, err := nazajson.New(rawContent)
 	if err != nil {
 		_, _ = fmt.Fprintf(os.Stderr, "nazajson unmarshal conf file failed. file=%s err=%+v", confFile, err)
-		base.OSExitAndWaitPressIfWindows(1)
+		base.OsExitAndWaitPressIfWindows(1)
 	}
 
 	// 初始化日志，注意，这一步尽量提前，使得后续的日志内容按我们的日志配置输出
@@ -174,7 +174,7 @@ func LoadConfAndInitLog(confFile string) *Config {
 		config.LogConfig.TimestampFlag = true
 	}
 	if !j.Exist("log.timestamp_with_ms_flag") {
-		config.LogConfig.TimestampWithMSFlag = true
+		config.LogConfig.TimestampWithMsFlag = true
 	}
 	if !j.Exist("log.level_flag") {
 		config.LogConfig.LevelFlag = true
@@ -186,7 +186,7 @@ func LoadConfAndInitLog(confFile string) *Config {
 		*option = config.LogConfig
 	}); err != nil {
 		_, _ = fmt.Fprintf(os.Stderr, "initial log failed. err=%+v\n", err)
-		base.OSExitAndWaitPressIfWindows(1)
+		base.OsExitAndWaitPressIfWindows(1)
 	}
 	nazalog.Info("initial log succ.")
 
@@ -227,41 +227,41 @@ func LoadConfAndInitLog(confFile string) *Config {
 	}
 
 	// 如果具体的HTTP应用没有设置HTTP监听相关的配置，则尝试使用全局配置
-	mergeCommonHTTPAddrConfig(&config.HTTPFLVConfig.CommonHTTPAddrConfig, &config.DefaultHTTPConfig.CommonHTTPAddrConfig)
-	mergeCommonHTTPAddrConfig(&config.HTTPTSConfig.CommonHTTPAddrConfig, &config.DefaultHTTPConfig.CommonHTTPAddrConfig)
-	mergeCommonHTTPAddrConfig(&config.HLSConfig.CommonHTTPAddrConfig, &config.DefaultHTTPConfig.CommonHTTPAddrConfig)
+	mergeCommonHttpAddrConfig(&config.HttpflvConfig.CommonHttpAddrConfig, &config.DefaultHttpConfig.CommonHttpAddrConfig)
+	mergeCommonHttpAddrConfig(&config.HttptsConfig.CommonHttpAddrConfig, &config.DefaultHttpConfig.CommonHttpAddrConfig)
+	mergeCommonHttpAddrConfig(&config.HlsConfig.CommonHttpAddrConfig, &config.DefaultHttpConfig.CommonHttpAddrConfig)
 
 	// 配置不存在时，设置默认值
-	if (config.HLSConfig.Enable || config.HLSConfig.EnableHTTPS) && !j.Exist("hls.cleanup_mode") {
-		nazalog.Warnf("config hls.cleanup_mode not exist. set to default which is %d", defaultHLSCleanupMode)
-		config.HLSConfig.CleanupMode = defaultHLSCleanupMode
+	if (config.HlsConfig.Enable || config.HlsConfig.EnableHttps) && !j.Exist("hls.cleanup_mode") {
+		nazalog.Warnf("config hls.cleanup_mode not exist. set to default which is %d", defaultHlsCleanupMode)
+		config.HlsConfig.CleanupMode = defaultHlsCleanupMode
 	}
-	if (config.HTTPFLVConfig.Enable || config.HTTPFLVConfig.EnableHTTPS) && !j.Exist("httpflv.url_pattern") {
-		nazalog.Warnf("config httpflv.url_pattern not exist. set to default wchich is %s", defaultHTTPFLVURLPattern)
-		config.HTTPFLVConfig.URLPattern = defaultHTTPFLVURLPattern
+	if (config.HttpflvConfig.Enable || config.HttpflvConfig.EnableHttps) && !j.Exist("httpflv.url_pattern") {
+		nazalog.Warnf("config httpflv.url_pattern not exist. set to default wchich is %s", defaultHttpflvUrlPattern)
+		config.HttpflvConfig.UrlPattern = defaultHttpflvUrlPattern
 	}
-	if (config.HTTPTSConfig.Enable || config.HTTPTSConfig.EnableHTTPS) && !j.Exist("httpts.url_pattern") {
-		nazalog.Warnf("config httpts.url_pattern not exist. set to default wchich is %s", defaultHTTPTSURLPattern)
-		config.HTTPTSConfig.URLPattern = defaultHTTPTSURLPattern
+	if (config.HttptsConfig.Enable || config.HttptsConfig.EnableHttps) && !j.Exist("httpts.url_pattern") {
+		nazalog.Warnf("config httpts.url_pattern not exist. set to default wchich is %s", defaultHttptsUrlPattern)
+		config.HttptsConfig.UrlPattern = defaultHttptsUrlPattern
 	}
-	if (config.HLSConfig.Enable || config.HLSConfig.EnableHTTPS) && !j.Exist("hls.url_pattern") {
-		nazalog.Warnf("config hls.url_pattern not exist. set to default wchich is %s", defaultHLSURLPattern)
-		config.HTTPFLVConfig.URLPattern = defaultHLSURLPattern
+	if (config.HlsConfig.Enable || config.HlsConfig.EnableHttps) && !j.Exist("hls.url_pattern") {
+		nazalog.Warnf("config hls.url_pattern not exist. set to default wchich is %s", defaultHlsUrlPattern)
+		config.HttpflvConfig.UrlPattern = defaultHlsUrlPattern
 	}
 
 	// 对一些常见的格式错误做修复
 	// 确保url pattern以`/`开始，并以`/`结束
-	if urlPattern, changed := ensureStartAndEndWithSlash(config.HTTPFLVConfig.URLPattern); changed {
-		nazalog.Warnf("fix config. httpflv.url_pattern %s -> %s", config.HTTPFLVConfig.URLPattern, urlPattern)
-		config.HTTPFLVConfig.URLPattern = urlPattern
+	if urlPattern, changed := ensureStartAndEndWithSlash(config.HttpflvConfig.UrlPattern); changed {
+		nazalog.Warnf("fix config. httpflv.url_pattern %s -> %s", config.HttpflvConfig.UrlPattern, urlPattern)
+		config.HttpflvConfig.UrlPattern = urlPattern
 	}
-	if urlPattern, changed := ensureStartAndEndWithSlash(config.HTTPTSConfig.URLPattern); changed {
-		nazalog.Warnf("fix config. httpts.url_pattern %s -> %s", config.HTTPTSConfig.URLPattern, urlPattern)
-		config.HTTPFLVConfig.URLPattern = urlPattern
+	if urlPattern, changed := ensureStartAndEndWithSlash(config.HttptsConfig.UrlPattern); changed {
+		nazalog.Warnf("fix config. httpts.url_pattern %s -> %s", config.HttptsConfig.UrlPattern, urlPattern)
+		config.HttpflvConfig.UrlPattern = urlPattern
 	}
-	if urlPattern, changed := ensureStartAndEndWithSlash(config.HLSConfig.URLPattern); changed {
-		nazalog.Warnf("fix config. hls.url_pattern %s -> %s", config.HLSConfig.URLPattern, urlPattern)
-		config.HTTPFLVConfig.URLPattern = urlPattern
+	if urlPattern, changed := ensureStartAndEndWithSlash(config.HlsConfig.UrlPattern); changed {
+		nazalog.Warnf("fix config. hls.url_pattern %s -> %s", config.HlsConfig.UrlPattern, urlPattern)
+		config.HttpflvConfig.UrlPattern = urlPattern
 	}
 
 	// 把配置文件原始内容中的换行去掉，使得打印日志时紧凑一些
@@ -278,18 +278,18 @@ func LoadConfAndInitLog(confFile string) *Config {
 
 	return config
 }
-func mergeCommonHTTPAddrConfig(dst, src *CommonHTTPAddrConfig) {
-	if dst.HTTPListenAddr == "" && src.HTTPListenAddr != "" {
-		dst.HTTPListenAddr = src.HTTPListenAddr
+func mergeCommonHttpAddrConfig(dst, src *CommonHttpAddrConfig) {
+	if dst.HttpListenAddr == "" && src.HttpListenAddr != "" {
+		dst.HttpListenAddr = src.HttpListenAddr
 	}
-	if dst.HTTPSListenAddr == "" && src.HTTPSListenAddr != "" {
-		dst.HTTPSListenAddr = src.HTTPSListenAddr
+	if dst.HttpsListenAddr == "" && src.HttpsListenAddr != "" {
+		dst.HttpsListenAddr = src.HttpsListenAddr
 	}
-	if dst.HTTPSCertFile == "" && src.HTTPSCertFile != "" {
-		dst.HTTPSCertFile = src.HTTPSCertFile
+	if dst.HttpsCertFile == "" && src.HttpsCertFile != "" {
+		dst.HttpsCertFile = src.HttpsCertFile
 	}
-	if dst.HTTPSKeyFile == "" && src.HTTPSKeyFile != "" {
-		dst.HTTPSKeyFile = src.HTTPSKeyFile
+	if dst.HttpsKeyFile == "" && src.HttpsKeyFile != "" {
+		dst.HttpsKeyFile = src.HttpsKeyFile
 	}
 }
 

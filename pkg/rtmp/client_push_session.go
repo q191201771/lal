@@ -19,15 +19,15 @@ type PushSession struct {
 type PushSessionOption struct {
 	// 从调用Push函数，到可以发送音视频数据的前一步，也即收到服务端返回的rtmp publish对应结果的信令的超时时间
 	// 如果为0，则没有超时时间
-	PushTimeoutMS int
+	PushTimeoutMs int
 
-	WriteAVTimeoutMS     int
+	WriteAvTimeoutMs     int
 	HandshakeComplexFlag bool
 }
 
 var defaultPushSessionOption = PushSessionOption{
-	PushTimeoutMS:    10000,
-	WriteAVTimeoutMS: 0,
+	PushTimeoutMs:    10000,
+	WriteAvTimeoutMs: 0,
 }
 
 type ModPushSessionOption func(option *PushSessionOption)
@@ -39,17 +39,17 @@ func NewPushSession(modOptions ...ModPushSessionOption) *PushSession {
 	}
 	return &PushSession{
 		IsFresh: true,
-		core: NewClientSession(CSTPushSession, func(option *ClientSessionOption) {
-			option.DoTimeoutMS = opt.PushTimeoutMS
-			option.WriteAVTimeoutMS = opt.WriteAVTimeoutMS
+		core: NewClientSession(CstPushSession, func(option *ClientSessionOption) {
+			option.DoTimeoutMs = opt.PushTimeoutMs
+			option.WriteAvTimeoutMs = opt.WriteAvTimeoutMs
 			option.HandshakeComplexFlag = opt.HandshakeComplexFlag
 		}),
 	}
 }
 
 // 阻塞直到和对端完成推流前，握手部分的工作（也即收到RTMP Publish response），或者发生错误
-func (s *PushSession) Push(rawURL string) error {
-	return s.core.Do(rawURL)
+func (s *PushSession) Push(rawUrl string) error {
+	return s.core.Do(rawUrl)
 }
 
 // 发送数据
@@ -74,22 +74,22 @@ func (s *PushSession) WaitChan() <-chan error {
 	return s.core.WaitChan()
 }
 
-// 文档请参考： interface ISessionURLContext
-func (s *PushSession) URL() string {
-	return s.core.URL()
+// 文档请参考： interface ISessionUrlContext
+func (s *PushSession) Url() string {
+	return s.core.Url()
 }
 
-// 文档请参考： interface ISessionURLContext
+// 文档请参考： interface ISessionUrlContext
 func (s *PushSession) AppName() string {
 	return s.core.AppName()
 }
 
-// 文档请参考： interface ISessionURLContext
+// 文档请参考： interface ISessionUrlContext
 func (s *PushSession) StreamName() string {
 	return s.core.StreamName()
 }
 
-// 文档请参考： interface ISessionURLContext
+// 文档请参考： interface ISessionUrlContext
 func (s *PushSession) RawQuery() string {
 	return s.core.RawQuery()
 }

@@ -19,12 +19,12 @@ import (
 // 检查远端rtmp流是否能正常拉取
 func StreamExist(url string) error {
 	const (
-		timeoutMS = 10000
+		timeoutMs = 10000
 	)
 
 	errChan := make(chan error, 1)
 
-	ctx, cancel := context.WithTimeout(context.Background(), timeoutMS*time.Millisecond)
+	ctx, cancel := context.WithTimeout(context.Background(), timeoutMs*time.Millisecond)
 	defer cancel()
 
 	s := rtmp.NewPullSession()
@@ -35,15 +35,15 @@ func StreamExist(url string) error {
 		var hasNotify bool
 		var readMetadata bool
 		var readAudio bool
-		err := s.Pull(url, func(msg base.RTMPMsg) {
+		err := s.Pull(url, func(msg base.RtmpMsg) {
 			if hasNotify {
 				return
 			}
 
-			switch msg.Header.MsgTypeID {
-			case base.RTMPTypeIDMetadata:
+			switch msg.Header.MsgTypeId {
+			case base.RtmpTypeIdMetadata:
 				readMetadata = true
-			case base.RTMPTypeIDAudio:
+			case base.RtmpTypeIdAudio:
 				readAudio = true
 			}
 			if readMetadata && readAudio {

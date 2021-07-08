@@ -14,8 +14,8 @@ var (
 	readBufSize                   = 4096  // client/server session connection读缓冲的大小
 	writeBufSize                  = 4096  // client/server session connection写缓冲的大小
 	wChanSize                     = 1024  // client/server session 发送数据时，channel 的大小
-	serverSessionReadAVTimeoutMS  = 10000 // server pub session，读音视频数据超时
-	serverSessionWriteAVTimeoutMS = 10000 // server sub session，写音视频数据超时
+	serverSessionReadAvTimeoutMs  = 10000 // server pub session，读音视频数据超时
+	serverSessionWriteAvTimeoutMs = 10000 // server sub session，写音视频数据超时
 
 	LocalChunkSize            = 4096 // 本端设置的 chunk size
 	windowAcknowledgementSize = 5000000

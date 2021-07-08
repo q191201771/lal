@@ -22,61 +22,61 @@ import (
 
 const maxQueueSize = 128
 
-type OnAVPacket func(pkt base.AVPacket)
+type OnAvPacket func(pkt base.AvPacket)
 
-type AVPacketQueue struct {
-	onAVPacket  OnAVPacket
-	audioBaseTS int64                        // audio base timestamp
-	videoBaseTS int64                        // video base timestamp
-	audioQueue  *circularqueue.CircularQueue // TODO chef: 特化成AVPacket类型
+type AvPacketQueue struct {
+	onAvPacket  OnAvPacket
+	audioBaseTs int64                        // audio base timestamp
+	videoBaseTs int64                        // video base timestamp
+	audioQueue  *circularqueue.CircularQueue // TODO chef: 特化成AvPacket类型
 	videoQueue  *circularqueue.CircularQueue
 }
 
-func NewAVPacketQueue(onAVPacket OnAVPacket) *AVPacketQueue {
-	return &AVPacketQueue{
-		onAVPacket:  onAVPacket,
-		audioBaseTS: -1,
-		videoBaseTS: -1,
+func NewAvPacketQueue(onAvPacket OnAvPacket) *AvPacketQueue {
+	return &AvPacketQueue{
+		onAvPacket:  onAvPacket,
+		audioBaseTs: -1,
+		videoBaseTs: -1,
 		audioQueue:  circularqueue.New(maxQueueSize),
 		videoQueue:  circularqueue.New(maxQueueSize),
 	}
 }
 
 // 注意，调用方保证，音频相较于音频，视频相较于视频，时间戳是线性递增的。
-func (a *AVPacketQueue) Feed(pkt base.AVPacket) {
+func (a *AvPacketQueue) Feed(pkt base.AvPacket) {
 	//nazalog.Debugf("AVQ feed. t=%d, ts=%d", pkt.PayloadType, pkt.Timestamp)
 	switch pkt.PayloadType {
-	case base.AVPacketPTAVC:
+	case base.AvPacketPtAvc:
 		fallthrough
-	case base.AVPacketPTHEVC:
+	case base.AvPacketPtHevc:
 		// 时间戳回退了
-		if int64(pkt.Timestamp) < a.videoBaseTS {
-			nazalog.Warnf("video ts rotate. pktTS=%d, audioBaseTS=%d, videoBaseTS=%d, audioQueue=%d, videoQueue=%d",
-				pkt.Timestamp, a.audioBaseTS, a.videoBaseTS, a.audioQueue.Size(), a.videoQueue.Size())
-			a.videoBaseTS = -1
-			a.audioBaseTS = -1
+		if int64(pkt.Timestamp) < a.videoBaseTs {
+			nazalog.Warnf("video ts rotate. pktTS=%d, audioBaseTs=%d, videoBaseTs=%d, audioQueue=%d, videoQueue=%d",
+				pkt.Timestamp, a.audioBaseTs, a.videoBaseTs, a.audioQueue.Size(), a.videoQueue.Size())
+			a.videoBaseTs = -1
+			a.audioBaseTs = -1
 			a.PopAllByForce()
 		}
 		// 第一次
-		if a.videoBaseTS == -1 {
-			a.videoBaseTS = int64(pkt.Timestamp)
+		if a.videoBaseTs == -1 {
+			a.videoBaseTs = int64(pkt.Timestamp)
 		}
 		// 根据基准调节
-		pkt.Timestamp -= uint32(a.videoBaseTS)
+		pkt.Timestamp -= uint32(a.videoBaseTs)
 
 		_ = a.videoQueue.PushBack(pkt)
-	case base.AVPacketPTAAC:
-		if int64(pkt.Timestamp) < a.audioBaseTS {
-			nazalog.Warnf("audio ts rotate. pktTS=%d, audioBaseTS=%d, videoBaseTS=%d, audioQueue=%d, videoQueue=%d",
-				pkt.Timestamp, a.audioBaseTS, a.videoBaseTS, a.audioQueue.Size(), a.videoQueue.Size())
-			a.videoBaseTS = -1
-			a.audioBaseTS = -1
+	case base.AvPacketPtAac:
+		if int64(pkt.Timestamp) < a.audioBaseTs {
+			nazalog.Warnf("audio ts rotate. pktTS=%d, audioBaseTs=%d, videoBaseTs=%d, audioQueue=%d, videoQueue=%d",
+				pkt.Timestamp, a.audioBaseTs, a.videoBaseTs, a.audioQueue.Size(), a.videoQueue.Size())
+			a.videoBaseTs = -1
+			a.audioBaseTs = -1
 			a.PopAllByForce()
 		}
-		if a.audioBaseTS == -1 {
-			a.audioBaseTS = int64(pkt.Timestamp)
+		if a.audioBaseTs == -1 {
+			a.audioBaseTs = int64(pkt.Timestamp)
 		}
-		pkt.Timestamp -= uint32(a.audioBaseTS)
+		pkt.Timestamp -= uint32(a.audioBaseTs)
 		_ = a.audioQueue.PushBack(pkt)
 	}
 
@@ -84,14 +84,14 @@ func (a *AVPacketQueue) Feed(pkt base.AVPacket) {
 	for !a.audioQueue.Empty() && !a.videoQueue.Empty() {
 		apkt, _ := a.audioQueue.Front()
 		vpkt, _ := a.videoQueue.Front()
-		aapkt := apkt.(base.AVPacket)
-		vvpkt := vpkt.(base.AVPacket)
+		aapkt := apkt.(base.AvPacket)
+		vvpkt := vpkt.(base.AvPacket)
 		if aapkt.Timestamp < vvpkt.Timestamp {
 			_, _ = a.audioQueue.PopFront()
-			a.onAVPacket(aapkt)
+			a.onAvPacket(aapkt)
 		} else {
 			_, _ = a.videoQueue.PopFront()
-			a.onAVPacket(vvpkt)
+			a.onAvPacket(vvpkt)
 		}
 	}
 
@@ -110,7 +110,7 @@ func (a *AVPacketQueue) Feed(pkt base.AVPacket) {
 	}
 }
 
-func (a *AVPacketQueue) PopAllByForce() {
+func (a *AvPacketQueue) PopAllByForce() {
 	if a.audioQueue.Empty() && a.videoQueue.Empty() {
 		// noop
 	} else if a.audioQueue.Empty() && !a.videoQueue.Empty() {
@@ -123,20 +123,20 @@ func (a *AVPacketQueue) PopAllByForce() {
 	nazalog.Assert(false, !a.audioQueue.Empty() && !a.videoQueue.Empty())
 }
 
-func (a *AVPacketQueue) popAllAudio() {
+func (a *AvPacketQueue) popAllAudio() {
 	for !a.audioQueue.Empty() {
 		pkt, _ := a.audioQueue.Front()
-		ppkt := pkt.(base.AVPacket)
+		ppkt := pkt.(base.AvPacket)
 		_, _ = a.audioQueue.PopFront()
-		a.onAVPacket(ppkt)
+		a.onAvPacket(ppkt)
 	}
 }
 
-func (a *AVPacketQueue) popAllVideo() {
+func (a *AvPacketQueue) popAllVideo() {
 	for !a.videoQueue.Empty() {
 		pkt, _ := a.videoQueue.Front()
-		ppkt := pkt.(base.AVPacket)
+		ppkt := pkt.(base.AvPacket)
 		_, _ = a.videoQueue.PopFront()
-		a.onAVPacket(ppkt)
+		a.onAvPacket(ppkt)
 	}
 }

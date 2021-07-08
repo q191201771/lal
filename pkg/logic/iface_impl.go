@@ -13,11 +13,12 @@ import (
 	"github.com/q191201771/lal/pkg/hls"
 	"github.com/q191201771/lal/pkg/httpflv"
 	"github.com/q191201771/lal/pkg/httpts"
+	"github.com/q191201771/lal/pkg/remux"
 	"github.com/q191201771/lal/pkg/rtmp"
 	"github.com/q191201771/lal/pkg/rtsp"
 )
 
-// TODO(chef) add base.HTTPSubSession
+// TODO(chef) add base.HttpSubSession
 
 // client.pub:  rtmp, rtsp
 // client.sub:  rtmp, rtsp, flv, ts
@@ -89,23 +90,23 @@ var (
 	_ base.ISessionStat = &rtsp.ServerCommandSession{}
 )
 
-// ISessionURLContext: 所有Session(client/server)都满足
+// ISessionUrlContext: 所有Session(client/server)都满足
 var (
 	// client
-	_ base.ISessionURLContext = &rtmp.PushSession{}
-	_ base.ISessionURLContext = &rtsp.PushSession{}
-	_ base.ISessionURLContext = &rtmp.PullSession{}
-	_ base.ISessionURLContext = &rtsp.PullSession{}
-	_ base.ISessionURLContext = &httpflv.PullSession{}
+	_ base.ISessionUrlContext = &rtmp.PushSession{}
+	_ base.ISessionUrlContext = &rtsp.PushSession{}
+	_ base.ISessionUrlContext = &rtmp.PullSession{}
+	_ base.ISessionUrlContext = &rtsp.PullSession{}
+	_ base.ISessionUrlContext = &httpflv.PullSession{}
 	// server session
-	_ base.ISessionURLContext = &rtmp.ServerSession{}
-	_ base.ISessionURLContext = &rtsp.PubSession{}
-	_ base.ISessionURLContext = &httpflv.SubSession{}
-	_ base.ISessionURLContext = &httpts.SubSession{}
-	_ base.ISessionURLContext = &rtsp.SubSession{}
+	_ base.ISessionUrlContext = &rtmp.ServerSession{}
+	_ base.ISessionUrlContext = &rtsp.PubSession{}
+	_ base.ISessionUrlContext = &httpflv.SubSession{}
+	_ base.ISessionUrlContext = &httpts.SubSession{}
+	_ base.ISessionUrlContext = &rtsp.SubSession{}
 	// other
-	_ base.ISessionURLContext = &rtmp.ClientSession{}
-	_ base.ISessionURLContext = &rtsp.ClientCommandSession{}
+	_ base.ISessionUrlContext = &rtmp.ClientSession{}
+	_ base.ISessionUrlContext = &rtsp.ClientCommandSession{}
 )
 
 // IObject: 所有Session(client/server)都满足
@@ -134,15 +135,18 @@ var (
 
 var _ rtmp.ServerObserver = &ServerManager{}
 var _ rtsp.ServerObserver = &ServerManager{}
-var _ HTTPServerHandlerObserver = &ServerManager{}
+var _ HttpServerHandlerObserver = &ServerManager{}
 
-var _ HTTPAPIServerObserver = &ServerManager{}
+var _ HttpApiServerObserver = &ServerManager{}
 
 var _ rtmp.PubSessionObserver = &Group{} //
 var _ rtsp.PullSessionObserver = &Group{}
+var _ rtsp.PullSessionObserver = &remux.AvPacket2RtmpRemuxer{}
 var _ rtsp.PubSessionObserver = &Group{}
+var _ rtsp.PubSessionObserver = &remux.AvPacket2RtmpRemuxer{}
 var _ hls.MuxerObserver = &Group{}
 var _ rtsp.BaseInSessionObserver = &Group{} //
+var _ rtsp.BaseInSessionObserver = &remux.AvPacket2RtmpRemuxer{}
 
 var _ rtmp.ServerSessionObserver = &rtmp.Server{}
 var _ rtmp.IHandshakeClient = &rtmp.HandshakeClientSimple{}

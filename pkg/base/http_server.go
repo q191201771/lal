@@ -28,19 +28,19 @@ var (
 )
 
 const (
-	NetworkTCP = "tcp"
+	NetworkTcp = "tcp"
 )
 
 type LocalAddrCtx struct {
-	IsHTTPS  bool
+	IsHttps  bool
 	Addr     string
 	CertFile string
 	KeyFile  string
 
-	Network string // 默认为NetworkTCP
+	Network string // 默认为NetworkTcp
 }
 
-type HTTPServerManager struct {
+type HttpServerManager struct {
 	addr2ServerCtx map[string]*ServerCtx
 }
 
@@ -52,8 +52,8 @@ type ServerCtx struct {
 	pattern2Handler map[string]Handler
 }
 
-func NewHTTPServerManager() *HTTPServerManager {
-	return &HTTPServerManager{
+func NewHttpServerManager() *HttpServerManager {
+	return &HttpServerManager{
 		addr2ServerCtx: make(map[string]*ServerCtx),
 	}
 }
@@ -61,7 +61,7 @@ func NewHTTPServerManager() *HTTPServerManager {
 type Handler func(http.ResponseWriter, *http.Request)
 
 // @param pattern 必须以`/`开始，并以`/`结束
-func (s *HTTPServerManager) AddListen(addrCtx LocalAddrCtx, pattern string, handler Handler) error {
+func (s *HttpServerManager) AddListen(addrCtx LocalAddrCtx, pattern string, handler Handler) error {
 	var (
 		ctx *ServerCtx
 		mux *http.ServeMux
@@ -107,7 +107,7 @@ func (s *HTTPServerManager) AddListen(addrCtx LocalAddrCtx, pattern string, hand
 	return nil
 }
 
-func (s *HTTPServerManager) RunLoop() error {
+func (s *HttpServerManager) RunLoop() error {
 	errChan := make(chan error, len(s.addr2ServerCtx))
 
 	for _, v := range s.addr2ServerCtx {
@@ -122,7 +122,7 @@ func (s *HTTPServerManager) RunLoop() error {
 	return <-errChan
 }
 
-func (s *HTTPServerManager) Dispose() error {
+func (s *HttpServerManager) Dispose() error {
 	var es []error
 	for _, v := range s.addr2ServerCtx {
 		err := v.httpServer.Close()
@@ -133,10 +133,10 @@ func (s *HTTPServerManager) Dispose() error {
 
 func listen(ctx LocalAddrCtx) (net.Listener, error) {
 	if ctx.Network == "" {
-		ctx.Network = NetworkTCP
+		ctx.Network = NetworkTcp
 	}
 
-	if !ctx.IsHTTPS {
+	if !ctx.IsHttps {
 		return net.Listen(ctx.Network, ctx.Addr)
 	}
 

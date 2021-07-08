@@ -63,11 +63,11 @@ var (
 )
 
 var (
-	prevAudioTS = int64(-1)
-	prevVideoTS = int64(-1)
-	prevTS      = int64(-1)
-	prevIDRTS   = int64(-1)
-	diffIDRTS   = int64(-1)
+	prevAudioTs = int64(-1)
+	prevVideoTs = int64(-1)
+	prevTs      = int64(-1)
+	prevIdrTs   = int64(-1)
+	diffIdrTs   = int64(-1)
 )
 
 func main() {
@@ -80,23 +80,23 @@ func main() {
 	session := httpflv.NewPullSession()
 
 	brTotal := bitrate.New(func(option *bitrate.Option) {
-		option.WindowMS = 5000
+		option.WindowMs = 5000
 	})
 	brAudio := bitrate.New(func(option *bitrate.Option) {
-		option.WindowMS = 5000
+		option.WindowMs = 5000
 	})
 	brVideo := bitrate.New(func(option *bitrate.Option) {
-		option.WindowMS = 5000
+		option.WindowMs = 5000
 	})
 
-	videoCTSNotZeroCount := 0
+	videoCtsNotZeroCount := 0
 
 	go func() {
 		for {
 			time.Sleep(5 * time.Second)
 			if printStatFlag {
-				nazalog.Debugf("stat. total=%dKb/s, audio=%dKb/s, video=%dKb/s, videoCTSNotZeroCount=%d, diffIDRTS=%d",
-					int(brTotal.Rate()), int(brAudio.Rate()), int(brVideo.Rate()), videoCTSNotZeroCount, diffIDRTS)
+				nazalog.Debugf("stat. total=%dKb/s, audio=%dKb/s, video=%dKb/s, videoCtsNotZeroCount=%d, diffIdrTs=%d",
+					int(brTotal.Rate()), int(brAudio.Rate()), int(brVideo.Rate()), videoCtsNotZeroCount, diffIdrTs)
 			}
 		}
 	}()
@@ -127,43 +127,43 @@ func main() {
 				nazalog.Debugf("%+v", buf.String())
 			}
 		case httpflv.TagTypeAudio:
-			nazalog.Debugf("header=%+v, %+v", tag.Header, tag.IsAACSeqHeader())
+			nazalog.Debugf("header=%+v, %+v", tag.Header, tag.IsAacSeqHeader())
 			brAudio.Add(len(tag.Raw))
 
-			if tag.IsAACSeqHeader() {
+			if tag.IsAacSeqHeader() {
 				s := session.GetStat()
 				nazalog.Infof("aac seq header. readBytes=%d", s.ReadBytesSum)
 			}
 			if timestampCheckFlag {
-				if prevAudioTS != -1 && int64(tag.Header.Timestamp) < prevAudioTS {
-					nazalog.Errorf("audio timestamp error, less than prev audio timestamp. header=%+v, prevAudioTS=%d, diff=%d", tag.Header, prevAudioTS, int64(tag.Header.Timestamp)-prevAudioTS)
+				if prevAudioTs != -1 && int64(tag.Header.Timestamp) < prevAudioTs {
+					nazalog.Errorf("audio timestamp error, less than prev audio timestamp. header=%+v, prevAudioTs=%d, diff=%d", tag.Header, prevAudioTs, int64(tag.Header.Timestamp)-prevAudioTs)
 				}
-				if prevTS != -1 && int64(tag.Header.Timestamp) < prevTS {
-					nazalog.Warnf("audio timestamp error. less than prev global timestamp. header=%+v, prevTS=%d, diff=%d", tag.Header, prevTS, int64(tag.Header.Timestamp)-prevTS)
+				if prevTs != -1 && int64(tag.Header.Timestamp) < prevTs {
+					nazalog.Warnf("audio timestamp error. less than prev global timestamp. header=%+v, prevTs=%d, diff=%d", tag.Header, prevTs, int64(tag.Header.Timestamp)-prevTs)
 				}
 			}
-			prevAudioTS = int64(tag.Header.Timestamp)
-			prevTS = int64(tag.Header.Timestamp)
+			prevAudioTs = int64(tag.Header.Timestamp)
+			prevTs = int64(tag.Header.Timestamp)
 		case httpflv.TagTypeVideo:
 			analysisVideoTag(tag)
 
-			videoCTS := bele.BEUint24(tag.Raw[13:])
-			if videoCTS != 0 {
-				videoCTSNotZeroCount++
+			videoCts := bele.BeUint24(tag.Raw[13:])
+			if videoCts != 0 {
+				videoCtsNotZeroCount++
 			}
 
 			brVideo.Add(len(tag.Raw))
 
 			if timestampCheckFlag {
-				if prevVideoTS != -1 && int64(tag.Header.Timestamp) < prevVideoTS {
-					nazalog.Errorf("video timestamp error, less than prev video timestamp. header=%+v, prevVideoTS=%d, diff=%d", tag.Header, prevVideoTS, int64(tag.Header.Timestamp)-prevVideoTS)
+				if prevVideoTs != -1 && int64(tag.Header.Timestamp) < prevVideoTs {
+					nazalog.Errorf("video timestamp error, less than prev video timestamp. header=%+v, prevVideoTs=%d, diff=%d", tag.Header, prevVideoTs, int64(tag.Header.Timestamp)-prevVideoTs)
 				}
-				if prevTS != -1 && int64(tag.Header.Timestamp) < prevTS {
-					nazalog.Warnf("video timestamp error, less than prev global timestamp. header=%+v, prevTS=%d, diff=%d", tag.Header, prevTS, int64(tag.Header.Timestamp)-prevTS)
+				if prevTs != -1 && int64(tag.Header.Timestamp) < prevTs {
+					nazalog.Warnf("video timestamp error, less than prev global timestamp. header=%+v, prevTs=%d, diff=%d", tag.Header, prevTs, int64(tag.Header.Timestamp)-prevTs)
 				}
 			}
-			prevVideoTS = int64(tag.Header.Timestamp)
-			prevTS = int64(tag.Header.Timestamp)
+			prevVideoTs = int64(tag.Header.Timestamp)
+			prevTs = int64(tag.Header.Timestamp)
 		}
 	})
 	nazalog.Assert(nil, err)
@@ -173,8 +173,8 @@ func main() {
 
 const (
 	typeUnknown uint8 = 1
-	typeAVC     uint8 = 2
-	typeHEVC    uint8 = 3
+	typeAvc     uint8 = 2
+	typeHevc    uint8 = 3
 )
 
 var t uint8 = typeUnknown
@@ -182,16 +182,16 @@ var t uint8 = typeUnknown
 func analysisVideoTag(tag httpflv.Tag) {
 	var buf bytes.Buffer
 	if tag.IsVideoKeySeqHeader() {
-		if tag.IsAVCKeySeqHeader() {
-			t = typeAVC
+		if tag.IsAvcKeySeqHeader() {
+			t = typeAvc
 			buf.WriteString(" [AVC SeqHeader] ")
-			if _, _, err := avc.ParseSPSPPSFromSeqHeader(tag.Raw[11:]); err != nil {
+			if _, _, err := avc.ParseSpsPpsFromSeqHeader(tag.Raw[11:]); err != nil {
 				buf.WriteString(" parse sps pps failed.")
 			}
-		} else if tag.IsHEVCKeySeqHeader() {
-			t = typeHEVC
+		} else if tag.IsHevcKeySeqHeader() {
+			t = typeHevc
 			//nazalog.Debugf("%s", nazastring.DumpSliceByte(tag.Raw[11:]))
-			//vps, sps, pps, _ := hevc.ParseVPSSPSPPSFromSeqHeader(tag.Raw[11:])
+			//vps, sps, pps, _ := hevc.ParseVpsSpsPpsFromSeqHeader(tag.Raw[11:])
 			//nazalog.Debugf("%s", nazastring.DumpSliceByte(vps))
 			//nazalog.Debugf("%s", nazastring.DumpSliceByte(sps))
 			//nazalog.Debugf("%s", nazastring.DumpSliceByte(pps))
@@ -200,34 +200,34 @@ func analysisVideoTag(tag httpflv.Tag) {
 		}
 	} else {
 		body := tag.Raw[httpflv.TagHeaderSize+5 : len(tag.Raw)-httpflv.PrevTagSizeFieldSize]
-		nals, err := avc.IterateNALUAVCC(body)
+		nals, err := avc.SplitNaluAvcc(body)
 		nazalog.Assert(nil, err)
 
 		for _, nal := range nals {
 			switch t {
-			case typeAVC:
-				if avc.ParseNALUType(nal[0]) == avc.NALUTypeIDRSlice {
-					if prevIDRTS != int64(-1) {
-						diffIDRTS = int64(tag.Header.Timestamp) - prevIDRTS
+			case typeAvc:
+				if avc.ParseNaluType(nal[0]) == avc.NaluTypeIdrSlice {
+					if prevIdrTs != int64(-1) {
+						diffIdrTs = int64(tag.Header.Timestamp) - prevIdrTs
 					}
-					prevIDRTS = int64(tag.Header.Timestamp)
+					prevIdrTs = int64(tag.Header.Timestamp)
 				}
-				if avc.ParseNALUType(nal[0]) == avc.NALUTypeSEI {
-					delay := SEIDelayMS(nal)
+				if avc.ParseNaluType(nal[0]) == avc.NaluTypeSei {
+					delay := SeiDelayMs(nal)
 					if delay != -1 {
 						buf.WriteString(fmt.Sprintf("delay: %dms", delay))
 					}
 				}
 				sliceTypeReadable, _ := avc.ParseSliceTypeReadable(nal)
-				buf.WriteString(fmt.Sprintf(" [%s(%s)(%d)] ", avc.ParseNALUTypeReadable(nal[0]), sliceTypeReadable, len(nal)))
-			case typeHEVC:
-				if hevc.ParseNALUType(nal[0]) == hevc.NALUTypeSEI {
-					delay := SEIDelayMS(nal)
+				buf.WriteString(fmt.Sprintf(" [%s(%s)(%d)] ", avc.ParseNaluTypeReadable(nal[0]), sliceTypeReadable, len(nal)))
+			case typeHevc:
+				if hevc.ParseNaluType(nal[0]) == hevc.NaluTypeSei {
+					delay := SeiDelayMs(nal)
 					if delay != -1 {
 						buf.WriteString(fmt.Sprintf("delay: %dms", delay))
 					}
 				}
-				buf.WriteString(fmt.Sprintf(" [%s(%d)] ", hevc.ParseNALUTypeReadable(nal[0]), nal[0]))
+				buf.WriteString(fmt.Sprintf(" [%s(%d)] ", hevc.ParseNaluTypeReadable(nal[0]), nal[0]))
 			}
 		}
 	}
@@ -237,9 +237,9 @@ func analysisVideoTag(tag httpflv.Tag) {
 }
 
 // 注意，SEI的内容是自定义格式，解析的代码不具有通用性
-func SEIDelayMS(seiNALU []byte) int {
-	//nazalog.Debugf("sei: %s", hex.Dump(seiNALU))
-	items := strings.Split(string(seiNALU), ":")
+func SeiDelayMs(seiNalu []byte) int {
+	//nazalog.Debugf("sei: %s", hex.Dump(seiNalu))
+	items := strings.Split(string(seiNalu), ":")
 	if len(items) != 3 {
 		return -1
 	}
@@ -258,7 +258,7 @@ func parseFlag() string {
 	flag.Parse()
 	if *url == "" {
 		flag.Usage()
-		base.OSExitAndWaitPressIfWindows(1)
+		base.OsExitAndWaitPressIfWindows(1)
 	}
 	return *url
 }

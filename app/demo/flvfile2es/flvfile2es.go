@@ -35,7 +35,7 @@ func main() {
 	var err error
 	flvFileName, aacFileName, avcFileName := parseFlag()
 
-	var ffr httpflv.FLVFileReader
+	var ffr httpflv.FlvFileReader
 	err = ffr.Open(flvFileName)
 	nazalog.Assert(nil, err)
 	defer ffr.Dispose()
@@ -51,7 +51,7 @@ func main() {
 	defer vfp.Close()
 	nazalog.Infof("open es h264 file succ.")
 
-	var adts aac.ADTS
+	var ascCtx aac.AscContext
 
 	for {
 		tag, err := ffr.ReadTag()
@@ -66,16 +66,15 @@ func main() {
 		switch tag.Header.Type {
 		case httpflv.TagTypeAudio:
 			if payload[1] == 0 {
-				err = adts.InitWithAACAudioSpecificConfig(payload[2:])
+				err = ascCtx.Unpack(payload[2:])
 				nazalog.Assert(nil, err)
 			}
 
-			d, err := adts.CalcADTSHeader(uint16(len(payload) - 2))
-			nazalog.Assert(nil, err)
+			d := ascCtx.PackAdtsHeader(len(payload) - 2)
 			_, _ = afp.Write(d)
 			_, _ = afp.Write(payload[2:])
 		case httpflv.TagTypeVideo:
-			_ = avc.CaptureAVCC2AnnexB(vfp, payload)
+			_ = avc.CaptureAvcc2Annexb(vfp, payload)
 		}
 	}
 }
@@ -87,7 +86,7 @@ func parseFlag() (string, string, string) {
 	flag.Parse()
 	if *flv == "" || *a == "" || *v == "" {
 		flag.Usage()
-		base.OSExitAndWaitPressIfWindows(1)
+		base.OsExitAndWaitPressIfWindows(1)
 	}
 	return *flv, *a, *v
 }

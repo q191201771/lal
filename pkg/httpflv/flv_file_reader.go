@@ -12,35 +12,34 @@ import (
 	"os"
 )
 
-type FLVFileReader struct {
+type FlvFileReader struct {
 	fp               *os.File
-	hasReadFLVHeader bool
+	hasReadFlvHeader bool
 }
 
-func (ffr *FLVFileReader) Open(filename string) (err error) {
+func (ffr *FlvFileReader) Open(filename string) (err error) {
 	ffr.fp, err = os.Open(filename)
 	return
 }
 
-func (ffr *FLVFileReader) ReadFLVHeader() ([]byte, error) {
-	ffr.hasReadFLVHeader = true
+func (ffr *FlvFileReader) ReadFlvHeader() ([]byte, error) {
+	ffr.hasReadFlvHeader = true
 
 	flvHeader := make([]byte, flvHeaderSize)
 	_, err := ffr.fp.Read(flvHeader)
 	return flvHeader, err
 }
 
-func (ffr *FLVFileReader) ReadTag() (Tag, error) {
+func (ffr *FlvFileReader) ReadTag() (Tag, error) {
 	// lazy read flv header
-	if !ffr.hasReadFLVHeader {
-		_, _ = ffr.ReadFLVHeader()
-		ffr.hasReadFLVHeader = true
+	if !ffr.hasReadFlvHeader {
+		_, _ = ffr.ReadFlvHeader()
 	}
 
 	return readTag(ffr.fp)
 }
 
-func (ffr *FLVFileReader) Dispose() {
+func (ffr *FlvFileReader) Dispose() {
 	if ffr.fp != nil {
 		_ = ffr.fp.Close()
 	}

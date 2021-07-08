@@ -18,7 +18,7 @@ import (
 // @param filename    m3u8文件名
 // @param filenameBak m3u8临时文件名
 //
-func writeM3U8File(content []byte, filename string, filenameBak string) error {
+func writeM3u8File(content []byte, filename string, filenameBak string) error {
 	if err := fslCtx.WriteFile(filenameBak, content, 0666); err != nil {
 		return err
 	}
@@ -32,14 +32,14 @@ func writeM3U8File(content []byte, filename string, filenameBak string) error {
 // @param currDuration 当前duration
 //
 // @return 处理后的m3u8文件内容
-func updateTargetDurationInM3U8(content []byte, currDuration int) ([]byte, error) {
+func updateTargetDurationInM3u8(content []byte, currDuration int) ([]byte, error) {
 	l := bytes.Index(content, []byte("#EXT-X-TARGETDURATION:"))
 	if l == -1 {
-		return content, ErrHLS
+		return content, ErrHls
 	}
 	r := bytes.Index(content[l:], []byte{'\n'})
 	if r == -1 {
-		return content, ErrHLS
+		return content, ErrHls
 	}
 	oldDurationStr := bytes.TrimPrefix(content[l:l+r], []byte("#EXT-X-TARGETDURATION:"))
 	oldDuration, err := strconv.Atoi(string(oldDurationStr))
@@ -60,7 +60,7 @@ func updateTargetDurationInM3U8(content []byte, currDuration int) ([]byte, error
 //
 // @return durationSec m3u8中所有ts的时间总和。注意，使用的是m3u8文件中描述的ts时间，而不是读取ts文件中实际音视频数据的时间。
 //
-func CalcM3U8Duration(content []byte) (durationSec float64, err error) {
+func CalcM3u8Duration(content []byte) (durationSec float64, err error) {
 	lines := bytes.Split(content, []byte{'\n'})
 	for _, line := range lines {
 		if bytes.HasPrefix(line, []byte("#EXTINF:")) {

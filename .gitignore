@@ -1,3 +1,5 @@
+/app/demo/pullrtmp2pushrtsp/
+
 profile.out
 coverage.html
 *.aac
@@ -13,6 +15,7 @@ testdata
 /conf/self.conf.json
 /conf/self.center.conf.json
 /conf/self.edge.conf.json
+/conf/https.conf.json
 /tmp
 
 /bin

@@ -10,5 +10,5 @@ package httpts
 
 var (
 	SubSessionWriteChanSize  = 1024
-	SubSessionWriteTimeoutMS = 10000
+	SubSessionWriteTimeoutMs = 10000
 )

@@ -23,14 +23,14 @@ type PullSessionObserver interface {
 type PullSessionOption struct {
 	// 从调用Pull函数，到接收音视频数据的前一步，也即收到rtsp play response的超时时间
 	// 如果为0，则没有超时时间
-	PullTimeoutMS int
+	PullTimeoutMs int
 
-	OverTCP bool // 是否使用interleaved模式，也即是否通过rtsp command tcp连接传输rtp/rtcp数据
+	OverTcp bool // 是否使用interleaved模式，也即是否通过rtsp command tcp连接传输rtp/rtcp数据
 }
 
 var defaultPullSessionOption = PullSessionOption{
-	PullTimeoutMS: 10000,
-	OverTCP:       false,
+	PullTimeoutMs: 10000,
+	OverTcp:       false,
 }
 
 type PullSession struct {
@@ -47,13 +47,13 @@ func NewPullSession(observer PullSessionObserver, modOptions ...ModPullSessionOp
 		fn(&option)
 	}
 
-	uk := base.GenUKRTSPPullSession()
+	uk := base.GenUkRtspPullSession()
 	s := &PullSession{
 		uniqueKey: uk,
 	}
-	cmdSession := NewClientCommandSession(CCSTPullSession, uk, s, func(opt *ClientCommandSessionOption) {
-		opt.DoTimeoutMS = option.PullTimeoutMS
-		opt.OverTCP = option.OverTCP
+	cmdSession := NewClientCommandSession(CcstPullSession, uk, s, func(opt *ClientCommandSessionOption) {
+		opt.DoTimeoutMs = option.PullTimeoutMs
+		opt.OverTcp = option.OverTcp
 	})
 	baseInSession := NewBaseInSessionWithObserver(uk, s, observer)
 	s.baseInSession = baseInSession
@@ -63,13 +63,13 @@ func NewPullSession(observer PullSessionObserver, modOptions ...ModPullSessionOp
 }
 
 // 阻塞直到和对端完成拉流前，握手部分的工作（也即收到RTSP Play response），或者发生错误
-func (session *PullSession) Pull(rawURL string) error {
-	nazalog.Debugf("[%s] pull. url=%s", session.uniqueKey, rawURL)
-	return session.cmdSession.Do(rawURL)
+func (session *PullSession) Pull(rawUrl string) error {
+	nazalog.Debugf("[%s] pull. url=%s", session.uniqueKey, rawUrl)
+	return session.cmdSession.Do(rawUrl)
 }
 
-func (session *PullSession) GetSDP() ([]byte, sdp.LogicContext) {
-	return session.baseInSession.GetSDP()
+func (session *PullSession) GetSdp() ([]byte, sdp.LogicContext) {
+	return session.baseInSession.GetSdp()
 }
 
 // 文档请参考： interface IClientSessionLifecycle
@@ -85,22 +85,22 @@ func (session *PullSession) WaitChan() <-chan error {
 	return session.cmdSession.WaitChan()
 }
 
-// 文档请参考： interface ISessionURLContext
-func (session *PullSession) URL() string {
-	return session.cmdSession.URL()
+// 文档请参考： interface ISessionUrlContext
+func (session *PullSession) Url() string {
+	return session.cmdSession.Url()
 }
 
-// 文档请参考： interface ISessionURLContext
+// 文档请参考： interface ISessionUrlContext
 func (session *PullSession) AppName() string {
 	return session.cmdSession.AppName()
 }
 
-// 文档请参考： interface ISessionURLContext
+// 文档请参考： interface ISessionUrlContext
 func (session *PullSession) StreamName() string {
 	return session.cmdSession.StreamName()
 }
 
-// 文档请参考： interface ISessionURLContext
+// 文档请参考： interface ISessionUrlContext
 func (session *PullSession) RawQuery() string {
 	return session.cmdSession.RawQuery()
 }
@@ -133,12 +133,12 @@ func (session *PullSession) OnConnectResult() {
 }
 
 // ClientCommandSessionObserver, callback by ClientCommandSession
-func (session *PullSession) OnDescribeResponse(rawSDP []byte, sdpLogicCtx sdp.LogicContext) {
-	session.baseInSession.InitWithSDP(rawSDP, sdpLogicCtx)
+func (session *PullSession) OnDescribeResponse(rawSdp []byte, sdpLogicCtx sdp.LogicContext) {
+	session.baseInSession.InitWithSdp(rawSdp, sdpLogicCtx)
 }
 
 // ClientCommandSessionObserver, callback by ClientCommandSession
-func (session *PullSession) OnSetupWithConn(uri string, rtpConn, rtcpConn *nazanet.UDPConnection) {
+func (session *PullSession) OnSetupWithConn(uri string, rtpConn, rtcpConn *nazanet.UdpConnection) {
 	_ = session.baseInSession.SetupWithConn(uri, rtpConn, rtcpConn)
 }
 
@@ -149,7 +149,7 @@ func (session *PullSession) OnSetupWithChannel(uri string, rtpChannel, rtcpChann
 
 // ClientCommandSessionObserver, callback by ClientCommandSession
 func (session *PullSession) OnSetupResult() {
-	session.baseInSession.WriteRTPRTCPDummy()
+	session.baseInSession.WriteRtpRtcpDummy()
 }
 
 // ClientCommandSessionObserver, callback by ClientCommandSession

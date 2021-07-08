@@ -11,46 +11,46 @@ package base
 const (
 	// spec-rtmp_specification_1.0.pdf
 	// 7.1. Types of Messages
-	RTMPTypeIDAudio              uint8 = 8
-	RTMPTypeIDVideo              uint8 = 9
-	RTMPTypeIDMetadata           uint8 = 18 // RTMPTypeIDDataMessageAMF0
-	RTMPTypeIDSetChunkSize       uint8 = 1
-	RTMPTypeIDAck                uint8 = 3
-	RTMPTypeIDUserControl        uint8 = 4
-	RTMPTypeIDWinAckSize         uint8 = 5
-	RTMPTypeIDBandwidth          uint8 = 6
-	RTMPTypeIDCommandMessageAMF3 uint8 = 17
-	RTMPTypeIDCommandMessageAMF0 uint8 = 20
-	RTMPTypeIDAggregateMessage   uint8 = 22
+	RtmpTypeIdAudio              uint8 = 8
+	RtmpTypeIdVideo              uint8 = 9
+	RtmpTypeIdMetadata           uint8 = 18 // RtmpTypeIdDataMessageAmf0
+	RtmpTypeIdSetChunkSize       uint8 = 1
+	RtmpTypeIdAck                uint8 = 3
+	RtmpTypeIdUserControl        uint8 = 4
+	RtmpTypeIdWinAckSize         uint8 = 5
+	RtmpTypeIdBandwidth          uint8 = 6
+	RtmpTypeIdCommandMessageAmf3 uint8 = 17
+	RtmpTypeIdCommandMessageAmf0 uint8 = 20
+	RtmpTypeIdAggregateMessage   uint8 = 22
 
 	// user control message type
-	RTMPUserControlStreamBegin uint8 = 0
-	RTMPUserControlRecorded    uint8 = 4
+	RtmpUserControlStreamBegin uint8 = 0
+	RtmpUserControlRecorded    uint8 = 4
 
 	// spec-video_file_format_spec_v10.pdf
 	// Video tags
 	//   VIDEODATA
 	//     FrameType UB[4]
-	//     CodecID   UB[4]
+	//     CodecId   UB[4]
 	//   AVCVIDEOPACKET
 	//     AVCPacketType   UI8
 	//     CompositionTime SI24
 	//     Data            UI8[n]
-	RTMPFrameTypeKey   uint8 = 1
-	RTMPFrameTypeInter uint8 = 2
+	RtmpFrameTypeKey   uint8 = 1
+	RtmpFrameTypeInter uint8 = 2
 
-	RTMPCodecIDAVC  uint8 = 7
-	RTMPCodecIDHEVC uint8 = 12
+	RtmpCodecIdAvc  uint8 = 7
+	RtmpCodecIdHevc uint8 = 12
 
-	RTMPAVCPacketTypeSeqHeader  uint8 = 0
-	RTMPAVCPacketTypeNALU       uint8 = 1
-	RTMPHEVCPacketTypeSeqHeader       = RTMPAVCPacketTypeSeqHeader
-	RTMPHEVCPacketTypeNALU            = RTMPAVCPacketTypeNALU
+	RtmpAvcPacketTypeSeqHeader  uint8 = 0
+	RtmpAvcPacketTypeNalu       uint8 = 1
+	RtmpHevcPacketTypeSeqHeader       = RtmpAvcPacketTypeSeqHeader
+	RtmpHevcPacketTypeNalu            = RtmpAvcPacketTypeNalu
 
-	RTMPAVCKeyFrame    = RTMPFrameTypeKey<<4 | RTMPCodecIDAVC
-	RTMPHEVCKeyFrame   = RTMPFrameTypeKey<<4 | RTMPCodecIDHEVC
-	RTMPAVCInterFrame  = RTMPFrameTypeInter<<4 | RTMPCodecIDAVC
-	RTMPHEVCInterFrame = RTMPFrameTypeInter<<4 | RTMPCodecIDHEVC
+	RtmpAvcKeyFrame    = RtmpFrameTypeKey<<4 | RtmpCodecIdAvc
+	RtmpHevcKeyFrame   = RtmpFrameTypeKey<<4 | RtmpCodecIdHevc
+	RtmpAvcInterFrame  = RtmpFrameTypeInter<<4 | RtmpCodecIdAvc
+	RtmpHevcInterFrame = RtmpFrameTypeInter<<4 | RtmpCodecIdHevc
 
 	// spec-video_file_format_spec_v10.pdf
 	// Audio tags
@@ -62,53 +62,53 @@ const (
 	//   AACAUDIODATA
 	//     AACPacketType UI8
 	//     Data          UI8[n]
-	RTMPSoundFormatAAC         uint8 = 10 // 注意，视频的CodecID是后4位，音频是前4位
-	RTMPAACPacketTypeSeqHeader       = 0
-	RTMPAACPacketTypeRaw             = 1
+	RtmpSoundFormatAac         uint8 = 10 // 注意，视频的CodecId是后4位，音频是前4位
+	RtmpAacPacketTypeSeqHeader       = 0
+	RtmpAacPacketTypeRaw             = 1
 )
 
-type RTMPHeader struct {
-	CSID         int
+type RtmpHeader struct {
+	Csid         int
 	MsgLen       uint32 // 不包含header的大小
-	MsgTypeID    uint8  // 8 audio 9 video 18 metadata
-	MsgStreamID  int
+	MsgTypeId    uint8  // 8 audio 9 video 18 metadata
+	MsgStreamId  int
 	TimestampAbs uint32 // 经过计算得到的流上的绝对时间戳，单位毫秒
 }
 
-type RTMPMsg struct {
-	Header  RTMPHeader
-	Payload []byte // Payload不包含Header内容。如果需要将RTMPMsg序列化成RTMP chunk，可调用rtmp.ChunkDivider相关的函数
+type RtmpMsg struct {
+	Header  RtmpHeader
+	Payload []byte // Payload不包含Header内容。如果需要将RtmpMsg序列化成RTMP chunk，可调用rtmp.ChunkDivider相关的函数
 }
 
-func (msg RTMPMsg) IsAVCKeySeqHeader() bool {
-	return msg.Header.MsgTypeID == RTMPTypeIDVideo && msg.Payload[0] == RTMPAVCKeyFrame && msg.Payload[1] == RTMPAVCPacketTypeSeqHeader
+func (msg RtmpMsg) IsAvcKeySeqHeader() bool {
+	return msg.Header.MsgTypeId == RtmpTypeIdVideo && msg.Payload[0] == RtmpAvcKeyFrame && msg.Payload[1] == RtmpAvcPacketTypeSeqHeader
 }
 
-func (msg RTMPMsg) IsHEVCKeySeqHeader() bool {
-	return msg.Header.MsgTypeID == RTMPTypeIDVideo && msg.Payload[0] == RTMPHEVCKeyFrame && msg.Payload[1] == RTMPHEVCPacketTypeSeqHeader
+func (msg RtmpMsg) IsHevcKeySeqHeader() bool {
+	return msg.Header.MsgTypeId == RtmpTypeIdVideo && msg.Payload[0] == RtmpHevcKeyFrame && msg.Payload[1] == RtmpHevcPacketTypeSeqHeader
 }
 
-func (msg RTMPMsg) IsVideoKeySeqHeader() bool {
-	return msg.IsAVCKeySeqHeader() || msg.IsHEVCKeySeqHeader()
+func (msg RtmpMsg) IsVideoKeySeqHeader() bool {
+	return msg.IsAvcKeySeqHeader() || msg.IsHevcKeySeqHeader()
 }
 
-func (msg RTMPMsg) IsAVCKeyNALU() bool {
-	return msg.Header.MsgTypeID == RTMPTypeIDVideo && msg.Payload[0] == RTMPAVCKeyFrame && msg.Payload[1] == RTMPAVCPacketTypeNALU
+func (msg RtmpMsg) IsAvcKeyNalu() bool {
+	return msg.Header.MsgTypeId == RtmpTypeIdVideo && msg.Payload[0] == RtmpAvcKeyFrame && msg.Payload[1] == RtmpAvcPacketTypeNalu
 }
 
-func (msg RTMPMsg) IsHEVCKeyNALU() bool {
-	return msg.Header.MsgTypeID == RTMPTypeIDVideo && msg.Payload[0] == RTMPHEVCKeyFrame && msg.Payload[1] == RTMPHEVCPacketTypeNALU
+func (msg RtmpMsg) IsHevcKeyNalu() bool {
+	return msg.Header.MsgTypeId == RtmpTypeIdVideo && msg.Payload[0] == RtmpHevcKeyFrame && msg.Payload[1] == RtmpHevcPacketTypeNalu
 }
 
-func (msg RTMPMsg) IsVideoKeyNALU() bool {
-	return msg.IsAVCKeyNALU() || msg.IsHEVCKeyNALU()
+func (msg RtmpMsg) IsVideoKeyNalu() bool {
+	return msg.IsAvcKeyNalu() || msg.IsHevcKeyNalu()
 }
 
-func (msg RTMPMsg) IsAACSeqHeader() bool {
-	return msg.Header.MsgTypeID == RTMPTypeIDAudio && (msg.Payload[0]>>4) == RTMPSoundFormatAAC && msg.Payload[1] == RTMPAACPacketTypeSeqHeader
+func (msg RtmpMsg) IsAacSeqHeader() bool {
+	return msg.Header.MsgTypeId == RtmpTypeIdAudio && (msg.Payload[0]>>4) == RtmpSoundFormatAac && msg.Payload[1] == RtmpAacPacketTypeSeqHeader
 }
 
-func (msg RTMPMsg) Clone() (ret RTMPMsg) {
+func (msg RtmpMsg) Clone() (ret RtmpMsg) {
 	ret.Header = msg.Header
 	ret.Payload = make([]byte, len(msg.Payload))
 	copy(ret.Payload, msg.Payload)

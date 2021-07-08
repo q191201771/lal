@@ -8,4 +8,4 @@
 
 package rtprtcp
 
-const MaxRTPRTCPPacketSize = 1500
+const MaxRtpRtcpPacketSize = 1500

@@ -14,10 +14,10 @@ import (
 
 // rfc4566
 
-var ErrSDP = errors.New("lal.sdp: fxxk")
+var ErrSdp = errors.New("lal.sdp: fxxk")
 
 const (
-	ARTPMapEncodingNameH265 = "H265"
-	ARTPMapEncodingNameH264 = "H264"
-	ARTPMapEncodingNameAAC  = "MPEG4-GENERIC"
+	ARtpMapEncodingNameH265 = "H265"
+	ARtpMapEncodingNameH264 = "H264"
+	ARtpMapEncodingNameAac  = "MPEG4-GENERIC"
 )

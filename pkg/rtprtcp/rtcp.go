@@ -84,19 +84,19 @@ import (
 //        |                  profile-specific extensions                  |
 //        +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
 
-var ErrRTCP = errors.New("lal.rtcp: fxxk")
+var ErrRtcp = errors.New("lal.rtcp: fxxk")
 
 const (
-	RTCPPacketTypeSR  = 200 // 0xc8 Sender Report
-	RTCPPacketTypeRR  = 201 // 0xc9 Receiver Report
-	RTCPPacketTypeAPP = 204
+	RtcpPacketTypeSr  = 200 // 0xc8 Sender Report
+	RtcpPacketTypeRr  = 201 // 0xc9 Receiver Report
+	RtcpPacketTypeApp = 204
 
-	RTCPHeaderLength = 4
+	RtcpHeaderLength = 4
 
-	RTCPVersion = 2
+	RtcpVersion = 2
 )
 
-type RTCPHeader struct {
+type RtcpHeader struct {
 	Version       uint8  // 2b
 	Padding       uint8  // 1b
 	CountOrFormat uint8  // 5b
@@ -104,46 +104,46 @@ type RTCPHeader struct {
 	Length        uint16 // 16b, whole packet byte length = (Length+1) * 4
 }
 
-type SR struct {
-	SenderSSRC uint32
-	MSW        uint32 // NTP timestamp, most significant word
-	LSW        uint32 // NTP timestamp, least significant word
+type Sr struct {
+	SenderSsrc uint32
+	Msw        uint32 // NTP timestamp, most significant word
+	Lsw        uint32 // NTP timestamp, least significant word
 	Timestamp  uint32
 	PktCnt     uint32
 	OctetCnt   uint32
 }
 
-func ParseRTCPHeader(b []byte) RTCPHeader {
-	var h RTCPHeader
+func ParseRtcpHeader(b []byte) RtcpHeader {
+	var h RtcpHeader
 	h.Version = b[0] >> 6
 	h.Padding = (b[0] >> 5) & 0x1
 	h.CountOrFormat = b[0] & 0x1F
 	h.PacketType = b[1]
-	h.Length = bele.BEUint16(b[2:])
+	h.Length = bele.BeUint16(b[2:])
 	return h
 }
 
 // rfc3550 6.4.1
 //
 // @param b rtcp包，包含包头
-func ParseSR(b []byte) SR {
-	var s SR
-	s.SenderSSRC = bele.BEUint32(b[4:])
-	s.MSW = bele.BEUint32(b[8:])
-	s.LSW = bele.BEUint32(b[12:])
-	s.Timestamp = bele.BEUint32(b[16:])
-	s.PktCnt = bele.BEUint32(b[20:])
-	s.OctetCnt = bele.BEUint32(b[24:])
+func ParseSr(b []byte) Sr {
+	var s Sr
+	s.SenderSsrc = bele.BeUint32(b[4:])
+	s.Msw = bele.BeUint32(b[8:])
+	s.Lsw = bele.BeUint32(b[12:])
+	s.Timestamp = bele.BeUint32(b[16:])
+	s.PktCnt = bele.BeUint32(b[20:])
+	s.OctetCnt = bele.BeUint32(b[24:])
 	return s
 }
 
 // @param out 传出参数，注意，调用方保证长度>=4
-func (r *RTCPHeader) PackTo(out []byte) {
+func (r *RtcpHeader) PackTo(out []byte) {
 	out[0] = r.Version<<6 | r.Padding<<5 | r.CountOrFormat
 	out[1] = r.PacketType
-	bele.BEPutUint16(out[2:], r.Length)
+	bele.BePutUint16(out[2:], r.Length)
 }
 
-func (s *SR) GetMiddleNTP() uint32 {
-	return uint32(((uint64(s.MSW)<<32 | uint64(s.LSW)) << 16) >> 32)
+func (s *Sr) GetMiddleNtp() uint32 {
+	return uint32(((uint64(s.Msw)<<32 | uint64(s.Lsw)) << 16) >> 32)
 }

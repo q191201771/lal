@@ -10,17 +10,17 @@ package base
 
 const (
 	// StatGroup.AudioCodec
-	AudioCodecAAC = "AAC"
+	AudioCodecAac = "AAC"
 
 	// StatGroup.VideoCodec
-	VideoCodecAVC  = "H264"
-	VideoCodecHEVC = "H265"
+	VideoCodecAvc  = "H264"
+	VideoCodecHevc = "H265"
 
 	// StatSession.Protocol
-	ProtocolRTMP    = "RTMP"
-	ProtocolRTSP    = "RTSP"
-	ProtocolHTTPFLV = "HTTP-FLV"
-	ProtocolHTTPTS  = "HTTP-TS"
+	ProtocolRtmp    = "RTMP"
+	ProtocolRtsp    = "RTSP"
+	ProtocolHttpflv = "HTTP-FLV"
+	ProtocolHttpts  = "HTTP-TS"
 )
 
 type StatGroup struct {
@@ -48,7 +48,7 @@ type StatPull struct {
 
 type StatSession struct {
 	Protocol   string `json:"protocol"`
-	SessionID  string `json:"session_id"`
+	SessionId  string `json:"session_id"`
 	RemoteAddr string `json:"remote_addr"`
 	StartTime  string `json:"start_time"`
 
@@ -61,7 +61,7 @@ type StatSession struct {
 
 func StatSession2Pub(ss StatSession) (ret StatPub) {
 	ret.Protocol = ss.Protocol
-	ret.SessionID = ss.SessionID
+	ret.SessionId = ss.SessionId
 	ret.StartTime = ss.StartTime
 	ret.RemoteAddr = ss.RemoteAddr
 	ret.ReadBytesSum = ss.ReadBytesSum
@@ -74,7 +74,7 @@ func StatSession2Pub(ss StatSession) (ret StatPub) {
 
 func StatSession2Sub(ss StatSession) (ret StatSub) {
 	ret.Protocol = ss.Protocol
-	ret.SessionID = ss.SessionID
+	ret.SessionId = ss.SessionId
 	ret.StartTime = ss.StartTime
 	ret.RemoteAddr = ss.RemoteAddr
 	ret.ReadBytesSum = ss.ReadBytesSum
@@ -87,7 +87,7 @@ func StatSession2Sub(ss StatSession) (ret StatSub) {
 
 func StatSession2Pull(ss StatSession) (ret StatPull) {
 	ret.Protocol = ss.Protocol
-	ret.SessionID = ss.SessionID
+	ret.SessionId = ss.SessionId
 	ret.StartTime = ss.StartTime
 	ret.RemoteAddr = ss.RemoteAddr
 	ret.ReadBytesSum = ss.ReadBytesSum
