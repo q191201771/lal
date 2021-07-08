@@ -34,12 +34,26 @@ type Auth struct {
 	Algorithm string
 }
 
-func (a *Auth) FeedWwwAuthenticate(s, username, password string) {
+func (a *Auth) FeedWwwAuthenticate(auths []string, username, password string) {
 	a.Username = username
 	a.Password = password
+	var s string
+	if len(auths) > 1 {
+		for _, s = range auths {
+			s = strings.TrimPrefix(s, HeaderWwwAuthenticate)
+			s = strings.TrimSpace(s)
+			if strings.HasPrefix(s, AuthTypeDigest) {
+				break
+			}
+		}
+	} else if len(auths) == 1 {
+		s = auths[0]
+		s = strings.TrimPrefix(s, HeaderWwwAuthenticate)
+		s = strings.TrimSpace(s)
+	} else {
+		return
+	}
 
-	s = strings.TrimPrefix(s, HeaderWwwAuthenticate)
-	s = strings.TrimSpace(s)
 	if strings.HasPrefix(s, AuthTypeBasic) {
 		a.Typ = AuthTypeBasic
 		return

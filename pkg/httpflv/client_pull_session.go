@@ -225,7 +225,7 @@ func (session *PullSession) writeHttpRequest() error {
 	return err
 }
 
-func (session *PullSession) readHttpRespHeader() (statusLine string, headers map[string]string, err error) {
+func (session *PullSession) readHttpRespHeader() (statusLine string, headers map[string][]string, err error) {
 	// TODO chef: timeout
 	if statusLine, headers, err = nazahttp.ReadHttpHeader(session.conn); err != nil {
 		return

@@ -341,11 +341,14 @@ func (session *ClientCommandSession) writeOptions() error {
 		return err
 	}
 
-	methods := ctx.Headers[HeaderPublic]
-	if methods == "" {
+	methods, ok := ctx.Headers[HeaderPublic]
+	if !ok {
 		return nil
 	}
-	if strings.Contains(methods, MethodGetParameter) {
+	if methods[0] == "" {
+		return nil
+	}
+	if strings.Contains(methods[0], MethodGetParameter) {
 		session.methodGetParameterSupported = true
 	}
 	return nil
@@ -428,9 +431,9 @@ func (session *ClientCommandSession) writeOneSetup(setupUri string) error {
 		return err
 	}
 
-	session.sessionId = strings.Split(ctx.Headers[HeaderSession], ";")[0]
+	session.sessionId = strings.Split(ctx.Headers[HeaderSession][0], ";")[0]
 
-	rRtpPort, rRtcpPort, err := parseServerPort(ctx.Headers[HeaderTransport])
+	rRtpPort, rRtcpPort, err := parseServerPort(ctx.Headers[HeaderTransport][0])
 	if err != nil {
 		return err
 	}
@@ -480,7 +483,7 @@ func (session *ClientCommandSession) writeOneSetupTcp(setupUri string) error {
 		return err
 	}
 
-	session.sessionId = strings.Split(ctx.Headers[HeaderSession], ";")[0]
+	session.sessionId = strings.Split(ctx.Headers[HeaderSession][0], ";")[0]
 
 	// TODO chef: 这里没有解析回传的channel id了，因为我假定了它和request中的是一致的
 	session.observer.OnSetupWithChannel(setupUri, rtpChannel, rtcpChannel)
