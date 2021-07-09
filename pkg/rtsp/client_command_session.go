@@ -550,8 +550,8 @@ func (session *ClientCommandSession) writeCmdReadResp(method, uri string, header
 		if ctx.StatusCode != "401" {
 			return
 		}
-        //目前只处理第一个
-		session.auth.FeedWwwAuthenticate(ctx.Headers.Get(HeaderWwwAuthenticate), session.urlCtx.Username, session.urlCtx.Password)
+
+		session.auth.FeedWwwAuthenticate(ctx.Headers.Values(HeaderWwwAuthenticate), session.urlCtx.Username, session.urlCtx.Password)
 	}
 
 	err = ErrRtsp
