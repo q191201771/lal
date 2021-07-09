@@ -189,7 +189,7 @@ Loop:
 
 func (session *ServerCommandSession) handleOptions(requestCtx nazahttp.HttpReqMsgCtx) error {
 	nazalog.Infof("[%s] < R OPTIONS", session.uniqueKey)
-	resp := PackResponseOptions(requestCtx.Headers.Value(HeaderCSeq))
+	resp := PackResponseOptions(requestCtx.Headers.Get(HeaderCSeq))
 	_, err := session.conn.Write([]byte(resp))
 	return err
 }
@@ -218,7 +218,7 @@ func (session *ServerCommandSession) handleAnnounce(requestCtx nazahttp.HttpReqM
 		return ErrRtsp
 	}
 
-	resp := PackResponseAnnounce(requestCtx.Headers.Value(HeaderCSeq))
+	resp := PackResponseAnnounce(requestCtx.Headers.Get(HeaderCSeq))
 	_, err = session.conn.Write([]byte(resp))
 	return err
 }
@@ -243,7 +243,7 @@ func (session *ServerCommandSession) handleDescribe(requestCtx nazahttp.HttpReqM
 	sdpLogicCtx, _ := sdp.ParseSdp2LogicContext(rawSdp)
 	session.subSession.InitWithSdp(rawSdp, sdpLogicCtx)
 
-	resp := PackResponseDescribe(requestCtx.Headers.Value(HeaderCSeq), string(rawSdp))
+	resp := PackResponseDescribe(requestCtx.Headers.Get(HeaderCSeq), string(rawSdp))
 	_, err = session.conn.Write([]byte(resp))
 	return err
 }
@@ -256,7 +256,7 @@ func (session *ServerCommandSession) handleSetup(requestCtx nazahttp.HttpReqMsgC
 	host, _, _ := net.SplitHostPort(remoteAddr)
 
 	// 是否为interleaved模式
-	htv := requestCtx.Headers.Value(HeaderTransport)
+	htv := requestCtx.Headers.Get(HeaderTransport)
 	if strings.Contains(htv, TransportFieldInterleaved) {
 		rtpChannel, rtcpChannel, err := parseRtpRtcpChannel(htv)
 		if err != nil {
@@ -278,12 +278,12 @@ func (session *ServerCommandSession) handleSetup(requestCtx nazahttp.HttpReqMsgC
 			return ErrRtsp
 		}
 
-		resp := PackResponseSetup(requestCtx.Headers.Value(HeaderCSeq), htv)
+		resp := PackResponseSetup(requestCtx.Headers.Get(HeaderCSeq), htv)
 		_, err = session.conn.Write([]byte(resp))
 		return err
 	}
 
-	rRtpPort, rRtcpPort, err := parseClientPort(requestCtx.Headers.Value(HeaderTransport))
+	rRtpPort, rRtcpPort, err := parseClientPort(requestCtx.Headers.Get(HeaderTransport))
 	if err != nil {
 		nazalog.Errorf("[%s] parseClientPort failed. err=%+v", session.uniqueKey, err)
 		return err
@@ -313,14 +313,14 @@ func (session *ServerCommandSession) handleSetup(requestCtx nazahttp.HttpReqMsgC
 		return ErrRtsp
 	}
 
-	resp := PackResponseSetup(requestCtx.Headers.Value(HeaderCSeq), htv)
+	resp := PackResponseSetup(requestCtx.Headers.Get(HeaderCSeq), htv)
 	_, err = session.conn.Write([]byte(resp))
 	return err
 }
 
 func (session *ServerCommandSession) handleRecord(requestCtx nazahttp.HttpReqMsgCtx) error {
 	nazalog.Infof("[%s] < R RECORD", session.uniqueKey)
-	resp := PackResponseRecord(requestCtx.Headers.Value(HeaderCSeq))
+	resp := PackResponseRecord(requestCtx.Headers.Get(HeaderCSeq))
 	_, err := session.conn.Write([]byte(resp))
 	return err
 }
@@ -330,14 +330,14 @@ func (session *ServerCommandSession) handlePlay(requestCtx nazahttp.HttpReqMsgCt
 	if ok := session.observer.OnNewRtspSubSessionPlay(session.subSession); !ok {
 		return ErrRtsp
 	}
-	resp := PackResponsePlay(requestCtx.Headers.Value(HeaderCSeq))
+	resp := PackResponsePlay(requestCtx.Headers.Get(HeaderCSeq))
 	_, err := session.conn.Write([]byte(resp))
 	return err
 }
 
 func (session *ServerCommandSession) handleTeardown(requestCtx nazahttp.HttpReqMsgCtx) error {
 	nazalog.Infof("[%s] < R TEARDOWN", session.uniqueKey)
-	resp := PackResponseTeardown(requestCtx.Headers.Value(HeaderCSeq))
+	resp := PackResponseTeardown(requestCtx.Headers.Get(HeaderCSeq))
 	_, err := session.conn.Write([]byte(resp))
 	return err
 }
