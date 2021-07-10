@@ -38,14 +38,14 @@ func (a *Auth) FeedWwwAuthenticate(auths []string, username, password string) {
 	a.Username = username
 	a.Password = password
 	//目前只处理第一个
-    var s string
-	if len(auths)>0{
+	var s string
+	if len(auths) > 0 {
 		s = auths[0]
-	}else{
+	} else {
 		return
 	}
-		s = strings.TrimPrefix(s, HeaderWwwAuthenticate)
-		s = strings.TrimSpace(s)
+	s = strings.TrimPrefix(s, HeaderWwwAuthenticate)
+	s = strings.TrimSpace(s)
 	if strings.HasPrefix(s, AuthTypeBasic) {
 		a.Typ = AuthTypeBasic
 		return
