@@ -52,7 +52,7 @@ func (lc *LogicContext) IsPayloadTypeOrigin(t int) bool {
 }
 
 func (lc *LogicContext) IsAudioUnpackable() bool {
-	return lc.audioPayloadTypeBase == base.AvPacketPtAac
+	return lc.audioPayloadTypeBase == base.AvPacketPtAac && lc.Asc != nil
 }
 
 func (lc *LogicContext) IsVideoUnpackable() bool {
@@ -120,7 +120,7 @@ func ParseSdp2LogicContext(b []byte) (LogicContext, error) {
 				if md.AFmtPBase != nil {
 					ret.Asc, err = ParseAsc(md.AFmtPBase)
 					if err != nil {
-						return ret, err
+						nazalog.Warnf("parse asc from afmtp failed. err=%+v", err)
 					}
 				} else {
 					nazalog.Warnf("aac afmtp not exist.")
