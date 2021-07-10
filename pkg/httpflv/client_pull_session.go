@@ -12,6 +12,7 @@ import (
 	"context"
 	"fmt"
 	"net"
+	"net/http"
 	"time"
 
 	"github.com/q191201771/lal/pkg/base"
@@ -225,7 +226,7 @@ func (session *PullSession) writeHttpRequest() error {
 	return err
 }
 
-func (session *PullSession) readHttpRespHeader() (statusLine string, headers map[string]string, err error) {
+func (session *PullSession) readHttpRespHeader() (statusLine string, headers http.Header, err error) {
 	// TODO chef: timeout
 	if statusLine, headers, err = nazahttp.ReadHttpHeader(session.conn); err != nil {
 		return
