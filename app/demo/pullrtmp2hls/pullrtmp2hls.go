@@ -70,8 +70,8 @@ func parseFlag() (url string, hlsOutPath string, fragmentDurationMs int, fragmen
 		flag.Usage()
 		eo := filepath.FromSlash("./pullrtmp2hls/")
 		_, _ = fmt.Fprintf(os.Stderr, `Example:
-  %s -i rtmp://127.0.0.1:19350/live/test110 -o %s
-  %s -i rtmp://127.0.0.1:19350/live/test110 -o %s -d 5000 -n 5
+  %s -i rtmp://127.0.0.1:1935/live/test110 -o %s
+  %s -i rtmp://127.0.0.1:1935/live/test110 -o %s -d 5000 -n 5
 `, os.Args[0], eo, os.Args[0], eo)
 		base.OsExitAndWaitPressIfWindows(1)
 	}

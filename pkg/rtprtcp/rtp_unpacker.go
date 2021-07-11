@@ -60,7 +60,7 @@ type IRtpUnpackerProtocol interface {
 //                               假如sps和pps是一个stapA包，则合并结果为一个AvPacket
 type OnAvPacket func(pkt base.AvPacket)
 
-// 目前支持AVC，HEVC和AAC MPEG4-GENERIC/44100/2，业务方也可以自己实现IRtpUnpackerProtocol，甚至是IRtpUnpackContainer
+// 目前支持AVC，HEVC和AAC MPEG4-GENERIC，业务方也可以自己实现IRtpUnpackerProtocol，甚至是IRtpUnpackContainer
 func DefaultRtpUnpackerFactory(payloadType base.AvPacketPt, clockRate int, maxSize int, onAvPacket OnAvPacket) IRtpUnpacker {
 	var protocol IRtpUnpackerProtocol
 	switch payloadType {

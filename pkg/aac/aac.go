@@ -28,8 +28,14 @@ import (
 var ErrAac = errors.New("lal.aac: fxxk")
 
 const (
-	minAscLength     = 2
 	AdtsHeaderLength = 7
+
+	AscSamplingFrequencyIndex48000 = 3
+	AscSamplingFrequencyIndex44100 = 4
+)
+
+const (
+	minAscLength = 2
 )
 
 // <ISO_IEC_14496-3.pdf>
@@ -148,6 +154,16 @@ func (ascCtx *AscContext) PackToAdtsHeader(out []byte, frameLength int) error {
 	// no_raw_data_blocks_in_frame 6(2)
 	bw.WriteBits8(2, 0)
 	return nil
+}
+
+func (ascCtx *AscContext) GetSamplingFrequency() (int, error) {
+	switch ascCtx.SamplingFrequencyIndex {
+	case AscSamplingFrequencyIndex48000:
+		return 48000, nil
+	case AscSamplingFrequencyIndex44100:
+		return 44100, nil
+	}
+	return -1, ErrAac
 }
 
 type AdtsHeaderContext struct {

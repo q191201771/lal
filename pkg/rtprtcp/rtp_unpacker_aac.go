@@ -203,7 +203,7 @@ func parseAu(b []byte) (ret []au) {
 
 	if (nbAuHeaders > 1 && pau != uint32(len(b))) ||
 		(nbAuHeaders == 1 && pau < uint32(len(b))) {
-		nazalog.Warnf("rtp packet size invalid. nbAuHeaders=%d, pau=%d, len(b)=%d", nbAuHeaders, pau, len(b))
+		nazalog.Warnf("rtp packet size invalid. nbAuHeaders=%d, pau=%d, len(b)=%d, auHeadersLength=%d", nbAuHeaders, pau, len(b), auHeadersLength)
 	}
 
 	return

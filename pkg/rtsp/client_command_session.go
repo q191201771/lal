@@ -343,7 +343,7 @@ func (session *ClientCommandSession) writeOptions() error {
 
 	method := ctx.Headers.Get(HeaderPublic)
 
-	if method== "" {
+	if method == "" {
 		return nil
 	}
 	if strings.Contains(method, MethodGetParameter) {

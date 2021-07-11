@@ -458,3 +458,28 @@ a=control:track3
 	assert.Equal(t, nil, err)
 	_ = ctx
 }
+
+// sdp aac中a=fmtp缺少config字段，这个case的实际情况是后续也没有aac的rtp包
+func TestCase10(t *testing.T) {
+	golden := `v=0
+o=- 0 0 IN IP4 0.0.0.0
+s=rtsp_demo
+t=0 0
+a=control:rtsp://10.10.10.188:554/stream0
+a=range:npt=0-
+m=video 0 RTP/AVP 96
+c=IN IP4 0.0.0.0
+a=rtpmap:96 H264/90000
+a=fmtp:96 packetization-mode=1;sprop-parameter-sets=Z00AKp2oHgCJ+WbgICAgQA==,aO48gA==
+a=control:rtsp://10.10.10.188:554/stream0/track1
+m=audio 0 RTP/AVP 97
+c=IN IP4 0.0.0.0
+a=rtpmap:97 MPEG4-GENERIC/44100/2
+a=fmtp:97 profile-level-id=1;mode=AAC-hbr;sizelength=13;indexlength=3;indexdeltalength=3
+a=control:rtsp://10.10.10.188:554/stream0/track2
+`
+	golden = strings.ReplaceAll(golden, "\n", "\r\n")
+	ctx, err := ParseSdp2LogicContext([]byte(golden))
+	assert.Equal(t, nil, err)
+	_ = ctx
+}

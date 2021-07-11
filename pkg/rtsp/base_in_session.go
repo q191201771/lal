@@ -114,12 +114,12 @@ func (session *BaseInSession) InitWithSdp(rawSdp []byte, sdpLogicCtx sdp.LogicCo
 	if session.sdpLogicCtx.IsAudioUnpackable() {
 		session.audioUnpacker = rtprtcp.DefaultRtpUnpackerFactory(session.sdpLogicCtx.GetAudioPayloadTypeBase(), session.sdpLogicCtx.AudioClockRate, unpackerItemMaxSize, session.onAvPacketUnpacked)
 	} else {
-		nazalog.Warnf("[%s] audio unpacker not support for this type yet.", session.uniqueKey)
+		nazalog.Warnf("[%s] audio unpacker not support for this type yet. logicCtx=%+v", session.uniqueKey, session.sdpLogicCtx)
 	}
 	if session.sdpLogicCtx.IsVideoUnpackable() {
 		session.videoUnpacker = rtprtcp.DefaultRtpUnpackerFactory(session.sdpLogicCtx.GetVideoPayloadTypeBase(), session.sdpLogicCtx.VideoClockRate, unpackerItemMaxSize, session.onAvPacketUnpacked)
 	} else {
-		nazalog.Warnf("[%s] video unpacker not support this type yet.", session.uniqueKey)
+		nazalog.Warnf("[%s] video unpacker not support this type yet. logicCtx=%+v", session.uniqueKey, session.sdpLogicCtx)
 	}
 
 	session.audioRrProducer = rtprtcp.NewRrProducer(session.sdpLogicCtx.AudioClockRate)
