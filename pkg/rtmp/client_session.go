@@ -41,11 +41,12 @@ type ClientSession struct {
 	hc             IHandshakeClient
 	peerWinAckSize int
 
-	conn         connection.Connection
-	prevConnStat connection.Stat
-	staleStat    *connection.Stat
-	stat         base.StatSession
-	doResultChan chan struct{}
+	conn                  connection.Connection
+	prevConnStat          connection.Stat
+	staleStat             *connection.Stat
+	stat                  base.StatSession
+	doResultChan          chan struct{}
+	hasNotifyDoResultSucc bool
 
 	// 只有PullSession使用
 	onReadRtmpAvMsg OnReadRtmpAvMsg
@@ -516,6 +517,13 @@ func (s *ClientSession) doProtocolControlMessage(stream *Stream) error {
 }
 
 func (s *ClientSession) notifyDoResultSucc() {
+	// 碰上过对端服务器实现有问题，对于play信令回复了两次相同的结果，我们在这里忽略掉非第一次的回复
+	if s.hasNotifyDoResultSucc {
+		nazalog.Warnf("[%s] has notified do result succ already, ignore it", s.uniqueKey)
+		return
+	}
+	s.hasNotifyDoResultSucc = true
+
 	s.conn.ModWriteChanSize(wChanSize)
 	s.conn.ModWriteBufSize(writeBufSize)
 	s.conn.ModReadTimeoutMs(s.option.ReadAvTimeoutMs)
