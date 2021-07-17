@@ -38,7 +38,7 @@ func (r *RtpPackerPayloadAac) Pack(in []byte, maxSize int) (out [][]byte) {
 
 	item := make([]byte, 4+len(in))
 	item[0] = 0
-	item[1] = uint8(auHeadersLength*8 - 7)
+	item[1] = uint8(auHeadersLength * 8)
 	item[2] = uint8(len(in) >> 5)
 	item[3] = uint8((len(in) & 0x1F) << 3)
 	copy(item[4:], in)
