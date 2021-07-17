@@ -34,10 +34,10 @@ func main() {
 	})
 
 	remuxer := remux.NewRtmp2RtspRemuxer(
-		func(rawSdp []byte, sdpCtx sdp.LogicContext) {
+		func(sdpCtx sdp.LogicContext) {
 			// remuxer完成前期工作，生成sdp并开始push
 			nazalog.Info("start push.")
-			err := pushSession.Push(outRtspUrl, rawSdp, sdpCtx)
+			err := pushSession.Push(outRtspUrl, sdpCtx)
 			nazalog.Assert(nil, err)
 			nazalog.Info("push succ.")
 

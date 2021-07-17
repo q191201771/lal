@@ -56,6 +56,7 @@ type Group struct {
 	rtmpPubSession   *rtmp.ServerSession
 	rtspPubSession   *rtsp.PubSession
 	rtsp2RtmpRemuxer *remux.AvPacket2RtmpRemuxer
+	rtmp2RtspRemuxer *remux.Rtmp2RtspRemuxer
 	// pull
 	pullEnable bool
 	pullUrl    string
@@ -69,20 +70,18 @@ type Group struct {
 	url2PushProxy map[string]*pushProxy
 	// hls
 	hlsMuxer *hls.Muxer
-
+	// record
 	recordFlv    *httpflv.FlvFileWriter
 	recordMpegts *mpegts.FileWriter
-
 	// rtmp pub/pull使用
 	rtmpGopCache    *GopCache
 	httpflvGopCache *GopCache
-
 	//
 	rtmpBufWriter base.IBufWriter // TODO(chef): 后面可以在业务层加一个定时Flush
-
 	// mpegts使用
 	patpmt []byte
-
+	// rtsp使用
+	sdp []byte
 	//
 	tickCount uint32
 }
@@ -162,6 +161,7 @@ func (group *Group) Tick() {
 			if readAlive, _ := group.rtmpPubSession.IsAlive(); !readAlive {
 				nazalog.Warnf("[%s] session timeout. session=%s", group.UniqueKey, group.rtmpPubSession.UniqueKey())
 				group.rtmpPubSession.Dispose()
+				group.rtmp2RtspRemuxer = nil
 			}
 		}
 		if group.rtspPubSession != nil {
@@ -233,6 +233,7 @@ func (group *Group) Tick() {
 			session.UpdateStat(calcSessionStatIntervalSec)
 		}
 	}
+
 	group.tickCount++
 }
 
@@ -240,9 +241,6 @@ func (group *Group) Tick() {
 // 注意，Dispose后，不应再使用这个对象。
 // 值得一提，如果是从其他协程回调回来的消息，在使用Group中的资源前，要判断资源是否存在以及可用。
 //
-// TODO chef:
-//  后续弄个协程来替换掉目前锁的方式，来做消息同步。这样有个好处，就是不用写很多的资源有效判断。统一写一个就好了。
-//  目前Dispose在IsTotalEmpty时调用，暂时没有这个问题。
 func (group *Group) Dispose() {
 	nazalog.Infof("[%s] lifecycle dispose group.", group.UniqueKey)
 	group.exitChan <- struct{}{}
@@ -253,6 +251,7 @@ func (group *Group) Dispose() {
 	if group.rtmpPubSession != nil {
 		group.rtmpPubSession.Dispose()
 		group.rtmpPubSession = nil
+		group.rtmp2RtspRemuxer = nil
 	}
 	if group.rtspPubSession != nil {
 		group.rtspPubSession.Dispose()
@@ -287,6 +286,8 @@ func (group *Group) Dispose() {
 	}
 }
 
+// ---------------------------------------------------------------------------------------------------------------------
+
 func (group *Group) AddRtmpPubSession(session *rtmp.ServerSession) bool {
 	nazalog.Debugf("[%s] [%s] add PubSession into group.", group.UniqueKey, session.UniqueKey())
 
@@ -300,6 +301,16 @@ func (group *Group) AddRtmpPubSession(session *rtmp.ServerSession) bool {
 
 	group.rtmpPubSession = session
 	group.addIn()
+
+	if config.RtspConfig.Enable {
+		group.rtmp2RtspRemuxer = remux.NewRtmp2RtspRemuxer(
+			func(sdpCtx sdp.LogicContext) {
+				group.sdp = sdpCtx.RawSdp
+			},
+			group.onRtpPacket,
+		)
+	}
+
 	session.SetPubSessionObserver(group)
 
 	return true
@@ -360,6 +371,8 @@ func (group *Group) DelRtmpPullSession(session *rtmp.PullSession) {
 	defer group.mutex.Unlock()
 	group.delRtmpPullSession(session)
 }
+
+// ---------------------------------------------------------------------------------------------------------------------
 
 func (group *Group) AddRtmpSubSession(session *rtmp.ServerSession) {
 	nazalog.Debugf("[%s] [%s] add SubSession into group.", group.UniqueKey, session.UniqueKey())
@@ -429,14 +442,14 @@ func (group *Group) DelHttptsSubSession(session *httpts.SubSession) {
 func (group *Group) HandleNewRtspSubSessionDescribe(session *rtsp.SubSession) (ok bool, sdp []byte) {
 	group.mutex.Lock()
 	defer group.mutex.Unlock()
-	if group.rtspPubSession == nil {
-		nazalog.Warnf("[%s] close rtsp subSession while describe but pubSession not exist. [%s]",
+	// TODO(chef): 应该有等待机制，而不是直接关闭
+	if group.sdp == nil {
+		nazalog.Warnf("[%s] close rtsp subSession while describe but sdp not exist. [%s]",
 			group.UniqueKey, session.UniqueKey())
 		return false, nil
 	}
 
-	sdp, _ = group.rtspPubSession.GetSdp()
-	return true, sdp
+	return true, group.sdp
 }
 
 func (group *Group) HandleNewRtspSubSessionPlay(session *rtsp.SubSession) bool {
@@ -473,6 +486,8 @@ func (group *Group) DelRtmpPushSession(url string, session *rtmp.PushSession) {
 		group.url2PushProxy[url].isPushing = false
 	}
 }
+
+// ---------------------------------------------------------------------------------------------------------------------
 
 func (group *Group) IsTotalEmpty() bool {
 	group.mutex.Lock()
@@ -542,9 +557,7 @@ func (group *Group) OnRtpPacket(pkt rtprtcp.RtpPacket) {
 	group.mutex.Lock()
 	defer group.mutex.Unlock()
 
-	for s := range group.rtspSubSessionSet {
-		s.WriteRtpPacket(pkt)
-	}
+	group.onRtpPacket(pkt)
 }
 
 // rtsp.PubSession
@@ -552,6 +565,7 @@ func (group *Group) OnSdp(sdpCtx sdp.LogicContext) {
 	group.mutex.Lock()
 	defer group.mutex.Unlock()
 
+	group.sdp = sdpCtx.RawSdp
 	group.rtsp2RtmpRemuxer.OnSdp(sdpCtx)
 }
 
@@ -632,6 +646,7 @@ func (group *Group) KickOutSession(sessionId string) bool {
 	if strings.HasPrefix(sessionId, base.UkPreRtmpServerSession) {
 		if group.rtmpPubSession != nil {
 			group.rtmpPubSession.Dispose()
+			group.rtmp2RtspRemuxer = nil
 			return true
 		}
 	} else if strings.HasPrefix(sessionId, base.UkPreRtspPubSession) {
@@ -664,6 +679,8 @@ func (group *Group) KickOutSession(sessionId string) bool {
 	return false
 }
 
+// ---------------------------------------------------------------------------------------------------------------------
+
 func (group *Group) delRtmpPubSession(session *rtmp.ServerSession) {
 	nazalog.Debugf("[%s] [%s] del rtmp PubSession from group.", group.UniqueKey, session.UniqueKey())
 
@@ -673,6 +690,7 @@ func (group *Group) delRtmpPubSession(session *rtmp.ServerSession) {
 	}
 
 	group.rtmpPubSession = nil
+	group.rtmp2RtspRemuxer = nil
 	group.delIn()
 }
 
@@ -728,23 +746,28 @@ func (group *Group) broadcastByRtmpMsg(msg base.RtmpMsg) {
 
 	//nazalog.Debugf("[%s] broadcaseRTMP. header=%+v, %s", group.UniqueKey, msg.Header, hex.Dump(nazastring.SubSliceSafety(msg.Payload, 7)))
 
-	// # 0. hls
+	// # hls
 	if config.HlsConfig.Enable && group.hlsMuxer != nil {
 		group.hlsMuxer.FeedRtmpMessage(msg)
 	}
 
-	// # 1. 设置好用于发送的 rtmp 头部信息
+	// # rtsp
+	if config.RtspConfig.Enable && group.rtmp2RtspRemuxer != nil {
+		group.rtmp2RtspRemuxer.FeedRtmpMsg(msg)
+	}
+
+	// # 设置好用于发送的 rtmp 头部信息
 	currHeader := remux.MakeDefaultRtmpHeader(msg.Header)
 	if currHeader.MsgLen != uint32(len(msg.Payload)) {
 		nazalog.Errorf("[%s] diff. msgLen=%d, payload len=%d, %+v", group.UniqueKey, currHeader.MsgLen, len(msg.Payload), msg.Header)
 	}
 
-	// # 2. 懒初始化rtmp chunk切片，以及httpflv转换
+	// # 懒初始化rtmp chunk切片，以及httpflv转换
 	lcd.Init(msg.Payload, &currHeader)
 	lrm2ft.Init(msg)
 
-	// # 3. 广播。遍历所有 rtmp sub session，转发数据
-	// ## 3.1. 如果是新的 sub session，发送已缓存的信息
+	// # 广播。遍历所有 rtmp sub session，转发数据
+	// ## 如果是新的 sub session，发送已缓存的信息
 	for session := range group.rtmpSubSessionSet {
 		if session.IsFresh {
 			// TODO chef: 头信息和full gop也可以在SubSession刚加入时发送
@@ -790,7 +813,7 @@ func (group *Group) broadcastByRtmpMsg(msg base.RtmpMsg) {
 			session.ShouldWaitVideoKeyFrame = false
 		}
 	}
-	// ## 3.2. 转发本次数据
+	// ## 转发本次数据
 	if len(group.rtmpSubSessionSet) > 0 {
 		group.rtmpBufWriter.Write(lcd.Get())
 	}
@@ -825,7 +848,7 @@ func (group *Group) broadcastByRtmpMsg(msg base.RtmpMsg) {
 		}
 	}
 
-	// # 4. 广播。遍历所有 httpflv sub session，转发数据
+	// # 广播。遍历所有 httpflv sub session，转发数据
 	for session := range group.httpflvSubSessionSet {
 		if session.IsFresh {
 			if group.httpflvGopCache.Metadata != nil {
@@ -862,14 +885,14 @@ func (group *Group) broadcastByRtmpMsg(msg base.RtmpMsg) {
 		}
 	}
 
-	// # 5. 录制flv文件
+	// # 录制flv文件
 	if group.recordFlv != nil {
 		if err := group.recordFlv.WriteRaw(lrm2ft.Get()); err != nil {
 			nazalog.Errorf("[%s] record flv write error. err=%+v", group.UniqueKey, err)
 		}
 	}
 
-	// # 6. 缓存关键信息，以及gop
+	// # 缓存关键信息，以及gop
 	if config.RtmpConfig.Enable {
 		group.rtmpGopCache.Feed(msg, lcd.Get)
 	}
@@ -877,7 +900,7 @@ func (group *Group) broadcastByRtmpMsg(msg base.RtmpMsg) {
 		group.httpflvGopCache.Feed(msg, lrm2ft.Get)
 	}
 
-	// # 7. 记录stat
+	// # 记录stat
 	if group.stat.AudioCodec == "" {
 		if msg.IsAacSeqHeader() {
 			group.stat.AudioCodec = base.AudioCodecAac
@@ -914,6 +937,12 @@ func (group *Group) broadcastByRtmpMsg(msg base.RtmpMsg) {
 				}
 			}
 		}
+	}
+}
+
+func (group *Group) onRtpPacket(pkt rtprtcp.RtpPacket) {
+	for s := range group.rtspSubSessionSet {
+		s.WriteRtpPacket(pkt)
 	}
 }
 
@@ -1151,6 +1180,8 @@ func (group *Group) delIn() {
 	// TODO(chef) 情况rtsp pub缓存的asc sps pps等数据
 
 	group.patpmt = nil
+
+	group.sdp = nil
 }
 
 func (group *Group) disposeHlsMuxer() {

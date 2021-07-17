@@ -51,7 +51,7 @@ type ClientCommandSessionObserver interface {
 	OnConnectResult()
 
 	// only for PullSession
-	OnDescribeResponse(rawSdp []byte, sdpLogicCtx sdp.LogicContext)
+	OnDescribeResponse(sdpCtx sdp.LogicContext)
 
 	OnSetupWithConn(uri string, rtpConn, rtcpConn *nazanet.UdpConnection)
 	OnSetupWithChannel(uri string, rtpChannel, rtcpChannel int)
@@ -76,8 +76,7 @@ type ClientCommandSession struct {
 	methodGetParameterSupported bool
 	auth                        Auth
 
-	rawSdp      []byte
-	sdpLogicCtx sdp.LogicContext
+	sdpCtx sdp.LogicContext
 
 	sessionId string
 	channel   int
@@ -104,9 +103,8 @@ func NewClientCommandSession(t ClientCommandSessionType, uniqueKey string, obser
 }
 
 // only for PushSession
-func (session *ClientCommandSession) InitWithSdp(rawSdp []byte, sdpLogicCtx sdp.LogicContext) {
-	session.rawSdp = rawSdp
-	session.sdpLogicCtx = sdpLogicCtx
+func (session *ClientCommandSession) InitWithSdp(sdpCtx sdp.LogicContext) {
+	session.sdpCtx = sdpCtx
 }
 
 func (session *ClientCommandSession) Do(rawUrl string) error {
@@ -361,13 +359,12 @@ func (session *ClientCommandSession) writeDescribe() error {
 		return err
 	}
 
-	sdpLogicCtx, err := sdp.ParseSdp2LogicContext(ctx.Body)
+	sdpCtx, err := sdp.ParseSdp2LogicContext(ctx.Body)
 	if err != nil {
 		return err
 	}
-	session.rawSdp = ctx.Body
-	session.sdpLogicCtx = sdpLogicCtx
-	session.observer.OnDescribeResponse(session.rawSdp, session.sdpLogicCtx)
+	session.sdpCtx = sdpCtx
+	session.observer.OnDescribeResponse(session.sdpCtx)
 	return nil
 }
 
@@ -375,13 +372,13 @@ func (session *ClientCommandSession) writeAnnounce() error {
 	headers := map[string]string{
 		HeaderAccept: HeaderAcceptApplicationSdp,
 	}
-	_, err := session.writeCmdReadResp(MethodAnnounce, session.urlCtx.RawUrlWithoutUserInfo, headers, string(session.rawSdp))
+	_, err := session.writeCmdReadResp(MethodAnnounce, session.urlCtx.RawUrlWithoutUserInfo, headers, string(session.sdpCtx.RawSdp))
 	return err
 }
 
 func (session *ClientCommandSession) writeSetup() error {
-	if session.sdpLogicCtx.HasVideoAControl() {
-		uri := session.sdpLogicCtx.MakeVideoSetupUri(session.urlCtx.RawUrlWithoutUserInfo)
+	if session.sdpCtx.HasVideoAControl() {
+		uri := session.sdpCtx.MakeVideoSetupUri(session.urlCtx.RawUrlWithoutUserInfo)
 		if session.option.OverTcp {
 			if err := session.writeOneSetupTcp(uri); err != nil {
 				return err
@@ -393,8 +390,8 @@ func (session *ClientCommandSession) writeSetup() error {
 		}
 	}
 	// can't else if
-	if session.sdpLogicCtx.HasAudioAControl() {
-		uri := session.sdpLogicCtx.MakeAudioSetupUri(session.urlCtx.RawUrlWithoutUserInfo)
+	if session.sdpCtx.HasAudioAControl() {
+		uri := session.sdpCtx.MakeAudioSetupUri(session.urlCtx.RawUrlWithoutUserInfo)
 		if session.option.OverTcp {
 			if err := session.writeOneSetupTcp(uri); err != nil {
 				return err

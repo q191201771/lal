@@ -21,7 +21,8 @@ import (
 )
 
 // AvPacket转换为RTMP
-// 目前AvPacket来自RTSP的sdp以及rtp包。理论上也支持webrtc，后续接入webrtc时再验证
+// 目前AvPacket来自RTSP的sdp以及rtp的合帧包。理论上也支持webrtc，后续接入webrtc时再验证
+//
 type AvPacket2RtmpRemuxer struct {
 	onRtmpAvMsg rtmp.OnReadRtmpAvMsg
 

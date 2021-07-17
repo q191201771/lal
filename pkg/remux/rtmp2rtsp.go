@@ -46,9 +46,12 @@ type Rtmp2RtspRemuxer struct {
 	videoPacker *rtprtcp.RtpPacker
 }
 
-type OnSdp func(rawSdp []byte, sdpCtx sdp.LogicContext)
+type OnSdp func(sdpCtx sdp.LogicContext)
 type OnRtpPacket func(pkt rtprtcp.RtpPacket)
 
+// @param onSdp:       每次回调为独立的内存块，回调结束后，内部不再使用该内存块
+// @param onRtpPacket: 每次回调为独立的内存块，回调结束后，内部不再使用该内存块
+//
 func NewRtmp2RtspRemuxer(onSdp OnSdp, onRtpPacket OnRtpPacket) *Rtmp2RtspRemuxer {
 	return &Rtmp2RtspRemuxer{
 		onSdp:       onSdp,
@@ -122,9 +125,9 @@ func (r *Rtmp2RtspRemuxer) doAnalyze() {
 		}
 
 		// 回调sdp
-		ctx, rawSdp, err := sdp.Pack(r.vps, r.sps, r.pps, r.asc)
+		ctx, err := sdp.Pack(r.vps, r.sps, r.pps, r.asc)
 		nazalog.Assert(nil, err)
-		r.onSdp(rawSdp, ctx)
+		r.onSdp(ctx)
 
 		// 分析阶段缓存的数据
 		for i := range r.msgCache {

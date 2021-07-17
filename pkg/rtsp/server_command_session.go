@@ -203,7 +203,7 @@ func (session *ServerCommandSession) handleAnnounce(requestCtx nazahttp.HttpReqM
 		return err
 	}
 
-	sdpLogicCtx, err := sdp.ParseSdp2LogicContext(requestCtx.Body)
+	sdpCtx, err := sdp.ParseSdp2LogicContext(requestCtx.Body)
 	if err != nil {
 		nazalog.Errorf("[%s] parse sdp failed. err=%v", session.uniqueKey, err)
 		return err
@@ -211,7 +211,7 @@ func (session *ServerCommandSession) handleAnnounce(requestCtx nazahttp.HttpReqM
 
 	session.pubSession = NewPubSession(urlCtx, session)
 	nazalog.Infof("[%s] link new PubSession. [%s]", session.uniqueKey, session.pubSession.uniqueKey)
-	session.pubSession.InitWithSdp(requestCtx.Body, sdpLogicCtx)
+	session.pubSession.InitWithSdp(sdpCtx)
 
 	if ok := session.observer.OnNewRtspPubSession(session.pubSession); !ok {
 		nazalog.Warnf("[%s] force close pubsession.", session.pubSession.uniqueKey)
@@ -240,8 +240,8 @@ func (session *ServerCommandSession) handleDescribe(requestCtx nazahttp.HttpReqM
 		return ErrRtsp
 	}
 
-	sdpLogicCtx, _ := sdp.ParseSdp2LogicContext(rawSdp)
-	session.subSession.InitWithSdp(rawSdp, sdpLogicCtx)
+	sdpCtx, _ := sdp.ParseSdp2LogicContext(rawSdp)
+	session.subSession.InitWithSdp(sdpCtx)
 
 	resp := PackResponseDescribe(requestCtx.Headers.Get(HeaderCSeq), string(rawSdp))
 	_, err = session.conn.Write([]byte(resp))

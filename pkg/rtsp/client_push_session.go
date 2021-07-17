@@ -57,10 +57,10 @@ func NewPushSession(modOptions ...ModPushSessionOption) *PushSession {
 }
 
 // 阻塞直到和对端完成推流前，握手部分的工作（也即收到RTSP Record response），或者发生错误
-func (session *PushSession) Push(rawUrl string, rawSdp []byte, sdpLogicCtx sdp.LogicContext) error {
+func (session *PushSession) Push(rawUrl string, sdpCtx sdp.LogicContext) error {
 	nazalog.Debugf("[%s] push. url=%s", session.uniqueKey, rawUrl)
-	session.cmdSession.InitWithSdp(rawSdp, sdpLogicCtx)
-	session.baseOutSession.InitWithSdp(rawSdp, sdpLogicCtx)
+	session.cmdSession.InitWithSdp(sdpCtx)
+	session.baseOutSession.InitWithSdp(sdpCtx)
 	return session.cmdSession.Do(rawUrl)
 }
 
@@ -129,7 +129,7 @@ func (session *PushSession) OnConnectResult() {
 }
 
 // ClientCommandSessionObserver, callback by ClientCommandSession
-func (session *PushSession) OnDescribeResponse(rawSdp []byte, sdpLogicCtx sdp.LogicContext) {
+func (session *PushSession) OnDescribeResponse(sdpCtx sdp.LogicContext) {
 	// noop
 }
 

@@ -19,7 +19,7 @@ import (
 	"github.com/q191201771/lal/pkg/base"
 )
 
-func Pack(vps, sps, pps, asc []byte) (ctx LogicContext, raw []byte, err error) {
+func Pack(vps, sps, pps, asc []byte) (ctx LogicContext, err error) {
 	// 判断音频、视频是否存在，以及视频是H264还是H265
 	var hasAudio, hasVideo, isHevc bool
 	if sps != nil && pps != nil {
@@ -91,7 +91,7 @@ a=control:streamid=%d
 		sdpStr += fmt.Sprintf(tmpl, samplingFrequency, hex.EncodeToString(asc), streamid)
 	}
 
-	raw = []byte(strings.ReplaceAll(sdpStr, "\n", "\r\n"))
+	raw := []byte(strings.ReplaceAll(sdpStr, "\n", "\r\n"))
 	ctx, err = ParseSdp2LogicContext(raw)
 	return
 }

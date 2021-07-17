@@ -56,14 +56,14 @@ func main() {
 	err := pullSession.Pull(inUrl)
 	nazalog.Assert(nil, err)
 	defer pullSession.Dispose()
-	rawSdp, sdpLogicCtx := pullSession.GetSdp()
+	sdpCtx := pullSession.GetSdp()
 
 	pushSession := rtsp.NewPushSession(func(option *rtsp.PushSessionOption) {
 		option.PushTimeoutMs = 5000
 		option.OverTcp = pushOverTcp != 0
 	})
 
-	err = pushSession.Push(outUrl, rawSdp, sdpLogicCtx)
+	err = pushSession.Push(outUrl, sdpCtx)
 	nazalog.Assert(nil, err)
 	defer pushSession.Dispose()
 

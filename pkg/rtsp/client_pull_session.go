@@ -68,7 +68,7 @@ func (session *PullSession) Pull(rawUrl string) error {
 	return session.cmdSession.Do(rawUrl)
 }
 
-func (session *PullSession) GetSdp() ([]byte, sdp.LogicContext) {
+func (session *PullSession) GetSdp() sdp.LogicContext {
 	return session.baseInSession.GetSdp()
 }
 
@@ -133,8 +133,8 @@ func (session *PullSession) OnConnectResult() {
 }
 
 // ClientCommandSessionObserver, callback by ClientCommandSession
-func (session *PullSession) OnDescribeResponse(rawSdp []byte, sdpLogicCtx sdp.LogicContext) {
-	session.baseInSession.InitWithSdp(rawSdp, sdpLogicCtx)
+func (session *PullSession) OnDescribeResponse(sdpCtx sdp.LogicContext) {
+	session.baseInSession.InitWithSdp(sdpCtx)
 }
 
 // ClientCommandSessionObserver, callback by ClientCommandSession

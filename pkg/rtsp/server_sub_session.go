@@ -38,8 +38,8 @@ func NewSubSession(urlCtx base.UrlContext, cmdSession *ServerCommandSession) *Su
 	return s
 }
 
-func (session *SubSession) InitWithSdp(rawSdp []byte, sdpLogicCtx sdp.LogicContext) {
-	session.baseOutSession.InitWithSdp(rawSdp, sdpLogicCtx)
+func (session *SubSession) InitWithSdp(sdpCtx sdp.LogicContext) {
+	session.baseOutSession.InitWithSdp(sdpCtx)
 }
 
 func (session *SubSession) SetupWithConn(uri string, rtpConn, rtcpConn *nazanet.UdpConnection) error {

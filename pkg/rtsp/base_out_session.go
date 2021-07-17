@@ -24,12 +24,13 @@ import (
 	"github.com/q191201771/naza/pkg/nazanet"
 )
 
+// out的含义是音视频由本端发送至对端
+//
 type BaseOutSession struct {
 	uniqueKey  string
 	cmdSession IInterleavedPacketWriter
 
-	rawSdp      []byte
-	sdpLogicCtx sdp.LogicContext
+	sdpCtx sdp.LogicContext
 
 	audioRtpConn     *nazanet.UdpConnection
 	videoRtpConn     *nazanet.UdpConnection
@@ -69,16 +70,15 @@ func NewBaseOutSession(uniqueKey string, cmdSession IInterleavedPacketWriter) *B
 	return s
 }
 
-func (session *BaseOutSession) InitWithSdp(rawSdp []byte, sdpLogicCtx sdp.LogicContext) {
-	session.rawSdp = rawSdp
-	session.sdpLogicCtx = sdpLogicCtx
+func (session *BaseOutSession) InitWithSdp(sdpCtx sdp.LogicContext) {
+	session.sdpCtx = sdpCtx
 }
 
 func (session *BaseOutSession) SetupWithConn(uri string, rtpConn, rtcpConn *nazanet.UdpConnection) error {
-	if session.sdpLogicCtx.IsAudioUri(uri) {
+	if session.sdpCtx.IsAudioUri(uri) {
 		session.audioRtpConn = rtpConn
 		session.audioRtcpConn = rtcpConn
-	} else if session.sdpLogicCtx.IsVideoUri(uri) {
+	} else if session.sdpCtx.IsVideoUri(uri) {
 		session.videoRtpConn = rtpConn
 		session.videoRtcpConn = rtcpConn
 	} else {
@@ -92,11 +92,11 @@ func (session *BaseOutSession) SetupWithConn(uri string, rtpConn, rtcpConn *naza
 }
 
 func (session *BaseOutSession) SetupWithChannel(uri string, rtpChannel, rtcpChannel int) error {
-	if session.sdpLogicCtx.IsAudioUri(uri) {
+	if session.sdpCtx.IsAudioUri(uri) {
 		session.audioRtpChannel = rtpChannel
 		session.audioRtcpChannel = rtcpChannel
 		return nil
-	} else if session.sdpLogicCtx.IsVideoUri(uri) {
+	} else if session.sdpCtx.IsVideoUri(uri) {
 		session.videoRtpChannel = rtpChannel
 		session.videoRtcpChannel = rtcpChannel
 		return nil
@@ -143,7 +143,7 @@ func (session *BaseOutSession) WriteRtpPacket(packet rtprtcp.RtpPacket) {
 
 	// 发送数据时，保证和sdp的原始类型对应
 	t := int(packet.Header.PacketType)
-	if session.sdpLogicCtx.IsAudioPayloadTypeOrigin(t) {
+	if session.sdpCtx.IsAudioPayloadTypeOrigin(t) {
 		if session.loggedWriteAudioRtpCount < session.debugLogMaxCount {
 			nazalog.Debugf("[%s] LOGPACKET. write audio rtp=%+v", session.uniqueKey, packet.Header)
 			session.loggedWriteAudioRtpCount++
@@ -155,7 +155,7 @@ func (session *BaseOutSession) WriteRtpPacket(packet rtprtcp.RtpPacket) {
 		if session.audioRtpChannel != -1 {
 			_ = session.cmdSession.WriteInterleavedPacket(packet.Raw, session.audioRtpChannel)
 		}
-	} else if session.sdpLogicCtx.IsVideoPayloadTypeOrigin(t) {
+	} else if session.sdpCtx.IsVideoPayloadTypeOrigin(t) {
 		if session.loggedWriteVideoRtpCount < session.debugLogMaxCount {
 			nazalog.Debugf("[%s] LOGPACKET. write video rtp=%+v", session.uniqueKey, packet.Header)
 			session.loggedWriteVideoRtpCount++

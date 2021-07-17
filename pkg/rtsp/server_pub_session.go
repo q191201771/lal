@@ -44,8 +44,8 @@ func NewPubSession(urlCtx base.UrlContext, cmdSession *ServerCommandSession) *Pu
 	return s
 }
 
-func (session *PubSession) InitWithSdp(rawSdp []byte, sdpLogicCtx sdp.LogicContext) {
-	session.baseInSession.InitWithSdp(rawSdp, sdpLogicCtx)
+func (session *PubSession) InitWithSdp(sdpCtx sdp.LogicContext) {
+	session.baseInSession.InitWithSdp(sdpCtx)
 }
 
 func (session *PubSession) SetObserver(observer PubSessionObserver) {
@@ -67,7 +67,7 @@ func (session *PubSession) Dispose() error {
 	return nazaerrors.CombineErrors(e1, e2)
 }
 
-func (session *PubSession) GetSdp() ([]byte, sdp.LogicContext) {
+func (session *PubSession) GetSdp() sdp.LogicContext {
 	return session.baseInSession.GetSdp()
 }
 

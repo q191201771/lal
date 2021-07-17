@@ -18,6 +18,8 @@ import (
 )
 
 type LogicContext struct {
+	RawSdp []byte
+
 	AudioClockRate int
 	VideoClockRate int
 
@@ -161,5 +163,6 @@ func ParseSdp2LogicContext(b []byte) (LogicContext, error) {
 		}
 	}
 
+	ret.RawSdp = b
 	return ret, nil
 }
