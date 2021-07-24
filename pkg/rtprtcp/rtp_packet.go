@@ -8,7 +8,13 @@
 
 package rtprtcp
 
-import "github.com/q191201771/naza/pkg/bele"
+import (
+	"github.com/q191201771/lal/pkg/avc"
+	"github.com/q191201771/lal/pkg/base"
+	"github.com/q191201771/lal/pkg/hevc"
+	"github.com/q191201771/naza/pkg/bele"
+	"github.com/q191201771/naza/pkg/nazalog"
+)
 
 // -----------------------------------
 // rfc3550 5.1 RTP Fixed Header Fields
@@ -117,4 +123,86 @@ func ParseRtpPacket(b []byte) (pkt RtpPacket, err error) {
 	pkt.Raw = make([]byte, len(b))
 	copy(pkt.Raw, b)
 	return
+}
+
+func (p *RtpPacket) Body() []byte {
+	if p.Header.payloadOffset == 0 {
+		nazalog.Warnf("CHEFNOTICEME. payloadOffset=%d", p.Header.payloadOffset)
+		p.Header.payloadOffset = RtpFixedHeaderLength
+	}
+	return p.Raw[p.Header.payloadOffset:]
+}
+
+// @param pt: 取值范围为AvPacketPtAvc或AvPacketPtHevc，否则直接返回false
+//
+func IsAvcHevcBoundary(pkt RtpPacket, pt base.AvPacketPt) bool {
+	switch pt {
+	case base.AvPacketPtAvc:
+		return IsAvcBoundary(pkt)
+	case base.AvPacketPtHevc:
+		return IsHevcBoundary(pkt)
+	}
+	return false
+}
+
+func IsAvcBoundary(pkt RtpPacket) bool {
+	boundaryNaluTypes := map[uint8]struct{}{
+		avc.NaluTypeSps:      {},
+		avc.NaluTypePps:      {},
+		avc.NaluTypeIdrSlice: {},
+	}
+
+	b := pkt.Body()
+	outerNaluType := avc.ParseNaluType(b[0])
+
+	if _, ok := boundaryNaluTypes[outerNaluType]; ok {
+		return true
+	}
+
+	if outerNaluType == NaluTypeAvcStapa {
+		t := avc.ParseNaluType(b[3])
+		if _, ok := boundaryNaluTypes[t]; ok {
+			return true
+		}
+	}
+
+	if outerNaluType == NaluTypeAvcFua {
+		t := avc.ParseNaluType(b[1])
+		if _, ok := boundaryNaluTypes[t]; ok {
+			if b[1]&0x80 != 0 {
+				return true
+			}
+		}
+	}
+
+	return false
+}
+
+func IsHevcBoundary(pkt RtpPacket) bool {
+	boundaryNaluTypes := map[uint8]struct{}{
+		hevc.NaluTypeVps:         {},
+		hevc.NaluTypeSps:         {},
+		hevc.NaluTypePps:         {},
+		hevc.NaluTypeSliceIdr:    {},
+		hevc.NaluTypeSliceIdrNlp: {},
+		hevc.NaluTypeSliceCranut: {},
+	}
+
+	b := pkt.Body()
+	outerNaluType := hevc.ParseNaluType(b[0])
+
+	if _, ok := boundaryNaluTypes[outerNaluType]; ok {
+		return true
+	}
+
+	if outerNaluType == NaluTypeHevcFua {
+		t := b[2] & 0x3F // 注意，这里是后6位，不是中间6位
+		if _, ok := boundaryNaluTypes[t]; ok {
+			if b[2]&0x80 != 0 {
+				return true
+			}
+		}
+	}
+
+	return false
 }

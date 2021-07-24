@@ -291,7 +291,11 @@ func calcPositionIfNeededHevc(pkt *RtpPacket) {
 		fallthrough
 	case hevc.NaluTypeSliceTrailR:
 		fallthrough
+	case hevc.NaluTypeSliceIdr:
+		fallthrough
 	case hevc.NaluTypeSliceIdrNlp:
+		fallthrough
+	case hevc.NaluTypeSliceCranut:
 		pkt.positionType = PositionTypeSingle
 		return
 	case NaluTypeHevcFua:
