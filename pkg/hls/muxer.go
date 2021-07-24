@@ -141,7 +141,9 @@ func (m *Muxer) FeedRtmpMessage(msg base.RtmpMsg) {
 
 func (m *Muxer) OnPatPmt(b []byte) {
 	m.patpmt = b
-	m.observer.OnPatPmt(b)
+	if m.observer != nil {
+		m.observer.OnPatPmt(b)
+	}
 }
 
 func (m *Muxer) OnFrame(streamer *Streamer, frame *mpegts.Frame) {
