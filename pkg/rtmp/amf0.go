@@ -304,6 +304,12 @@ func (amf0) ReadObject(b []byte) (ObjectPairArray, int, error) {
 			}
 			ops = append(ops, ObjectPair{k, v})
 			index += l
+		case Amf0TypeMarkerNull:
+			l, err := Amf0.ReadNull(b[index:])
+			if err != nil {
+				return nil, 0, err
+			}
+			index += l
 		default:
 			nazalog.Panicf("unknown type. vt=%d", vt)
 		}
@@ -356,6 +362,12 @@ func (amf0) ReadArray(b []byte) (ObjectPairArray, int, error) {
 				return nil, 0, err
 			}
 			ops = append(ops, ObjectPair{k, v})
+			index += l
+		case Amf0TypeMarkerNull:
+			l, err := Amf0.ReadNull(b[index:])
+			if err != nil {
+				return nil, 0, err
+			}
 			index += l
 		default:
 			nazalog.Panicf("unknown type. vt=%d", vt)
