@@ -5,6 +5,7 @@
                                                              //  号是否与代码中声明的一致
   "rtmp": {
     "enable": true,           //. 是否开启rtmp服务的监听
+                              //  注意，配置文件中控制各协议类型的enable开关都应该按需打开，避免造成不必要的协议转换的开销
     "addr": ":19350",         //. RTMP服务监听的端口，客户端向lalserver推拉流都是这个地址
     "gop_num": 2,             //. RTMP拉流的GOP缓存数量，加速流打开时间，但是可能增加延时
     "merge_write_size": 8192  //. 将小包数据合并进行发送，单位字节，提高服务器性能，但是可能造成卡顿
@@ -25,7 +26,7 @@
   },
   "hls": {
     "enable": true,                  //. 是否开启HLS服务的监听
-    "enable_https": true,    //. 是否开启HTTPS-FLV监听
+    "enable_https": true,            //. 是否开启HTTPS-FLV监听
     "url_pattern": "/hls/",          //. 拉流url路由地址，默认值`/hls/`，对应：
                                      //  - `/hls/{streamName}.m3u8` 或
                                      //    `/hls/{streamName}/playlist.m3u8` 或

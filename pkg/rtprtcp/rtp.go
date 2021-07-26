@@ -34,6 +34,7 @@ const (
 	NaluTypeAvcStapa     = 24 // one packet, multiple nals
 	NaluTypeAvcFua       = 28
 
+	// TODO(chef): hevc有stapa格式吗
 	NaluTypeHevcFua = 49
 )
 

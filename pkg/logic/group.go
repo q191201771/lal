@@ -81,7 +81,7 @@ type Group struct {
 	// mpegts使用
 	patpmt []byte
 	// rtsp使用
-	sdp []byte
+	sdpCtx *sdp.LogicContext
 	//
 	tickCount uint32
 }
@@ -305,7 +305,7 @@ func (group *Group) AddRtmpPubSession(session *rtmp.ServerSession) bool {
 	if config.RtspConfig.Enable {
 		group.rtmp2RtspRemuxer = remux.NewRtmp2RtspRemuxer(
 			func(sdpCtx sdp.LogicContext) {
-				group.sdp = sdpCtx.RawSdp
+				group.sdpCtx = &sdpCtx
 			},
 			group.onRtpPacket,
 		)
@@ -443,13 +443,13 @@ func (group *Group) HandleNewRtspSubSessionDescribe(session *rtsp.SubSession) (o
 	group.mutex.Lock()
 	defer group.mutex.Unlock()
 	// TODO(chef): 应该有等待机制，而不是直接关闭
-	if group.sdp == nil {
+	if group.sdpCtx == nil {
 		nazalog.Warnf("[%s] close rtsp subSession while describe but sdp not exist. [%s]",
 			group.UniqueKey, session.UniqueKey())
 		return false, nil
 	}
 
-	return true, group.sdp
+	return true, group.sdpCtx.RawSdp
 }
 
 func (group *Group) HandleNewRtspSubSessionPlay(session *rtsp.SubSession) bool {
@@ -458,6 +458,9 @@ func (group *Group) HandleNewRtspSubSessionPlay(session *rtsp.SubSession) bool {
 	group.mutex.Lock()
 	defer group.mutex.Unlock()
 	group.rtspSubSessionSet[session] = struct{}{}
+	if group.stat.VideoCodec == "" {
+		session.ShouldWaitVideoKeyFrame = false
+	}
 	return true
 }
 
@@ -505,77 +508,6 @@ func (group *Group) HasOutSession() bool {
 	group.mutex.Lock()
 	defer group.mutex.Unlock()
 	return group.hasOutSession()
-}
-
-func (group *Group) BroadcastByRtmpMsg(msg base.RtmpMsg) {
-	group.mutex.Lock()
-	defer group.mutex.Unlock()
-	group.broadcastByRtmpMsg(msg)
-}
-
-// hls.Muxer
-func (group *Group) OnPatPmt(b []byte) {
-	group.patpmt = b
-
-	if group.recordMpegts != nil {
-		if err := group.recordMpegts.Write(b); err != nil {
-			nazalog.Errorf("[%s] record mpegts write fragment header error. err=%+v", group.UniqueKey, err)
-		}
-	}
-}
-
-// hls.Muxer
-func (group *Group) OnTsPackets(rawFrame []byte, boundary bool) {
-	// 因为最前面Feed时已经加锁了，所以这里回调上来就不用加锁了
-
-	for session := range group.httptsSubSessionSet {
-		if session.IsFresh {
-			if boundary {
-				session.Write(group.patpmt)
-				session.Write(rawFrame)
-				session.IsFresh = false
-			}
-		} else {
-			session.Write(rawFrame)
-		}
-	}
-
-	if group.recordMpegts != nil {
-		if err := group.recordMpegts.Write(rawFrame); err != nil {
-			nazalog.Errorf("[%s] record mpegts write error. err=%+v", group.UniqueKey, err)
-		}
-	}
-}
-
-// rtmp.PubSession or rtmp.PullSession
-func (group *Group) OnReadRtmpAvMsg(msg base.RtmpMsg) {
-	group.BroadcastByRtmpMsg(msg)
-}
-
-// rtsp.PubSession
-func (group *Group) OnRtpPacket(pkt rtprtcp.RtpPacket) {
-	group.mutex.Lock()
-	defer group.mutex.Unlock()
-
-	group.onRtpPacket(pkt)
-}
-
-// rtsp.PubSession
-func (group *Group) OnSdp(sdpCtx sdp.LogicContext) {
-	group.mutex.Lock()
-	defer group.mutex.Unlock()
-
-	group.sdp = sdpCtx.RawSdp
-	group.rtsp2RtmpRemuxer.OnSdp(sdpCtx)
-}
-
-// rtsp.PubSession
-func (group *Group) OnAvPacket(pkt base.AvPacket) {
-	group.mutex.Lock()
-	defer group.mutex.Unlock()
-	//nazalog.Tracef("[%s] > Group::OnAvPacket. type=%s, ts=%d", group.UniqueKey, pkt.PayloadType.ReadableString(), pkt.Timestamp)
-
-	group.rtsp2RtmpRemuxer.OnAvPacket(pkt)
 }
 
 func (group *Group) StringifyDebugStats() string {
@@ -734,225 +666,6 @@ func (group *Group) delHttptsSubSession(session *httpts.SubSession) {
 func (group *Group) delRtspSubSession(session *rtsp.SubSession) {
 	nazalog.Debugf("[%s] [%s] del rtsp SubSession from group.", group.UniqueKey, session.UniqueKey())
 	delete(group.rtspSubSessionSet, session)
-}
-
-// TODO chef: 目前相当于其他类型往rtmp.AVMsg转了，考虑统一往一个通用类型转
-// @param msg 调用结束后，内部不持有msg.Payload内存块
-func (group *Group) broadcastByRtmpMsg(msg base.RtmpMsg) {
-	var (
-		lcd    LazyChunkDivider
-		lrm2ft LazyRtmpMsg2FlvTag
-	)
-
-	//nazalog.Debugf("[%s] broadcaseRTMP. header=%+v, %s", group.UniqueKey, msg.Header, hex.Dump(nazastring.SubSliceSafety(msg.Payload, 7)))
-
-	// # hls
-	if config.HlsConfig.Enable && group.hlsMuxer != nil {
-		group.hlsMuxer.FeedRtmpMessage(msg)
-	}
-
-	// # rtsp
-	if config.RtspConfig.Enable && group.rtmp2RtspRemuxer != nil {
-		group.rtmp2RtspRemuxer.FeedRtmpMsg(msg)
-	}
-
-	// # 设置好用于发送的 rtmp 头部信息
-	currHeader := remux.MakeDefaultRtmpHeader(msg.Header)
-	if currHeader.MsgLen != uint32(len(msg.Payload)) {
-		nazalog.Errorf("[%s] diff. msgLen=%d, payload len=%d, %+v", group.UniqueKey, currHeader.MsgLen, len(msg.Payload), msg.Header)
-	}
-
-	// # 懒初始化rtmp chunk切片，以及httpflv转换
-	lcd.Init(msg.Payload, &currHeader)
-	lrm2ft.Init(msg)
-
-	// # 广播。遍历所有 rtmp sub session，转发数据
-	// ## 如果是新的 sub session，发送已缓存的信息
-	for session := range group.rtmpSubSessionSet {
-		if session.IsFresh {
-			// TODO chef: 头信息和full gop也可以在SubSession刚加入时发送
-			if group.rtmpGopCache.Metadata != nil {
-				nazalog.Debugf("[%s] [%s] write metadata", group.UniqueKey, session.UniqueKey())
-				_ = session.Write(group.rtmpGopCache.Metadata)
-			}
-			if group.rtmpGopCache.VideoSeqHeader != nil {
-				nazalog.Debugf("[%s] [%s] write vsh", group.UniqueKey, session.UniqueKey())
-				_ = session.Write(group.rtmpGopCache.VideoSeqHeader)
-			}
-			if group.rtmpGopCache.AacSeqHeader != nil {
-				nazalog.Debugf("[%s] [%s] write ash", group.UniqueKey, session.UniqueKey())
-				_ = session.Write(group.rtmpGopCache.AacSeqHeader)
-			}
-			gopCount := group.rtmpGopCache.GetGopCount()
-			if gopCount > 0 {
-				// GOP缓存中肯定包含了关键帧
-				session.ShouldWaitVideoKeyFrame = false
-
-				nazalog.Debugf("[%s] [%s] write gop cahe. gop num=%d", group.UniqueKey, session.UniqueKey(), gopCount)
-			}
-			for i := 0; i < gopCount; i++ {
-				for _, item := range group.rtmpGopCache.GetGopDataAt(i) {
-					_ = session.Write(item)
-				}
-			}
-
-			// 有新加入的sub session（本次循环的第一个新加入的sub session），把rtmp buf writer中的缓存数据全部广播发送给老的sub session
-			// 从而确保新加入的sub session不会发送这部分脏的数据
-			// 注意，此处可能被调用多次，但是只有第一次会实际flush缓存数据
-			group.rtmpBufWriter.Flush()
-
-			session.IsFresh = false
-		}
-
-		if session.ShouldWaitVideoKeyFrame && msg.IsVideoKeyNalu() {
-			// 有sub session在等待关键帧，并且当前是关键帧
-			// 把rtmp buf writer中的缓存数据全部广播发送给老的sub session
-			// 并且修改这个sub session的标志
-			// 让rtmp buf writer来发送这个关键帧
-			group.rtmpBufWriter.Flush()
-			session.ShouldWaitVideoKeyFrame = false
-		}
-	}
-	// ## 转发本次数据
-	if len(group.rtmpSubSessionSet) > 0 {
-		group.rtmpBufWriter.Write(lcd.Get())
-	}
-
-	// TODO chef: rtmp sub, rtmp push, httpflv sub 的发送逻辑都差不多，可以考虑封装一下
-	if config.RelayPushConfig.Enable {
-		for _, v := range group.url2PushProxy {
-			if v.pushSession == nil {
-				continue
-			}
-
-			if v.pushSession.IsFresh {
-				if group.rtmpGopCache.Metadata != nil {
-					_ = v.pushSession.Write(group.rtmpGopCache.Metadata)
-				}
-				if group.rtmpGopCache.VideoSeqHeader != nil {
-					_ = v.pushSession.Write(group.rtmpGopCache.VideoSeqHeader)
-				}
-				if group.rtmpGopCache.AacSeqHeader != nil {
-					_ = v.pushSession.Write(group.rtmpGopCache.AacSeqHeader)
-				}
-				for i := 0; i < group.rtmpGopCache.GetGopCount(); i++ {
-					for _, item := range group.rtmpGopCache.GetGopDataAt(i) {
-						_ = v.pushSession.Write(item)
-					}
-				}
-
-				v.pushSession.IsFresh = false
-			}
-
-			_ = v.pushSession.Write(lcd.Get())
-		}
-	}
-
-	// # 广播。遍历所有 httpflv sub session，转发数据
-	for session := range group.httpflvSubSessionSet {
-		if session.IsFresh {
-			if group.httpflvGopCache.Metadata != nil {
-				session.Write(group.httpflvGopCache.Metadata)
-			}
-			if group.httpflvGopCache.VideoSeqHeader != nil {
-				session.Write(group.httpflvGopCache.VideoSeqHeader)
-			}
-			if group.httpflvGopCache.AacSeqHeader != nil {
-				session.Write(group.httpflvGopCache.AacSeqHeader)
-			}
-			gopCount := group.httpflvGopCache.GetGopCount()
-			if gopCount > 0 {
-				// GOP缓存中肯定包含了关键帧
-				session.ShouldWaitVideoKeyFrame = false
-			}
-			for i := 0; i < gopCount; i++ {
-				for _, item := range group.httpflvGopCache.GetGopDataAt(i) {
-					session.Write(item)
-				}
-			}
-
-			session.IsFresh = false
-		}
-
-		// 是否在等待关键帧
-		if session.ShouldWaitVideoKeyFrame {
-			if msg.IsVideoKeyNalu() {
-				session.Write(lrm2ft.Get())
-				session.ShouldWaitVideoKeyFrame = false
-			}
-		} else {
-			session.Write(lrm2ft.Get())
-		}
-	}
-
-	// # 录制flv文件
-	if group.recordFlv != nil {
-		if err := group.recordFlv.WriteRaw(lrm2ft.Get()); err != nil {
-			nazalog.Errorf("[%s] record flv write error. err=%+v", group.UniqueKey, err)
-		}
-	}
-
-	// # 缓存关键信息，以及gop
-	if config.RtmpConfig.Enable {
-		group.rtmpGopCache.Feed(msg, lcd.Get)
-	}
-	if config.HttpflvConfig.Enable {
-		group.httpflvGopCache.Feed(msg, lrm2ft.Get)
-	}
-
-	// # 记录stat
-	if group.stat.AudioCodec == "" {
-		if msg.IsAacSeqHeader() {
-			group.stat.AudioCodec = base.AudioCodecAac
-		}
-	}
-	if group.stat.VideoCodec == "" {
-		if msg.IsAvcKeySeqHeader() {
-			group.stat.VideoCodec = base.VideoCodecAvc
-		}
-		if msg.IsHevcKeySeqHeader() {
-			group.stat.VideoCodec = base.VideoCodecHevc
-		}
-	}
-	if group.stat.VideoHeight == 0 || group.stat.VideoWidth == 0 {
-		if msg.IsAvcKeySeqHeader() {
-			sps, _, err := avc.ParseSpsPpsFromSeqHeader(msg.Payload)
-			if err == nil {
-				var ctx avc.Context
-				err = avc.ParseSps(sps, &ctx)
-				if err == nil {
-					group.stat.VideoHeight = int(ctx.Height)
-					group.stat.VideoWidth = int(ctx.Width)
-				}
-			}
-		}
-		if msg.IsHevcKeySeqHeader() {
-			_, sps, _, err := hevc.ParseVpsSpsPpsFromSeqHeader(msg.Payload)
-			if err == nil {
-				var ctx hevc.Context
-				err = hevc.ParseSps(sps, &ctx)
-				if err == nil {
-					group.stat.VideoHeight = int(ctx.PicHeightInLumaSamples)
-					group.stat.VideoWidth = int(ctx.PicWidthInLumaSamples)
-				}
-			}
-		}
-	}
-}
-
-func (group *Group) onRtpPacket(pkt rtprtcp.RtpPacket) {
-	for s := range group.rtspSubSessionSet {
-		s.WriteRtpPacket(pkt)
-	}
-}
-
-func (group *Group) write2RtmpSubSessions(b []byte) {
-	for session := range group.rtmpSubSessionSet {
-		if session.IsFresh || session.ShouldWaitVideoKeyFrame {
-			continue
-		}
-		_ = session.Write(b)
-	}
 }
 
 func (group *Group) stopPullIfNeeded() {
@@ -1181,7 +894,7 @@ func (group *Group) delIn() {
 
 	group.patpmt = nil
 
-	group.sdp = nil
+	group.sdpCtx = nil
 }
 
 func (group *Group) disposeHlsMuxer() {
@@ -1217,5 +930,335 @@ func (group *Group) disposeHlsMuxer() {
 		}
 
 		group.hlsMuxer = nil
+	}
+}
+
+// ---------------------------------------------------------------------------------------------------------------------
+// 音视频数据转发、转封装的逻辑
+// ---------------------------------------------------------------------------------------------------------------------
+
+// rtmp.PubSession or rtmp.PullSession
+func (group *Group) OnReadRtmpAvMsg(msg base.RtmpMsg) {
+	group.mutex.Lock()
+	defer group.mutex.Unlock()
+	group.broadcastByRtmpMsg(msg)
+}
+
+// rtsp.PubSession
+func (group *Group) OnRtpPacket(pkt rtprtcp.RtpPacket) {
+	group.mutex.Lock()
+	defer group.mutex.Unlock()
+
+	group.onRtpPacket(pkt)
+}
+
+// rtsp.PubSession
+func (group *Group) OnSdp(sdpCtx sdp.LogicContext) {
+	group.mutex.Lock()
+	defer group.mutex.Unlock()
+
+	group.sdpCtx = &sdpCtx
+	group.rtsp2RtmpRemuxer.OnSdp(sdpCtx)
+}
+
+// rtsp.PubSession
+func (group *Group) OnAvPacket(pkt base.AvPacket) {
+	group.mutex.Lock()
+	defer group.mutex.Unlock()
+	//nazalog.Debugf("[%s] > Group::OnAvPacket. type=%s, ts=%d, len=%d", group.UniqueKey, pkt.PayloadType.ReadableString(), pkt.Timestamp, len(pkt.Payload))
+
+	group.rtsp2RtmpRemuxer.OnAvPacket(pkt)
+}
+
+// hls.Muxer
+func (group *Group) OnPatPmt(b []byte) {
+	group.patpmt = b
+
+	if group.recordMpegts != nil {
+		if err := group.recordMpegts.Write(b); err != nil {
+			nazalog.Errorf("[%s] record mpegts write fragment header error. err=%+v", group.UniqueKey, err)
+		}
+	}
+}
+
+// hls.Muxer
+func (group *Group) OnTsPackets(rawFrame []byte, boundary bool) {
+	// 因为最前面Feed时已经加锁了，所以这里回调上来就不用加锁了
+
+	for session := range group.httptsSubSessionSet {
+		if session.IsFresh {
+			if boundary {
+				session.Write(group.patpmt)
+				session.Write(rawFrame)
+				session.IsFresh = false
+			}
+		} else {
+			session.Write(rawFrame)
+		}
+	}
+
+	if group.recordMpegts != nil {
+		if err := group.recordMpegts.Write(rawFrame); err != nil {
+			nazalog.Errorf("[%s] record mpegts write error. err=%+v", group.UniqueKey, err)
+		}
+	}
+}
+
+// TODO chef: 目前相当于其他类型往rtmp.AVMsg转了，考虑统一往一个通用类型转
+//
+// rtmp.PubSession, rtmp.PullSession, rtsp2rtmpRemuxer
+//
+// @param msg 调用结束后，内部不持有msg.Payload内存块
+//
+func (group *Group) broadcastByRtmpMsg(msg base.RtmpMsg) {
+	var (
+		lcd    LazyChunkDivider
+		lrm2ft LazyRtmpMsg2FlvTag
+	)
+
+	//nazalog.Debugf("[%s] broadcaseRTMP. header=%+v, %s", group.UniqueKey, msg.Header, hex.Dump(nazastring.SubSliceSafety(msg.Payload, 7)))
+
+	// # hls
+	if config.HlsConfig.Enable && group.hlsMuxer != nil {
+		group.hlsMuxer.FeedRtmpMessage(msg)
+	}
+
+	// # rtsp
+	if config.RtspConfig.Enable && group.rtmp2RtspRemuxer != nil {
+		group.rtmp2RtspRemuxer.FeedRtmpMsg(msg)
+	}
+
+	// # 设置好用于发送的 rtmp 头部信息
+	currHeader := remux.MakeDefaultRtmpHeader(msg.Header)
+	if currHeader.MsgLen != uint32(len(msg.Payload)) {
+		nazalog.Errorf("[%s] diff. msgLen=%d, payload len=%d, %+v", group.UniqueKey, currHeader.MsgLen, len(msg.Payload), msg.Header)
+	}
+
+	// # 懒初始化rtmp chunk切片，以及httpflv转换
+	lcd.Init(msg.Payload, &currHeader)
+	lrm2ft.Init(msg)
+
+	// # 广播。遍历所有 rtmp sub session，转发数据
+	// ## 如果是新的 sub session，发送已缓存的信息
+	for session := range group.rtmpSubSessionSet {
+		if session.IsFresh {
+			// TODO chef: 头信息和full gop也可以在SubSession刚加入时发送
+			if group.rtmpGopCache.Metadata != nil {
+				nazalog.Debugf("[%s] [%s] write metadata", group.UniqueKey, session.UniqueKey())
+				_ = session.Write(group.rtmpGopCache.Metadata)
+			}
+			if group.rtmpGopCache.VideoSeqHeader != nil {
+				nazalog.Debugf("[%s] [%s] write vsh", group.UniqueKey, session.UniqueKey())
+				_ = session.Write(group.rtmpGopCache.VideoSeqHeader)
+			}
+			if group.rtmpGopCache.AacSeqHeader != nil {
+				nazalog.Debugf("[%s] [%s] write ash", group.UniqueKey, session.UniqueKey())
+				_ = session.Write(group.rtmpGopCache.AacSeqHeader)
+			}
+			gopCount := group.rtmpGopCache.GetGopCount()
+			if gopCount > 0 {
+				// GOP缓存中肯定包含了关键帧
+				session.ShouldWaitVideoKeyFrame = false
+
+				nazalog.Debugf("[%s] [%s] write gop cahe. gop num=%d", group.UniqueKey, session.UniqueKey(), gopCount)
+			}
+			for i := 0; i < gopCount; i++ {
+				for _, item := range group.rtmpGopCache.GetGopDataAt(i) {
+					_ = session.Write(item)
+				}
+			}
+
+			// 有新加入的sub session（本次循环的第一个新加入的sub session），把rtmp buf writer中的缓存数据全部广播发送给老的sub session
+			// 从而确保新加入的sub session不会发送这部分脏的数据
+			// 注意，此处可能被调用多次，但是只有第一次会实际flush缓存数据
+			group.rtmpBufWriter.Flush()
+
+			session.IsFresh = false
+		}
+
+		if session.ShouldWaitVideoKeyFrame && msg.IsVideoKeyNalu() {
+			// 有sub session在等待关键帧，并且当前是关键帧
+			// 把rtmp buf writer中的缓存数据全部广播发送给老的sub session
+			// 并且修改这个sub session的标志
+			// 让rtmp buf writer来发送这个关键帧
+			group.rtmpBufWriter.Flush()
+			session.ShouldWaitVideoKeyFrame = false
+		}
+	}
+	// ## 转发本次数据
+	if len(group.rtmpSubSessionSet) > 0 {
+		group.rtmpBufWriter.Write(lcd.Get())
+	}
+
+	// TODO chef: rtmp sub, rtmp push, httpflv sub 的发送逻辑都差不多，可以考虑封装一下
+	if config.RelayPushConfig.Enable {
+		for _, v := range group.url2PushProxy {
+			if v.pushSession == nil {
+				continue
+			}
+
+			if v.pushSession.IsFresh {
+				if group.rtmpGopCache.Metadata != nil {
+					_ = v.pushSession.Write(group.rtmpGopCache.Metadata)
+				}
+				if group.rtmpGopCache.VideoSeqHeader != nil {
+					_ = v.pushSession.Write(group.rtmpGopCache.VideoSeqHeader)
+				}
+				if group.rtmpGopCache.AacSeqHeader != nil {
+					_ = v.pushSession.Write(group.rtmpGopCache.AacSeqHeader)
+				}
+				for i := 0; i < group.rtmpGopCache.GetGopCount(); i++ {
+					for _, item := range group.rtmpGopCache.GetGopDataAt(i) {
+						_ = v.pushSession.Write(item)
+					}
+				}
+
+				v.pushSession.IsFresh = false
+			}
+
+			_ = v.pushSession.Write(lcd.Get())
+		}
+	}
+
+	// # 广播。遍历所有 httpflv sub session，转发数据
+	for session := range group.httpflvSubSessionSet {
+		if session.IsFresh {
+			if group.httpflvGopCache.Metadata != nil {
+				session.Write(group.httpflvGopCache.Metadata)
+			}
+			if group.httpflvGopCache.VideoSeqHeader != nil {
+				session.Write(group.httpflvGopCache.VideoSeqHeader)
+			}
+			if group.httpflvGopCache.AacSeqHeader != nil {
+				session.Write(group.httpflvGopCache.AacSeqHeader)
+			}
+			gopCount := group.httpflvGopCache.GetGopCount()
+			if gopCount > 0 {
+				// GOP缓存中肯定包含了关键帧
+				session.ShouldWaitVideoKeyFrame = false
+			}
+			for i := 0; i < gopCount; i++ {
+				for _, item := range group.httpflvGopCache.GetGopDataAt(i) {
+					session.Write(item)
+				}
+			}
+
+			session.IsFresh = false
+		}
+
+		// 是否在等待关键帧
+		if session.ShouldWaitVideoKeyFrame {
+			if msg.IsVideoKeyNalu() {
+				session.Write(lrm2ft.Get())
+				session.ShouldWaitVideoKeyFrame = false
+			}
+		} else {
+			session.Write(lrm2ft.Get())
+		}
+	}
+
+	// # 录制flv文件
+	if group.recordFlv != nil {
+		if err := group.recordFlv.WriteRaw(lrm2ft.Get()); err != nil {
+			nazalog.Errorf("[%s] record flv write error. err=%+v", group.UniqueKey, err)
+		}
+	}
+
+	// # 缓存关键信息，以及gop
+	if config.RtmpConfig.Enable {
+		group.rtmpGopCache.Feed(msg, lcd.Get)
+	}
+	if config.HttpflvConfig.Enable {
+		group.httpflvGopCache.Feed(msg, lrm2ft.Get)
+	}
+
+	// # 记录stat
+	if group.stat.AudioCodec == "" {
+		if msg.IsAacSeqHeader() {
+			group.stat.AudioCodec = base.AudioCodecAac
+		}
+	}
+	if group.stat.VideoCodec == "" {
+		if msg.IsAvcKeySeqHeader() {
+			group.stat.VideoCodec = base.VideoCodecAvc
+		}
+		if msg.IsHevcKeySeqHeader() {
+			group.stat.VideoCodec = base.VideoCodecHevc
+		}
+	}
+	if group.stat.VideoHeight == 0 || group.stat.VideoWidth == 0 {
+		if msg.IsAvcKeySeqHeader() {
+			sps, _, err := avc.ParseSpsPpsFromSeqHeader(msg.Payload)
+			if err == nil {
+				var ctx avc.Context
+				err = avc.ParseSps(sps, &ctx)
+				if err == nil {
+					group.stat.VideoHeight = int(ctx.Height)
+					group.stat.VideoWidth = int(ctx.Width)
+				}
+			}
+		}
+		if msg.IsHevcKeySeqHeader() {
+			_, sps, _, err := hevc.ParseVpsSpsPpsFromSeqHeader(msg.Payload)
+			if err == nil {
+				var ctx hevc.Context
+				err = hevc.ParseSps(sps, &ctx)
+				if err == nil {
+					group.stat.VideoHeight = int(ctx.PicHeightInLumaSamples)
+					group.stat.VideoWidth = int(ctx.PicWidthInLumaSamples)
+				}
+			}
+		}
+	}
+}
+
+// rtsp.PubSession, rtmp2RtspRemuxer
+//
+func (group *Group) onRtpPacket(pkt rtprtcp.RtpPacket) {
+	// 音频直接发送
+	if group.sdpCtx.IsAudioPayloadTypeOrigin(int(pkt.Header.PacketType)) {
+		for s := range group.rtspSubSessionSet {
+			s.WriteRtpPacket(pkt)
+		}
+		return
+	}
+
+	var (
+		boundary        bool
+		boundaryChecked bool // 保证只检查0次或1次，减少性能开销
+	)
+
+	for s := range group.rtspSubSessionSet {
+		if !s.ShouldWaitVideoKeyFrame {
+			s.WriteRtpPacket(pkt)
+			continue
+		}
+
+		if !boundaryChecked {
+			switch group.sdpCtx.GetVideoPayloadTypeBase() {
+			case base.AvPacketPtAvc:
+				boundary = rtprtcp.IsAvcBoundary(pkt)
+			case base.AvPacketPtHevc:
+				boundary = rtprtcp.IsHevcBoundary(pkt)
+			default:
+				// 注意，不是avc和hevc时，直接发送
+				boundary = true
+			}
+			boundaryChecked = true
+		}
+
+		if boundary {
+			s.WriteRtpPacket(pkt)
+			s.ShouldWaitVideoKeyFrame = false
+		}
+	}
+}
+
+func (group *Group) write2RtmpSubSessions(b []byte) {
+	for session := range group.rtmpSubSessionSet {
+		if session.IsFresh || session.ShouldWaitVideoKeyFrame {
+			continue
+		}
+		_ = session.Write(b)
 	}
 }
