@@ -304,6 +304,8 @@ func (amf0) ReadObject(b []byte) (ObjectPairArray, int, error) {
 			}
 			ops = append(ops, ObjectPair{k, v})
 			index += l
+		case Amf0TypeMarkerNull:
+			index += 1
 		default:
 			nazalog.Panicf("unknown type. vt=%d", vt)
 		}
