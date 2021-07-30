@@ -118,8 +118,10 @@ func (s *Server) handleTcpConnect(conn net.Conn) {
 
 	if session.pubSession != nil {
 		s.observer.OnDelRtspPubSession(session.pubSession)
+		_ = session.pubSession.Dispose()
 	} else if session.subSession != nil {
 		s.observer.OnDelRtspSubSession(session.subSession)
+		_ = session.subSession.Dispose()
 	}
 	s.observer.OnDelRtspSession(session)
 }
