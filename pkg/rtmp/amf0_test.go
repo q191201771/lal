@@ -10,6 +10,7 @@ package rtmp_test
 
 import (
 	"bytes"
+	"encoding/hex"
 	"strings"
 	"testing"
 
@@ -115,6 +116,51 @@ func TestAmf0_ReadArray(t *testing.T) {
 	assert.Equal(t, 359, len(gold))
 	assert.Equal(t, 359, l)
 	nazalog.Debug(ops)
+}
+
+func TestAmf0_ReadCase1(t *testing.T) {
+	// ZLMediaKit connect result的object中存在null type
+	// https://github.com/q191201771/lal/issues/102
+	//
+	gold := "030000000000b614000000000200075f726573756c74003ff000000000000003000c6361706162696c697469657300403f0000000000000006666d7356657202000d464d532f332c302c312c313233000009030004636f646502001d4e6574436f6e6e656374696f6e2e436f6e6e6563742e53756363657373000b6465736372697074696f6e020015436f6e6e656374696f6e207375636365656465642e00056c6576656c020006737461747573000e6f626a656374456e636f64696e6705000009"
+	goldbytes, err := hex.DecodeString(gold)
+	assert.Equal(t, nil, err)
+	index := 12
+
+	s, l, err := Amf0.ReadString(goldbytes[index:])
+	assert.Equal(t, nil, err)
+	assert.Equal(t, "_result", s)
+	index += l
+
+	n, l, err := Amf0.ReadNumber(goldbytes[index:])
+	assert.Equal(t, nil, err)
+	assert.Equal(t, float64(1), n)
+	index += l
+
+	o, l, err := Amf0.ReadObject(goldbytes[index:])
+	assert.Equal(t, nil, err)
+	i, err := o.FindNumber("capabilities")
+	assert.Equal(t, nil, err)
+	assert.Equal(t, 31, i)
+	s, err = o.FindString("fmsVer")
+	assert.Equal(t, nil, err)
+	assert.Equal(t, "FMS/3,0,1,123", s)
+	index += l
+
+	o, l, err = Amf0.ReadObject(goldbytes[index:])
+	assert.Equal(t, nil, err)
+	s, err = o.FindString("code")
+	assert.Equal(t, nil, err)
+	assert.Equal(t, "NetConnection.Connect.Success", s)
+	s, err = o.FindString("description")
+	assert.Equal(t, nil, err)
+	assert.Equal(t, "Connection succeeded.", s)
+	s, err = o.FindString("level")
+	assert.Equal(t, nil, err)
+	assert.Equal(t, "status", s)
+	index += l
+
+	assert.Equal(t, len(goldbytes), index)
 }
 
 func TestAmf0Corner(t *testing.T) {
