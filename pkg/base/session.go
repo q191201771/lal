@@ -37,9 +37,10 @@ type IServerSession interface {
 
 // 调用约束：对于Client类型的Session，调用Start函数并返回成功后才能调用，否则行为未定义
 type IClientSessionLifecycle interface {
-	// 关闭session
-	// 业务方想主动关闭session时调用
-	// 注意，Start成功后的session，必须显示调用Dispose释放资源（即使是被动接收到了WaitChan信号）
+	// 主动关闭session时调用
+	//
+	// 注意，Start成功后的session，必须显示调用Dispose释放资源。即使是被动接收到了WaitChan信号 TODO(chef): 是否有必要，目前现状review
+	//
 	Dispose() error
 
 	// Start成功后，可使用这个channel来接收session结束的信号
@@ -51,6 +52,9 @@ type IServerSessionLifecycle interface {
 	RunLoop() error
 
 	// 主动关闭session时调用
+	//
+	// 如果是session通知业务方session已关闭（比如`RunLoop`函数返回错误），则不需要调用`Dispose` TODO(chef): review现状
+	//
 	Dispose() error
 }
 
