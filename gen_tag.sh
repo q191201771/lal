@@ -26,7 +26,7 @@ if [ "$NewVersion" == "$FileVersion" ];then
   echo 'same tag, noop.'
 else
   echo 'update version.go'
-  gsed -i "/^const LALVersion/cconst LALVersion = \"${NewVersion}\"" pkg/base/version.go
+  gsed -i "/^const LalVersion/cconst LalVersion = \"${NewVersion}\"" pkg/base/version.go
   git add .
   git commit -m "${NewVersion} -> version.go"
   git push
