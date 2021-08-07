@@ -17,6 +17,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/q191201771/naza/pkg/nazastring"
+
 	"github.com/q191201771/lal/pkg/base"
 
 	"github.com/q191201771/lal/pkg/rtmp"
@@ -103,11 +105,7 @@ func main() {
 
 	err := session.Pull(url, func(tag httpflv.Tag) {
 		if printEveryTagFlag {
-			debugLength := 32
-			if len(tag.Raw) < 32 {
-				debugLength = len(tag.Raw)
-			}
-			nazalog.Debugf("header=%+v, hex=%s", tag.Header, hex.Dump(tag.Raw[11:debugLength]))
+			nazalog.Debugf("header=%+v, hex=%s", tag.Header, hex.Dump(nazastring.SubSliceSafety(tag.Payload(), 32)))
 		}
 
 		brTotal.Add(len(tag.Raw))
@@ -115,9 +113,9 @@ func main() {
 		switch tag.Header.Type {
 		case httpflv.TagTypeMetadata:
 			if printMetaData {
-				nazalog.Debugf("----------\n%s", hex.Dump(tag.Raw[11:]))
+				nazalog.Debugf("----------\n%s", hex.Dump(tag.Payload()))
 
-				opa, err := rtmp.ParseMetadata(tag.Raw[11 : len(tag.Raw)-4])
+				opa, err := rtmp.ParseMetadata(tag.Payload())
 				nazalog.Assert(nil, err)
 				var buf bytes.Buffer
 				buf.WriteString(fmt.Sprintf("-----\ncount:%d\n", len(opa)))
@@ -185,21 +183,18 @@ func analysisVideoTag(tag httpflv.Tag) {
 		if tag.IsAvcKeySeqHeader() {
 			t = typeAvc
 			buf.WriteString(" [AVC SeqHeader] ")
-			if _, _, err := avc.ParseSpsPpsFromSeqHeader(tag.Raw[11:]); err != nil {
+			if _, _, err := avc.ParseSpsPpsFromSeqHeader(tag.Payload()); err != nil {
 				buf.WriteString(" parse sps pps failed.")
 			}
 		} else if tag.IsHevcKeySeqHeader() {
 			t = typeHevc
-			//nazalog.Debugf("%s", nazastring.DumpSliceByte(tag.Raw[11:]))
-			//vps, sps, pps, _ := hevc.ParseVpsSpsPpsFromSeqHeader(tag.Raw[11:])
-			//nazalog.Debugf("%s", nazastring.DumpSliceByte(vps))
-			//nazalog.Debugf("%s", nazastring.DumpSliceByte(sps))
-			//nazalog.Debugf("%s", nazastring.DumpSliceByte(pps))
-			//nazalog.Debugf("%s %s %s %+v", hex.Dump(vps), hex.Dump(sps), hex.Dump(pps), err)
 			buf.WriteString(" [HEVC SeqHeader] ")
+			if _, _, _, err := hevc.ParseVpsSpsPpsFromSeqHeader(tag.Payload()); err != nil {
+				buf.WriteString(" parse vps sps pps failed.")
+			}
 		}
 	} else {
-		body := tag.Raw[httpflv.TagHeaderSize+5 : len(tag.Raw)-httpflv.PrevTagSizeFieldSize]
+		body := tag.Payload()[5:]
 		nals, err := avc.SplitNaluAvcc(body)
 		nazalog.Assert(nil, err)
 

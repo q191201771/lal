@@ -624,8 +624,7 @@ func (sm *ServerManager) iterateGroup() {
 func (sm *ServerManager) getOrCreateGroup(appName string, streamName string) *Group {
 	group, exist := sm.groupMap[streamName]
 	if !exist {
-		pullUrl := fmt.Sprintf("rtmp://%s/%s/%s", config.RelayPullConfig.Addr, appName, streamName)
-		group = NewGroup(appName, streamName, config.RelayPullConfig.Enable, pullUrl)
+		group = NewGroup(appName, streamName)
 		sm.groupMap[streamName] = group
 
 		go group.RunLoop()

@@ -134,11 +134,10 @@ func main() {
 		option.IsRecursive = false
 	})
 	err = flvFilePump.Pump(filename, func(tag httpflv.Tag) bool {
-		h := remux.FlvTagHeader2RtmpHeader(tag.Header)
-		chunks := rtmp.Message2Chunks(tag.Raw[11:11+h.MsgLen], &h)
+		chunks := remux.FlvTag2RtmpChunks(tag)
 
 		mu.Lock()
-		tagKey := nazamd5.Md5(tag.Raw[11 : 11+h.MsgLen])
+		tagKey := nazamd5.Md5(tag.Payload())
 		if _, exist := tagKey2writeTime[tagKey]; exist {
 			nazalog.Errorf("tag key already exist. key=%s", tagKey)
 		}

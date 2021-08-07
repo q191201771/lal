@@ -114,7 +114,7 @@ func NewClientSession(t ClientSessionType, modOptions ...ModClientSessionOption)
 			StartTime: time.Now().Format("2006-01-02 15:04:05.999"),
 		},
 		debugLogReadUserCtrlMsgMax: 5,
-		hc: hc,
+		hc:                         hc,
 	}
 	nazalog.Infof("[%s] lifecycle new rtmp ClientSession. session=%p", uk, s)
 	return s

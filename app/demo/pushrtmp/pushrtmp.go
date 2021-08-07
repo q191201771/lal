@@ -104,8 +104,7 @@ func push(tags []httpflv.Tag, url string, isRecursive bool) {
 		option.IsRecursive = isRecursive
 	})
 	_ = flvFilePump.PumpWithTags(tags, func(tag httpflv.Tag) bool {
-		h := remux.FlvTagHeader2RtmpHeader(tag.Header)
-		chunks := rtmp.Message2Chunks(tag.Raw[11:11+h.MsgLen], &h)
+		chunks := remux.FlvTag2RtmpChunks(tag)
 
 		if err := ps.Write(chunks); err != nil {
 			nazalog.Errorf("write data error. err=%v", err)

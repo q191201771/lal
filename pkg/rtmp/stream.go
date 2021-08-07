@@ -12,6 +12,8 @@ import (
 	"encoding/hex"
 	"fmt"
 
+	"github.com/q191201771/naza/pkg/nazastring"
+
 	"github.com/q191201771/lal/pkg/base"
 
 	"github.com/q191201771/naza/pkg/nazalog"
@@ -45,7 +47,7 @@ func NewStream() *Stream {
 func (stream *Stream) toDebugString() string {
 	// 注意，这里打印的二进制数据的其实位置是从 0 开始，而不是 msg.b 位置
 	return fmt.Sprintf("header=%+v, b=%d, hex=%s",
-		stream.header, stream.msg.b, hex.Dump(stream.msg.buf[:stream.msg.e]))
+		stream.header, stream.msg.b, hex.Dump(nazastring.SubSliceSafety(stream.msg.buf[:stream.msg.e], 4096)))
 }
 
 func (stream *Stream) toAvMsg() base.RtmpMsg {
