@@ -66,6 +66,10 @@ func (a *Auth) FeedWwwAuthenticate(auths []string, username, password string) {
 	if a.Nonce == "" {
 		nazalog.Warnf("FeedWwwAuthenticate realm invalid. v=%s", s)
 	}
+	if a.Algorithm == "" {
+		a.Algorithm = AuthAlgorithm
+		nazalog.Warnf("FeedWwwAuthenticate algorithm not found fallback to %s. v=%s", AuthAlgorithm, s)
+	}
 	if a.Algorithm != AuthAlgorithm {
 		nazalog.Warnf("FeedWwwAuthenticate algorithm invalid, only support MD5. v=%s", s)
 	}
