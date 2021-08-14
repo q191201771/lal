@@ -47,7 +47,6 @@ func main() {
 
 	err = pullSession.Pull(inUrl)
 	nazalog.Assert(nil, err)
-	defer pullSession.Dispose()
 
 	go func() {
 		for {
@@ -56,6 +55,13 @@ func main() {
 			time.Sleep(1 * time.Second)
 		}
 	}()
+
+	// 临时测试一下主动关闭client session
+	//go func() {
+	//	time.Sleep(5 * time.Second)
+	//	err := pullSession.Dispose()
+	//	nazalog.Debugf("< session Dispose. err=%+v", err)
+	//}()
 
 	err = <-pullSession.WaitChan()
 	nazalog.Infof("< pullSession.Wait(). err=%+v", err)

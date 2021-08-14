@@ -11,6 +11,7 @@ package rtsp
 import (
 	"encoding/hex"
 	"net"
+	"sync"
 	"time"
 
 	"github.com/q191201771/lal/pkg/rtprtcp"
@@ -51,6 +52,9 @@ type BaseOutSession struct {
 	loggedWriteAudioRtpCount int
 	loggedWriteVideoRtpCount int
 	loggedReadUdpCount       int
+
+	disposeOnce sync.Once
+	waitChan    chan error
 }
 
 func NewBaseOutSession(uniqueKey string, cmdSession IInterleavedPacketWriter) *BaseOutSession {
@@ -65,6 +69,7 @@ func NewBaseOutSession(uniqueKey string, cmdSession IInterleavedPacketWriter) *B
 		audioRtpChannel:  -1,
 		videoRtpChannel:  -1,
 		debugLogMaxCount: 3,
+		waitChan:         make(chan error, 1),
 	}
 	nazalog.Infof("[%s] lifecycle new rtsp BaseOutSession. session=%p", uniqueKey, s)
 	return s
@@ -105,23 +110,25 @@ func (session *BaseOutSession) SetupWithChannel(uri string, rtpChannel, rtcpChan
 	return ErrRtsp
 }
 
+// ---------------------------------------------------------------------------------------------------------------------
+// IClientSessionLifecycle interface
+// ---------------------------------------------------------------------------------------------------------------------
+
+// Dispose 文档请参考： IClientSessionLifecycle interface
+//
 func (session *BaseOutSession) Dispose() error {
-	nazalog.Infof("[%s] lifecycle dispose rtsp BaseOutSession. session=%p", session.uniqueKey, session)
-	var e1, e2, e3, e4 error
-	if session.audioRtpConn != nil {
-		e1 = session.audioRtpConn.Dispose()
-	}
-	if session.audioRtcpConn != nil {
-		e2 = session.audioRtcpConn.Dispose()
-	}
-	if session.videoRtpConn != nil {
-		e3 = session.videoRtpConn.Dispose()
-	}
-	if session.videoRtcpConn != nil {
-		e4 = session.videoRtcpConn.Dispose()
-	}
-	return nazaerrors.CombineErrors(e1, e2, e3, e4)
+	return session.dispose(nil)
 }
+
+// WaitChan 文档请参考： IClientSessionLifecycle interface
+//
+// 注意，目前只有一种情况，即上层主动调用Dispose函数，此时error为nil
+//
+func (session *BaseOutSession) WaitChan() <-chan error {
+	return session.waitChan
+}
+
+// ---------------------------------------------------------------------------------------------------------------------
 
 func (session *BaseOutSession) HandleInterleavedPacket(b []byte, channel int) {
 	switch channel {
@@ -138,8 +145,8 @@ func (session *BaseOutSession) HandleInterleavedPacket(b []byte, channel int) {
 	}
 }
 
-func (session *BaseOutSession) WriteRtpPacket(packet rtprtcp.RtpPacket) {
-	session.currConnStat.WroteBytesSum.Add(uint64(len(packet.Raw)))
+func (session *BaseOutSession) WriteRtpPacket(packet rtprtcp.RtpPacket) error {
+	var err error
 
 	// 发送数据时，保证和sdp的原始类型对应
 	t := int(packet.Header.PacketType)
@@ -150,10 +157,10 @@ func (session *BaseOutSession) WriteRtpPacket(packet rtprtcp.RtpPacket) {
 		}
 
 		if session.audioRtpConn != nil {
-			_ = session.audioRtpConn.Write(packet.Raw)
+			err = session.audioRtpConn.Write(packet.Raw)
 		}
 		if session.audioRtpChannel != -1 {
-			_ = session.cmdSession.WriteInterleavedPacket(packet.Raw, session.audioRtpChannel)
+			err = session.cmdSession.WriteInterleavedPacket(packet.Raw, session.audioRtpChannel)
 		}
 	} else if session.sdpCtx.IsVideoPayloadTypeOrigin(t) {
 		if session.loggedWriteVideoRtpCount < session.debugLogMaxCount {
@@ -162,14 +169,20 @@ func (session *BaseOutSession) WriteRtpPacket(packet rtprtcp.RtpPacket) {
 		}
 
 		if session.videoRtpConn != nil {
-			_ = session.videoRtpConn.Write(packet.Raw)
+			err = session.videoRtpConn.Write(packet.Raw)
 		}
 		if session.videoRtpChannel != -1 {
-			_ = session.cmdSession.WriteInterleavedPacket(packet.Raw, session.videoRtpChannel)
+			err = session.cmdSession.WriteInterleavedPacket(packet.Raw, session.videoRtpChannel)
 		}
 	} else {
 		nazalog.Errorf("[%s] write rtp packet but type invalid. type=%d", session.uniqueKey, t)
+		err = ErrRtsp
 	}
+
+	if err == nil {
+		session.currConnStat.WroteBytesSum.Add(uint64(len(packet.Raw)))
+	}
+	return err
 }
 
 func (session *BaseOutSession) GetStat() base.StatSession {
@@ -219,4 +232,29 @@ func (session *BaseOutSession) onReadUdpPacket(b []byte, rAddr *net.UDPAddr, err
 		session.loggedReadUdpCount++
 	}
 	return true
+}
+
+func (session *BaseOutSession) dispose(err error) error {
+	var retErr error
+	session.disposeOnce.Do(func() {
+		nazalog.Infof("[%s] lifecycle dispose rtsp BaseOutSession. session=%p", session.uniqueKey, session)
+		var e1, e2, e3, e4 error
+		if session.audioRtpConn != nil {
+			e1 = session.audioRtpConn.Dispose()
+		}
+		if session.audioRtcpConn != nil {
+			e2 = session.audioRtcpConn.Dispose()
+		}
+		if session.videoRtpConn != nil {
+			e3 = session.videoRtpConn.Dispose()
+		}
+		if session.videoRtcpConn != nil {
+			e4 = session.videoRtcpConn.Dispose()
+		}
+
+		session.waitChan <- nil
+
+		retErr = nazaerrors.CombineErrors(e1, e2, e3, e4)
+	})
+	return retErr
 }

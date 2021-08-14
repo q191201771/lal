@@ -165,8 +165,15 @@ func main() {
 		}
 	})
 	nazalog.Assert(nil, err)
+
+	// 临时测试一下主动关闭client session
+	//go func() {
+	//	time.Sleep(5 * time.Second)
+	//	_ = session.Dispose()
+	//}()
+
 	err = <-session.WaitChan()
-	nazalog.Assert(nil, err)
+	nazalog.Errorf("< session.WaitChan. err=%+v", err)
 }
 
 const (

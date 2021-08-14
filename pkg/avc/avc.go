@@ -347,6 +347,7 @@ func CaptureAvcc2Annexb(w io.Writer, payload []byte) error {
 		return nil
 	}
 
+	// TODO(chef): [refactor] 使用IterateNaluAvcc
 	// payload中可能存在多个nalu
 	for i := 5; i != len(payload); {
 		naluLen := int(bele.BeUint32(payload[i:]))

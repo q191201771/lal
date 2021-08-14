@@ -11,6 +11,7 @@ package main
 import (
 	"flag"
 	"fmt"
+	"github.com/q191201771/lal/pkg/rtprtcp"
 	"os"
 
 	"github.com/q191201771/lal/pkg/base"
@@ -42,7 +43,9 @@ func main() {
 			nazalog.Info("push succ.")
 
 		},
-		pushSession.WriteRtpPacket, // remuxer的数据给push发送
+		func(pkt rtprtcp.RtpPacket) {
+			_ = pushSession.WriteRtpPacket(pkt) // remuxer的数据给push发送
+		},
 	)
 
 	nazalog.Info("start pull.")

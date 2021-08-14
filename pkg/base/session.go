@@ -8,11 +8,26 @@
 
 package base
 
-import "errors"
+import (
+	"errors"
+	"io"
+	"strings"
+)
 
 var (
 	ErrSessionNotStarted = errors.New("lal.base: session has not been started yet")
 )
+
+// IsUseClosedConnectionError 当connection处于这些情况时，就不需要再Close了
+// TODO(chef): 临时放这
+// TODO(chef): 目前暂时没有使用，因为connection支持多次调用Close
+//
+func IsUseClosedConnectionError(err error) bool {
+	if err == io.EOF || (err != nil && strings.Contains(err.Error(), "use of closed network connection")) {
+		return true
+	}
+	return false
+}
 
 type IClientSession interface {
 	// PushSession:
@@ -35,15 +50,34 @@ type IServerSession interface {
 	ISessionStat
 }
 
-// 调用约束：对于Client类型的Session，调用Start函数并返回成功后才能调用，否则行为未定义
 type IClientSessionLifecycle interface {
-	// 主动关闭session时调用
+	// Dispose 主动关闭session时调用
 	//
-	// 注意，Start成功后的session，必须显示调用Dispose释放资源。即使是被动接收到了WaitChan信号 TODO(chef): 是否有必要，目前现状review
+	// 注意，只有Start（具体session的Start类型函数一般命令为Push和Pull）成功后的session才能调用，否则行为未定义
+	//
+	// Dispose可在任意协程内调用
+	//
+	// 注意，目前Dispose允许调用多次，但是未来可能不对该表现做保证
+	//
+	// Dispose后，调用Write函数将返回错误
+	//
+	// @return 可以通过返回值判断调用Dispose前，session是否已经被关闭了 TODO(chef) 这个返回值没有太大意义，后面可能会删掉
 	//
 	Dispose() error
 
-	// Start成功后，可使用这个channel来接收session结束的信号
+	// WaitChan Start成功后，可使用这个channel来接收session结束的消息
+	//
+	// 注意，只有Start成功后的session才能调用，否则行为未定义
+	//
+	// 注意，目前WaitChan只会被通知一次，但是未来可能不对该表现做保证，业务方应该只关注第一次通知
+	//
+	// TODO(chef): 是否应该严格保证：获取到关闭消息后，后续不应该再有该session的回调上来
+	//
+	// @return 一般关闭有以下几种情况：
+	//         - 对端关闭，此时error为EOF
+	//         - 本端底层关闭，比如协议非法等，此时error为具体的错误值
+	//         - 本端上层主动调用Dispose关闭，此时error为nil
+	//
 	WaitChan() <-chan error
 }
 

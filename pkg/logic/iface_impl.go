@@ -48,11 +48,16 @@ var (
 
 // IClientSessionLifecycle: 所有Client Session都满足
 var (
+	// client
 	_ base.IClientSessionLifecycle = &rtmp.PushSession{}
 	_ base.IClientSessionLifecycle = &rtmp.PullSession{}
 	_ base.IClientSessionLifecycle = &rtsp.PushSession{}
 	_ base.IClientSessionLifecycle = &rtsp.PullSession{}
 	_ base.IClientSessionLifecycle = &httpflv.PullSession{}
+
+	// other
+	_ base.IClientSessionLifecycle = &rtmp.ClientSession{}
+	_ base.IClientSessionLifecycle = &rtsp.ClientCommandSession{}
 )
 
 // IServerSessionLifecycle

@@ -64,15 +64,23 @@ func (s *PushSession) Flush() error {
 	return s.core.Flush()
 }
 
-// 文档请参考： interface IClientSessionLifecycle
+// ---------------------------------------------------------------------------------------------------------------------
+// IClientSessionLifecycle interface
+// ---------------------------------------------------------------------------------------------------------------------
+
+// Dispose 文档请参考： IClientSessionLifecycle interface
+//
 func (s *PushSession) Dispose() error {
 	return s.core.Dispose()
 }
 
-// 文档请参考： interface IClientSessionLifecycle
+// WaitChan 文档请参考： IClientSessionLifecycle interface
+//
 func (s *PushSession) WaitChan() <-chan error {
 	return s.core.WaitChan()
 }
+
+// ---------------------------------------------------------------------------------------------------------------------
 
 // 文档请参考： interface ISessionUrlContext
 func (s *PushSession) Url() string {

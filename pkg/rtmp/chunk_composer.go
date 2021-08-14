@@ -39,7 +39,19 @@ func (c *ChunkComposer) SetPeerChunkSize(val uint32) {
 
 type OnCompleteMessage func(stream *Stream) error
 
-// @param cb 回调结束后，内存块会被 ChunkComposer 再次使用
+// RunLoop 将rtmp chunk合并为message
+//
+// @param cb: stream.msg: 注意，回调结束后，`msg`的内存块会被`ChunkComposer`重复使用
+//                        也即多次回调的`msg`是复用的同一块内存块
+//                        如果业务方需要在回调结束后，依然持有`msg`，那么需要对`msg`进行拷贝
+//                        只在回调中使用`msg`，则不需要拷贝
+//
+//            cb return:  如果cb返回的error不为nil，则`RunLoop`停止阻塞，并返回这个错误
+//
+// @return 阻塞直到发生错误
+//
+// TODO chef: msglen支持最大阈值，超过可以认为对端是非法的
+//
 func (c *ChunkComposer) RunLoop(reader io.Reader, cb OnCompleteMessage) error {
 	var aggregateStream *Stream
 	bootstrap := make([]byte, 11)

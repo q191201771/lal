@@ -14,6 +14,7 @@ import (
 	"errors"
 	"fmt"
 	"net"
+	"sync"
 	"time"
 
 	"github.com/q191201771/naza/pkg/nazastring"
@@ -53,6 +54,8 @@ type ClientSession struct {
 
 	debugLogReadUserCtrlMsgCount int
 	debugLogReadUserCtrlMsgMax   int
+
+	disposeOnce sync.Once
 }
 
 type ClientSessionType int
@@ -152,17 +155,23 @@ func (s *ClientSession) Flush() error {
 	return s.conn.Flush()
 }
 
+// ---------------------------------------------------------------------------------------------------------------------
+// IClientSessionLifecycle interface
+// ---------------------------------------------------------------------------------------------------------------------
+
+// Dispose 文档请参考： IClientSessionLifecycle interface
+//
 func (s *ClientSession) Dispose() error {
-	nazalog.Infof("[%s] lifecycle dispose rtmp ClientSession.", s.uniqueKey)
-	if s.conn == nil {
-		return base.ErrSessionNotStarted
-	}
-	return s.conn.Close()
+	return s.dispose(nil)
 }
 
+// WaitChan 文档请参考： IClientSessionLifecycle interface
+//
 func (s *ClientSession) WaitChan() <-chan error {
 	return s.conn.Done()
 }
+
+// ---------------------------------------------------------------------------------------------------------------------
 
 func (s *ClientSession) Url() string {
 	return s.urlCtx.Url
@@ -255,7 +264,11 @@ func (s *ClientSession) doContext(ctx context.Context, rawUrl string) error {
 
 	select {
 	case <-ctx.Done():
+		_ = s.dispose(nil)
 		return ctx.Err()
+	case err := <-errChan:
+		_ = s.dispose(err)
+		return err
 	case <-s.doResultChan:
 		return nil
 	}
@@ -326,8 +339,9 @@ func (s *ClientSession) handshake() error {
 }
 
 func (s *ClientSession) runReadLoop() {
-	// TODO chef: 这里是否应该主动关闭conn，考虑对端发送非法协议数据，增加一个对应的测试看看
-	_ = s.chunkComposer.RunLoop(s.conn, s.doMsg)
+	if err := s.chunkComposer.RunLoop(s.conn, s.doMsg); err != nil {
+		_ = s.dispose(err)
+	}
 }
 
 func (s *ClientSession) doMsg(stream *Stream) error {
@@ -530,4 +544,17 @@ func (s *ClientSession) notifyDoResultSucc() {
 	s.conn.ModWriteTimeoutMs(s.option.WriteAvTimeoutMs)
 
 	s.doResultChan <- struct{}{}
+}
+
+func (s *ClientSession) dispose(err error) error {
+	var retErr error
+	s.disposeOnce.Do(func() {
+		nazalog.Infof("[%s] lifecycle dispose rtmp ClientSession. err=%+v", s.uniqueKey, err)
+		if s.conn == nil {
+			retErr = base.ErrSessionNotStarted
+			return
+		}
+		retErr = s.conn.Close()
+	})
+	return retErr
 }

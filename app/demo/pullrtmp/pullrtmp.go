@@ -110,6 +110,13 @@ func pull(url string, filename string) {
 	}
 	atomic.AddInt32(&aliveSessionCount, 1)
 
+	// 临时测试一下主动关闭client session
+	//go func() {
+	//	time.Sleep(5 * time.Second)
+	//	err := session.Dispose()
+	//	nazalog.Debugf("< session Dispose. err=%+v", err)
+	//}()
+
 	err = <-session.WaitChan()
 	nazalog.Debugf("< session.WaitChan. [%s] err=%+v", session.UniqueKey(), err)
 }

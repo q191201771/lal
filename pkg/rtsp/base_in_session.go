@@ -81,6 +81,9 @@ type BaseInSession struct {
 	loggedReadVideoRtpCount nazaatomic.Uint32
 	loggedReadRtcpCount     nazaatomic.Uint32
 	loggedReadSrCount       nazaatomic.Uint32
+
+	disposeOnce sync.Once
+	waitChan    chan error
 }
 
 func NewBaseInSession(uniqueKey string, cmdSession IInterleavedPacketWriter) *BaseInSession {
@@ -93,6 +96,7 @@ func NewBaseInSession(uniqueKey string, cmdSession IInterleavedPacketWriter) *Ba
 		},
 		cmdSession:       cmdSession,
 		debugLogMaxCount: 3,
+		waitChan:         make(chan error, 1),
 	}
 	nazalog.Infof("[%s] lifecycle new rtsp BaseInSession. session=%p", uniqueKey, s)
 	return s
@@ -138,7 +142,7 @@ func (session *BaseInSession) InitWithSdp(sdpCtx sdp.LogicContext) {
 func (session *BaseInSession) SetObserver(observer BaseInSessionObserver) {
 	session.observer = observer
 
-	// 避免在当前协程回调，降低业务方使用负担，不必担心设置监听对象和回调函数中锁重入
+	// 避免在当前协程回调，降低业务方使用负担，不必担心设置监听对象和回调函数中锁重入 TODO(chef): 更好的方式
 	go func() {
 		session.observer.OnSdp(session.sdpCtx)
 	}()
@@ -174,23 +178,25 @@ func (session *BaseInSession) SetupWithChannel(uri string, rtpChannel, rtcpChann
 	return ErrRtsp
 }
 
+// ---------------------------------------------------------------------------------------------------------------------
+// IClientSessionLifecycle interface
+// ---------------------------------------------------------------------------------------------------------------------
+
+// Dispose 文档请参考： IClientSessionLifecycle interface
+//
 func (session *BaseInSession) Dispose() error {
-	nazalog.Infof("[%s] lifecycle dispose rtsp BaseInSession. session=%p", session.uniqueKey, session)
-	var e1, e2, e3, e4 error
-	if session.audioRtpConn != nil {
-		e1 = session.audioRtpConn.Dispose()
-	}
-	if session.audioRtcpConn != nil {
-		e2 = session.audioRtcpConn.Dispose()
-	}
-	if session.videoRtpConn != nil {
-		e3 = session.videoRtpConn.Dispose()
-	}
-	if session.videoRtcpConn != nil {
-		e4 = session.videoRtcpConn.Dispose()
-	}
-	return nazaerrors.CombineErrors(e1, e2, e3, e4)
+	return session.dispose(nil)
 }
+
+// WaitChan 文档请参考： IClientSessionLifecycle interface
+//
+// 注意，目前只有一种情况，即上层主动调用Dispose函数，此时error为nil
+//
+func (session *BaseInSession) WaitChan() <-chan error {
+	return session.waitChan
+}
+
+// ---------------------------------------------------------------------------------------------------------------------
 
 func (session *BaseInSession) GetSdp() sdp.LogicContext {
 	session.mu.Lock()
@@ -288,7 +294,10 @@ func (session *BaseInSession) onAvPacket(pkt base.AvPacket) {
 // callback by UDPConnection
 func (session *BaseInSession) onReadRtpPacket(b []byte, rAddr *net.UDPAddr, err error) bool {
 	if err != nil {
-		nazalog.Errorf("[%s] read udp packet failed. err=%+v", session.uniqueKey, err)
+		// TODO(chef):
+		// read udp [::]:30008: use of closed network connection
+		// 可以退出loop，看是在上层退还是下层退，但是要注意每次read都判断的开销
+		nazalog.Warnf("[%s] read udp packet failed. err=%+v", session.uniqueKey, err)
 		return true
 	}
 
@@ -299,7 +308,7 @@ func (session *BaseInSession) onReadRtpPacket(b []byte, rAddr *net.UDPAddr, err 
 // callback by UDPConnection
 func (session *BaseInSession) onReadRtcpPacket(b []byte, rAddr *net.UDPAddr, err error) bool {
 	if err != nil {
-		nazalog.Errorf("[%s] read udp packet failed. err=%+v", session.uniqueKey, err)
+		nazalog.Warnf("[%s] read udp packet failed. err=%+v", session.uniqueKey, err)
 		return true
 	}
 
@@ -430,4 +439,29 @@ func (session *BaseInSession) handleRtpPacket(b []byte) error {
 	}
 
 	return nil
+}
+
+func (session *BaseInSession) dispose(err error) error {
+	var retErr error
+	session.disposeOnce.Do(func() {
+		nazalog.Infof("[%s] lifecycle dispose rtsp BaseInSession. session=%p", session.uniqueKey, session)
+		var e1, e2, e3, e4 error
+		if session.audioRtpConn != nil {
+			e1 = session.audioRtpConn.Dispose()
+		}
+		if session.audioRtcpConn != nil {
+			e2 = session.audioRtcpConn.Dispose()
+		}
+		if session.videoRtpConn != nil {
+			e3 = session.videoRtpConn.Dispose()
+		}
+		if session.videoRtcpConn != nil {
+			e4 = session.videoRtcpConn.Dispose()
+		}
+
+		session.waitChan <- nil
+
+		retErr = nazaerrors.CombineErrors(e1, e2, e3, e4)
+	})
+	return retErr
 }

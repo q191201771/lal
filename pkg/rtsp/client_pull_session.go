@@ -14,6 +14,7 @@ import (
 	"github.com/q191201771/naza/pkg/nazaerrors"
 	"github.com/q191201771/naza/pkg/nazalog"
 	"github.com/q191201771/naza/pkg/nazanet"
+	"sync"
 )
 
 type PullSessionObserver interface {
@@ -37,6 +38,9 @@ type PullSession struct {
 	uniqueKey     string // const after ctor
 	cmdSession    *ClientCommandSession
 	baseInSession *BaseInSession
+
+	disposeOnce sync.Once
+	waitChan    chan error
 }
 
 type ModPullSessionOption func(option *PullSessionOption)
@@ -50,6 +54,7 @@ func NewPullSession(observer PullSessionObserver, modOptions ...ModPullSessionOp
 	uk := base.GenUkRtspPullSession()
 	s := &PullSession{
 		uniqueKey: uk,
+		waitChan:  make(chan error, 1),
 	}
 	cmdSession := NewClientCommandSession(CcstPullSession, uk, s, func(opt *ClientCommandSessionOption) {
 		opt.DoTimeoutMs = option.PullTimeoutMs
@@ -62,28 +67,81 @@ func NewPullSession(observer PullSessionObserver, modOptions ...ModPullSessionOp
 	return s
 }
 
-// 阻塞直到和对端完成拉流前，握手部分的工作（也即收到RTSP Play response），或者发生错误
+// Pull 阻塞直到和对端完成拉流前，握手部分的工作（也即收到RTSP Play response），或者发生错误
+//
 func (session *PullSession) Pull(rawUrl string) error {
 	nazalog.Debugf("[%s] pull. url=%s", session.uniqueKey, rawUrl)
-	return session.cmdSession.Do(rawUrl)
+	if err := session.cmdSession.Do(rawUrl); err != nil {
+		return err
+	}
+
+	// 管理内部的多个资源，确保:
+	// 1. 一个资源销毁后，其他资源也被销毁
+	// 2. 所有资源都销毁后才通知上层
+	go func() {
+		var cmdSessionDisposed, baseInSessionDisposed bool
+		var retErr error
+		var retErrFlag bool
+	LOOP:
+		for {
+			var err error
+			select {
+			case err = <-session.cmdSession.WaitChan():
+				if err != nil {
+					_ = session.baseInSession.Dispose()
+				}
+				if cmdSessionDisposed {
+					nazalog.Errorf("[%s] cmd session disposed already.", session.uniqueKey)
+				}
+				cmdSessionDisposed = true
+			case err = <-session.baseInSession.WaitChan():
+				// err是nil时，表示是被PullSession::Dispose主动销毁，那么cmdSession也会被销毁，就不需要我们再调用cmdSession.Dispose了
+				if err != nil {
+					_ = session.cmdSession.Dispose()
+				}
+				if baseInSessionDisposed {
+					nazalog.Errorf("[%s] base in session disposed already.", session.uniqueKey)
+				}
+				baseInSessionDisposed = true
+			} // select loop
+
+			// 第一个错误作为返回值
+			if !retErrFlag {
+				retErr = err
+				retErrFlag = true
+			}
+			if cmdSessionDisposed && baseInSessionDisposed {
+				break LOOP
+			}
+		} // for loop
+
+		session.waitChan <- retErr
+	}()
+
+	return nil
 }
 
 func (session *PullSession) GetSdp() sdp.LogicContext {
 	return session.baseInSession.GetSdp()
 }
 
-// 文档请参考： interface IClientSessionLifecycle
+// ---------------------------------------------------------------------------------------------------------------------
+// IClientSessionLifecycle interface
+// ---------------------------------------------------------------------------------------------------------------------
+
+// Dispose 文档请参考： IClientSessionLifecycle interface
+//
 func (session *PullSession) Dispose() error {
-	nazalog.Infof("[%s] lifecycle dispose rtsp PullSession. session=%p", session.uniqueKey, session)
-	e1 := session.cmdSession.Dispose()
-	e2 := session.baseInSession.Dispose()
-	return nazaerrors.CombineErrors(e1, e2)
+	return session.dispose(nil)
 }
 
-// 文档请参考： interface IClientSessionLifecycle
+// WaitChan 文档请参考： IClientSessionLifecycle interface
+//
 func (session *PullSession) WaitChan() <-chan error {
-	return session.cmdSession.WaitChan()
+	return session.waitChan
 }
+
+// ---------------------------------------------------------------------------------------------------------------------
 
 // 文档请参考： interface ISessionUrlContext
 func (session *PullSession) Url() string {
@@ -160,4 +218,15 @@ func (session *PullSession) OnInterleavedPacket(packet []byte, channel int) {
 // IInterleavedPacketWriter, callback by BaseInSession
 func (session *PullSession) WriteInterleavedPacket(packet []byte, channel int) error {
 	return session.cmdSession.WriteInterleavedPacket(packet, channel)
+}
+
+func (session *PullSession) dispose(err error) error {
+	var retErr error
+	session.disposeOnce.Do(func() {
+		nazalog.Infof("[%s] lifecycle dispose rtsp PullSession. session=%p", session.uniqueKey, session)
+		e1 := session.cmdSession.Dispose()
+		e2 := session.baseInSession.Dispose()
+		retErr = nazaerrors.CombineErrors(e1, e2)
+	})
+	return retErr
 }
