@@ -23,7 +23,7 @@
     "enable": true,
     "enable_https": false,
     "url_pattern": "/hls/",
-    "out_path": "/tmp/lal/hls/",
+    "out_path": "./lal_record/hls/",
     "fragment_duration_ms": 3000,
     "fragment_num": 6,
     "cleanup_mode": 1,
@@ -40,9 +40,9 @@
   },
   "record": {
     "enable_flv": false,
-    "flv_out_path": "/tmp/lal/flv/",
+    "flv_out_path": "./lal_record/flv/",
     "enable_mpegts": false,
-    "mpegts_out_path": "/tmp/lal/mpegts"
+    "mpegts_out_path": "./lal_record/mpegts"
   },
   "relay_push": {
     "enable": false,

@@ -34,7 +34,7 @@
                                      //  - `/hls/{streamName}/{streamName}-{timestamp}-{index}.ts` 或
                                      //    `/hls/{streamName}-{timestamp}-{index}.ts`
                                      //  注意，hls的url_pattern不能和httpflv、httpts的url_pattern相同
-    "out_path": "/tmp/lal/hls/",     //. HLS文件保存根目录
+    "out_path": "./lal_record/hls/", //. HLS文件保存根目录
     "fragment_duration_ms": 3000,    //. 单个TS文件切片时长，单位毫秒
     "fragment_num": 6,               //. m3u8文件列表中ts文件的数量
     "cleanup_mode": 1,               //. HLS文件清理模式：
@@ -56,10 +56,10 @@
     "addr": ":5544" //. rtsp推流地址
   },
   "record": {
-    "enable_flv": true,                  //. 是否开启flv录制
-    "flv_out_path": "/tmp/lal/flv/",     //. flv录制目录
-    "enable_mpegts": true,               //. 是否开启mpegts录制。注意，此处是长ts文件录制，hls录制由上面的hls配置控制
-    "mpegts_out_path": "/tmp/lal/mpegts" //. mpegts录制目录
+    "enable_flv": true,                      //. 是否开启flv录制
+    "flv_out_path": "./lal_record/flv/",     //. flv录制目录
+    "enable_mpegts": true,                   //. 是否开启mpegts录制。注意，此处是长ts文件录制，hls录制由上面的hls配置控制
+    "mpegts_out_path": "./lal_record/mpegts" //. mpegts录制目录
   },
   "relay_push": {
     "enable": false, //. 是否开启中继转推功能，开启后，自身接收到的所有流都会转推出去

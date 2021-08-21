@@ -5,6 +5,7 @@ coverage.html
 *.flv
 logs
 testdata
+lal_record
 
 /pre-commit.sh
 /coverage.txt
