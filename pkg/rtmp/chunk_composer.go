@@ -13,10 +13,9 @@ package rtmp
 // 读取chunk，并组织chunk，生成message返回给上层
 
 import (
-	"io"
-	"log"
-
 	"github.com/q191201771/lal/pkg/base"
+	"github.com/q191201771/naza/pkg/nazalog"
+	"io"
 
 	"github.com/q191201771/naza/pkg/bele"
 )
@@ -246,7 +245,8 @@ func (c *ChunkComposer) RunLoop(reader io.Reader, cb OnCompleteMessage) error {
 			}
 		}
 		if stream.msg.len() > stream.header.MsgLen {
-			log.Panicf("stream msg len should not greater than len field in header. stream.msg.len=%d, len.in.header=%d", stream.msg.len(), stream.header.MsgLen)
+			nazalog.Warnf("stream msg len should not greater than len field in header. stream.msg.len=%d, header=%+v", stream.msg.len(), stream.header)
+			return ErrRtmp
 		}
 	}
 }
