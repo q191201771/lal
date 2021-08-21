@@ -79,6 +79,17 @@ var goldenPps = []byte{
 	0x68, 0xEB, 0xEC, 0xB2, 0x2C,
 }
 
+var goldenSeqHeader2 = []byte{
+	0x17, 0x00, 0x00, 0x00, 0x00,
+	0x01, 0x64, 0x00, 0x1F, 0xFF,
+	0xE1, 0x00, 0x0A,
+	0x27, 0x64, 0x00, 0x1F, 0xAC, 0x56, 0x80, 0xB4, 0x0A, 0x19,
+	0x01, 0x00, 0x04,
+	0x28, 0xEE, 0x3C, 0xB0,
+}
+
+var goldenSps2 = goldenSeqHeader2[13:]
+
 func TestSpsPpsSeqHeader2Annexb(t *testing.T) {
 	out, err := avc.SpsPpsSeqHeader2Annexb(goldenSeqHeader)
 	assert.Equal(t, nil, err)
@@ -124,7 +135,15 @@ func TestParseSps(t *testing.T) {
 
 	err = avc.ParseSps(nil, &ctx)
 	assert.Equal(t, true, nazaerrors.Is(err, nazabits.ErrNazaBits))
-	nazalog.Debugf("%+v", err)
+	assert.IsNotNil(t, err)
+	nazalog.Debugf("error expected not nil, actual=%+v", err)
+
+	err = avc.ParseSps(goldenSps2, &ctx)
+	assert.Equal(t, nil, err)
+	assert.Equal(t, uint8(100), ctx.Profile)
+	assert.Equal(t, uint8(31), ctx.Level)
+	assert.Equal(t, uint32(720), ctx.Width)
+	assert.Equal(t, uint32(1280), ctx.Height)
 }
 
 func TestTry(t *testing.T) {
