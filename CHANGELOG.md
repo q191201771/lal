@@ -1,3 +1,16 @@
+#### v0.25.0 (2021-08-28)
+
+- [feat] 为rtmp pub推流添加静音AAC音频(可动态检测是否需要添加；配置文件中可开启或关闭这个功能)
+- [feat] 优化和统一所有client类型session的使用方式：session由于内部或对端原因导致关闭，外部不再需要显式调用Dispose函数释放资源
+- [feat] 增强兼容性：rtsp digest auth时，如果缺少algorithm字段，回复时该字段默认设置为MD5
+- [refactor] package avc: 重新实现sps的解析
+- [refactor] 新增函数remux.FlvTag2RtmpChunks()
+- [refactor] 增强健壮性：package rtmp: 对端协议错误时，主动关闭对端连接而不是主动panic
+- [refactor] 整理logic/group的代码
+- [refactor] httpflv.Sub和httpts.Sub显式调用base.HttpSubSession的函数
+- [fix] rtsp信令打包中部分字段缺少空格
+- [chore] 增强易用性：修改配置文件中的默认配置：hls、flv、mpegts的文件输出地址由绝对路径/tmp修改为相对路径./lal_record
+
 #### v0.24.0 (2021-07-31)
 
 - [feat] lalserver支持用rtsp sub协议拉取rtmp的pub推流 (#97)
