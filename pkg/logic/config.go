@@ -21,7 +21,7 @@ import (
 	"github.com/q191201771/naza/pkg/nazalog"
 )
 
-const ConfVersion = "v0.2.2"
+const ConfVersion = "v0.2.3"
 
 const (
 	defaultHlsCleanupMode    = hls.CleanupModeInTheEnd
