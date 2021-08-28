@@ -19,8 +19,8 @@ import (
 var tsHttpResponseHeader []byte
 
 type SubSession struct {
-	*base.HttpSubSession // 直接使用它提供的函数
-	IsFresh              bool
+	core    *base.HttpSubSession
+	IsFresh bool
 }
 
 func NewSubSession(conn net.Conn, urlCtx base.UrlContext, isWebSocket bool, websocketKey string) *SubSession {
@@ -44,14 +44,72 @@ func NewSubSession(conn net.Conn, urlCtx base.UrlContext, isWebSocket bool, webs
 	return s
 }
 
-func (session *SubSession) WriteHttpResponseHeader() {
-	nazalog.Debugf("[%s] > W http response header.", session.UniqueKey())
-	session.HttpSubSession.WriteHttpResponseHeader(tsHttpResponseHeader)
+// ---------------------------------------------------------------------------------------------------------------------
+// IServerSessionLifecycle interface
+// ---------------------------------------------------------------------------------------------------------------------
+
+func (session *SubSession) RunLoop() error {
+	return session.core.RunLoop()
 }
 
 func (session *SubSession) Dispose() error {
-	nazalog.Infof("[%s] lifecycle dispose httpts SubSession.", session.UniqueKey())
-	return session.HttpSubSession.Dispose()
+	nazalog.Infof("[%s] lifecycle dispose httpts SubSession.", session.core.UniqueKey())
+	return session.core.Dispose()
+}
+
+// ---------------------------------------------------------------------------------------------------------------------
+
+func (session *SubSession) WriteHttpResponseHeader() {
+	nazalog.Debugf("[%s] > W http response header.", session.core.UniqueKey())
+	session.core.WriteHttpResponseHeader(tsHttpResponseHeader)
+}
+
+func (session *SubSession) Write(b []byte) {
+	session.core.Write(b)
+}
+
+// ---------------------------------------------------------------------------------------------------------------------
+// IObject interface
+// ---------------------------------------------------------------------------------------------------------------------
+
+func (session *SubSession) UniqueKey() string {
+	return session.core.UniqueKey()
+}
+
+// ---------------------------------------------------------------------------------------------------------------------
+// ISessionUrlContext interface
+// ---------------------------------------------------------------------------------------------------------------------
+
+func (session *SubSession) Url() string {
+	return session.core.Url()
+}
+
+func (session *SubSession) AppName() string {
+	return session.core.AppName()
+}
+
+func (session *SubSession) StreamName() string {
+	return session.core.StreamName()
+}
+
+func (session *SubSession) RawQuery() string {
+	return session.core.RawQuery()
+}
+
+// ---------------------------------------------------------------------------------------------------------------------
+// ISessionStat interface
+// ---------------------------------------------------------------------------------------------------------------------
+
+func (session *SubSession) UpdateStat(intervalSec uint32) {
+	session.core.UpdateStat(intervalSec)
+}
+
+func (session *SubSession) GetStat() base.StatSession {
+	return session.core.GetStat()
+}
+
+func (session *SubSession) IsAlive() (readAlive, writeAlive bool) {
+	return session.core.IsAlive()
 }
 
 func init() {

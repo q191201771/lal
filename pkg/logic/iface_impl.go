@@ -18,13 +18,21 @@ import (
 	"github.com/q191201771/lal/pkg/rtsp"
 )
 
-// TODO(chef) add base.HttpSubSession
-
-// client.pub:  rtmp, rtsp
-// client.sub:  rtmp, rtsp, flv, ts
-// server.push: rtmp, rtsp
-// server.pull: rtmp, rtsp, flv
-// other:       rtmp.ClientSession rtsp.BaseInSession rtsp.BaseOutSession rtsp.ClientCommandSession rtsp.ServerCommandSession
+// TODO(chef): 整理所有Server类型Session的生命周期管理
+//   -
+//   - rtmp没有独立的Pub、Sub Session结构体类型，而是直接使用ServerSession
+//   - write失败，需要反应到loop来
+//   - rtsp是否也应该上层使用Command作为代理，避免生命周期管理混乱
+//
+// server.pub:  rtmp(), rtsp
+// server.sub:  rtmp(), rtsp, flv, ts
+//
+// client.push: rtmp, rtsp
+// client.pull: rtmp, rtsp, flv
+//
+// other:       rtmp.ClientSession, rtmp.ServerSession
+//              rtsp.BaseInSession, rtsp.BaseOutSession, rtsp.ClientCommandSession, rtsp.ServerCommandSessionS
+//              base.HttpSubSession
 
 // IClientSession: 所有Client Session都满足
 var (
@@ -71,6 +79,7 @@ var (
 	//_ base.IServerSessionLifecycle = &rtsp.PubSession{}
 	//_ base.IServerSessionLifecycle = &rtsp.SubSession{}
 	// other
+	_ base.IServerSessionLifecycle = &base.HttpSubSession{}
 	_ base.IServerSessionLifecycle = &rtsp.ServerCommandSession{}
 )
 
@@ -89,6 +98,7 @@ var (
 	_ base.ISessionStat = &httpflv.SubSession{}
 	_ base.ISessionStat = &httpts.SubSession{}
 	// other
+	_ base.ISessionStat = &base.HttpSubSession{}
 	_ base.ISessionStat = &rtmp.ClientSession{}
 	_ base.ISessionStat = &rtsp.BaseInSession{}
 	_ base.ISessionStat = &rtsp.BaseOutSession{}
@@ -106,10 +116,11 @@ var (
 	// server session
 	_ base.ISessionUrlContext = &rtmp.ServerSession{}
 	_ base.ISessionUrlContext = &rtsp.PubSession{}
+	_ base.ISessionUrlContext = &rtsp.SubSession{}
 	_ base.ISessionUrlContext = &httpflv.SubSession{}
 	_ base.ISessionUrlContext = &httpts.SubSession{}
-	_ base.ISessionUrlContext = &rtsp.SubSession{}
 	// other
+	_ base.ISessionUrlContext = &base.HttpSubSession{}
 	_ base.ISessionUrlContext = &rtmp.ClientSession{}
 	_ base.ISessionUrlContext = &rtsp.ClientCommandSession{}
 )
@@ -129,6 +140,7 @@ var (
 	_ base.IObject = &httpflv.SubSession{}
 	_ base.IObject = &httpts.SubSession{}
 	//// other
+	_ base.IObject = &base.HttpSubSession{}
 	_ base.IObject = &rtmp.ClientSession{}
 	_ base.IObject = &rtsp.BaseInSession{}
 	_ base.IObject = &rtsp.BaseOutSession{}

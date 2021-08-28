@@ -125,12 +125,12 @@ func main() {
 				nazalog.Debugf("%+v", buf.String())
 			}
 		case httpflv.TagTypeAudio:
-			//nazalog.Debugf("header=%+v, %+v", tag.Header, tag.IsAacSeqHeader())
+			nazalog.Debugf("header=%+v, %+v", tag.Header, tag.IsAacSeqHeader())
 			brAudio.Add(len(tag.Raw))
 
 			if tag.IsAacSeqHeader() {
 				s := session.GetStat()
-				nazalog.Infof("aac seq header. readBytes=%d", s.ReadBytesSum)
+				nazalog.Infof("aac seq header. readBytes=%d, %s", s.ReadBytesSum, hex.EncodeToString(tag.Payload()))
 			}
 			if timestampCheckFlag {
 				if prevAudioTs != -1 && int64(tag.Header.Timestamp) < prevAudioTs {
@@ -198,6 +198,7 @@ func analysisVideoTag(tag httpflv.Tag) {
 		} else if tag.IsHevcKeySeqHeader() {
 			t = typeHevc
 			buf.WriteString(" [HEVC SeqHeader] ")
+			buf.WriteString(hex.Dump(tag.Payload()))
 			if _, _, _, err := hevc.ParseVpsSpsPpsFromSeqHeader(tag.Payload()); err != nil {
 				buf.WriteString(" parse vps sps pps failed.")
 			}

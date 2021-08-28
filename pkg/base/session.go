@@ -82,10 +82,11 @@ type IClientSessionLifecycle interface {
 }
 
 type IServerSessionLifecycle interface {
-	// 开启session的事件循环，阻塞直到session结束
+	// RunLoop 开启session的事件循环，阻塞直到session结束
+	//
 	RunLoop() error
 
-	// 主动关闭session时调用
+	// Dispose 主动关闭session时调用
 	//
 	// 如果是session通知业务方session已关闭（比如`RunLoop`函数返回错误），则不需要调用`Dispose` TODO(chef): review现状
 	//
