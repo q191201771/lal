@@ -1,14 +1,19 @@
 ```
 {
   "# doc of config": "https://pengrl.com/lal/#/ConfigBrief", //. 配置文件对应的文档说明链接，在程序中没实际用途
-  "conf_version": "0.2.2",                                   //. 配置文件版本号，业务方不应该手动修改，程序中会检查该版本
+  "conf_version": "0.2.3",                                   //. 配置文件版本号，业务方不应该手动修改，程序中会检查该版本
                                                              //  号是否与代码中声明的一致
   "rtmp": {
-    "enable": true,           //. 是否开启rtmp服务的监听
-                              //  注意，配置文件中控制各协议类型的enable开关都应该按需打开，避免造成不必要的协议转换的开销
-    "addr": ":19350",         //. RTMP服务监听的端口，客户端向lalserver推拉流都是这个地址
-    "gop_num": 2,             //. RTMP拉流的GOP缓存数量，加速流打开时间，但是可能增加延时
-    "merge_write_size": 8192  //. 将小包数据合并进行发送，单位字节，提高服务器性能，但是可能造成卡顿
+    "enable": true,                      //. 是否开启rtmp服务的监听
+                                         //  注意，配置文件中控制各协议类型的enable开关都应该按需打开，避免造成不必要的协议转换的开销
+    "addr": ":19350",                    //. RTMP服务监听的端口，客户端向lalserver推拉流都是这个地址
+    "gop_num": 2,                        //. RTMP拉流的GOP缓存数量，加速流打开时间，但是可能增加延时
+    "merge_write_size": 8192,            //. 将小包数据合并进行发送，单位字节，提高服务器性能，但是可能造成卡顿
+                                         //  如果为0，则不合并发送
+    "add_dummy_audio_enable": false,     //. 是否开启动态检测添加静音AAC数据的功能
+                                         //  如果开启，rtmp pub推流时，如果超过`add_dummy_audio_wait_audio_ms`时间依然没有
+                                         //  收到音频数据，则会自动为这路流叠加AAC的数据
+    "add_dummy_audio_wait_audio_ms": 150 //. 单位毫秒，具体见`add_dummy_audio_enable`
   },
   "default_http": {                       //. http监听相关的默认配置，如果hls, httpflv, httpts中没有单独配置以下配置项，
                                           //  则使用default_http中的配置
