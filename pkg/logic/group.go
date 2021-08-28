@@ -77,6 +77,8 @@ type Group struct {
 	// rtmp pub/pull使用
 	rtmpGopCache    *GopCache
 	httpflvGopCache *GopCache
+	// rtmp pub使用
+	dummyAudioFilter *DummyAudioFilter
 	// rtmp sub使用
 	rtmpBufWriter base.IBufWriter // TODO(chef): 后面可以在业务层加一个定时Flush
 	// mpegts使用
@@ -317,7 +319,14 @@ func (group *Group) AddRtmpPubSession(session *rtmp.ServerSession) bool {
 		)
 	}
 
-	session.SetPubSessionObserver(group)
+	// TODO(chef): 为rtmp pull以及rtsp也添加叠加静音音频的功能
+	if config.RtmpConfig.AddDummyAudioEnable {
+		// TODO(chef): 从整体控制和锁关系来说，应该让pub的数据回调到group中进锁后再让数据流入filter
+		group.dummyAudioFilter = NewDummyAudioFilter(group.UniqueKey, config.RtmpConfig.AddDummyAudioWaitAudioMs, group.OnReadRtmpAvMsg)
+		session.SetPubSessionObserver(group.dummyAudioFilter)
+	} else {
+		session.SetPubSessionObserver(group)
+	}
 
 	return true
 }
@@ -640,6 +649,7 @@ func (group *Group) delRtmpPubSession(session *rtmp.ServerSession) {
 
 	group.rtmpPubSession = nil
 	group.rtmp2RtspRemuxer = nil
+	group.dummyAudioFilter = nil
 	group.delIn()
 }
 
@@ -1041,7 +1051,7 @@ func (group *Group) broadcastByRtmpMsg(msg base.RtmpMsg) {
 				// GOP缓存中肯定包含了关键帧
 				session.ShouldWaitVideoKeyFrame = false
 
-				nazalog.Debugf("[%s] [%s] write gop cahe. gop num=%d", group.UniqueKey, session.UniqueKey(), gopCount)
+				nazalog.Debugf("[%s] [%s] write gop cache. gop num=%d", group.UniqueKey, session.UniqueKey(), gopCount)
 			}
 			for i := 0; i < gopCount; i++ {
 				for _, item := range group.rtmpGopCache.GetGopDataAt(i) {
