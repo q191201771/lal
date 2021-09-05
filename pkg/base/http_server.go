@@ -37,7 +37,7 @@ type LocalAddrCtx struct {
 	CertFile string
 	KeyFile  string
 
-	Network string // 默认为NetworkTcp
+	Network string
 }
 
 type HttpServerManager struct {
@@ -60,7 +60,21 @@ func NewHttpServerManager() *HttpServerManager {
 
 type Handler func(http.ResponseWriter, *http.Request)
 
+// AddListen
+//
+// @param addrCtx IsHttps  是否为https
+//                         注意，如果要为相同的路由同时绑定http和https，那么应该调用该函数两次，分别将该参数设置为true和false
+//                Addr     监听地址，内部会为其建立监听
+//                         http和https不能够使用相同的地址
+//                         注意，多次调用，允许使用相同的地址绑定不同的`pattern`
+//                CertFile
+//                KeyFile
+//                Network  如果为空默认为NetworkTcp="tcp"
+//
 // @param pattern 必须以`/`开始，并以`/`结束
+//                注意，如果是`/`，则在其他所有pattern都匹配失败后，做为兜底匹配成功
+//                相同的pattern不能绑定不同的`handler`回调函数（显然，我们无法为相同的监听地址，相同的路径绑定多个回调函数）
+//
 func (s *HttpServerManager) AddListen(addrCtx LocalAddrCtx, pattern string, handler Handler) error {
 	var (
 		ctx *ServerCtx
@@ -72,6 +86,7 @@ func (s *HttpServerManager) AddListen(addrCtx LocalAddrCtx, pattern string, hand
 		return ErrAddrEmpty
 	}
 
+	// 监听地址是否已经创建过
 	ctx, ok = s.addr2ServerCtx[addrCtx.Addr]
 	if !ok {
 		l, err := listen(addrCtx)
@@ -92,7 +107,7 @@ func (s *HttpServerManager) AddListen(addrCtx LocalAddrCtx, pattern string, hand
 	}
 
 	// 路径相同，比较回调函数是否相同
-	// 如果回调函数也相同，意味着重复绑定，这种情况是允许的
+	// 如果回调函数也相同，意味着重复绑定，这种情况是允许的，忽略掉就行了
 	// 如果回调函数不同，返回错误
 	if prevHandler, ok := ctx.pattern2Handler[pattern]; ok {
 		if reflect.ValueOf(prevHandler).Pointer() == reflect.ValueOf(handler).Pointer() {
@@ -131,6 +146,8 @@ func (s *HttpServerManager) Dispose() error {
 	return nazaerrors.CombineErrors(es...)
 }
 
+// 为传入的`Addr`地址创建http或https监听
+//
 func listen(ctx LocalAddrCtx) (net.Listener, error) {
 	if ctx.Network == "" {
 		ctx.Network = NetworkTcp
