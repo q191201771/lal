@@ -163,6 +163,7 @@ func (ascCtx *AscContext) GetSamplingFrequency() (int, error) {
 	case AscSamplingFrequencyIndex44100:
 		return 44100, nil
 	}
+	nazalog.Errorf("GetSamplingFrequency failed. ascCtx=%+v", ascCtx)
 	return -1, ErrAac
 }
 
