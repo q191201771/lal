@@ -18,7 +18,7 @@
   "httpflv": {
     "enable": true,
     "enable_https": false,
-    "url_pattern": "/live/",
+    "url_pattern": "/",
     "gop_num": 0
   },
   "hls": {
@@ -34,7 +34,7 @@
   "httpts": {
     "enable": true,
     "enable_https":false,
-    "url_pattern": "/live/"
+    "url_pattern": "/"
   },
   "rtsp": {
     "enable": true,
