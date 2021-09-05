@@ -36,14 +36,14 @@ type ServerManager struct {
 	httpApiServer *HttpApiServer
 	exitChan      chan struct{}
 
-	mutex    sync.Mutex
-	groupMap map[string]*Group // TODO chef: with appName
+	mutex        sync.Mutex
+	groupManager IGroupManager
 }
 
 func NewServerManager() *ServerManager {
 	m := &ServerManager{
-		groupMap: make(map[string]*Group),
-		exitChan: make(chan struct{}),
+		exitChan:     make(chan struct{}),
+		groupManager: NewSimpleGroupManager(),
 	}
 
 	if config.HttpflvConfig.Enable || config.HttpflvConfig.EnableHttps ||
@@ -164,20 +164,35 @@ func (sm *ServerManager) RunLoop() error {
 		case <-t.C:
 			count++
 
-			sm.iterateGroup()
+			sm.mutex.Lock()
 
-			if (count % 30) == 0 {
-				sm.mutex.Lock()
-				nazalog.Debugf("group size=%d", len(sm.groupMap))
-				// only for debug
-				if len(sm.groupMap) < 10 {
-					for _, g := range sm.groupMap {
-						nazalog.Debugf("%s", g.StringifyDebugStats())
-					}
+			// 关闭空闲的group
+			sm.groupManager.Iterate(func(appName string, streamName string, group *Group) bool {
+				if group.IsTotalEmpty() {
+					nazalog.Infof("erase empty group. [%s]", group.UniqueKey)
+					group.Dispose()
+					return false
 				}
-				sm.mutex.Unlock()
+
+				group.Tick()
+				return true
+			})
+
+			// 定时打印一些group相关的日志
+			if (count % 30) == 0 {
+				groupNum := sm.groupManager.Len()
+				nazalog.Debugf("group size=%d", groupNum)
+				if groupNum < 10 {
+					sm.groupManager.Iterate(func(appName string, streamName string, group *Group) bool {
+						nazalog.Debugf("%s", group.StringifyDebugStats())
+						return true
+					})
+				}
 			}
 
+			sm.mutex.Unlock()
+
+			// 定时通过http notify发送group相关的信息
 			if uis != 0 && (count%uis) == 0 {
 				updateInfo.ServerId = config.ServerId
 				updateInfo.Groups = sm.statAllGroup()
@@ -202,9 +217,10 @@ func (sm *ServerManager) Dispose() {
 	//}
 
 	sm.mutex.Lock()
-	for _, group := range sm.groupMap {
+	sm.groupManager.Iterate(func(appName string, streamName string, group *Group) bool {
 		group.Dispose()
-	}
+		return true
+	})
 	sm.mutex.Unlock()
 
 	sm.exitChan <- struct{}{}
@@ -213,11 +229,13 @@ func (sm *ServerManager) Dispose() {
 func (sm *ServerManager) GetGroup(appName string, streamName string) *Group {
 	sm.mutex.Lock()
 	defer sm.mutex.Unlock()
-
 	return sm.getGroup(appName, streamName)
 }
 
-// ServerObserver of rtmp.Server
+// ---------------------------------------------------------------------------------------------------------------------
+// rtmp.ServerObserver interface
+// ---------------------------------------------------------------------------------------------------------------------
+
 func (sm *ServerManager) OnRtmpConnect(session *rtmp.ServerSession, opa rtmp.ObjectPairArray) {
 	sm.mutex.Lock()
 	defer sm.mutex.Unlock()
@@ -238,7 +256,6 @@ func (sm *ServerManager) OnRtmpConnect(session *rtmp.ServerSession, opa rtmp.Obj
 	httpNotify.OnRtmpConnect(info)
 }
 
-// ServerObserver of rtmp.Server
 func (sm *ServerManager) OnNewRtmpPubSession(session *rtmp.ServerSession) bool {
 	sm.mutex.Lock()
 	defer sm.mutex.Unlock()
@@ -262,7 +279,6 @@ func (sm *ServerManager) OnNewRtmpPubSession(session *rtmp.ServerSession) bool {
 	return res
 }
 
-// ServerObserver of rtmp.Server
 func (sm *ServerManager) OnDelRtmpPubSession(session *rtmp.ServerSession) {
 	sm.mutex.Lock()
 	defer sm.mutex.Unlock()
@@ -287,7 +303,6 @@ func (sm *ServerManager) OnDelRtmpPubSession(session *rtmp.ServerSession) {
 	httpNotify.OnPubStop(info)
 }
 
-// ServerObserver of rtmp.Server
 func (sm *ServerManager) OnNewRtmpSubSession(session *rtmp.ServerSession) bool {
 	sm.mutex.Lock()
 	defer sm.mutex.Unlock()
@@ -310,7 +325,6 @@ func (sm *ServerManager) OnNewRtmpSubSession(session *rtmp.ServerSession) bool {
 	return true
 }
 
-// ServerObserver of rtmp.Server
 func (sm *ServerManager) OnDelRtmpSubSession(session *rtmp.ServerSession) {
 	sm.mutex.Lock()
 	defer sm.mutex.Unlock()
@@ -334,7 +348,10 @@ func (sm *ServerManager) OnDelRtmpSubSession(session *rtmp.ServerSession) {
 	httpNotify.OnSubStop(info)
 }
 
-// ServerObserver of httpflv.Server
+// ---------------------------------------------------------------------------------------------------------------------
+// httpflv.ServerObserver interface
+// ---------------------------------------------------------------------------------------------------------------------
+
 func (sm *ServerManager) OnNewHttpflvSubSession(session *httpflv.SubSession) bool {
 	sm.mutex.Lock()
 	defer sm.mutex.Unlock()
@@ -356,7 +373,6 @@ func (sm *ServerManager) OnNewHttpflvSubSession(session *httpflv.SubSession) boo
 	return true
 }
 
-// ServerObserver of httpflv.Server
 func (sm *ServerManager) OnDelHttpflvSubSession(session *httpflv.SubSession) {
 	sm.mutex.Lock()
 	defer sm.mutex.Unlock()
@@ -381,7 +397,10 @@ func (sm *ServerManager) OnDelHttpflvSubSession(session *httpflv.SubSession) {
 	httpNotify.OnSubStop(info)
 }
 
-// ServerObserver of httpts.Server
+// ---------------------------------------------------------------------------------------------------------------------
+// httpts.ServerObserver interface
+// ---------------------------------------------------------------------------------------------------------------------
+
 func (sm *ServerManager) OnNewHttptsSubSession(session *httpts.SubSession) bool {
 	sm.mutex.Lock()
 	defer sm.mutex.Unlock()
@@ -403,7 +422,6 @@ func (sm *ServerManager) OnNewHttptsSubSession(session *httpts.SubSession) bool 
 	return true
 }
 
-// ServerObserver of httpts.Server
 func (sm *ServerManager) OnDelHttptsSubSession(session *httpts.SubSession) {
 	sm.mutex.Lock()
 	defer sm.mutex.Unlock()
@@ -428,17 +446,18 @@ func (sm *ServerManager) OnDelHttptsSubSession(session *httpts.SubSession) {
 	httpNotify.OnSubStop(info)
 }
 
-// ServerObserver of rtsp.Server
+// ---------------------------------------------------------------------------------------------------------------------
+// rtsp.ServerObserver interface
+// ---------------------------------------------------------------------------------------------------------------------
+
 func (sm *ServerManager) OnNewRtspSessionConnect(session *rtsp.ServerCommandSession) {
 	// TODO chef: impl me
 }
 
-// ServerObserver of rtsp.Server
 func (sm *ServerManager) OnDelRtspSession(session *rtsp.ServerCommandSession) {
 	// TODO chef: impl me
 }
 
-// ServerObserver of rtsp.Server
 func (sm *ServerManager) OnNewRtspPubSession(session *rtsp.PubSession) bool {
 	sm.mutex.Lock()
 	defer sm.mutex.Unlock()
@@ -461,7 +480,6 @@ func (sm *ServerManager) OnNewRtspPubSession(session *rtsp.PubSession) bool {
 	return res
 }
 
-// ServerObserver of rtsp.Server
 func (sm *ServerManager) OnDelRtspPubSession(session *rtsp.PubSession) {
 	// TODO chef: impl me
 	sm.mutex.Lock()
@@ -487,7 +505,6 @@ func (sm *ServerManager) OnDelRtspPubSession(session *rtsp.PubSession) {
 	httpNotify.OnPubStop(info)
 }
 
-// ServerObserver of rtsp.Server
 func (sm *ServerManager) OnNewRtspSubSessionDescribe(session *rtsp.SubSession) (ok bool, sdp []byte) {
 	sm.mutex.Lock()
 	defer sm.mutex.Unlock()
@@ -495,7 +512,6 @@ func (sm *ServerManager) OnNewRtspSubSessionDescribe(session *rtsp.SubSession) (
 	return group.HandleNewRtspSubSessionDescribe(session)
 }
 
-// ServerObserver of rtsp.Server
 func (sm *ServerManager) OnNewRtspSubSessionPlay(session *rtsp.SubSession) bool {
 	sm.mutex.Lock()
 	defer sm.mutex.Unlock()
@@ -519,7 +535,6 @@ func (sm *ServerManager) OnNewRtspSubSessionPlay(session *rtsp.SubSession) bool 
 	return res
 }
 
-// ServerObserver of rtsp.Server
 func (sm *ServerManager) OnDelRtspSubSession(session *rtsp.SubSession) {
 	// TODO chef: impl me
 	sm.mutex.Lock()
@@ -545,16 +560,18 @@ func (sm *ServerManager) OnDelRtspSubSession(session *rtsp.SubSession) {
 	httpNotify.OnSubStop(info)
 }
 
-// HttpApiServerObserver
+// ---------------------------------------------------------------------------------------------------------------------
+// HttpApiServerObserver interface
+// ---------------------------------------------------------------------------------------------------------------------
+
 func (sm *ServerManager) OnStatAllGroup() (sgs []base.StatGroup) {
 	return sm.statAllGroup()
 }
 
-// HttpApiServerObserver
 func (sm *ServerManager) OnStatGroup(streamName string) *base.StatGroup {
 	sm.mutex.Lock()
 	defer sm.mutex.Unlock()
-	g := sm.getGroup("fakeAppName", streamName)
+	g := sm.getGroup("", streamName)
 	if g == nil {
 		return nil
 	}
@@ -564,7 +581,6 @@ func (sm *ServerManager) OnStatGroup(streamName string) *base.StatGroup {
 	return &ret
 }
 
-// HttpApiServerObserver
 func (sm *ServerManager) OnCtrlStartPull(info base.ApiCtrlStartPullReq) {
 	sm.mutex.Lock()
 	defer sm.mutex.Unlock()
@@ -582,11 +598,10 @@ func (sm *ServerManager) OnCtrlStartPull(info base.ApiCtrlStartPullReq) {
 	g.StartPull(url)
 }
 
-// HttpApiServerObserver
 func (sm *ServerManager) OnCtrlKickOutSession(info base.ApiCtrlKickOutSession) base.HttpResponseBasic {
 	sm.mutex.Lock()
 	defer sm.mutex.Unlock()
-	g := sm.getGroup("fake", info.StreamName)
+	g := sm.getGroup("", info.StreamName)
 	if g == nil {
 		return base.HttpResponseBasic{
 			ErrorCode: base.ErrorCodeGroupNotFound,
@@ -605,46 +620,27 @@ func (sm *ServerManager) OnCtrlKickOutSession(info base.ApiCtrlKickOutSession) b
 	}
 }
 
-func (sm *ServerManager) iterateGroup() {
-	sm.mutex.Lock()
-	defer sm.mutex.Unlock()
-	for k, group := range sm.groupMap {
-		// 关闭空闲的group
-		if group.IsTotalEmpty() {
-			nazalog.Infof("erase empty group. [%s]", group.UniqueKey)
-			group.Dispose()
-			delete(sm.groupMap, k)
-			continue
-		}
-
-		group.Tick()
-	}
-}
-
-func (sm *ServerManager) getOrCreateGroup(appName string, streamName string) *Group {
-	group, exist := sm.groupMap[streamName]
-	if !exist {
-		group = NewGroup(appName, streamName)
-		sm.groupMap[streamName] = group
-
-		go group.RunLoop()
-	}
-	return group
-}
-
-func (sm *ServerManager) getGroup(appName string, streamName string) *Group {
-	group, exist := sm.groupMap[streamName]
-	if !exist {
-		return nil
-	}
-	return group
-}
+// ---------------------------------------------------------------------------------------------------------------------
 
 func (sm *ServerManager) statAllGroup() (sgs []base.StatGroup) {
 	sm.mutex.Lock()
 	defer sm.mutex.Unlock()
-	for _, g := range sm.groupMap {
-		sgs = append(sgs, g.GetStat())
-	}
+	sm.groupManager.Iterate(func(appName string, streamName string, group *Group) bool {
+		sgs = append(sgs, group.GetStat())
+		return true
+	})
 	return
+}
+
+// 注意，函数内部不加锁，由调用方保证加锁进入
+func (sm *ServerManager) getOrCreateGroup(appName string, streamName string) *Group {
+	g, createFlag := sm.groupManager.GetOrCreateGroup(appName, streamName)
+	if createFlag {
+		go g.RunLoop()
+	}
+	return g
+}
+
+func (sm *ServerManager) getGroup(appName string, streamName string) *Group {
+	return sm.groupManager.GetGroup(appName, streamName)
 }
