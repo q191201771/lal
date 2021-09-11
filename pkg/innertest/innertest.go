@@ -127,7 +127,7 @@ func InnerTestEntry(t *testing.T) {
 			assert.Equal(t, nil, err)
 			httpflvPullTagCount.Increment()
 		})
-		nazalog.Error(err)
+		nazalog.Assert(nil, err)
 	}()
 
 	time.Sleep(200 * time.Millisecond)

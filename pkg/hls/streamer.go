@@ -10,7 +10,6 @@ package hls
 
 import (
 	"encoding/hex"
-
 	"github.com/q191201771/lal/pkg/aac"
 	"github.com/q191201771/lal/pkg/avc"
 	"github.com/q191201771/lal/pkg/base"
@@ -99,6 +98,8 @@ func (s *Streamer) feedVideo(msg base.RtmpMsg) {
 		nazalog.Errorf("[%s] invalid video message length. len=%d", s.UniqueKey, len(msg.Payload))
 		return
 	}
+	//nazalog.Debugf("[%s] feed video. header=%+v, payload=%s", s.UniqueKey, msg.Header, hex.Dump(nazastring.SubSliceSafety(msg.Payload, 16)))
+
 	codecId := msg.Payload[0] & 0xF
 	if codecId != base.RtmpCodecIdAvc && codecId != base.RtmpCodecIdHevc {
 		return
@@ -130,6 +131,9 @@ func (s *Streamer) feedVideo(msg base.RtmpMsg) {
 	// msg中可能有多个NALU，逐个获取
 	nals, err := avc.SplitNaluAvcc(msg.Payload[5:])
 	if err != nil {
+		// 注意，有一种情况是msg.Payload为 27 02 00 00 00
+		// 此时打印错误并返回也不影响
+		//
 		nazalog.Errorf("[%s] iterate nalu failed. err=%+v, header=%+v, payload=%s", err, s.UniqueKey, msg.Header, hex.Dump(nazastring.SubSliceSafety(msg.Payload, 32)))
 		return
 	}
