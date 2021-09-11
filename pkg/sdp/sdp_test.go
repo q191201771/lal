@@ -483,3 +483,57 @@ a=control:rtsp://10.10.10.188:554/stream0/track2
 	assert.Equal(t, nil, err)
 	_ = ctx
 }
+
+// `fmtp:96 `后多了个`;`
+func TestCase11(t *testing.T) {
+	golden := `v=0
+o=- 3331435948 1116907222000 IN IP4 192.168.2.109
+s=Session
+c=IN IP4 192.168.2.109
+t=0 0
+a=range:npt=now-
+a=control:*
+m=video 0 RTP/AVP 96
+a=control:trackID=0
+a=rtpmap:96 H264/90000
+a=fmtp:96 ;packetization-mode=1;sprop-parameter-sets=Z00AKpY1QPAET8s3AQEBQAABwgAAV+Qh,aO4xsg==
+b=AS:5000
+`
+	golden = strings.ReplaceAll(golden, "\n", "\r\n")
+	ctx, err := ParseSdp2LogicContext([]byte(golden))
+	assert.Equal(t, nil, err)
+	_ = ctx
+}
+
+// `a=fmtp:104 `这行的尾部多了个`;`
+func TestCase12(t *testing.T) {
+	golden := `v=0
+o=- 2733083813174 2733083813174 IN IP4 192.168.0.101
+s=Media Presentation
+e=NONE
+b=AS:5100
+t=0 0
+a=control:rtsp://192.168.0.102:554/LiveMedia/ch1/Media1/
+m=video 0 RTP/AVP 96
+c=IN IP4 0.0.0.0
+b=AS:5000
+a=recvonly
+a=x-dimensions:1280,960
+a=control:rtsp://192.168.0.102:554/LiveMedia/ch1/Media1/trackID=1
+a=rtpmap:96 H264/90000
+a=fmtp:96 profile-level-id=420029; packetization-mode=1; sprop-parameter-sets=Z01AII2NQCgDz/gLcBAQFAAAD6AAAw1DoYAHmCu8uNDAA8wV3lwo,aO44gA==
+m=audio 0 RTP/AVP 104
+c=IN IP4 0.0.0.0
+b=AS:50
+a=recvonly
+a=control:rtsp://192.168.0.102:554/LiveMedia/ch1/Media1/trackID=2
+a=rtpmap:104 mpeg4-generic/16000/1
+a=fmtp:104 profile-level-id=15; streamtype=5; mode=AAC-hbr; config=1408;SizeLength=13; IndexLength=3; IndexDeltaLength=3; Profile=1;
+a=Media_header:MEDIAINFO=494D4B48010200000400000101200110803E0000007D000000000000000000000000000000000000;
+a=appversion:1.0
+`
+	golden = strings.ReplaceAll(golden, "\n", "\r\n")
+	ctx, err := ParseSdp2LogicContext([]byte(golden))
+	assert.Equal(t, nil, err)
+	_ = ctx
+}

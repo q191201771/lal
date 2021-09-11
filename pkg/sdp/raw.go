@@ -179,6 +179,11 @@ func ParseAFmtPBase(s string) (ret AFmtPBase, err error) {
 		return
 	}
 
+	// 见TestCase11
+	items[1] = strings.TrimLeft(items[1], ";")
+	// 见TestCase12
+	items[1] = strings.TrimRight(items[1], ";")
+
 	items = strings.Split(items[1], ";")
 	for _, pp := range items {
 		pp = strings.TrimSpace(pp)
