@@ -180,3 +180,6 @@ var _ rtsp.IInterleavedPacketWriter = &rtsp.ClientCommandSession{}
 var _ rtsp.IInterleavedPacketWriter = &rtsp.ServerCommandSession{}
 
 var _ hls.StreamerObserver = &hls.Muxer{}
+
+var _ IGroupManager = &SimpleGroupManager{}
+var _ IGroupManager = &ComplexGroupManager{}

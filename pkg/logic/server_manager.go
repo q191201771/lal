@@ -167,7 +167,7 @@ func (sm *ServerManager) RunLoop() error {
 			sm.mutex.Lock()
 
 			// 关闭空闲的group
-			sm.groupManager.Iterate(func(appName string, streamName string, group *Group) bool {
+			sm.groupManager.Iterate(func(group *Group) bool {
 				if group.IsTotalEmpty() {
 					nazalog.Infof("erase empty group. [%s]", group.UniqueKey)
 					group.Dispose()
@@ -183,7 +183,7 @@ func (sm *ServerManager) RunLoop() error {
 				groupNum := sm.groupManager.Len()
 				nazalog.Debugf("group size=%d", groupNum)
 				if groupNum < 10 {
-					sm.groupManager.Iterate(func(appName string, streamName string, group *Group) bool {
+					sm.groupManager.Iterate(func(group *Group) bool {
 						nazalog.Debugf("%s", group.StringifyDebugStats())
 						return true
 					})
@@ -217,7 +217,7 @@ func (sm *ServerManager) Dispose() {
 	//}
 
 	sm.mutex.Lock()
-	sm.groupManager.Iterate(func(appName string, streamName string, group *Group) bool {
+	sm.groupManager.Iterate(func(group *Group) bool {
 		group.Dispose()
 		return true
 	})
@@ -625,7 +625,7 @@ func (sm *ServerManager) OnCtrlKickOutSession(info base.ApiCtrlKickOutSession) b
 func (sm *ServerManager) statAllGroup() (sgs []base.StatGroup) {
 	sm.mutex.Lock()
 	defer sm.mutex.Unlock()
-	sm.groupManager.Iterate(func(appName string, streamName string, group *Group) bool {
+	sm.groupManager.Iterate(func(group *Group) bool {
 		sgs = append(sgs, group.GetStat())
 		return true
 	})
