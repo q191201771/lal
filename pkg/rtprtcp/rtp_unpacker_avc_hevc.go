@@ -179,7 +179,8 @@ func (unpacker *RtpUnpackerAvcHevc) TryUnpackOne(list *RtpPacketList) (unpackedF
 				return true, p.Packet.Header.Seq
 			} else {
 				// 不应该出现其他类型
-				nazalog.Errorf("invalid position type. position=%d", p.Packet.positionType)
+				nazalog.Errorf("invalid position type. position=%d, first=(h=%+v, pos=%d), prev=(h=%+v, pos=%d), p=(h=%+v, pos=%d)",
+					p.Packet.positionType, first.Packet.Header, first.Packet.positionType, prev.Packet.Header, prev.Packet.positionType, p.Packet.Header, p.Packet.positionType)
 				return false, 0
 			}
 		}
