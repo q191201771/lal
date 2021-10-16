@@ -1,11 +1,13 @@
 {
   "# doc of config": "https://pengrl.com/lal/#/ConfigBrief",
-  "conf_version": "v0.2.2",
+  "conf_version": "v0.2.4",
   "rtmp": {
     "enable": true,
     "addr": ":1935",
     "gop_num": 0,
-    "merge_write_size": 0
+    "merge_write_size": 0,
+    "add_dummy_audio_enable": false,
+    "add_dummy_audio_wait_audio_ms": 150
   },
   "default_http": {
     "http_listen_addr": ":8080",
@@ -16,7 +18,7 @@
   "httpflv": {
     "enable": true,
     "enable_https": false,
-    "url_pattern": "/live/",
+    "url_pattern": "/",
     "gop_num": 0
   },
   "hls": {
@@ -32,7 +34,7 @@
   "httpts": {
     "enable": true,
     "enable_https":false,
-    "url_pattern": "/live/"
+    "url_pattern": "/"
   },
   "rtsp": {
     "enable": true,
@@ -79,6 +81,9 @@
     "is_to_stdout": true,
     "is_rotate_daily": true,
     "short_file_flag": true,
+    "timestamp_flag": true,
+    "timestamp_with_ms_flag": true,
+    "level_flag": true,
     "assert_behavior": 1
   }
 }
