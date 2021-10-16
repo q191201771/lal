@@ -8,6 +8,8 @@
 
 package logic
 
+// 注意，这个模块暂时不对外开放
+//
 // TODO
 // - 现有逻辑重构至当前模块中【DONE】
 // - server_manger接入当前模块，替换掉原来的map【DONE】

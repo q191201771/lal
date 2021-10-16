@@ -15,9 +15,11 @@ import (
 	"math"
 )
 
-const dummyAudioFilterStageAnalysis = 1
-const dummyAudioFilterStageNormal = 2
-const dummyAudioFilterStageDummy = 3
+const (
+	dummyAudioFilterStageAnalysis = 1
+	dummyAudioFilterStageNormal   = 2
+	dummyAudioFilterStageDummy    = 3
+)
 
 type DummyAudioFilter struct {
 	uk          string

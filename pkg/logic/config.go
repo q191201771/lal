@@ -52,7 +52,7 @@ type Config struct {
 type RtmpConfig struct {
 	Enable                   bool   `json:"enable"`
 	Addr                     string `json:"addr"`
-	GopNum                   int    `json:"gop_num"`
+	GopNum                   int    `json:"gop_num"` // TODO(chef): refactor 更名为gop_cache_num
 	MergeWriteSize           int    `json:"merge_write_size"`
 	AddDummyAudioEnable      bool   `json:"add_dummy_audio_enable"`
 	AddDummyAudioWaitAudioMs int    `json:"add_dummy_audio_wait_audio_ms"`
