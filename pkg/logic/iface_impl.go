@@ -183,3 +183,5 @@ var _ hls.StreamerObserver = &hls.Muxer{}
 
 var _ IGroupManager = &SimpleGroupManager{}
 var _ IGroupManager = &ComplexGroupManager{}
+
+var _ INotifyHandler = &DefaultNotifyHandler{}

@@ -67,7 +67,7 @@ func NewServerManager() *ServerManager {
 }
 
 func (sm *ServerManager) RunLoop() error {
-	httpNotify.OnServerStart()
+	notifyHandler.OnServerStart()
 
 	var addMux = func(config CommonHttpServerConfig, handler base.Handler, name string) error {
 		if config.Enable {
@@ -152,7 +152,7 @@ func (sm *ServerManager) RunLoop() error {
 	var updateInfo base.UpdateInfo
 	updateInfo.ServerId = config.ServerId
 	updateInfo.Groups = sm.statAllGroup()
-	httpNotify.OnUpdate(updateInfo)
+	notifyHandler.OnUpdate(updateInfo)
 
 	t := time.NewTicker(1 * time.Second)
 	defer t.Stop()
@@ -196,7 +196,7 @@ func (sm *ServerManager) RunLoop() error {
 			if uis != 0 && (count%uis) == 0 {
 				updateInfo.ServerId = config.ServerId
 				updateInfo.Groups = sm.statAllGroup()
-				httpNotify.OnUpdate(updateInfo)
+				notifyHandler.OnUpdate(updateInfo)
 			}
 		}
 	}
@@ -253,7 +253,7 @@ func (sm *ServerManager) OnRtmpConnect(session *rtmp.ServerSession, opa rtmp.Obj
 	if tcUrl, err := opa.FindString("tcUrl"); err == nil {
 		info.TcUrl = tcUrl
 	}
-	httpNotify.OnRtmpConnect(info)
+	notifyHandler.OnRtmpConnect(info)
 }
 
 func (sm *ServerManager) OnNewRtmpPubSession(session *rtmp.ServerSession) bool {
@@ -275,7 +275,7 @@ func (sm *ServerManager) OnNewRtmpPubSession(session *rtmp.ServerSession) bool {
 	info.RemoteAddr = session.GetStat().RemoteAddr
 	info.HasInSession = group.HasInSession()
 	info.HasOutSession = group.HasOutSession()
-	httpNotify.OnPubStart(info)
+	notifyHandler.OnPubStart(info)
 	return res
 }
 
@@ -300,7 +300,7 @@ func (sm *ServerManager) OnDelRtmpPubSession(session *rtmp.ServerSession) {
 	info.RemoteAddr = session.GetStat().RemoteAddr
 	info.HasInSession = group.HasInSession()
 	info.HasOutSession = group.HasOutSession()
-	httpNotify.OnPubStop(info)
+	notifyHandler.OnPubStop(info)
 }
 
 func (sm *ServerManager) OnNewRtmpSubSession(session *rtmp.ServerSession) bool {
@@ -320,7 +320,7 @@ func (sm *ServerManager) OnNewRtmpSubSession(session *rtmp.ServerSession) bool {
 	info.RemoteAddr = session.GetStat().RemoteAddr
 	info.HasInSession = group.HasInSession()
 	info.HasOutSession = group.HasOutSession()
-	httpNotify.OnSubStart(info)
+	notifyHandler.OnSubStart(info)
 
 	return true
 }
@@ -345,7 +345,7 @@ func (sm *ServerManager) OnDelRtmpSubSession(session *rtmp.ServerSession) {
 	info.RemoteAddr = session.GetStat().RemoteAddr
 	info.HasInSession = group.HasInSession()
 	info.HasOutSession = group.HasOutSession()
-	httpNotify.OnSubStop(info)
+	notifyHandler.OnSubStop(info)
 }
 
 // ---------------------------------------------------------------------------------------------------------------------
@@ -369,7 +369,7 @@ func (sm *ServerManager) OnNewHttpflvSubSession(session *httpflv.SubSession) boo
 	info.RemoteAddr = session.GetStat().RemoteAddr
 	info.HasInSession = group.HasInSession()
 	info.HasOutSession = group.HasOutSession()
-	httpNotify.OnSubStart(info)
+	notifyHandler.OnSubStart(info)
 	return true
 }
 
@@ -394,7 +394,7 @@ func (sm *ServerManager) OnDelHttpflvSubSession(session *httpflv.SubSession) {
 	info.RemoteAddr = session.GetStat().RemoteAddr
 	info.HasInSession = group.HasInSession()
 	info.HasOutSession = group.HasOutSession()
-	httpNotify.OnSubStop(info)
+	notifyHandler.OnSubStop(info)
 }
 
 // ---------------------------------------------------------------------------------------------------------------------
@@ -418,7 +418,7 @@ func (sm *ServerManager) OnNewHttptsSubSession(session *httpts.SubSession) bool 
 	info.RemoteAddr = session.GetStat().RemoteAddr
 	info.HasInSession = group.HasInSession()
 	info.HasOutSession = group.HasOutSession()
-	httpNotify.OnSubStart(info)
+	notifyHandler.OnSubStart(info)
 	return true
 }
 
@@ -443,7 +443,7 @@ func (sm *ServerManager) OnDelHttptsSubSession(session *httpts.SubSession) {
 	info.RemoteAddr = session.GetStat().RemoteAddr
 	info.HasInSession = group.HasInSession()
 	info.HasOutSession = group.HasOutSession()
-	httpNotify.OnSubStop(info)
+	notifyHandler.OnSubStop(info)
 }
 
 // ---------------------------------------------------------------------------------------------------------------------
@@ -461,7 +461,7 @@ func (sm *ServerManager) OnDelRtspSession(session *rtsp.ServerCommandSession) {
 func (sm *ServerManager) OnNewRtspPubSession(session *rtsp.PubSession) bool {
 	sm.mutex.Lock()
 	defer sm.mutex.Unlock()
-	group := sm.getOrCreateGroup("", session.StreamName())
+	group := sm.getOrCreateGroup(session.AppName(), session.StreamName())
 	res := group.AddRtspPubSession(session)
 
 	var info base.PubStartInfo
@@ -475,7 +475,7 @@ func (sm *ServerManager) OnNewRtspPubSession(session *rtsp.PubSession) bool {
 	info.RemoteAddr = session.GetStat().RemoteAddr
 	info.HasInSession = group.HasInSession()
 	info.HasOutSession = group.HasOutSession()
-	httpNotify.OnPubStart(info)
+	notifyHandler.OnPubStart(info)
 
 	return res
 }
@@ -484,7 +484,7 @@ func (sm *ServerManager) OnDelRtspPubSession(session *rtsp.PubSession) {
 	// TODO chef: impl me
 	sm.mutex.Lock()
 	defer sm.mutex.Unlock()
-	group := sm.getGroup("", session.StreamName())
+	group := sm.getGroup(session.AppName(), session.StreamName())
 	if group == nil {
 		return
 	}
@@ -502,20 +502,20 @@ func (sm *ServerManager) OnDelRtspPubSession(session *rtsp.PubSession) {
 	info.RemoteAddr = session.GetStat().RemoteAddr
 	info.HasInSession = group.HasInSession()
 	info.HasOutSession = group.HasOutSession()
-	httpNotify.OnPubStop(info)
+	notifyHandler.OnPubStop(info)
 }
 
 func (sm *ServerManager) OnNewRtspSubSessionDescribe(session *rtsp.SubSession) (ok bool, sdp []byte) {
 	sm.mutex.Lock()
 	defer sm.mutex.Unlock()
-	group := sm.getOrCreateGroup("", session.StreamName())
+	group := sm.getOrCreateGroup(session.AppName(), session.StreamName())
 	return group.HandleNewRtspSubSessionDescribe(session)
 }
 
 func (sm *ServerManager) OnNewRtspSubSessionPlay(session *rtsp.SubSession) bool {
 	sm.mutex.Lock()
 	defer sm.mutex.Unlock()
-	group := sm.getOrCreateGroup("", session.StreamName())
+	group := sm.getOrCreateGroup(session.AppName(), session.StreamName())
 
 	res := group.HandleNewRtspSubSessionPlay(session)
 
@@ -530,7 +530,7 @@ func (sm *ServerManager) OnNewRtspSubSessionPlay(session *rtsp.SubSession) bool 
 	info.RemoteAddr = session.GetStat().RemoteAddr
 	info.HasInSession = group.HasInSession()
 	info.HasOutSession = group.HasOutSession()
-	httpNotify.OnSubStart(info)
+	notifyHandler.OnSubStart(info)
 
 	return res
 }
@@ -539,7 +539,7 @@ func (sm *ServerManager) OnDelRtspSubSession(session *rtsp.SubSession) {
 	// TODO chef: impl me
 	sm.mutex.Lock()
 	defer sm.mutex.Unlock()
-	group := sm.getGroup("", session.StreamName())
+	group := sm.getGroup(session.AppName(), session.StreamName())
 	if group == nil {
 		return
 	}
@@ -557,7 +557,7 @@ func (sm *ServerManager) OnDelRtspSubSession(session *rtsp.SubSession) {
 	info.RemoteAddr = session.GetStat().RemoteAddr
 	info.HasInSession = group.HasInSession()
 	info.HasOutSession = group.HasOutSession()
-	httpNotify.OnSubStop(info)
+	notifyHandler.OnSubStop(info)
 }
 
 // ---------------------------------------------------------------------------------------------------------------------

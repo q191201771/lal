@@ -34,7 +34,19 @@ type HttpNotify struct {
 	client    *http.Client
 }
 
-var httpNotify *HttpNotify
+func NewHttpNotify() *HttpNotify {
+	httpNotify := &HttpNotify{
+		taskQueue: make(chan PostTask, maxTaskLen),
+		client: &http.Client{
+			Timeout: time.Duration(notifyTimeoutSec) * time.Second,
+		},
+	}
+	go httpNotify.RunLoop()
+
+	return httpNotify
+}
+
+// TODO(chef): Dispose
 
 // 注意，这里的函数命名以On开头并不是因为是回调函数，而是notify给业务方的接口叫做on_server_start
 func (h *HttpNotify) OnServerStart() {
@@ -98,16 +110,4 @@ func (h *HttpNotify) post(url string, info interface{}) {
 	if _, err := nazahttp.PostJson(url, info, h.client); err != nil {
 		nazalog.Errorf("http notify post error. err=%+v", err)
 	}
-}
-
-// TODO chef: dispose
-
-func init() {
-	httpNotify = &HttpNotify{
-		taskQueue: make(chan PostTask, maxTaskLen),
-		client: &http.Client{
-			Timeout: time.Duration(notifyTimeoutSec) * time.Second,
-		},
-	}
-	go httpNotify.RunLoop()
 }
