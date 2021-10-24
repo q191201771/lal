@@ -15,6 +15,8 @@ import (
 	"github.com/q191201771/naza/pkg/nazalog"
 )
 
+// TODO(chef): refactor 本文件移出package logic
+
 // 考虑以下两种场景：
 // - 只有上行，没有下行，没有必要做rtmp chunk切片的操作
 // - 有多个下行，只需要做一次rtmp chunk切片

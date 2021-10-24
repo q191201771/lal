@@ -15,6 +15,8 @@ import (
 	"math"
 )
 
+// TODO(chef): refactor 本文件移出package logic
+
 const (
 	dummyAudioFilterStageAnalysis = 1
 	dummyAudioFilterStageNormal   = 2
