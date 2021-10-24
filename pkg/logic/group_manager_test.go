@@ -13,10 +13,17 @@ import (
 	"testing"
 )
 
-func TestGroupManager(t *testing.T) {
-	// TODO(chef): refactor 由于Group中耦合了全局变量config（不依赖取值，但是不能为nil），所以该单元测试进行前对config做初始化
-	config = &Config{}
+type mockGroupCreator struct {
+}
 
+func (m *mockGroupCreator) CreateGroup(appName, streamName string) *Group {
+	var config Config
+	return NewGroup(appName, streamName, &config, nil)
+}
+
+var mgc = &mockGroupCreator{}
+
+func TestGroupManager(t *testing.T) {
 	var (
 		sgm IGroupManager
 		sg0 *Group
@@ -35,8 +42,8 @@ func TestGroupManager(t *testing.T) {
 		createFlag bool
 	)
 
-	sgm = NewSimpleGroupManager()
-	cgm = NewComplexGroupManager()
+	sgm = NewSimpleGroupManager(mgc)
+	cgm = NewComplexGroupManager(mgc)
 
 	// (为空时)获取
 	// 获取到nil
@@ -266,8 +273,8 @@ func TestGroupManager(t *testing.T) {
 
 	//----------------------------
 
-	sgm = NewSimpleGroupManager()
-	cgm = NewComplexGroupManager()
+	sgm = NewSimpleGroupManager(mgc)
+	cgm = NewComplexGroupManager(mgc)
 
 	sg0 = cgm.GetGroup("", "stream1")
 	cg0 = cgm.GetGroup("", "stream1")

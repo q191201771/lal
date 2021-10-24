@@ -11,6 +11,7 @@ package logic
 import (
 	"encoding/json"
 	"fmt"
+	"net"
 	"path/filepath"
 	"strings"
 	"sync"
@@ -21,8 +22,6 @@ import (
 	"github.com/q191201771/lal/pkg/mpegts"
 
 	"github.com/q191201771/lal/pkg/remux"
-
-	"github.com/q191201771/naza/pkg/defertaskthread"
 
 	"github.com/q191201771/lal/pkg/rtprtcp"
 
@@ -42,10 +41,16 @@ import (
 	"github.com/q191201771/naza/pkg/nazalog"
 )
 
+type GroupObserver interface {
+	CleanupHlsIfNeeded(appName string, streamName string, path string)
+}
+
 type Group struct {
 	UniqueKey  string // const after init
 	appName    string // const after init
 	streamName string // const after init TODO chef: 和stat里的字段重复，可以删除掉
+	config     *Config
+	observer   GroupObserver
 
 	exitChan chan struct{}
 
@@ -80,7 +85,7 @@ type Group struct {
 	// rtmp pub使用
 	dummyAudioFilter *DummyAudioFilter
 	// rtmp sub使用
-	rtmpBufWriter base.IBufWriter // TODO(chef): 后面可以在业务层加一个定时Flush
+	rtmpMergeWriter *base.MergeWriter // TODO(chef): 后面可以在业务层加一个定时Flush
 	// mpegts使用
 	patpmt []byte
 	// rtsp使用
@@ -99,7 +104,7 @@ type pushProxy struct {
 	pushSession *rtmp.PushSession
 }
 
-func NewGroup(appName string, streamName string) *Group {
+func NewGroup(appName string, streamName string, config *Config, observer GroupObserver) *Group {
 	uk := base.GenUkGroup()
 
 	url2PushProxy := make(map[string]*pushProxy) // TODO(chef): 移入Enable里面并进行review+测试
@@ -117,6 +122,8 @@ func NewGroup(appName string, streamName string) *Group {
 		UniqueKey:  uk,
 		appName:    appName,
 		streamName: streamName,
+		config:     config,
+		observer:   observer,
 		stat: base.StatGroup{
 			StreamName: streamName,
 		},
@@ -139,7 +146,9 @@ func NewGroup(appName string, streamName string) *Group {
 	}
 	g.setPullUrl(config.RelayPullConfig.Enable, pullUrl)
 
-	g.rtmpBufWriter = base.NewWriterFuncSize(g.write2RtmpSubSessions, config.RtmpConfig.MergeWriteSize)
+	if config.RtmpConfig.MergeWriteSize > 0 {
+		g.rtmpMergeWriter = base.NewMergeWriter(g.writev2RtmpSubSessions, config.RtmpConfig.MergeWriteSize)
+	}
 	nazalog.Infof("[%s] lifecycle new group. group=%p, appName=%s, streamName=%s", uk, g, appName, streamName)
 
 	return g
@@ -310,7 +319,7 @@ func (group *Group) AddRtmpPubSession(session *rtmp.ServerSession) bool {
 	group.rtmpPubSession = session
 	group.addIn()
 
-	if config.RtspConfig.Enable {
+	if group.config.RtspConfig.Enable {
 		group.rtmp2RtspRemuxer = remux.NewRtmp2RtspRemuxer(
 			func(sdpCtx sdp.LogicContext) {
 				group.sdpCtx = &sdpCtx
@@ -320,9 +329,9 @@ func (group *Group) AddRtmpPubSession(session *rtmp.ServerSession) bool {
 	}
 
 	// TODO(chef): 为rtmp pull以及rtsp也添加叠加静音音频的功能
-	if config.RtmpConfig.AddDummyAudioEnable {
+	if group.config.RtmpConfig.AddDummyAudioEnable {
 		// TODO(chef): 从整体控制和锁关系来说，应该让pub的数据回调到group中进锁后再让数据流入filter
-		group.dummyAudioFilter = NewDummyAudioFilter(group.UniqueKey, config.RtmpConfig.AddDummyAudioWaitAudioMs, group.OnReadRtmpAvMsg)
+		group.dummyAudioFilter = NewDummyAudioFilter(group.UniqueKey, group.config.RtmpConfig.AddDummyAudioWaitAudioMs, group.OnReadRtmpAvMsg)
 		session.SetPubSessionObserver(group.dummyAudioFilter)
 	} else {
 		session.SetPubSessionObserver(group)
@@ -782,12 +791,12 @@ func (group *Group) isTotalEmpty() bool {
 //
 func (group *Group) addIn() {
 	// 是否启动hls
-	if config.HlsConfig.Enable {
+	if group.config.HlsConfig.Enable {
 		if group.hlsMuxer != nil {
 			nazalog.Errorf("[%s] hls muxer exist while addIn. muxer=%+v", group.UniqueKey, group.hlsMuxer)
 		}
-		enable := config.HlsConfig.Enable || config.HlsConfig.EnableHttps
-		group.hlsMuxer = hls.NewMuxer(group.streamName, enable, &config.HlsConfig.MuxerConfig, group)
+		enable := group.config.HlsConfig.Enable || group.config.HlsConfig.EnableHttps
+		group.hlsMuxer = hls.NewMuxer(group.streamName, enable, &group.config.HlsConfig.MuxerConfig, group)
 		group.hlsMuxer.Start()
 	}
 
@@ -799,9 +808,9 @@ func (group *Group) addIn() {
 	now := time.Now().Unix()
 
 	// 是否录制成flv文件
-	if config.RecordConfig.EnableFlv {
+	if group.config.RecordConfig.EnableFlv {
 		filename := fmt.Sprintf("%s-%d.flv", group.streamName, now)
-		filenameWithPath := filepath.Join(config.RecordConfig.FlvOutPath, filename)
+		filenameWithPath := filepath.Join(group.config.RecordConfig.FlvOutPath, filename)
 		if group.recordFlv != nil {
 			nazalog.Errorf("[%s] record flv but already exist. new filename=%s, old filename=%s",
 				group.UniqueKey, filenameWithPath, group.recordFlv.Name())
@@ -823,9 +832,9 @@ func (group *Group) addIn() {
 	}
 
 	// 是否录制成ts文件
-	if config.RecordConfig.EnableMpegts {
+	if group.config.RecordConfig.EnableMpegts {
 		filename := fmt.Sprintf("%s-%d.ts", group.streamName, now)
-		filenameWithPath := filepath.Join(config.RecordConfig.MpegtsOutPath, filename)
+		filenameWithPath := filepath.Join(group.config.RecordConfig.MpegtsOutPath, filename)
 		if group.recordMpegts != nil {
 			nazalog.Errorf("[%s] record mpegts but already exist. new filename=%s, old filename=%s",
 				group.UniqueKey, filenameWithPath, group.recordMpegts.Name())
@@ -846,7 +855,7 @@ func (group *Group) addIn() {
 //
 func (group *Group) delIn() {
 	// 停止hls
-	if config.HlsConfig.Enable && group.hlsMuxer != nil {
+	if group.config.HlsConfig.Enable && group.hlsMuxer != nil {
 		group.disposeHlsMuxer()
 	}
 
@@ -861,7 +870,7 @@ func (group *Group) delIn() {
 	}
 
 	// 停止flv录制
-	if config.RecordConfig.EnableFlv {
+	if group.config.RecordConfig.EnableFlv {
 		if group.recordFlv != nil {
 			if err := group.recordFlv.Dispose(); err != nil {
 				nazalog.Errorf("[%s] record flv dispose error. err=%+v", group.UniqueKey, err)
@@ -871,7 +880,7 @@ func (group *Group) delIn() {
 	}
 
 	// 停止ts录制
-	if config.RecordConfig.EnableMpegts {
+	if group.config.RecordConfig.EnableMpegts {
 		if group.recordMpegts != nil {
 			if err := group.recordMpegts.Dispose(); err != nil {
 				nazalog.Errorf("[%s] record mpegts dispose error. err=%+v", group.UniqueKey, err)
@@ -892,33 +901,7 @@ func (group *Group) disposeHlsMuxer() {
 	if group.hlsMuxer != nil {
 		group.hlsMuxer.Dispose()
 
-		// 添加延时任务，删除HLS文件
-		if config.HlsConfig.Enable &&
-			(config.HlsConfig.CleanupMode == hls.CleanupModeInTheEnd || config.HlsConfig.CleanupMode == hls.CleanupModeAsap) {
-			defertaskthread.Go(
-				config.HlsConfig.FragmentDurationMs*config.HlsConfig.FragmentNum*2,
-				func(param ...interface{}) {
-					appName := param[0].(string)
-					streamName := param[1].(string)
-					outPath := param[2].(string)
-
-					if g := sm.GetGroup(appName, streamName); g != nil {
-						if g.IsHlsMuxerAlive() {
-							nazalog.Warnf("cancel cleanup hls file path since hls muxer still alive. streamName=%s", streamName)
-							return
-						}
-					}
-
-					nazalog.Infof("cleanup hls file path. streamName=%s, path=%s", streamName, outPath)
-					if err := hls.RemoveAll(outPath); err != nil {
-						nazalog.Warnf("cleanup hls file path error. path=%s, err=%+v", outPath, err)
-					}
-				},
-				group.appName,
-				group.streamName,
-				group.hlsMuxer.OutPath(),
-			)
-		}
+		group.observer.CleanupHlsIfNeeded(group.appName, group.streamName, group.hlsMuxer.OutPath())
 
 		group.hlsMuxer = nil
 	}
@@ -1010,12 +993,12 @@ func (group *Group) broadcastByRtmpMsg(msg base.RtmpMsg) {
 	//nazalog.Debugf("[%s] broadcaseRTMP. header=%+v, %s", group.UniqueKey, msg.Header, hex.Dump(nazastring.SubSliceSafety(msg.Payload, 7)))
 
 	// # hls
-	if config.HlsConfig.Enable && group.hlsMuxer != nil {
+	if group.config.HlsConfig.Enable && group.hlsMuxer != nil {
 		group.hlsMuxer.FeedRtmpMessage(msg)
 	}
 
 	// # rtsp
-	if config.RtspConfig.Enable && group.rtmp2RtspRemuxer != nil {
+	if group.config.RtspConfig.Enable && group.rtmp2RtspRemuxer != nil {
 		group.rtmp2RtspRemuxer.FeedRtmpMsg(msg)
 	}
 
@@ -1062,7 +1045,9 @@ func (group *Group) broadcastByRtmpMsg(msg base.RtmpMsg) {
 			// 有新加入的sub session（本次循环的第一个新加入的sub session），把rtmp buf writer中的缓存数据全部广播发送给老的sub session
 			// 从而确保新加入的sub session不会发送这部分脏的数据
 			// 注意，此处可能被调用多次，但是只有第一次会实际flush缓存数据
-			group.rtmpBufWriter.Flush()
+			if group.rtmpMergeWriter != nil {
+				group.rtmpMergeWriter.Flush()
+			}
 
 			session.IsFresh = false
 		}
@@ -1072,13 +1057,19 @@ func (group *Group) broadcastByRtmpMsg(msg base.RtmpMsg) {
 			// 把rtmp buf writer中的缓存数据全部广播发送给老的sub session
 			// 并且修改这个sub session的标志
 			// 让rtmp buf writer来发送这个关键帧
-			group.rtmpBufWriter.Flush()
+			if group.rtmpMergeWriter != nil {
+				group.rtmpMergeWriter.Flush()
+			}
 			session.ShouldWaitVideoKeyFrame = false
 		}
 	}
 	// ## 转发本次数据
 	if len(group.rtmpSubSessionSet) > 0 {
-		group.rtmpBufWriter.Write(lcd.Get())
+		if group.rtmpMergeWriter == nil {
+			group.write2RtmpSubSessions(lcd.Get())
+		} else {
+			group.rtmpMergeWriter.Write(lcd.Get())
+		}
 	}
 
 	// TODO chef: rtmp sub, rtmp push, httpflv sub 的发送逻辑都差不多，可以考虑封装一下
@@ -1156,10 +1147,10 @@ func (group *Group) broadcastByRtmpMsg(msg base.RtmpMsg) {
 	}
 
 	// # 缓存关键信息，以及gop
-	if config.RtmpConfig.Enable {
+	if group.config.RtmpConfig.Enable {
 		group.rtmpGopCache.Feed(msg, lcd.Get)
 	}
-	if config.HttpflvConfig.Enable {
+	if group.config.HttpflvConfig.Enable {
 		group.httpflvGopCache.Feed(msg, lrm2ft.Get)
 	}
 
@@ -1251,6 +1242,15 @@ func (group *Group) write2RtmpSubSessions(b []byte) {
 			continue
 		}
 		_ = session.Write(b)
+	}
+}
+
+func (group *Group) writev2RtmpSubSessions(bs net.Buffers) {
+	for session := range group.rtmpSubSessionSet {
+		if session.IsFresh || session.ShouldWaitVideoKeyFrame {
+			continue
+		}
+		_ = session.Writev(bs)
 	}
 }
 

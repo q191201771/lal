@@ -6,17 +6,20 @@
 //
 // Author: Chef (191201771@qq.com)
 
-package logic
+package innertest
 
 import (
 	"github.com/q191201771/lal/pkg/base"
 	"github.com/q191201771/lal/pkg/hls"
 	"github.com/q191201771/lal/pkg/httpflv"
 	"github.com/q191201771/lal/pkg/httpts"
+	"github.com/q191201771/lal/pkg/logic"
 	"github.com/q191201771/lal/pkg/remux"
 	"github.com/q191201771/lal/pkg/rtmp"
 	"github.com/q191201771/lal/pkg/rtsp"
 )
+
+// TODO(chef): refactor 有的interface以I开头，有的不是
 
 // TODO(chef): 整理所有Server类型Session的生命周期管理
 //   -
@@ -150,19 +153,24 @@ var (
 
 // ---------------------------------------------------------------------------------------------------------------------
 
-var _ rtmp.ServerObserver = &ServerManager{}
-var _ rtsp.ServerObserver = &ServerManager{}
-var _ HttpServerHandlerObserver = &ServerManager{}
+var _ logic.ILalServer = &logic.ServerManager{}
+var _ rtmp.ServerObserver = &logic.ServerManager{}
+var _ logic.HttpServerHandlerObserver = &logic.ServerManager{}
+var _ rtsp.ServerObserver = &logic.ServerManager{}
+var _ logic.IGroupCreator = &logic.ServerManager{}
+var _ logic.GroupObserver = &logic.ServerManager{}
 
-var _ HttpApiServerObserver = &ServerManager{}
+var _ logic.INotifyHandler = &logic.HttpNotify{}
+var _ logic.IGroupManager = &logic.SimpleGroupManager{}
+var _ logic.IGroupManager = &logic.ComplexGroupManager{}
 
-var _ rtmp.PubSessionObserver = &Group{} //
-var _ rtsp.PullSessionObserver = &Group{}
+var _ rtmp.PubSessionObserver = &logic.Group{} //
+var _ rtsp.PullSessionObserver = &logic.Group{}
 var _ rtsp.PullSessionObserver = &remux.AvPacket2RtmpRemuxer{}
-var _ rtsp.PubSessionObserver = &Group{}
+var _ rtsp.PubSessionObserver = &logic.Group{}
 var _ rtsp.PubSessionObserver = &remux.AvPacket2RtmpRemuxer{}
-var _ hls.MuxerObserver = &Group{}
-var _ rtsp.BaseInSessionObserver = &Group{} //
+var _ hls.MuxerObserver = &logic.Group{}
+var _ rtsp.BaseInSessionObserver = &logic.Group{} //
 var _ rtsp.BaseInSessionObserver = &remux.AvPacket2RtmpRemuxer{}
 
 var _ rtmp.ServerSessionObserver = &rtmp.Server{}
@@ -180,8 +188,3 @@ var _ rtsp.IInterleavedPacketWriter = &rtsp.ClientCommandSession{}
 var _ rtsp.IInterleavedPacketWriter = &rtsp.ServerCommandSession{}
 
 var _ hls.StreamerObserver = &hls.Muxer{}
-
-var _ IGroupManager = &SimpleGroupManager{}
-var _ IGroupManager = &ComplexGroupManager{}
-
-var _ INotifyHandler = &DefaultNotifyHandler{}

@@ -74,11 +74,11 @@ func InnerTestEntry(t *testing.T) {
 
 	var err error
 
-	logic.Init(confFile)
-	go logic.RunLoop()
+	sm := logic.NewServerManager(confFile)
+	go sm.RunLoop()
 	time.Sleep(200 * time.Millisecond)
 
-	config := logic.GetConfig()
+	config := sm.Config()
 
 	_ = os.RemoveAll(config.HlsConfig.OutPath)
 
@@ -160,7 +160,7 @@ func InnerTestEntry(t *testing.T) {
 	rtmpWriter.Dispose()
 	// 由于windows没有信号，会导致编译错误，所以直接调用Dispose
 	//_ = syscall.Kill(syscall.Getpid(), syscall.SIGUSR1)
-	logic.Dispose()
+	sm.Dispose()
 
 	nazalog.Debugf("count. %d %d %d", fileTagCount.Load(), httpflvPullTagCount.Load(), rtmpPullTagCount.Load())
 	compareFile()

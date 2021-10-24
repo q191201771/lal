@@ -8,7 +8,7 @@
 
 // +build linux darwin netbsd freebsd openbsd dragonfly
 
-package logic
+package base
 
 import (
 	"os"
@@ -18,7 +18,11 @@ import (
 	log "github.com/q191201771/naza/pkg/nazalog"
 )
 
-func runSignalHandler(cb func()) {
+// RunSignalHandler 监听SIGUSR1和SIGUSR2信号并回调
+//
+// TODO(chef): refactor 函数名应与SIGUSR1挂钩
+//
+func RunSignalHandler(cb func()) {
 	c := make(chan os.Signal)
 	signal.Notify(c, syscall.SIGUSR1, syscall.SIGUSR2)
 	s := <-c

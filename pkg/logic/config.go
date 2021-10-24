@@ -139,6 +139,8 @@ type CommonHttpAddrConfig struct {
 }
 
 func LoadConfAndInitLog(confFile string) *Config {
+	var config *Config
+
 	// 读取配置文件并解析原始内容
 	rawContent, err := ioutil.ReadFile(confFile)
 	if err != nil {

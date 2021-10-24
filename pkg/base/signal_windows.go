@@ -10,6 +10,6 @@
 
 package logic
 
-func runSignalHandler(cb func()) {
+func RunSignalHandler(cb func()) {
 
 }

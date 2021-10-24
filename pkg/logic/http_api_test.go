@@ -18,6 +18,6 @@ func TestHttpApiServer(t *testing.T) {
 	//	nazalog.Error(err)
 	//	return
 	//}
-	//err := s.Runloop()
+	//err := s.RunLoop()
 	//nazalog.Error(err)
 }

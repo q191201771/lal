@@ -8,26 +8,13 @@
 
 package logic
 
-// 注意，这个模块暂时不对外开放
-//
-// TODO
-// - 现有逻辑重构至当前模块中【DONE】
-// - server_manger接入当前模块，替换掉原来的map【DONE】
-// - 重构整理使用server_manager的地方【DONE】
-// - 实现appName逻辑的IGroupManager【DONE】
-// - 增加单元测试【DONE】
-// - 配置文件或var.go中增加选取具体IGroupManager实现的开关
-// - 去除配置文件中一部分的url_pattern
-// - 更新相应的文档：本文件注释，server_manager等中原有关于appName的注释，配置文件文档，流地址列表文档
-// - 创建group时没有appname，后面又有了，可以考虑更新一下
+// 注意，这个模块的功能不完全，目前只使用SimpleGroupManager
 
 // ---------------------------------------------------------------------------------------------------------------------
 
-// OnIterateGroup
-//
-// @return 如果返回false，则删除这个元素
-//
-type OnIterateGroup func(group *Group) bool
+type IGroupCreator interface {
+	CreateGroup(appName, streamName string) *Group
+}
 
 // IGroupManager
 //
@@ -37,8 +24,7 @@ type OnIterateGroup func(group *Group) bool
 type IGroupManager interface {
 	// GetOrCreateGroup
 	//
-	// @param appName 如果没有，可以为""
-	//
+	// @param appName     注意，如果没有，可以为""
 	// @return createFlag 如果为false表示group之前就存在，如果为true表示为当前新创建
 	//
 	GetOrCreateGroup(appName string, streamName string) (group *Group, createFlag bool)
@@ -49,11 +35,15 @@ type IGroupManager interface {
 	//
 	GetGroup(appName string, streamName string) *Group
 
-	Iterate(onIterateGroup OnIterateGroup)
+	// Iterate 遍历所有 Group
+	//
+	// @param onIterateGroup 如果返回false，则删除这个 Group
+	//
+	Iterate(onIterateGroup func(group *Group) bool)
 
 	Len() int
 
-	// TODO(chef): 没有提供删除操作，因为目前使用时，是在遍历时做删除的
+	// TODO(chef): feat 没有提供删除操作，因为目前使用时，是在遍历时做删除的
 }
 
 // ---------------------------------------------------------------------------------------------------------------------
@@ -61,19 +51,21 @@ type IGroupManager interface {
 // SimpleGroupManager 忽略appName，只使用streamName
 //
 type SimpleGroupManager struct {
-	groups map[string]*Group // streamName -> Group
+	groupCreator IGroupCreator
+	groups       map[string]*Group // streamName -> Group
 }
 
-func NewSimpleGroupManager() *SimpleGroupManager {
+func NewSimpleGroupManager(groupCreator IGroupCreator) *SimpleGroupManager {
 	return &SimpleGroupManager{
-		groups: make(map[string]*Group),
+		groupCreator: groupCreator,
+		groups:       make(map[string]*Group),
 	}
 }
 
 func (s *SimpleGroupManager) GetOrCreateGroup(appName string, streamName string) (group *Group, createFlag bool) {
 	g := s.GetGroup(appName, streamName)
 	if g == nil {
-		g = NewGroup(appName, streamName)
+		g = s.groupCreator.CreateGroup(appName, streamName)
 		s.groups[streamName] = g
 		return g, true
 	}
@@ -88,9 +80,7 @@ func (s *SimpleGroupManager) GetGroup(appName string, streamName string) *Group 
 	return g
 }
 
-// Iterate 遍历group
-//
-func (s *SimpleGroupManager) Iterate(onIterateGroup OnIterateGroup) {
+func (s *SimpleGroupManager) Iterate(onIterateGroup func(group *Group) bool) {
 	for streamName, group := range s.groups {
 		if !onIterateGroup(group) {
 			delete(s.groups, streamName)
@@ -101,6 +91,21 @@ func (s *SimpleGroupManager) Iterate(onIterateGroup OnIterateGroup) {
 func (s *SimpleGroupManager) Len() int {
 	return len(s.groups)
 }
+
+// ---------------------------------------------------------------------------------------------------------------------
+
+// TODO(chef):
+//
+// - 现有逻辑重构至当前模块中【DONE】
+// - server_manger接入当前模块，替换掉原来的map【DONE】
+// - 重构整理使用server_manager的地方【DONE】
+// - 实现appName逻辑的IGroupManager【DONE】
+// - 增加单元测试【DONE】
+// - 配置文件或var.go中增加选取具体IGroupManager实现的开关
+// - 去除配置文件中一部分的url_pattern
+// - 更新相应的文档：本文件注释，server_manager等中原有关于appName的注释，配置文件文档，流地址列表文档
+// - 创建group时没有appname，后面又有了，可以考虑更新一下
+// - ComplexGroupManager使用IGroupCreator
 
 // ---------------------------------------------------------------------------------------------------------------------
 
@@ -118,13 +123,15 @@ func (s *SimpleGroupManager) Len() int {
 //   - group可能由第一种协议创建，也可能由第二种协议创建
 //
 type ComplexGroupManager struct {
+	groupCreator IGroupCreator
 	// 注意，一个group只可能在一个容器中，两个容器中的group加起来才是全量
 	onlyStreamNameGroups    map[string]*Group            // streamName -> Group
 	appNameStreamNameGroups map[string]map[string]*Group // appName -> streamName -> Group
 }
 
-func NewComplexGroupManager() *ComplexGroupManager {
+func NewComplexGroupManager(groupCreator IGroupCreator) *ComplexGroupManager {
 	return &ComplexGroupManager{
+		groupCreator:            groupCreator,
 		onlyStreamNameGroups:    make(map[string]*Group),
 		appNameStreamNameGroups: make(map[string]map[string]*Group),
 	}
@@ -159,7 +166,7 @@ func (gm *ComplexGroupManager) getGroup(appName string, streamName string, shoul
 
 		// 两个容器都没找到
 		if shouldCreate {
-			group = NewGroup(appName, streamName)
+			group = gm.groupCreator.CreateGroup(appName, streamName)
 			gm.onlyStreamNameGroups[streamName] = group
 			return group, true
 		} else {
@@ -183,7 +190,7 @@ func (gm *ComplexGroupManager) getGroup(appName string, streamName string, shoul
 
 		// 都没有找到
 		if shouldCreate {
-			group = NewGroup(appName, streamName)
+			group = gm.groupCreator.CreateGroup(appName, streamName)
 			if !mok {
 				m = make(map[string]*Group)
 				gm.appNameStreamNameGroups[appName] = m
@@ -196,7 +203,7 @@ func (gm *ComplexGroupManager) getGroup(appName string, streamName string, shoul
 	}
 }
 
-func (gm *ComplexGroupManager) Iterate(onIterateGroup OnIterateGroup) {
+func (gm *ComplexGroupManager) Iterate(onIterateGroup func(group *Group) bool) {
 	for streamName, group := range gm.onlyStreamNameGroups {
 		if !onIterateGroup(group) {
 			delete(gm.onlyStreamNameGroups, streamName)
