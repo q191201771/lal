@@ -111,6 +111,11 @@ func (s *ServerSession) Write(msg []byte) error {
 	return err
 }
 
+func (s *ServerSession) Writev(msgs net.Buffers) error {
+	_, err := s.conn.Writev(msgs)
+	return err
+}
+
 func (s *ServerSession) Flush() error {
 	return s.conn.Flush()
 }
