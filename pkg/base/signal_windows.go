@@ -8,7 +8,7 @@
 
 // +build windows
 
-package logic
+package base
 
 func RunSignalHandler(cb func()) {
 
