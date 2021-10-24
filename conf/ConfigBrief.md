@@ -26,16 +26,18 @@
   "httpflv": {
     "enable": true,          //. 是否开启HTTP-FLV服务的监听
     "enable_https": true,    //. 是否开启HTTPS-FLV监听
-    "url_pattern": "/live/", //. 拉流url路由地址。默认值`/live/`，对应`/live/{streamName}.flv`
-    "gop_num": 2             //.
+    "url_pattern": "/",      //. 拉流url路由路径地址。默认值为`/`，表示不受限制，路由地址可以为任意路径地址。
+                             //  如果设置为`/live/`，则只能从`/live/`路径下拉流，比如`/live/test110.flv`
+    "gop_num": 2             //. 
   },
   "hls": {
     "enable": true,                  //. 是否开启HLS服务的监听
     "enable_https": true,            //. 是否开启HTTPS-FLV监听
-    "url_pattern": "/hls/",          //. 拉流url路由地址，默认值`/hls/`，对应：
+    "url_pattern": "/hls/",          //. 拉流url路由地址，默认值`/hls/`，对应的HLS(m3u8)拉流地址：
                                      //  - `/hls/{streamName}.m3u8` 或
                                      //    `/hls/{streamName}/playlist.m3u8` 或
                                      //    `/hls/{streamName}/record.m3u8`
+                                     //  ts文件地址备注如下：
                                      //  - `/hls/{streamName}/{streamName}-{timestamp}-{index}.ts` 或
                                      //    `/hls/{streamName}-{timestamp}-{index}.ts`
                                      //  注意，hls的url_pattern不能和httpflv、httpts的url_pattern相同
@@ -53,8 +55,9 @@
   },
   "httpts": {
     "enable": true,         //. 是否开启HTTP-TS服务的监听。注意，这并不是HLS中的TS，而是在一条HTTP长连接上持续性传输TS流
-    "enable_https": true,   //. 是否开启HTTPS-FLV监听
-    "url_pattern": "/live/" //. 拉流url路由地址。默认值`/live/`，对应`/live/{streamName}.flv`
+    "enable_https": true,   //. 是否开启HTTPS-TS监听
+    "url_pattern": "/"      //. 拉流url路由路径地址。默认值为`/`，表示不受限制，路由地址可以为任意路径地址。
+                            //  如果设置为`/live/`，则只能从`/live/`路径下拉流，比如`/live/test110.ts`
   },
   "rtsp": {
     "enable": true, //. 是否开启rtsp服务的监听，目前只支持rtsp推流

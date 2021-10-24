@@ -16,7 +16,7 @@ import "strings"
 // 并且将这些信息打入可执行文件、日志、各协议中的标准版本字段中
 
 // 版本，该变量由外部脚本修改维护
-const LalVersion = "v0.24.0"
+const LalVersion = "v0.26.0"
 
 var (
 	LalLibraryName = "lal"
