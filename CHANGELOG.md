@@ -1,3 +1,19 @@
+#### v0.26.0 (2021-10-24)
+
+- [perf] rtmp合并发送功能使用writev实现
+- [feat] 兼容性: 运行时动态检查所有配置项是否存在
+- [refactor] 可定制性: logic: 抽象出ILalServer接口；业务方可在自身代码中创建server，选择是否获取notify通知，以及使用api控制server
+- [refactor] 兼容性: 两个不太标准的sdp格式(a=fmtp的前面或后面有多余的分号)
+- [refactor] 兼容性: aac解析失败日志; 输入的rtp包格式错误; 输入的rtmp包格式错误; hls中分割nalu增加日志; base.HttpServerManager增加日志
+- [refactor] 兼容性: 再增加一个配置文件默认搜索地址
+- [refactor] 可读性: logic: ServerManager和Config不再作为全局变量使用；去除entry.go中间层；iface_impl.go移入innertest中；signal_xxx.go移入base中
+- [refactor] 易用性: demo/pullrtsp2pushrtsp: 抽象出RtspTunnel结构体，一个对象对应一个转推任务
+- [refactor] logic: 新增GroupManager，管理所有Group
+- [chore] 配置文件中httpflv和httpts的url_pattern初始值改为没有限制
+- [chore] 使用github actions做CI（替换掉之前的travisCI）
+- [chore] 修复build.sh在linux下获取git tag信息失败报错的问题；去掉单元测试时不必要的错误日志
+- [chore] 增加docker运行脚本run_docker.sh
+
 #### v0.25.0 (2021-08-28)
 
 - [feat] 为rtmp pub推流添加静音AAC音频(可动态检测是否需要添加；配置文件中可开启或关闭这个功能)
