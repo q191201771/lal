@@ -25,7 +25,7 @@ LAL could also be built from the source wherever the Go compiler toolchain can r
 
 ### Building from source
 
-First, make sure that Go version >= 1.13
+First, make sure that Go version >= 1.14
 
 For Linux/macOS user:
 
