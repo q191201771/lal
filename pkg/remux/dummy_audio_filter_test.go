@@ -6,12 +6,12 @@
 //
 // Author: Chef (191201771@qq.com)
 
-package logic_test
+package remux_test
 
 import (
 	"encoding/hex"
 	"github.com/q191201771/lal/pkg/base"
-	"github.com/q191201771/lal/pkg/logic"
+	"github.com/q191201771/lal/pkg/remux"
 	"github.com/q191201771/naza/pkg/assert"
 	"github.com/q191201771/naza/pkg/nazalog"
 	"strconv"
@@ -34,7 +34,7 @@ func TestDummyAudioFilter(t *testing.T) {
 			helperUnpackRtmpMsg("header={Csid:6 MsgLen:372 MsgTypeId:9 MsgStreamId:1 TimestampAbs:90}, payload=27010000"),
 		}
 		var out []base.RtmpMsg
-		filter := logic.NewDummyAudioFilter("test1", 150, func(msg base.RtmpMsg) {
+		filter := remux.NewDummyAudioFilter("test1", 150, func(msg base.RtmpMsg) {
 			out = append(out, msg)
 		})
 		//filter.Feed(helperUnpackRtmpMsg(""))
@@ -60,7 +60,7 @@ func TestDummyAudioFilter(t *testing.T) {
 			helperUnpackRtmpMsg("header={Csid:6 MsgLen:1931 MsgTypeId:9 MsgStreamId:1 TimestampAbs:290}, payload=2701000000000005"),
 		}
 		var out []base.RtmpMsg
-		filter := logic.NewDummyAudioFilter("test1", 150, func(msg base.RtmpMsg) {
+		filter := remux.NewDummyAudioFilter("test1", 150, func(msg base.RtmpMsg) {
 			out = append(out, msg)
 		})
 		for i := 0; i <= 4; i++ {
@@ -90,7 +90,7 @@ func TestDummyAudioFilter(t *testing.T) {
 			helperUnpackRtmpMsg("header={Csid:4 MsgLen:8 MsgTypeId:8 MsgStreamId:1 TimestampAbs:23}, payload=af01211004608c1c"),
 		}
 		var out []base.RtmpMsg
-		filter := logic.NewDummyAudioFilter("test1", 150, func(msg base.RtmpMsg) {
+		filter := remux.NewDummyAudioFilter("test1", 150, func(msg base.RtmpMsg) {
 			out = append(out, msg)
 		})
 		filter.Feed(in[0])

@@ -6,7 +6,7 @@
 //
 // Author: Chef (191201771@qq.com)
 
-package logic
+package remux
 
 import (
 	"testing"

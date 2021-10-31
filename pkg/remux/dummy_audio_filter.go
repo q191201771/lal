@@ -6,7 +6,7 @@
 //
 // Author: Chef (191201771@qq.com)
 
-package logic
+package remux
 
 import (
 	"github.com/q191201771/lal/pkg/base"
@@ -14,8 +14,6 @@ import (
 	"github.com/q191201771/naza/pkg/nazalog"
 	"math"
 )
-
-// TODO(chef): refactor 本文件移出package logic
 
 const (
 	dummyAudioFilterStageAnalysis = 1

@@ -80,10 +80,10 @@ type Group struct {
 	recordFlv    *httpflv.FlvFileWriter
 	recordMpegts *mpegts.FileWriter
 	// rtmp pub/pull使用
-	rtmpGopCache    *GopCache
-	httpflvGopCache *GopCache
+	rtmpGopCache    *remux.GopCache
+	httpflvGopCache *remux.GopCache
 	// rtmp pub使用
-	dummyAudioFilter *DummyAudioFilter
+	dummyAudioFilter *remux.DummyAudioFilter
 	// rtmp sub使用
 	rtmpMergeWriter *base.MergeWriter // TODO(chef): 后面可以在业务层加一个定时Flush
 	// mpegts使用
@@ -132,8 +132,8 @@ func NewGroup(appName string, streamName string, config *Config, observer GroupO
 		httpflvSubSessionSet: make(map[*httpflv.SubSession]struct{}),
 		httptsSubSessionSet:  make(map[*httpts.SubSession]struct{}),
 		rtspSubSessionSet:    make(map[*rtsp.SubSession]struct{}),
-		rtmpGopCache:         NewGopCache("rtmp", uk, config.RtmpConfig.GopNum),
-		httpflvGopCache:      NewGopCache("httpflv", uk, config.HttpflvConfig.GopNum),
+		rtmpGopCache:         remux.NewGopCache("rtmp", uk, config.RtmpConfig.GopNum),
+		httpflvGopCache:      remux.NewGopCache("httpflv", uk, config.HttpflvConfig.GopNum),
 		pushEnable:           config.RelayPushConfig.Enable,
 		url2PushProxy:        url2PushProxy,
 		pullProxy:            &pullProxy{},
@@ -331,7 +331,7 @@ func (group *Group) AddRtmpPubSession(session *rtmp.ServerSession) bool {
 	// TODO(chef): 为rtmp pull以及rtsp也添加叠加静音音频的功能
 	if group.config.RtmpConfig.AddDummyAudioEnable {
 		// TODO(chef): 从整体控制和锁关系来说，应该让pub的数据回调到group中进锁后再让数据流入filter
-		group.dummyAudioFilter = NewDummyAudioFilter(group.UniqueKey, group.config.RtmpConfig.AddDummyAudioWaitAudioMs, group.OnReadRtmpAvMsg)
+		group.dummyAudioFilter = remux.NewDummyAudioFilter(group.UniqueKey, group.config.RtmpConfig.AddDummyAudioWaitAudioMs, group.OnReadRtmpAvMsg)
 		session.SetPubSessionObserver(group.dummyAudioFilter)
 	} else {
 		session.SetPubSessionObserver(group)
@@ -986,8 +986,8 @@ func (group *Group) OnTsPackets(rawFrame []byte, boundary bool) {
 //
 func (group *Group) broadcastByRtmpMsg(msg base.RtmpMsg) {
 	var (
-		lcd    LazyChunkDivider
-		lrm2ft LazyRtmpMsg2FlvTag
+		lcd    remux.LazyRtmpChunkDivider
+		lrm2ft remux.LazyRtmpMsg2FlvTag
 	)
 
 	//nazalog.Debugf("[%s] broadcaseRTMP. header=%+v, %s", group.UniqueKey, msg.Header, hex.Dump(nazastring.SubSliceSafety(msg.Payload, 7)))
