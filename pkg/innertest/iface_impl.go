@@ -37,6 +37,22 @@ import (
 //              rtsp.BaseInSession, rtsp.BaseOutSession, rtsp.ClientCommandSession, rtsp.ServerCommandSessionS
 //              base.HttpSubSession
 
+// ISessionUrlContext 实际测试
+//
+// |                | 实际url                                               | Url()    | AppName, StreamName, RawQuery  |
+// | -              | -                                                    | -        | -                              |
+// | rtmp pub推流    | rtmp://127.0.0.1:1935/live/test110                   | 同实际url | live, test110,                 |
+// |                | rtmp://127.0.0.1:1935/a/b/c/d/test110?p1=1&p2=2      | 同实际url | a/b, c/d/test110, p1=1&p2=2    |
+// | rtsp pub推流    | rtsp://localhost:5544/live/test110                   | 同实际url | live, test110,                 |
+// | rtsp pub推流    | rtsp://localhost:5544/a/b/c/d/test110?p1=1&p2=2      | 同实际url | a/b/c/d, test110, p1=1&p2=2    |
+// | httpflv sub拉流  | http://127.0.0.1:8080/live/test110.flv              | 同实际url | live, test110,                 |
+// |                 | http://127.0.0.1:8080/a/b/c/d/test110.flv?p1=1&p2=2 | 同实际url | a/b/c/d, test110, p1=1&p2=2    |
+// | rtmp sub拉流    | 同rtmp pub                                           | .        | .                              |
+// | rtsp sub拉流    | 同rtsp pub                                           | .        | .                              |
+// | httpts sub拉流 | 同httpflv sub，只是末尾的.flv换成.ts，不再赘述             | .       | .                              |
+
+//
+
 // IClientSession: 所有Client Session都满足
 var (
 	_ base.IClientSession = &rtmp.PushSession{}

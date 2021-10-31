@@ -78,7 +78,7 @@ func ParseUrl(rawUrl string, defaultPort int) (ctx UrlContext, err error) {
 
 	h, p, err := net.SplitHostPort(stdUrl.Host)
 	if err != nil {
-		// url中端口不存r
+		// url中端口不存在
 
 		ctx.Host = stdUrl.Host
 		if defaultPort == -1 {
@@ -96,7 +96,6 @@ func ParseUrl(rawUrl string, defaultPort int) (ctx UrlContext, err error) {
 		}
 		ctx.Host = h
 		ctx.HostWithPort = stdUrl.Host
-
 	}
 
 	pathCtx, err := parseUrlPath(stdUrl)
