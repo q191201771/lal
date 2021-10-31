@@ -73,7 +73,6 @@ func (packer *MessagePacker) ChunkAndWrite(writer io.Writer, csid int, typeid ui
 	h.MsgStreamId = streamid
 	h.TimestampAbs = 0
 	chunks := Message2Chunks(packer.b.Bytes()[12:], &h)
-	nazalog.Debugf("CHEFERASEME %d %d", packer.b.Len(), len(chunks))
 	packer.b.Reset()
 	_, err := writer.Write(chunks)
 	return err

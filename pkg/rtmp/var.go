@@ -34,3 +34,7 @@ var (
 	windowAcknowledgementSize = 5000000
 	peerBandwidth             = 5000000
 )
+
+// 接收rtmp数据时，msg的初始内存块大小
+// 注意，该值只影响性能，不影响功能（大小不够会自动扩容）
+const initMsgLen = 4096

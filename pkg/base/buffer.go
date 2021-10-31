@@ -15,10 +15,10 @@ import (
 )
 
 // TODO(chef): refactor 移入naza中
-// TODO(chef): 实现Reader和Writer接口；增加Next函数
 // TODO(chef): 增加options: growRoundThreshold; 是否做检查
+// TODO(chef): 扩容策略函数可由外部传入
 
-const growRoundThreshold = 1048576
+const growRoundThreshold = 1048576 // 1MB
 
 // Buffer 先进先出可扩容流式buffer，可直接读写内部切片避免拷贝
 //
@@ -26,7 +26,15 @@ const growRoundThreshold = 1048576
 //   读取方式1
 //     buf := Bytes()
 //     ... // 读取buf的内容
-//     Skip()
+//     Skip(n)
+//
+//   读取方式2
+//     buf := Peek(n)
+//     ...
+//
+//   读取方式3
+//     buf := make([]byte, n)
+//     nn, err := Read(buf)
 //
 //   写入方式1
 //     Grow(n)
@@ -38,6 +46,9 @@ const growRoundThreshold = 1048576
 //     buf := ReserveBytes(n)
 //     ... // 向buf中写入内容
 //     Flush(n)
+//
+//   写入方式3
+//     n, err := Write(buf)
 //
 type Buffer struct {
 	core []byte
@@ -51,9 +62,19 @@ func NewBuffer(initCap int) *Buffer {
 	}
 }
 
+// NewBufferRefBytes
+//
+// 注意，不拷贝参数`b`的内存块，仅持有
+//
+func NewBufferRefBytes(b []byte) *Buffer {
+	return &Buffer{
+		core: b,
+	}
+}
+
 // ---------------------------------------------------------------------------------------------------------------------
 
-// Bytes Buffer中未读数据
+// Bytes Buffer中所有未读数据，类似于PeekAll，不拷贝
 //
 func (b *Buffer) Bytes() []byte {
 	if b.rpos == b.wpos {
@@ -62,11 +83,23 @@ func (b *Buffer) Bytes() []byte {
 	return b.core[b.rpos:b.wpos]
 }
 
+// Peek 查看指定长度的未读数据，不拷贝，类似于Next，但是不会修改读取偏移位置
+//
+func (b *Buffer) Peek(n int) []byte {
+	if b.rpos == b.wpos {
+		return nil
+	}
+	if b.Len() < n {
+		return b.Bytes()
+	}
+	return b.core[b.rpos : b.rpos+n]
+}
+
 // Skip 将前`n`未读数据标记为已读（也即消费完成）
 //
 func (b *Buffer) Skip(n int) {
 	if n > b.wpos-b.rpos {
-		nazalog.Warnf("[%p] Buffer::Skip too large. n=%d, %s", b, n, b.debugString())
+		nazalog.Warnf("[%p] Buffer::Skip too large. n=%d, %s", b, n, b.DebugString())
 		b.Reset()
 		return
 	}
@@ -76,9 +109,10 @@ func (b *Buffer) Skip(n int) {
 
 // ---------------------------------------------------------------------------------------------------------------------
 
-// Grow 确保Buffer中至少有`n`大小的空间可写
+// Grow 确保Buffer中至少有`n`大小的空间可写，类似于Reserve
 //
 func (b *Buffer) Grow(n int) {
+	//nazalog.Debugf("[%p] > Buffer::Grow. n=%d, %s", b, n, b.DebugString())
 	tail := len(b.core) - b.wpos
 	if tail >= n {
 		// 尾部空闲空间足够
@@ -87,6 +121,7 @@ func (b *Buffer) Grow(n int) {
 
 	if b.rpos+tail >= n {
 		// 头部加上尾部空闲空间足够，将可读数据移动到头部，回收头部空闲空间
+		nazalog.Debugf("[%p] Buffer::Grow. move, n=%d, copy=%d", b, n, b.Len())
 		copy(b.core, b.core[b.rpos:b.wpos])
 		b.wpos -= b.rpos
 		b.rpos = 0
@@ -101,6 +136,7 @@ func (b *Buffer) Grow(n int) {
 		needed = roundUpPowerOfTwo(needed)
 	}
 
+	nazalog.Debugf("[%p] Buffer::Grow. realloc, n=%d, copy=%d, cap=(%d, %d)", b, n, b.Len(), b.Cap(), needed)
 	core := make([]byte, needed, needed)
 	copy(core, b.core[b.rpos:b.wpos])
 	b.core = core
@@ -119,6 +155,8 @@ func (b *Buffer) WritableBytes() []byte {
 
 // ReserveBytes 返回可写入`n`大小的字节切片，如果空闲空间不够，内部会进行扩容
 //
+// 注意，返回值空间大小只会为`n`，
+//
 func (b *Buffer) ReserveBytes(n int) []byte {
 	b.Grow(n)
 	return b.WritableBytes()[:n]
@@ -128,24 +166,17 @@ func (b *Buffer) ReserveBytes(n int) []byte {
 //
 func (b *Buffer) Flush(n int) {
 	if len(b.core)-b.wpos < n {
-		nazalog.Warnf("[%p] Buffer::Flush too large. n=%d, %s", b, n, b.debugString())
+		nazalog.Warnf("[%p] Buffer::Flush too large. n=%d, %s", b, n, b.DebugString())
 		b.wpos = len(b.core)
 		return
 	}
 	b.wpos += n
 }
 
-// ----- implement io.Writer interface ---------------------------------------------------------------------------------
-
-func (b *Buffer) Write(p []byte) (n int, err error) {
-	b.Grow(len(p))
-	copy(b.core[b.wpos:], p)
-	b.wpos += n
-	return len(p), nil
-}
-
 // ----- implement io.Reader interface ---------------------------------------------------------------------------------
 
+// Read 拷贝，`p`空间由外部申请
+//
 func (b *Buffer) Read(p []byte) (n int, err error) {
 	if len(p) == 0 {
 		return 0, nil
@@ -158,13 +189,24 @@ func (b *Buffer) Read(p []byte) (n int, err error) {
 	return n, nil
 }
 
+// ----- implement io.Writer interface ---------------------------------------------------------------------------------
+
+// Write 拷贝
+//
+func (b *Buffer) Write(p []byte) (n int, err error) {
+	b.Grow(len(p))
+	copy(b.core[b.wpos:], p)
+	b.wpos += n
+	return len(p), nil
+}
+
 // ---------------------------------------------------------------------------------------------------------------------
 
-// Truncate 丢弃可读数据的末尾`n`大小的数据
+// Truncate 丢弃可读数据的末尾`n`大小的数据，或者理解为取消写
 //
 func (b *Buffer) Truncate(n int) {
 	if b.Len() < n {
-		nazalog.Warnf("[%p] Buffer::Truncate too large. n=%d, %s", b, n, b.debugString())
+		nazalog.Warnf("[%p] Buffer::Truncate too large. n=%d, %s", b, n, b.DebugString())
 		b.Reset()
 		return
 	}
@@ -197,14 +239,16 @@ func (b *Buffer) Cap() int {
 
 // ---------------------------------------------------------------------------------------------------------------------
 
+func (b *Buffer) DebugString() string {
+	return fmt.Sprintf("len(core)=%d, rpos=%d, wpos=%d", len(b.core), b.rpos, b.wpos)
+}
+
+// ---------------------------------------------------------------------------------------------------------------------
+
 func (b *Buffer) resetIfEmpty() {
 	if b.rpos == b.wpos {
 		b.Reset()
 	}
-}
-
-func (b *Buffer) debugString() string {
-	return fmt.Sprintf("len=%d, rpos=%d, wpos=%d", len(b.core), b.rpos, b.wpos)
 }
 
 // TODO(chef): refactor 移入naza中

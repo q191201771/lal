@@ -17,8 +17,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/q191201771/naza/pkg/nazastring"
-
 	"github.com/q191201771/lal/pkg/base"
 
 	"github.com/q191201771/naza/pkg/bele"
@@ -362,7 +360,7 @@ func (s *ClientSession) doMsg(stream *Stream) error {
 		s.debugLogReadUserCtrlMsgCount++
 		if s.debugLogReadUserCtrlMsgCount <= s.debugLogReadUserCtrlMsgMax {
 			nazalog.Warnf("[%s] read user control message, ignore. buf=%s",
-				s.uniqueKey, hex.Dump(nazastring.SubSliceSafety(stream.msg.buf[stream.msg.b:stream.msg.e], 32)))
+				s.uniqueKey, hex.Dump(stream.msg.buff.Peek(32)))
 		}
 	case base.RtmpTypeIdAudio:
 		fallthrough
@@ -376,7 +374,7 @@ func (s *ClientSession) doMsg(stream *Stream) error {
 }
 
 func (s *ClientSession) doAck(stream *Stream) error {
-	seqNum := bele.BeUint32(stream.msg.buf[stream.msg.b:stream.msg.e])
+	seqNum := bele.BeUint32(stream.msg.buff.Bytes())
 	nazalog.Infof("[%s] < R Acknowledgement. ignore. sequence number=%d.", s.uniqueKey, seqNum)
 	return nil
 }
@@ -509,10 +507,10 @@ func (s *ClientSession) doResultMessage(stream *Stream, tid int) error {
 	return nil
 }
 func (s *ClientSession) doProtocolControlMessage(stream *Stream) error {
-	if stream.msg.len() < 4 {
+	if stream.msg.Len() < 4 {
 		return ErrRtmp
 	}
-	val := int(bele.BeUint32(stream.msg.buf))
+	val := int(bele.BeUint32(stream.msg.buff.Bytes()))
 
 	switch stream.header.MsgTypeId {
 	case base.RtmpTypeIdWinAckSize:

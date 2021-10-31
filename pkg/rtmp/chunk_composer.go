@@ -99,7 +99,7 @@ func (c *ChunkComposer) RunLoop(reader io.Reader, cb OnCompleteMessage) error {
 			stream.header.MsgTypeId = bootstrap[6]
 			stream.header.MsgStreamId = int(bele.LeUint32(bootstrap[7:]))
 
-			stream.msg.reserve(stream.header.MsgLen)
+			stream.msg.Grow(stream.header.MsgLen)
 		case 1:
 			if _, err := io.ReadAtLeast(reader, bootstrap[:7], 7); err != nil {
 				return err
@@ -110,7 +110,7 @@ func (c *ChunkComposer) RunLoop(reader io.Reader, cb OnCompleteMessage) error {
 			stream.header.MsgLen = bele.BeUint24(bootstrap[3:])
 			stream.header.MsgTypeId = bootstrap[6]
 
-			stream.msg.reserve(stream.header.MsgLen)
+			stream.msg.Grow(stream.header.MsgLen)
 		case 2:
 			if _, err := io.ReadAtLeast(reader, bootstrap[:3], 3); err != nil {
 				return err
@@ -153,24 +153,21 @@ func (c *ChunkComposer) RunLoop(reader io.Reader, cb OnCompleteMessage) error {
 		if stream.header.MsgLen <= c.peerChunkSize {
 			neededSize = stream.header.MsgLen
 		} else {
-			neededSize = stream.header.MsgLen - stream.msg.len()
+			neededSize = stream.header.MsgLen - stream.msg.Len()
 			if neededSize > c.peerChunkSize {
 				neededSize = c.peerChunkSize
 			}
 		}
 
-		// 因为上面已经对整个msg的长度reserve过了，所以这里就不需要reserve了
-		//stream.msg.reserve(neededSize)
-
-		if _, err := io.ReadAtLeast(reader, stream.msg.buf[stream.msg.e:stream.msg.e+neededSize], int(neededSize)); err != nil {
+		if _, err := io.ReadFull(reader, stream.msg.buff.ReserveBytes(int(neededSize))); err != nil {
 			return err
 		}
-		stream.msg.produced(neededSize)
+		stream.msg.Flush(neededSize)
 
-		if stream.msg.len() == stream.header.MsgLen {
+		if stream.msg.Len() == stream.header.MsgLen {
 			// 对端设置了chunk size
 			if stream.header.MsgTypeId == base.RtmpTypeIdSetChunkSize {
-				val := bele.BeUint32(stream.msg.buf)
+				val := bele.BeUint32(stream.msg.buff.Bytes())
 				c.SetPeerChunkSize(val)
 			}
 
@@ -193,21 +190,21 @@ func (c *ChunkComposer) RunLoop(reader io.Reader, cb OnCompleteMessage) error {
 				}
 				aggregateStream.header.Csid = stream.header.Csid
 
-				for stream.msg.len() != 0 {
+				for stream.msg.Len() != 0 {
 					// 读取sub message的头
-					if stream.msg.len() < 11 {
+					if stream.msg.Len() < 11 {
 						return ErrRtmp
 					}
-					aggregateStream.header.MsgTypeId = stream.msg.buf[stream.msg.b]
-					stream.msg.consumed(1)
-					aggregateStream.header.MsgLen = bele.BeUint24(stream.msg.buf[stream.msg.b:])
-					stream.msg.consumed(3)
-					aggregateStream.timestamp = bele.BeUint24(stream.msg.buf[stream.msg.b:])
-					stream.msg.consumed(3)
-					aggregateStream.timestamp += uint32(stream.msg.buf[stream.msg.b]) << 24
-					stream.msg.consumed(1)
-					aggregateStream.header.MsgStreamId = int(bele.BeUint24(stream.msg.buf[stream.msg.b:]))
-					stream.msg.consumed(3)
+					aggregateStream.header.MsgTypeId = stream.msg.buff.Bytes()[0]
+					stream.msg.Skip(1)
+					aggregateStream.header.MsgLen = bele.BeUint24(stream.msg.buff.Bytes())
+					stream.msg.Skip(3)
+					aggregateStream.timestamp = bele.BeUint24(stream.msg.buff.Bytes())
+					stream.msg.Skip(3)
+					aggregateStream.timestamp += uint32(stream.msg.buff.Bytes()[0]) << 24
+					stream.msg.Skip(1)
+					aggregateStream.header.MsgStreamId = int(bele.BeUint24(stream.msg.buff.Bytes()))
+					stream.msg.Skip(3)
 
 					// 计算时间戳
 					if firstSubMessage {
@@ -217,13 +214,11 @@ func (c *ChunkComposer) RunLoop(reader io.Reader, cb OnCompleteMessage) error {
 					aggregateStream.header.TimestampAbs = stream.header.TimestampAbs + aggregateStream.timestamp - baseTimestamp
 
 					// message包体
-					if stream.msg.len() < aggregateStream.header.MsgLen {
+					if stream.msg.Len() < aggregateStream.header.MsgLen {
 						return ErrRtmp
 					}
-					aggregateStream.msg.buf = stream.msg.buf[stream.msg.b : stream.msg.b+aggregateStream.header.MsgLen]
-					//aggregateStream.msg.b = 0
-					aggregateStream.msg.e = aggregateStream.header.MsgLen
-					stream.msg.consumed(aggregateStream.header.MsgLen)
+					aggregateStream.msg.buff = base.NewBufferRefBytes(stream.msg.buff.Peek(int(aggregateStream.header.MsgLen)))
+					stream.msg.Skip(aggregateStream.header.MsgLen)
 
 					// sub message回调给上层
 					if err := cb(aggregateStream); err != nil {
@@ -231,21 +226,21 @@ func (c *ChunkComposer) RunLoop(reader io.Reader, cb OnCompleteMessage) error {
 					}
 
 					// 跳过prev size字段
-					if stream.msg.len() < 4 {
+					if stream.msg.Len() < 4 {
 						return ErrRtmp
 					}
-					stream.msg.consumed(4)
+					stream.msg.Skip(4)
 				}
 			} else {
 				if err := cb(stream); err != nil {
 					return err
 				}
 
-				stream.msg.clear()
+				stream.msg.Reset()
 			}
 		}
-		if stream.msg.len() > stream.header.MsgLen {
-			nazalog.Warnf("stream msg len should not greater than len field in header. stream.msg.len=%d, header=%+v", stream.msg.len(), stream.header)
+		if stream.msg.Len() > stream.header.MsgLen {
+			nazalog.Warnf("stream msg len should not greater than len field in header. stream.msg.len=%d, header=%+v", stream.msg.Len(), stream.header)
 			return ErrRtmp
 		}
 	}
