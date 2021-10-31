@@ -35,8 +35,8 @@ type ILalServer interface {
 //   Option struct中可修改的参数说明：
 //     - notifyHandler 事件监听
 //                     业务方可实现 INotifyHandler 接口并传入从而获取到对应的事件通知
-//                     注意，如果业务方实现了自己的事件监听，则lal server内部不再走http notify的逻辑
-//                     如果不填写，内部默认走http notify的逻辑（当然，还需要在配置文件中开启http notify功能）
+//                     如果不填写保持默认值nil，内部默认走http notify的逻辑（当然，还需要在配置文件中开启http notify功能）
+//                     注意，如果业务方实现了自己的事件监听，则lal server内部不再走http notify的逻辑（也即二选一）
 //
 func NewLalServer(confFile string, modOption ...ModOption) ILalServer {
 	return NewServerManager(confFile, modOption...)
@@ -57,11 +57,11 @@ type INotifyHandler interface {
 }
 
 type Option struct {
-	notifyHandler INotifyHandler
+	NotifyHandler INotifyHandler
 }
 
 var defaultOption = Option{
-	notifyHandler: nil, // 注意，为nil时，内部会赋值为 HttpNotify
+	NotifyHandler: nil, // 注意，为nil时，内部会赋值为 HttpNotify
 }
 
 type ModOption func(option *Option)

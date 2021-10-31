@@ -26,7 +26,8 @@ func main() {
 	defer nazalog.Sync()
 
 	confFile := parseFlag()
-	sm := logic.NewLalServer(confFile)
+	sm := logic.NewLalServer(confFile, func(option *logic.Option) {
+	})
 	err := sm.RunLoop()
 	nazalog.Infof("server manager done. err=%+v", err)
 }

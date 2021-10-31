@@ -88,8 +88,8 @@ func NewServerManager(confFile string, modOption ...ModOption) *ServerManager {
 	for _, fn := range modOption {
 		fn(&sm.option)
 	}
-	if sm.option.notifyHandler == nil {
-		sm.option.notifyHandler = NewHttpNotify(sm.config.HttpNotifyConfig)
+	if sm.option.NotifyHandler == nil {
+		sm.option.NotifyHandler = NewHttpNotify(sm.config.HttpNotifyConfig)
 	}
 
 	if sm.config.HttpflvConfig.Enable || sm.config.HttpflvConfig.EnableHttps ||
@@ -117,7 +117,7 @@ func NewServerManager(confFile string, modOption ...ModOption) *ServerManager {
 // ----- implement ILalServer interface --------------------------------------------------------------------------------
 
 func (sm *ServerManager) RunLoop() error {
-	sm.option.notifyHandler.OnServerStart(sm.StatLalInfo())
+	sm.option.NotifyHandler.OnServerStart(sm.StatLalInfo())
 
 	if sm.config.PprofConfig.Enable {
 		go runWebPprof(sm.config.PprofConfig.Addr)
@@ -210,7 +210,7 @@ func (sm *ServerManager) RunLoop() error {
 	var updateInfo base.UpdateInfo
 	updateInfo.ServerId = sm.config.ServerId
 	updateInfo.Groups = sm.StatAllGroup()
-	sm.option.notifyHandler.OnUpdate(updateInfo)
+	sm.option.NotifyHandler.OnUpdate(updateInfo)
 
 	t := time.NewTicker(1 * time.Second)
 	defer t.Stop()
@@ -254,7 +254,7 @@ func (sm *ServerManager) RunLoop() error {
 			if uis != 0 && (count%uis) == 0 {
 				updateInfo.ServerId = sm.config.ServerId
 				updateInfo.Groups = sm.StatAllGroup()
-				sm.option.notifyHandler.OnUpdate(updateInfo)
+				sm.option.NotifyHandler.OnUpdate(updateInfo)
 			}
 		}
 	}
@@ -374,10 +374,11 @@ func (sm *ServerManager) OnRtmpConnect(session *rtmp.ServerSession, opa rtmp.Obj
 	if tcUrl, err := opa.FindString("tcUrl"); err == nil {
 		info.TcUrl = tcUrl
 	}
-	sm.option.notifyHandler.OnRtmpConnect(info)
+	sm.option.NotifyHandler.OnRtmpConnect(info)
 }
 
 func (sm *ServerManager) OnNewRtmpPubSession(session *rtmp.ServerSession) bool {
+	nazalog.Debugf("CHEFERASEME [%s] OnNewRtmpPubSession. %s, %s, %s, %s", session.UniqueKey(), session.Url(), session.AppName(), session.StreamName(), session.RawQuery())
 	sm.mutex.Lock()
 	defer sm.mutex.Unlock()
 	group := sm.getOrCreateGroup(session.AppName(), session.StreamName())
@@ -396,11 +397,12 @@ func (sm *ServerManager) OnNewRtmpPubSession(session *rtmp.ServerSession) bool {
 	info.RemoteAddr = session.GetStat().RemoteAddr
 	info.HasInSession = group.HasInSession()
 	info.HasOutSession = group.HasOutSession()
-	sm.option.notifyHandler.OnPubStart(info)
+	sm.option.NotifyHandler.OnPubStart(info)
 	return res
 }
 
 func (sm *ServerManager) OnDelRtmpPubSession(session *rtmp.ServerSession) {
+	nazalog.Debugf("CHEFERASEME [%s] OnDelRtmpPubSession. %s, %s, %s, %s", session.UniqueKey(), session.Url(), session.AppName(), session.StreamName(), session.RawQuery())
 	sm.mutex.Lock()
 	defer sm.mutex.Unlock()
 	group := sm.getGroup(session.AppName(), session.StreamName())
@@ -421,10 +423,11 @@ func (sm *ServerManager) OnDelRtmpPubSession(session *rtmp.ServerSession) {
 	info.RemoteAddr = session.GetStat().RemoteAddr
 	info.HasInSession = group.HasInSession()
 	info.HasOutSession = group.HasOutSession()
-	sm.option.notifyHandler.OnPubStop(info)
+	sm.option.NotifyHandler.OnPubStop(info)
 }
 
 func (sm *ServerManager) OnNewRtmpSubSession(session *rtmp.ServerSession) bool {
+	nazalog.Debugf("CHEFERASEME [%s] OnNewRtmpSubSession. %s, %s, %s, %s", session.UniqueKey(), session.Url(), session.AppName(), session.StreamName(), session.RawQuery())
 	sm.mutex.Lock()
 	defer sm.mutex.Unlock()
 	group := sm.getOrCreateGroup(session.AppName(), session.StreamName())
@@ -441,12 +444,13 @@ func (sm *ServerManager) OnNewRtmpSubSession(session *rtmp.ServerSession) bool {
 	info.RemoteAddr = session.GetStat().RemoteAddr
 	info.HasInSession = group.HasInSession()
 	info.HasOutSession = group.HasOutSession()
-	sm.option.notifyHandler.OnSubStart(info)
+	sm.option.NotifyHandler.OnSubStart(info)
 
 	return true
 }
 
 func (sm *ServerManager) OnDelRtmpSubSession(session *rtmp.ServerSession) {
+	nazalog.Debugf("CHEFERASEME [%s] OnDelRtmpSubSession. %s, %s, %s, %s", session.UniqueKey(), session.Url(), session.AppName(), session.StreamName(), session.RawQuery())
 	sm.mutex.Lock()
 	defer sm.mutex.Unlock()
 	group := sm.getGroup(session.AppName(), session.StreamName())
@@ -466,12 +470,13 @@ func (sm *ServerManager) OnDelRtmpSubSession(session *rtmp.ServerSession) {
 	info.RemoteAddr = session.GetStat().RemoteAddr
 	info.HasInSession = group.HasInSession()
 	info.HasOutSession = group.HasOutSession()
-	sm.option.notifyHandler.OnSubStop(info)
+	sm.option.NotifyHandler.OnSubStop(info)
 }
 
 // ----- implement HttpServerHandlerObserver interface -----------------------------------------------------------------
 
 func (sm *ServerManager) OnNewHttpflvSubSession(session *httpflv.SubSession) bool {
+	nazalog.Debugf("CHEFERASEME [%s] OnNewHttpflvSubSession. %s, %s, %s, %s", session.UniqueKey(), session.Url(), session.AppName(), session.StreamName(), session.RawQuery())
 	sm.mutex.Lock()
 	defer sm.mutex.Unlock()
 	group := sm.getOrCreateGroup(session.AppName(), session.StreamName())
@@ -488,11 +493,12 @@ func (sm *ServerManager) OnNewHttpflvSubSession(session *httpflv.SubSession) boo
 	info.RemoteAddr = session.GetStat().RemoteAddr
 	info.HasInSession = group.HasInSession()
 	info.HasOutSession = group.HasOutSession()
-	sm.option.notifyHandler.OnSubStart(info)
+	sm.option.NotifyHandler.OnSubStart(info)
 	return true
 }
 
 func (sm *ServerManager) OnDelHttpflvSubSession(session *httpflv.SubSession) {
+	nazalog.Debugf("CHEFERASEME [%s] OnDelHttpflvSubSession. %s, %s, %s, %s", session.UniqueKey(), session.Url(), session.AppName(), session.StreamName(), session.RawQuery())
 	sm.mutex.Lock()
 	defer sm.mutex.Unlock()
 	group := sm.getGroup(session.AppName(), session.StreamName())
@@ -513,10 +519,11 @@ func (sm *ServerManager) OnDelHttpflvSubSession(session *httpflv.SubSession) {
 	info.RemoteAddr = session.GetStat().RemoteAddr
 	info.HasInSession = group.HasInSession()
 	info.HasOutSession = group.HasOutSession()
-	sm.option.notifyHandler.OnSubStop(info)
+	sm.option.NotifyHandler.OnSubStop(info)
 }
 
 func (sm *ServerManager) OnNewHttptsSubSession(session *httpts.SubSession) bool {
+	nazalog.Debugf("CHEFERASEME [%s] OnNewHttptsSubSession. %s, %s, %s, %s", session.UniqueKey(), session.Url(), session.AppName(), session.StreamName(), session.RawQuery())
 	sm.mutex.Lock()
 	defer sm.mutex.Unlock()
 	group := sm.getOrCreateGroup(session.AppName(), session.StreamName())
@@ -533,11 +540,12 @@ func (sm *ServerManager) OnNewHttptsSubSession(session *httpts.SubSession) bool 
 	info.RemoteAddr = session.GetStat().RemoteAddr
 	info.HasInSession = group.HasInSession()
 	info.HasOutSession = group.HasOutSession()
-	sm.option.notifyHandler.OnSubStart(info)
+	sm.option.NotifyHandler.OnSubStart(info)
 	return true
 }
 
 func (sm *ServerManager) OnDelHttptsSubSession(session *httpts.SubSession) {
+	nazalog.Debugf("CHEFERASEME [%s] OnDelHttptsSubSession. %s, %s, %s, %s", session.UniqueKey(), session.Url(), session.AppName(), session.StreamName(), session.RawQuery())
 	sm.mutex.Lock()
 	defer sm.mutex.Unlock()
 	group := sm.getGroup(session.AppName(), session.StreamName())
@@ -558,7 +566,7 @@ func (sm *ServerManager) OnDelHttptsSubSession(session *httpts.SubSession) {
 	info.RemoteAddr = session.GetStat().RemoteAddr
 	info.HasInSession = group.HasInSession()
 	info.HasOutSession = group.HasOutSession()
-	sm.option.notifyHandler.OnSubStop(info)
+	sm.option.NotifyHandler.OnSubStop(info)
 }
 
 // ----- implement rtsp.ServerObserver interface -----------------------------------------------------------------------
@@ -572,6 +580,7 @@ func (sm *ServerManager) OnDelRtspSession(session *rtsp.ServerCommandSession) {
 }
 
 func (sm *ServerManager) OnNewRtspPubSession(session *rtsp.PubSession) bool {
+	nazalog.Debugf("CHEFERASEME [%s] OnNewRtspPubSession. %s, %s, %s, %s", session.UniqueKey(), session.Url(), session.AppName(), session.StreamName(), session.RawQuery())
 	sm.mutex.Lock()
 	defer sm.mutex.Unlock()
 	group := sm.getOrCreateGroup(session.AppName(), session.StreamName())
@@ -588,7 +597,7 @@ func (sm *ServerManager) OnNewRtspPubSession(session *rtsp.PubSession) bool {
 	info.RemoteAddr = session.GetStat().RemoteAddr
 	info.HasInSession = group.HasInSession()
 	info.HasOutSession = group.HasOutSession()
-	sm.option.notifyHandler.OnPubStart(info)
+	sm.option.NotifyHandler.OnPubStart(info)
 
 	return res
 }
@@ -615,10 +624,11 @@ func (sm *ServerManager) OnDelRtspPubSession(session *rtsp.PubSession) {
 	info.RemoteAddr = session.GetStat().RemoteAddr
 	info.HasInSession = group.HasInSession()
 	info.HasOutSession = group.HasOutSession()
-	sm.option.notifyHandler.OnPubStop(info)
+	sm.option.NotifyHandler.OnPubStop(info)
 }
 
 func (sm *ServerManager) OnNewRtspSubSessionDescribe(session *rtsp.SubSession) (ok bool, sdp []byte) {
+	nazalog.Debugf("CHEFERASEME [%s] OnNewRtspSubSessionDescribe. %s, %s, %s, %s", session.UniqueKey(), session.Url(), session.AppName(), session.StreamName(), session.RawQuery())
 	sm.mutex.Lock()
 	defer sm.mutex.Unlock()
 	group := sm.getOrCreateGroup(session.AppName(), session.StreamName())
@@ -643,7 +653,7 @@ func (sm *ServerManager) OnNewRtspSubSessionPlay(session *rtsp.SubSession) bool 
 	info.RemoteAddr = session.GetStat().RemoteAddr
 	info.HasInSession = group.HasInSession()
 	info.HasOutSession = group.HasOutSession()
-	sm.option.notifyHandler.OnSubStart(info)
+	sm.option.NotifyHandler.OnSubStart(info)
 
 	return res
 }
@@ -670,7 +680,7 @@ func (sm *ServerManager) OnDelRtspSubSession(session *rtsp.SubSession) {
 	info.RemoteAddr = session.GetStat().RemoteAddr
 	info.HasInSession = group.HasInSession()
 	info.HasOutSession = group.HasOutSession()
-	sm.option.notifyHandler.OnSubStop(info)
+	sm.option.NotifyHandler.OnSubStop(info)
 }
 
 // ----- implement IGroupCreator interface -----------------------------------------------------------------------------

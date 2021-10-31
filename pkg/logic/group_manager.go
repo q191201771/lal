@@ -8,8 +8,6 @@
 
 package logic
 
-// 注意，这个模块的功能不完全，目前只使用SimpleGroupManager
-
 // ---------------------------------------------------------------------------------------------------------------------
 
 type IGroupCreator interface {
@@ -94,6 +92,10 @@ func (s *SimpleGroupManager) Len() int {
 
 // ---------------------------------------------------------------------------------------------------------------------
 
+// ComplexGroupManager
+//
+// 注意，这个模块的功能不完全，目前只使用SimpleGroupManager
+//
 // TODO(chef):
 //
 // - 现有逻辑重构至当前模块中【DONE】
@@ -106,10 +108,8 @@ func (s *SimpleGroupManager) Len() int {
 // - 更新相应的文档：本文件注释，server_manager等中原有关于appName的注释，配置文件文档，流地址列表文档
 // - 创建group时没有appname，后面又有了，可以考虑更新一下
 // - ComplexGroupManager使用IGroupCreator
-
+//
 // ---------------------------------------------------------------------------------------------------------------------
-
-// ComplexGroupManager
 //
 // 背景：
 //   有的协议需要结合appName和streamName作为流唯一标识（比如rtmp，httpflv，httpts）
