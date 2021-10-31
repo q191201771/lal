@@ -28,7 +28,7 @@ if [ "$NewVersion" == "$FileVersion" ];then
 else
   echo 'update version.go'
   gsed -i "/^const LalVersion/cconst LalVersion = \"${NewVersion}\"" pkg/base/version.go
-  git add .
+  git add pkg/base/version.go
   git commit -m "${NewVersion} -> version.go"
   git push
 fi
