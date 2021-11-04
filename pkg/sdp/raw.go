@@ -44,64 +44,39 @@ type AControl struct {
 	Value string
 }
 
-// 例子见单元测试
+// ParseSdp2RawContext 例子见单元测试
+//
 func ParseSdp2RawContext(b []byte) (RawContext, error) {
-	var (
-		sdpCtx RawContext
-		md     *MediaDesc
-	)
-
-	s := string(b)
-	lines := strings.Split(s, "\r\n")
-	for _, line := range lines {
-		if strings.HasPrefix(line, "m=") {
-			m, err := ParseM(line)
-			if err != nil {
-				return sdpCtx, err
-			}
-			if md != nil {
-				sdpCtx.MediaDescList = append(sdpCtx.MediaDescList, *md)
-			}
-			md = &MediaDesc{
-				M: m,
-			}
-		}
-		if strings.HasPrefix(line, "a=rtpmap") {
-			aRtpMap, err := ParseARtpMap(line)
-			if err != nil {
-				return sdpCtx, err
-			}
-			if md == nil {
-				continue
-			}
-			md.ARtpMap = aRtpMap
-		}
-		if strings.HasPrefix(line, "a=fmtp") {
-			aFmtPBase, err := ParseAFmtPBase(line)
-			if err != nil {
-				return sdpCtx, err
-			}
-			if md == nil {
-				continue
-			}
-			md.AFmtPBase = &aFmtPBase
-		}
-		if strings.HasPrefix(line, "a=control") {
-			aControl, err := ParseAControl(line)
-			if err != nil {
-				return sdpCtx, err
-			}
-			if md == nil {
-				continue
-			}
-			md.AControl = aControl
-		}
-	}
-	if md != nil {
-		sdpCtx.MediaDescList = append(sdpCtx.MediaDescList, *md)
+	lines := strings.Split(string(b), "\r\n")
+	ctx, err := parseSdp2RawContext(lines)
+	if err == nil {
+		return ctx, nil
 	}
 
-	return sdpCtx, nil
+	// TestCase13，再尝试抢救一下
+	var newlines []string
+	i := 0
+	for i < len(lines) {
+		if strings.HasPrefix(lines[i], "a=fmtp") {
+			newline := lines[i]
+			j := i + 1
+			// TODO(chef): 如果换行的数据刚好是`m=`或`a=`开头呢？
+			for ; j < len(lines); j++ {
+				if !strings.HasPrefix(lines[j], "m=") &&
+					!strings.HasPrefix(lines[j], "a=") {
+					newline += lines[j]
+				} else {
+					break
+				}
+			}
+			newlines = append(newlines, newline)
+			i = j
+		} else {
+			newlines = append(newlines, lines[i])
+			i++
+		}
+	}
+	return parseSdp2RawContext(newlines)
 }
 
 func ParseM(s string) (ret M, err error) {
@@ -205,4 +180,63 @@ func ParseAControl(s string) (ret AControl, err error) {
 	}
 	ret.Value = strings.TrimPrefix(s, "a=control:")
 	return
+}
+
+// ---------------------------------------------------------------------------------------------------------------------
+
+func parseSdp2RawContext(lines []string) (RawContext, error) {
+	var (
+		sdpCtx RawContext
+		md     *MediaDesc
+	)
+
+	for _, line := range lines {
+		if strings.HasPrefix(line, "m=") {
+			m, err := ParseM(line)
+			if err != nil {
+				return sdpCtx, err
+			}
+			if md != nil {
+				sdpCtx.MediaDescList = append(sdpCtx.MediaDescList, *md)
+			}
+			md = &MediaDesc{
+				M: m,
+			}
+		}
+		if strings.HasPrefix(line, "a=rtpmap") {
+			aRtpMap, err := ParseARtpMap(line)
+			if err != nil {
+				return sdpCtx, err
+			}
+			if md == nil {
+				continue
+			}
+			md.ARtpMap = aRtpMap
+		}
+		if strings.HasPrefix(line, "a=fmtp") {
+			aFmtPBase, err := ParseAFmtPBase(line)
+			if err != nil {
+				return sdpCtx, err
+			}
+			if md == nil {
+				continue
+			}
+			md.AFmtPBase = &aFmtPBase
+		}
+		if strings.HasPrefix(line, "a=control") {
+			aControl, err := ParseAControl(line)
+			if err != nil {
+				return sdpCtx, err
+			}
+			if md == nil {
+				continue
+			}
+			md.AControl = aControl
+		}
+	}
+	if md != nil {
+		sdpCtx.MediaDescList = append(sdpCtx.MediaDescList, *md)
+	}
+
+	return sdpCtx, nil
 }
