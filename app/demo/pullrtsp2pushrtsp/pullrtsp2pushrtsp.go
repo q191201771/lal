@@ -11,11 +11,12 @@ package main
 import (
 	"flag"
 	"fmt"
-	"github.com/q191201771/naza/pkg/nazaerrors"
-	"github.com/q191201771/naza/pkg/unique"
 	"os"
 	"sync"
 	"time"
+
+	"github.com/q191201771/naza/pkg/nazaerrors"
+	"github.com/q191201771/naza/pkg/unique"
 
 	"github.com/q191201771/lal/pkg/sdp"
 

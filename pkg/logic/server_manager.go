@@ -10,13 +10,14 @@ package logic
 
 import (
 	"fmt"
-	"github.com/q191201771/naza/pkg/bininfo"
-	"github.com/q191201771/naza/pkg/defertaskthread"
 	"net/http"
 	"os"
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/q191201771/naza/pkg/bininfo"
+	"github.com/q191201771/naza/pkg/defertaskthread"
 
 	"github.com/q191201771/lal/pkg/hls"
 
@@ -26,10 +27,11 @@ import (
 
 	"github.com/q191201771/lal/pkg/rtsp"
 
+	_ "net/http/pprof"
+
 	"github.com/q191201771/lal/pkg/httpflv"
 	"github.com/q191201771/lal/pkg/rtmp"
 	"github.com/q191201771/naza/pkg/nazalog"
-	_ "net/http/pprof"
 	//"github.com/felixge/fgprof"
 )
 

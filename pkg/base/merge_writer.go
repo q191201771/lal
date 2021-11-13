@@ -9,8 +9,9 @@
 package base
 
 import (
-	"github.com/q191201771/naza/pkg/nazalog"
 	"net"
+
+	"github.com/q191201771/naza/pkg/nazalog"
 )
 
 // TODO(chef): feat 通过时间戳（目前是数据大小）来设定合并阈值

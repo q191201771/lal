@@ -10,9 +10,10 @@ package base
 
 import (
 	"bytes"
-	"github.com/q191201771/naza/pkg/assert"
 	"net"
 	"testing"
+
+	"github.com/q191201771/naza/pkg/assert"
 )
 
 func TestMergeWriter(t *testing.T) {

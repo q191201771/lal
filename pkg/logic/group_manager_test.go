@@ -9,8 +9,9 @@
 package logic
 
 import (
-	"github.com/q191201771/naza/pkg/assert"
 	"testing"
+
+	"github.com/q191201771/naza/pkg/assert"
 )
 
 type mockGroupCreator struct {

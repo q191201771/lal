@@ -9,10 +9,11 @@
 package remux
 
 import (
+	"math"
+
 	"github.com/q191201771/lal/pkg/base"
 	"github.com/q191201771/lal/pkg/rtmp"
 	"github.com/q191201771/naza/pkg/nazalog"
-	"math"
 )
 
 const (

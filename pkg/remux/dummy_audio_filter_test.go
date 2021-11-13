@@ -10,13 +10,14 @@ package remux_test
 
 import (
 	"encoding/hex"
+	"strconv"
+	"strings"
+	"testing"
+
 	"github.com/q191201771/lal/pkg/base"
 	"github.com/q191201771/lal/pkg/remux"
 	"github.com/q191201771/naza/pkg/assert"
 	"github.com/q191201771/naza/pkg/nazalog"
-	"strconv"
-	"strings"
-	"testing"
 )
 
 func TestDummyAudioFilter(t *testing.T) {

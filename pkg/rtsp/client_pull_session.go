@@ -9,12 +9,13 @@
 package rtsp
 
 import (
+	"sync"
+
 	"github.com/q191201771/lal/pkg/base"
 	"github.com/q191201771/lal/pkg/sdp"
 	"github.com/q191201771/naza/pkg/nazaerrors"
 	"github.com/q191201771/naza/pkg/nazalog"
 	"github.com/q191201771/naza/pkg/nazanet"
-	"sync"
 )
 
 type PullSessionObserver interface {
