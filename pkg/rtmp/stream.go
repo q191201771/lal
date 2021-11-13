@@ -11,6 +11,9 @@ package rtmp
 import (
 	"encoding/hex"
 	"fmt"
+
+	"github.com/q191201771/naza/pkg/nazabytes"
+
 	"github.com/q191201771/lal/pkg/base"
 	"github.com/q191201771/naza/pkg/nazalog"
 )
@@ -27,7 +30,7 @@ type Stream struct {
 func NewStream() *Stream {
 	return &Stream{
 		msg: StreamMsg{
-			buff: base.NewBuffer(initMsgLen),
+			buff: nazabytes.NewBuffer(initMsgLen),
 		},
 	}
 }
@@ -52,7 +55,7 @@ func (stream *Stream) toAvMsg() base.RtmpMsg {
 // ----- StreamMsg -----------------------------------------------------------------------------------------------------
 
 type StreamMsg struct {
-	buff *base.Buffer
+	buff *nazabytes.Buffer
 }
 
 // 确保可写空间，如果不够会扩容

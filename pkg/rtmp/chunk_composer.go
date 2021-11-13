@@ -13,9 +13,12 @@ package rtmp
 // 读取chunk，并组织chunk，生成message返回给上层
 
 import (
+	"io"
+
+	"github.com/q191201771/naza/pkg/nazabytes"
+
 	"github.com/q191201771/lal/pkg/base"
 	"github.com/q191201771/naza/pkg/nazalog"
-	"io"
 
 	"github.com/q191201771/naza/pkg/bele"
 )
@@ -217,7 +220,7 @@ func (c *ChunkComposer) RunLoop(reader io.Reader, cb OnCompleteMessage) error {
 					if stream.msg.Len() < aggregateStream.header.MsgLen {
 						return ErrRtmp
 					}
-					aggregateStream.msg.buff = base.NewBufferRefBytes(stream.msg.buff.Peek(int(aggregateStream.header.MsgLen)))
+					aggregateStream.msg.buff = nazabytes.NewBufferRefBytes(stream.msg.buff.Peek(int(aggregateStream.header.MsgLen)))
 					stream.msg.Skip(aggregateStream.header.MsgLen)
 
 					// sub message回调给上层
