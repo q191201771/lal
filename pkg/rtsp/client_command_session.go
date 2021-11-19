@@ -571,7 +571,7 @@ func (session *ClientCommandSession) writeCmdReadResp(method, uri string, header
 func (session *ClientCommandSession) dispose(err error) error {
 	var retErr error
 	session.disposeOnce.Do(func() {
-		nazalog.Infof("[%s] lifecycle dispose rtsp ClientCommandSession. session=%p", session.uniqueKey, session)
+		nazalog.Infof("[%s] lifecycle dispose rtsp ClientCommandSession. session=%p, err=%+v", session.uniqueKey, session, err)
 		if session.conn == nil {
 			retErr = base.ErrSessionNotStarted
 			return
