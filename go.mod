@@ -2,4 +2,4 @@ module github.com/q191201771/lal
 
 go 1.14
 
-require github.com/q191201771/naza v0.26.0
+require github.com/q191201771/naza v0.27.1
