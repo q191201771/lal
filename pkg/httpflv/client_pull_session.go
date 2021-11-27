@@ -10,6 +10,7 @@ package httpflv
 
 import (
 	"context"
+	"crypto/tls"
 	"fmt"
 	"net"
 	"net/http"
@@ -176,19 +177,43 @@ func (session *PullSession) IsAlive() (readAlive, writeAlive bool) {
 
 func (session *PullSession) pullContext(ctx context.Context, rawUrl string, onReadFlvTag OnReadFlvTag) error {
 	errChan := make(chan error, 1)
+	url := rawUrl
 
 	// 异步握手
 	go func() {
-		if err := session.connect(rawUrl); err != nil {
-			errChan <- err
-			return
-		}
-		if err := session.writeHttpRequest(); err != nil {
-			errChan <- err
-			return
-		}
+		for {
+			if err := session.connect(url); err != nil {
+				errChan <- err
+				return
+			}
+			if err := session.writeHttpRequest(); err != nil {
+				errChan <- err
+				return
+			}
 
-		errChan <- nil
+			statusCode, headers, err := session.readHttpRespHeader()
+			if err != nil {
+				errChan <- err
+				return
+			}
+
+			// 处理跳转
+			if statusCode == "301" || statusCode == "302" {
+				url = headers.Get("Location")
+				if url == "" {
+					nazalog.Warnf("[%s] redirect but Location not found. headers=%+v", session.uniqueKey, headers)
+					errChan <- nil
+					return
+				}
+
+				_ = session.conn.Close()
+				nazalog.Debugf("[%s] redirect to %s", session.uniqueKey, url)
+				continue
+			}
+
+			errChan <- nil
+			return
+		}
 	}()
 
 	// 等待握手结果，或者超时通知
@@ -211,18 +236,31 @@ func (session *PullSession) pullContext(ctx context.Context, rawUrl string, onRe
 }
 
 func (session *PullSession) connect(rawUrl string) (err error) {
-	session.urlCtx, err = base.ParseHttpflvUrl(rawUrl, false)
+	// TODO(chef): refactor 可以考虑抽象出一个http client，负责http拉流的建连、https、302等功能
+
+	session.urlCtx, err = base.ParseHttpflvUrl(rawUrl)
 	if err != nil {
 		return
 	}
 
-	nazalog.Debugf("[%s] > tcp connect.", session.uniqueKey)
+	nazalog.Debugf("[%s] > tcp connect. %s", session.uniqueKey, session.urlCtx.HostWithPort)
 
-	// # 建立连接
-	conn, err := net.Dial("tcp", session.urlCtx.HostWithPort)
+	var conn net.Conn
+	if session.urlCtx.Scheme == "https" {
+		conf := &tls.Config{
+			InsecureSkipVerify: true,
+		}
+		conn, err = tls.Dial("tcp", session.urlCtx.HostWithPort, conf)
+	} else {
+		conn, err = net.Dial("tcp", session.urlCtx.HostWithPort)
+	}
+
 	if err != nil {
 		return err
 	}
+
+	nazalog.Debugf("[%s] tcp connect succ. remote=%s", session.uniqueKey, conn.RemoteAddr().String())
+
 	session.conn = connection.New(conn, func(option *connection.Option) {
 		option.ReadBufSize = readBufSize
 		option.WriteTimeoutMs = session.option.ReadTimeoutMs // TODO chef: 为什么是 Read 赋值给 Write
@@ -240,17 +278,17 @@ func (session *PullSession) writeHttpRequest() error {
 	return err
 }
 
-func (session *PullSession) readHttpRespHeader() (statusLine string, headers http.Header, err error) {
-	// TODO chef: timeout
+func (session *PullSession) readHttpRespHeader() (statusCode string, headers http.Header, err error) {
+	var statusLine string
 	if statusLine, headers, err = nazahttp.ReadHttpHeader(session.conn); err != nil {
 		return
 	}
-	_, code, _, err := nazahttp.ParseHttpStatusLine(statusLine)
+	_, statusCode, _, err = nazahttp.ParseHttpStatusLine(statusLine)
 	if err != nil {
 		return
 	}
 
-	nazalog.Debugf("[%s] < R http response header. code=%s", session.uniqueKey, code)
+	nazalog.Debugf("[%s] < R http response header. statusLine=%s", session.uniqueKey, statusLine)
 	return
 }
 
@@ -275,10 +313,6 @@ func (session *PullSession) runReadLoop(onReadFlvTag OnReadFlvTag) {
 	defer func() {
 		_ = session.dispose(err)
 	}()
-
-	if _, _, err = session.readHttpRespHeader(); err != nil {
-		return
-	}
 
 	if _, err = session.readFlvHeader(); err != nil {
 		return
