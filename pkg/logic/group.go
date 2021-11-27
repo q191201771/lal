@@ -990,8 +990,6 @@ func (group *Group) broadcastByRtmpMsg(msg base.RtmpMsg) {
 		lrm2ft remux.LazyRtmpMsg2FlvTag
 	)
 
-	//nazalog.Debugf("[%s] broadcaseRTMP. header=%+v, %s", group.UniqueKey, msg.Header, hex.Dump(nazastring.SubSliceSafety(msg.Payload, 7)))
-
 	// # hls
 	if group.config.HlsConfig.Enable && group.hlsMuxer != nil {
 		group.hlsMuxer.FeedRtmpMessage(msg)

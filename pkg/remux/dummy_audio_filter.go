@@ -56,7 +56,6 @@ func (filter *DummyAudioFilter) OnReadRtmpAvMsg(msg base.RtmpMsg) {
 }
 
 func (filter *DummyAudioFilter) Feed(msg base.RtmpMsg) {
-	//nazalog.Debugf("trace_DummyAudioFilter, push. header=%+v, payload=%s, stage=%d", msg.Header, hex.EncodeToString(nazastring.SubSliceSafety(msg.Payload, 8)), filter.stage)
 	switch filter.stage {
 	case dummyAudioFilterStageAnalysis:
 		filter.handleAnalysisStage(msg)
@@ -170,7 +169,6 @@ func (filter *DummyAudioFilter) clearCache() {
 }
 
 func (filter *DummyAudioFilter) onPopProxy(msg base.RtmpMsg) {
-	//nazalog.Debugf("trace_DummyAudioFilter, onPopProxy. header=%+v, payload=%s, stage=%d", msg.Header, hex.EncodeToString(nazastring.SubSliceSafety(msg.Payload, 8)), filter.stage)
 	if filter.onPop != nil {
 		filter.onPop(msg)
 	}

@@ -15,8 +15,8 @@ import (
 	"time"
 
 	"github.com/q191201771/lal/pkg/rtprtcp"
+	"github.com/q191201771/naza/pkg/nazabytes"
 	"github.com/q191201771/naza/pkg/nazaerrors"
-	"github.com/q191201771/naza/pkg/nazastring"
 
 	"github.com/q191201771/lal/pkg/base"
 	"github.com/q191201771/lal/pkg/sdp"
@@ -139,7 +139,7 @@ func (session *BaseOutSession) HandleInterleavedPacket(b []byte, channel int) {
 	case session.audioRtcpChannel:
 		fallthrough
 	case session.videoRtcpChannel:
-		nazalog.Debugf("[%s] read interleaved rtcp packet. b=%s", session.uniqueKey, hex.Dump(nazastring.SubSliceSafety(b, 32)))
+		nazalog.Debugf("[%s] read interleaved rtcp packet. b=%s", session.uniqueKey, hex.Dump(nazabytes.Prefix(b, 32)))
 	default:
 		nazalog.Errorf("[%s] read interleaved packet but channel invalid. channel=%d", session.uniqueKey, channel)
 	}
@@ -228,7 +228,7 @@ func (session *BaseOutSession) onReadUdpPacket(b []byte, rAddr *net.UDPAddr, err
 	// TODO chef: impl me
 
 	if session.loggedReadUdpCount < session.debugLogMaxCount {
-		nazalog.Debugf("[%s] LOGPACKET. read udp=%s", session.uniqueKey, hex.Dump(nazastring.SubSliceSafety(b, 32)))
+		nazalog.Debugf("[%s] LOGPACKET. read udp=%s", session.uniqueKey, hex.Dump(nazabytes.Prefix(b, 32)))
 		session.loggedReadUdpCount++
 	}
 	return true

@@ -16,8 +16,8 @@ import (
 
 	"github.com/q191201771/naza/pkg/nazaatomic"
 
+	"github.com/q191201771/naza/pkg/nazabytes"
 	"github.com/q191201771/naza/pkg/nazaerrors"
-	"github.com/q191201771/naza/pkg/nazastring"
 
 	"github.com/q191201771/lal/pkg/base"
 	"github.com/q191201771/lal/pkg/rtprtcp"
@@ -326,7 +326,7 @@ func (session *BaseInSession) handleRtcpPacket(b []byte, rAddr *net.UDPAddr) err
 	}
 
 	if session.loggedReadRtcpCount.Load() < session.debugLogMaxCount {
-		nazalog.Debugf("[%s] LOGPACKET. read rtcp=%s", session.uniqueKey, hex.Dump(nazastring.SubSliceSafety(b, 32)))
+		nazalog.Debugf("[%s] LOGPACKET. read rtcp=%s", session.uniqueKey, hex.Dump(nazabytes.Prefix(b, 32)))
 		session.loggedReadRtcpCount.Increment()
 	}
 

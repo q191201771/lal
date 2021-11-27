@@ -17,7 +17,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/q191201771/naza/pkg/nazastring"
+	"github.com/q191201771/naza/pkg/nazabytes"
 
 	"github.com/q191201771/lal/pkg/base"
 
@@ -105,7 +105,7 @@ func main() {
 
 	err := session.Pull(url, func(tag httpflv.Tag) {
 		if printEveryTagFlag {
-			nazalog.Debugf("header=%+v, hex=%s", tag.Header, hex.Dump(nazastring.SubSliceSafety(tag.Payload(), 32)))
+			nazalog.Debugf("header=%+v, hex=%s", tag.Header, hex.Dump(nazabytes.Prefix(tag.Payload(), 32)))
 		}
 
 		brTotal.Add(len(tag.Raw))
@@ -212,7 +212,7 @@ func analysisVideoTag(tag httpflv.Tag) {
 			switch t {
 			case typeAvc:
 				if avc.ParseNaluType(nal[0]) == avc.NaluTypeIdrSlice {
-					nazalog.Debugf("IDR:%s", hex.Dump(nazastring.SubSliceSafety(nal, 128)))
+					nazalog.Debugf("IDR:%s", hex.Dump(nazabytes.Prefix(nal, 128)))
 					if prevIdrTs != int64(-1) {
 						diffIdrTs = int64(tag.Header.Timestamp) - prevIdrTs
 					}

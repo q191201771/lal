@@ -15,15 +15,15 @@ import (
 
 	"github.com/q191201771/naza/pkg/bele"
 	"github.com/q191201771/naza/pkg/nazabits"
+	"github.com/q191201771/naza/pkg/nazabytes"
 	"github.com/q191201771/naza/pkg/nazalog"
-	"github.com/q191201771/naza/pkg/nazastring"
 )
 
 func ParseSps(payload []byte, ctx *Context) error {
 	br := nazabits.NewBitReader(payload)
 	var sps Sps
 	if err := parseSpsBasic(&br, &sps); err != nil {
-		nazalog.Errorf("parseSpsBasic failed. err=%+v, payload=%s", err, hex.Dump(nazastring.SubSliceSafety(payload, 128)))
+		nazalog.Errorf("parseSpsBasic failed. err=%+v, payload=%s", err, hex.Dump(nazabytes.Prefix(payload, 128)))
 		return err
 	}
 	ctx.Profile = sps.ProfileIdc
@@ -31,12 +31,11 @@ func ParseSps(payload []byte, ctx *Context) error {
 
 	//if err := parseSpsBeta(&br, &sps); err != nil {
 	//	// 注意，这里不将错误返回给上层，因为可能是Beta自身解析的问题
-	//	nazalog.Errorf("parseSpsBeta failed. err=%+v, payload=%s", err, hex.Dump(nazastring.SubSliceSafety(payload, 128)))
 	//}
 
 	if err := parseSpsGamma(&br, &sps); err != nil {
 		// 注意，这里不将错误返回给上层，因为可能是Beta自身解析的问题
-		nazalog.Errorf("parseSpsGamma failed. err=%+v, payload=%s", err, hex.Dump(nazastring.SubSliceSafety(payload, 128)))
+		nazalog.Errorf("parseSpsGamma failed. err=%+v, payload=%s", err, hex.Dump(nazabytes.Prefix(payload, 128)))
 	}
 	nazalog.Debugf("sps=%+v", sps)
 
