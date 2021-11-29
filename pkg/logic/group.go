@@ -990,6 +990,11 @@ func (group *Group) broadcastByRtmpMsg(msg base.RtmpMsg) {
 		lrm2ft remux.LazyRtmpMsg2FlvTag
 	)
 
+	if len(msg.Payload) == 0 {
+		nazalog.Warnf("[%s] msg payload length is 0. %+v", group.UniqueKey, msg.Header)
+		return
+	}
+
 	// # hls
 	if group.config.HlsConfig.Enable && group.hlsMuxer != nil {
 		group.hlsMuxer.FeedRtmpMessage(msg)
