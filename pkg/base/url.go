@@ -61,6 +61,11 @@ type UrlContext struct {
 	RawUrlWithoutUserInfo string
 }
 
+// ParseUrl
+//
+// @param defaultPort: 注意，如果rawUrl中显示指定了端口，则该参数不生效
+//                     注意，如果设置为-1，内部依然会对常见协议(http, https, rtmp, rtsp)设置官方默认端口
+//
 func ParseUrl(rawUrl string, defaultPort int) (ctx UrlContext, err error) {
 	ctx.Url = rawUrl
 
