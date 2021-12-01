@@ -1,24 +1,17 @@
-# This is a basic workflow to help you get started with Actions
-
 name: CI
 
 on: [push, pull_request]
 
-# A workflow run is made up of one or more jobs that can run sequentially or in parallel
 jobs:
-  # This workflow contains a single job called "build"
   build:
     strategy:
       matrix:
         go: [1.14, 1.17]
         os: [ubuntu-latest, macos-latest, windows-latest]
-    # The type of runner that the job will run on
     runs-on: ${{ matrix.os }}
 
 
-    # Steps represent a sequence of tasks that will be executed as part of the job
     steps:
-      # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
       - name: Checkout code
         uses: actions/checkout@v2
 
@@ -26,9 +19,12 @@ jobs:
         uses: actions/setup-go@v2
         with:
           go-version: ${{ matrix.go }}
-      
+
       - name: Build
         run: ./build.sh
-        
+
       - name: Test
         run: ./test.sh
+
+      - name: Upload coverage to Codecov
+        run: bash <(curl -s https://codecov.io/bash)
