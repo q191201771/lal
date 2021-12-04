@@ -26,4 +26,4 @@ jobs:
         run: go build ./app/lalserver
 
       - name: Test
-        run: echo "TODO(chef): Test on Windows"
+        run: echo "TODO(chef) Test on Windows"
