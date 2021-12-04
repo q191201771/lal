@@ -17,13 +17,13 @@
   },
   "httpflv": {
     "enable": true,
-    "enable_https": false,
+    "enable_https": true,
     "url_pattern": "/",
     "gop_num": 0
   },
   "hls": {
     "enable": true,
-    "enable_https": false,
+    "enable_https": true,
     "url_pattern": "/hls/",
     "out_path": "./lal_record/hls/",
     "fragment_duration_ms": 3000,
@@ -33,7 +33,7 @@
   },
   "httpts": {
     "enable": true,
-    "enable_https":false,
+    "enable_https": true,
     "url_pattern": "/"
   },
   "rtsp": {
