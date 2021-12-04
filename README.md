@@ -1,4 +1,3 @@
-
 # LAL
 
 [![Release](https://img.shields.io/github/tag/q191201771/lal.svg?label=release)](https://github.com/q191201771/lal/releases)
@@ -15,15 +14,9 @@ And [more than a server, act as package and client](https://github.com/q19120177
 
 ## Install
 
-There are 2 ways of installing lal.
+There are 3 ways of installing lal:
 
-### Prebuilt binaries
-
-Prebuilt binaries for Linux, macOS(Darwin), Windows are available in the [lal github releases page](https://github.com/q191201771/lal/releases). Naturally, using [the latest release binary](https://github.com/q191201771/lal/releases/latest) is the recommended way. The naming format is `lal_<version>_<platform>.zip`, e.g. `lal_v0.20.0_linux.zip`
-
-LAL could also be built from the source wherever the Go compiler toolchain can run, e.g. for other architectures including arm32 and mipsle which have been tested by the community.
-
-### Building from source
+### 1. Building from source
 
 First, make sure that Go version >= 1.14
 
@@ -48,6 +41,29 @@ $go build
 Or using whatever IDEs you'd like.
 
 So far, the only direct and indirect **dependency** of lal is [naza(A basic Go utility library)](https://github.com/q191201771/lal.git) which is also written by myself. This leads to less dependency or version manager issues.
+
+### 2. Prebuilt binaries
+
+Prebuilt binaries for Linux, macOS(Darwin), Windows are available in the [lal github releases page](https://github.com/q191201771/lal/releases). Naturally, using [the latest release binary](https://github.com/q191201771/lal/releases/latest) is the recommended way. The naming format is `lal_<version>_<platform>.zip`, e.g. `lal_v0.20.0_linux.zip`
+
+LAL could also be built from the source wherever the Go compiler toolchain can run, e.g. for other architectures including arm32 and mipsle which have been tested by the community.
+
+### 3. Docker
+
+option 1, using prebuilt image at docker hub, so just run:
+
+```
+$docker run -it -p 1935:1935 -p 8080:8080 -p 4433:4433 -p 5544:5544 -p 8083:8083 -p 8084:8084 -p 30000-30100:30000-30100/udp q191201771/lal /lal/bin/lalserver -c /lal/conf/lalserver.conf.json
+```
+
+option 2, build from local source with Dockerfile, and run:
+
+```
+$git clone https://github.com/q191201771/lal.git
+$cd lal
+$docker build -t lal .
+$docker run -it -p 1935:1935 -p 8080:8080 -p 4433:4433 -p 5544:5544 -p 8083:8083 -p 8084:8084 -p 30000-30100:30000-30100/udp lal /lal/bin/lalserver -c /lal/conf/lalserver.conf.json
+```
 
 ## Using
 
@@ -91,3 +107,5 @@ Bugs, questions, suggestions, anything related or not, feel free to contact me w
 ## License
 
 MIT, see [License](https://github.com/q191201771/lal/blob/master/LICENSE).
+
+updated by yoko, 20211204
