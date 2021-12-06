@@ -48,8 +48,8 @@ func MakeAudioDataSeqHeaderWithAsc(asc []byte) (out []byte, err error) {
 		return nil, ErrAac
 	}
 
+	// 注意，前两个字节是SequenceHeaderContext，后面跟着asc
 	out = make([]byte, 2+len(asc))
-	// <spec-video_file_format_spec_v10.pdf>, <Audio tags, AUDIODATA>, <page 10/48>
 	out[0] = 0xaf
 	out[1] = 0
 	copy(out[2:], asc)

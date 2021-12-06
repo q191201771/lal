@@ -8,8 +8,8 @@
 
 // +build windows
 
-package logic
+package base
 
-func runSignalHandler(cb func()) {
-
+func RunSignalHandler(cb func()) {
+	// noop
 }

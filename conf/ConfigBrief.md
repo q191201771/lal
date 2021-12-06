@@ -1,13 +1,19 @@
 ```
 {
   "# doc of config": "https://pengrl.com/lal/#/ConfigBrief", //. 配置文件对应的文档说明链接，在程序中没实际用途
-  "conf_version": "0.2.2",                                   //. 配置文件版本号，业务方不应该手动修改，程序中会检查该版本
+  "conf_version": "0.2.3",                                   //. 配置文件版本号，业务方不应该手动修改，程序中会检查该版本
                                                              //  号是否与代码中声明的一致
   "rtmp": {
-    "enable": true,           //. 是否开启rtmp服务的监听
-    "addr": ":19350",         //. RTMP服务监听的端口，客户端向lalserver推拉流都是这个地址
-    "gop_num": 2,             //. RTMP拉流的GOP缓存数量，加速流打开时间，但是可能增加延时
-    "merge_write_size": 8192  //. 将小包数据合并进行发送，单位字节，提高服务器性能，但是可能造成卡顿
+    "enable": true,                      //. 是否开启rtmp服务的监听
+                                         //  注意，配置文件中控制各协议类型的enable开关都应该按需打开，避免造成不必要的协议转换的开销
+    "addr": ":19350",                    //. RTMP服务监听的端口，客户端向lalserver推拉流都是这个地址
+    "gop_num": 2,                        //. RTMP拉流的GOP缓存数量，加速流打开时间，但是可能增加延时
+    "merge_write_size": 8192,            //. 将小包数据合并进行发送，单位字节，提高服务器性能，但是可能造成卡顿
+                                         //  如果为0，则不合并发送
+    "add_dummy_audio_enable": false,     //. 是否开启动态检测添加静音AAC数据的功能
+                                         //  如果开启，rtmp pub推流时，如果超过`add_dummy_audio_wait_audio_ms`时间依然没有
+                                         //  收到音频数据，则会自动为这路流叠加AAC的数据
+    "add_dummy_audio_wait_audio_ms": 150 //. 单位毫秒，具体见`add_dummy_audio_enable`
   },
   "default_http": {                       //. http监听相关的默认配置，如果hls, httpflv, httpts中没有单独配置以下配置项，
                                           //  则使用default_http中的配置
@@ -20,20 +26,22 @@
   "httpflv": {
     "enable": true,          //. 是否开启HTTP-FLV服务的监听
     "enable_https": true,    //. 是否开启HTTPS-FLV监听
-    "url_pattern": "/live/", //. 拉流url路由地址。默认值`/live/`，对应`/live/{streamName}.flv`
-    "gop_num": 2             //.
+    "url_pattern": "/",      //. 拉流url路由路径地址。默认值为`/`，表示不受限制，路由地址可以为任意路径地址。
+                             //  如果设置为`/live/`，则只能从`/live/`路径下拉流，比如`/live/test110.flv`
+    "gop_num": 2             //. 
   },
   "hls": {
     "enable": true,                  //. 是否开启HLS服务的监听
-    "enable_https": true,    //. 是否开启HTTPS-FLV监听
-    "url_pattern": "/hls/",          //. 拉流url路由地址，默认值`/hls/`，对应：
+    "enable_https": true,            //. 是否开启HTTPS-FLV监听
+    "url_pattern": "/hls/",          //. 拉流url路由地址，默认值`/hls/`，对应的HLS(m3u8)拉流地址：
                                      //  - `/hls/{streamName}.m3u8` 或
                                      //    `/hls/{streamName}/playlist.m3u8` 或
                                      //    `/hls/{streamName}/record.m3u8`
+                                     //  ts文件地址备注如下：
                                      //  - `/hls/{streamName}/{streamName}-{timestamp}-{index}.ts` 或
                                      //    `/hls/{streamName}-{timestamp}-{index}.ts`
                                      //  注意，hls的url_pattern不能和httpflv、httpts的url_pattern相同
-    "out_path": "/tmp/lal/hls/",     //. HLS文件保存根目录
+    "out_path": "./lal_record/hls/", //. HLS文件保存根目录
     "fragment_duration_ms": 3000,    //. 单个TS文件切片时长，单位毫秒
     "fragment_num": 6,               //. m3u8文件列表中ts文件的数量
     "cleanup_mode": 1,               //. HLS文件清理模式：
@@ -47,18 +55,19 @@
   },
   "httpts": {
     "enable": true,         //. 是否开启HTTP-TS服务的监听。注意，这并不是HLS中的TS，而是在一条HTTP长连接上持续性传输TS流
-    "enable_https": true,   //. 是否开启HTTPS-FLV监听
-    "url_pattern": "/live/" //. 拉流url路由地址。默认值`/live/`，对应`/live/{streamName}.flv`
+    "enable_https": true,   //. 是否开启HTTPS-TS监听
+    "url_pattern": "/"      //. 拉流url路由路径地址。默认值为`/`，表示不受限制，路由地址可以为任意路径地址。
+                            //  如果设置为`/live/`，则只能从`/live/`路径下拉流，比如`/live/test110.ts`
   },
   "rtsp": {
     "enable": true, //. 是否开启rtsp服务的监听，目前只支持rtsp推流
     "addr": ":5544" //. rtsp推流地址
   },
   "record": {
-    "enable_flv": true,                  //. 是否开启flv录制
-    "flv_out_path": "/tmp/lal/flv/",     //. flv录制目录
-    "enable_mpegts": true,               //. 是否开启mpegts录制。注意，此处是长ts文件录制，hls录制由上面的hls配置控制
-    "mpegts_out_path": "/tmp/lal/mpegts" //. mpegts录制目录
+    "enable_flv": true,                      //. 是否开启flv录制
+    "flv_out_path": "./lal_record/flv/",     //. flv录制目录
+    "enable_mpegts": true,                   //. 是否开启mpegts录制。注意，此处是长ts文件录制，hls录制由上面的hls配置控制
+    "mpegts_out_path": "./lal_record/mpegts" //. mpegts录制目录
   },
   "relay_push": {
     "enable": false, //. 是否开启中继转推功能，开启后，自身接收到的所有流都会转推出去

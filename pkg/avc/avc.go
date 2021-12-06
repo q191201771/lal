@@ -104,32 +104,41 @@ type DecoderConfigurationRecord struct {
 // 7.3.2.1 Sequence parameter set RBSP syntax
 // 7.4.2.1 Sequence parameter set RBSP semantics
 type Sps struct {
-	ProfileIdc                     uint8
-	ConstraintSet0Flag             uint8
-	ConstraintSet1Flag             uint8
-	ConstraintSet2Flag             uint8
-	LevelIdc                       uint8
-	SpsId                          uint32
-	ChromaFormatIdc                uint32
-	ResidualColorTransformFlag     uint8
-	BitDepthLuma                   uint32
-	BitDepthChroma                 uint32
-	TransFormBypass                uint8
-	Log2MaxFrameNumMinus4          uint32
-	PicOrderCntType                uint32
-	Log2MaxPicOrderCntLsb          uint32
+	ProfileIdc         uint8
+	ConstraintSet0Flag uint8
+	ConstraintSet1Flag uint8
+	ConstraintSet2Flag uint8
+	LevelIdc           uint8
+	SpsId              uint32
+
+	ChromaFormatIdc            uint32
+	ResidualColorTransformFlag uint8
+	BitDepthLuma               uint32
+	BitDepthChroma             uint32
+	TransFormBypass            uint8
+
+	Log2MaxFrameNumMinus4 uint32
+	PicOrderCntType       uint32
+	Log2MaxPicOrderCntLsb uint32
+
 	NumRefFrames                   uint32 // num_ref_frames
 	GapsInFrameNumValueAllowedFlag uint8  // gaps_in_frame_num_value_allowed_flag
 	PicWidthInMbsMinusOne          uint32 // pic_width_in_mbs_minus1
 	PicHeightInMapUnitsMinusOne    uint32 // pic_height_in_map_units_minus1
-	FrameMbsOnlyFlag               uint8  // frame_mbs_only_flag
-	MbAdaptiveFrameFieldFlag       uint8  // mb_adaptive_frame_field_flag
-	Direct8X8InferenceFlag         uint8  // direct_8x8_inference_flag
-	FrameCroppingFlag              uint8  // frame_cropping_flag
-	FrameCropLeftOffset            uint32 // frame_crop_left_offset
-	FrameCropRightOffset           uint32 // frame_crop_right_offset
-	FrameCropTopOffset             uint32 // frame_crop_top_offset
-	FrameCropBottomOffset          uint32 // frame_crop_bottom_offset
+
+	FrameMbsOnlyFlag         uint8 // frame_mbs_only_flag
+	MbAdaptiveFrameFieldFlag uint8 // mb_adaptive_frame_field_flag
+
+	Direct8X8InferenceFlag uint8 // direct_8x8_inference_flag
+
+	FrameCroppingFlag     uint8  // frame_cropping_flag
+	FrameCropLeftOffset   uint32 // frame_crop_left_offset
+	FrameCropRightOffset  uint32 // frame_crop_right_offset
+	FrameCropTopOffset    uint32 // frame_crop_top_offset
+	FrameCropBottomOffset uint32 // frame_crop_bottom_offset
+
+	SarNum int
+	SarDen int
 }
 
 func ParseNaluType(v uint8) uint8 {
@@ -347,6 +356,7 @@ func CaptureAvcc2Annexb(w io.Writer, payload []byte) error {
 		return nil
 	}
 
+	// TODO(chef): [refactor] 使用IterateNaluAvcc
 	// payload中可能存在多个nalu
 	for i := 5; i != len(payload); {
 		naluLen := int(bele.BeUint32(payload[i:]))

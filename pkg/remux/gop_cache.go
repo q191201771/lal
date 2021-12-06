@@ -6,56 +6,15 @@
 //
 // Author: Chef (191201771@qq.com)
 
-package logic
+package remux
 
 import (
 	"github.com/q191201771/lal/pkg/base"
-	"github.com/q191201771/lal/pkg/remux"
-	"github.com/q191201771/lal/pkg/rtmp"
 	"github.com/q191201771/naza/pkg/nazalog"
 )
 
-// 考虑以下两种场景：
-// - 只有上行，没有下行，没有必要做rtmp chunk切片的操作
-// - 有多个下行，只需要做一次rtmp chunk切片
-// 所以这一步做了懒处理
-type LazyChunkDivider struct {
-	message []byte
-	header  *base.RtmpHeader
-	chunks  []byte
-}
-
-func (lcd *LazyChunkDivider) Init(message []byte, header *base.RtmpHeader) {
-	lcd.message = message
-	lcd.header = header
-}
-
-func (lcd *LazyChunkDivider) Get() []byte {
-	if lcd.chunks == nil {
-		lcd.chunks = rtmp.Message2Chunks(lcd.message, lcd.header)
-	}
-	return lcd.chunks
-}
-
-// 懒转换
-type LazyRtmpMsg2FlvTag struct {
-	msg base.RtmpMsg
-	tag []byte
-}
-
-func (l *LazyRtmpMsg2FlvTag) Init(msg base.RtmpMsg) {
-	l.msg = msg
-}
-
-func (l *LazyRtmpMsg2FlvTag) Get() []byte {
-	if l.tag == nil {
-		l.tag = remux.RtmpMsg2FlvTag(l.msg).Raw
-	}
-	return l.tag
-}
-
-// ---------------------------------------------------------------------------------------------------------------------
-
+// GopCache
+//
 // 提供两个功能:
 //   1. 缓存Metadata, VideoSeqHeader, AacSeqHeader
 //   2. 缓存音视频GOP数据

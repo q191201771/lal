@@ -21,7 +21,7 @@ import (
 	"github.com/q191201771/naza/pkg/nazalog"
 )
 
-const ConfVersion = "v0.2.2"
+const ConfVersion = "v0.2.4"
 
 const (
 	defaultHlsCleanupMode    = hls.CleanupModeInTheEnd
@@ -50,10 +50,12 @@ type Config struct {
 }
 
 type RtmpConfig struct {
-	Enable         bool   `json:"enable"`
-	Addr           string `json:"addr"`
-	GopNum         int    `json:"gop_num"`
-	MergeWriteSize int    `json:"merge_write_size"`
+	Enable                   bool   `json:"enable"`
+	Addr                     string `json:"addr"`
+	GopNum                   int    `json:"gop_num"` // TODO(chef): refactor 更名为gop_cache_num
+	MergeWriteSize           int    `json:"merge_write_size"`
+	AddDummyAudioEnable      bool   `json:"add_dummy_audio_enable"`
+	AddDummyAudioWaitAudioMs int    `json:"add_dummy_audio_wait_audio_ms"`
 }
 
 type DefaultHttpConfig struct {
@@ -137,6 +139,8 @@ type CommonHttpAddrConfig struct {
 }
 
 func LoadConfAndInitLog(confFile string) *Config {
+	var config *Config
+
 	// 读取配置文件并解析原始内容
 	rawContent, err := ioutil.ReadFile(confFile)
 	if err != nil {
@@ -147,41 +151,56 @@ func LoadConfAndInitLog(confFile string) *Config {
 		_, _ = fmt.Fprintf(os.Stderr, "unmarshal conf file failed. file=%s err=%+v", confFile, err)
 		base.OsExitAndWaitPressIfWindows(1)
 	}
+
 	j, err := nazajson.New(rawContent)
 	if err != nil {
 		_, _ = fmt.Fprintf(os.Stderr, "nazajson unmarshal conf file failed. file=%s err=%+v", confFile, err)
 		base.OsExitAndWaitPressIfWindows(1)
 	}
 
-	// 初始化日志，注意，这一步尽量提前，使得后续的日志内容按我们的日志配置输出
+	// 初始化日志模块，注意，这一步尽量提前，使得后续的日志内容按我们的日志配置输出
+	//
 	// 日志配置项不存在时，设置默认值
+	//
+	// 注意，由于此时日志模块还没有初始化，所以有日志需要打印时，我们采用先缓存后打印（日志模块初始化成功后再打印）的方式
+	var cacheLog []string
 	if !j.Exist("log.level") {
 		config.LogConfig.Level = nazalog.LevelDebug
+		cacheLog = append(cacheLog, fmt.Sprintf("log.level=%s", config.LogConfig.Level.ReadableString()))
 	}
 	if !j.Exist("log.filename") {
 		config.LogConfig.Filename = "./logs/lalserver.log"
+		cacheLog = append(cacheLog, fmt.Sprintf("log.filename=%s", config.LogConfig.Filename))
 	}
 	if !j.Exist("log.is_to_stdout") {
 		config.LogConfig.IsToStdout = true
+		cacheLog = append(cacheLog, fmt.Sprintf("log.is_to_stdout=%v", config.LogConfig.IsToStdout))
 	}
 	if !j.Exist("log.is_rotate_daily") {
 		config.LogConfig.IsRotateDaily = true
+		cacheLog = append(cacheLog, fmt.Sprintf("log.is_rotate_daily=%v", config.LogConfig.IsRotateDaily))
 	}
 	if !j.Exist("log.short_file_flag") {
 		config.LogConfig.ShortFileFlag = true
+		cacheLog = append(cacheLog, fmt.Sprintf("log.short_file_flag=%v", config.LogConfig.ShortFileFlag))
 	}
 	if !j.Exist("log.timestamp_flag") {
 		config.LogConfig.TimestampFlag = true
+		cacheLog = append(cacheLog, fmt.Sprintf("log.timestamp_flag=%v", config.LogConfig.TimestampFlag))
 	}
 	if !j.Exist("log.timestamp_with_ms_flag") {
 		config.LogConfig.TimestampWithMsFlag = true
+		cacheLog = append(cacheLog, fmt.Sprintf("log.timestamp_with_ms_flag=%v", config.LogConfig.TimestampWithMsFlag))
 	}
 	if !j.Exist("log.level_flag") {
 		config.LogConfig.LevelFlag = true
+		cacheLog = append(cacheLog, fmt.Sprintf("log.level_flag=%v", config.LogConfig.LevelFlag))
 	}
 	if !j.Exist("log.assert_behavior") {
 		config.LogConfig.AssertBehavior = nazalog.AssertError
+		cacheLog = append(cacheLog, fmt.Sprintf("log.assert_behavior=%s", config.LogConfig.AssertBehavior.ReadableString()))
 	}
+
 	if err := nazalog.Init(func(option *nazalog.Option) {
 		*option = config.LogConfig
 	}); err != nil {
@@ -205,25 +224,24 @@ func LoadConfAndInitLog(confFile string) *Config {
 			ConfVersion, config.ConfVersion)
 	}
 
-	// 检查一级配置项
-	keyFieldList := []string{
-		"rtmp",
-		"httpflv",
-		"hls",
-		"httpts",
-		"rtsp",
-		"record",
-		"relay_push",
-		"relay_pull",
-		"http_api",
-		"http_notify",
-		"pprof",
-		"log",
+	// 做个全量字段检查，缺失的字段，Go中会先设置为零值
+	notExistFields, err := nazajson.CollectNotExistFields(rawContent, config,
+		"log.",
+		"default_http.http_listen_addr", "default_http.https_listen_addr", "default_http.https_cert_file", "default_http.https_key_file",
+		"httpflv.http_listen_addr", "httpflv.https_listen_addr", "httpflv.https_cert_file", "httpflv.https_key_file",
+		"hls.http_listen_addr", "hls.https_listen_addr", "hls.https_cert_file", "hls.https_key_file",
+		"httpts.http_listen_addr", "httpts.https_listen_addr", "httpts.https_cert_file", "httpts.https_key_file",
+	)
+	if err != nil {
+		nazalog.Warnf("config nazajson collect not exist fields failed. err=%+v", err)
 	}
-	for _, kf := range keyFieldList {
-		if !j.Exist(kf) {
-			nazalog.Warnf("missing config item %s", kf)
-		}
+	if len(notExistFields) != 0 {
+		nazalog.Warnf("config some fields do not exist which have been set to the zero value. fields=%+v", notExistFields)
+	}
+
+	// 日志字段检查，缺失的字段，打印前面设置的默认值
+	if len(cacheLog) > 0 {
+		nazalog.Warnf("config some log fields do not exist which have been set to default value. %s", strings.Join(cacheLog, ", "))
 	}
 
 	// 如果具体的HTTP应用没有设置HTTP监听相关的配置，则尝试使用全局配置
@@ -231,7 +249,7 @@ func LoadConfAndInitLog(confFile string) *Config {
 	mergeCommonHttpAddrConfig(&config.HttptsConfig.CommonHttpAddrConfig, &config.DefaultHttpConfig.CommonHttpAddrConfig)
 	mergeCommonHttpAddrConfig(&config.HlsConfig.CommonHttpAddrConfig, &config.DefaultHttpConfig.CommonHttpAddrConfig)
 
-	// 配置不存在时，设置默认值
+	// 为缺失的字段中的一些特定字段，设置特定默认值
 	if (config.HlsConfig.Enable || config.HlsConfig.EnableHttps) && !j.Exist("hls.cleanup_mode") {
 		nazalog.Warnf("config hls.cleanup_mode not exist. set to default which is %d", defaultHlsCleanupMode)
 		config.HlsConfig.CleanupMode = defaultHlsCleanupMode
@@ -264,6 +282,7 @@ func LoadConfAndInitLog(confFile string) *Config {
 		config.HttpflvConfig.UrlPattern = urlPattern
 	}
 
+	// 打印配置文件中的元素内容，以及解析后的最终值
 	// 把配置文件原始内容中的换行去掉，使得打印日志时紧凑一些
 	lines := strings.Split(string(rawContent), "\n")
 	if len(lines) == 1 {

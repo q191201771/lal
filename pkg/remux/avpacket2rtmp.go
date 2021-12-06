@@ -21,7 +21,8 @@ import (
 )
 
 // AvPacket转换为RTMP
-// 目前AvPacket来自RTSP的sdp以及rtp包。理论上也支持webrtc，后续接入webrtc时再验证
+// 目前AvPacket来自RTSP的sdp以及rtp的合帧包。理论上也支持webrtc，后续接入webrtc时再验证
+//
 type AvPacket2RtmpRemuxer struct {
 	onRtmpAvMsg rtmp.OnReadRtmpAvMsg
 
@@ -188,7 +189,7 @@ func (r *AvPacket2RtmpRemuxer) FeedAvPacket(pkt base.AvPacket) {
 						r.clearVideoSeqHeader()
 					}
 				} else {
-					if t == hevc.NaluTypeSliceIdr || t == hevc.NaluTypeSliceIdrNlp {
+					if t == hevc.NaluTypeSliceIdr || t == hevc.NaluTypeSliceIdrNlp || t == hevc.NaluTypeSliceCranut {
 						payload[0] = base.RtmpHevcKeyFrame
 					} else {
 						payload[0] = base.RtmpHevcInterFrame

@@ -12,13 +12,13 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/q191201771/naza/pkg/bininfo"
-
 	"github.com/q191201771/lal/pkg/base"
 	"github.com/q191201771/naza/pkg/nazahttp"
 	"github.com/q191201771/naza/pkg/nazalog"
 )
 
+// TODO(chef): refactor 配置参数供外部传入
+// TODO(chef): refactor maxTaskLen修改为能表示是阻塞任务的意思
 var (
 	maxTaskLen       = 1024
 	notifyTimeoutSec = 3
@@ -30,47 +30,87 @@ type PostTask struct {
 }
 
 type HttpNotify struct {
+	cfg       HttpNotifyConfig
 	taskQueue chan PostTask
 	client    *http.Client
 }
 
-var httpNotify *HttpNotify
+func NewHttpNotify(cfg HttpNotifyConfig) *HttpNotify {
+	httpNotify := &HttpNotify{
+		cfg:       cfg,
+		taskQueue: make(chan PostTask, maxTaskLen),
+		client: &http.Client{
+			Timeout: time.Duration(notifyTimeoutSec) * time.Second,
+		},
+	}
+	go httpNotify.RunLoop()
 
-// 注意，这里的函数命名以On开头并不是因为是回调函数，而是notify给业务方的接口叫做on_server_start
-func (h *HttpNotify) OnServerStart() {
-	var info base.LalInfo
-	info.BinInfo = bininfo.StringifySingleLine()
-	info.LalVersion = base.LalVersion
-	info.ApiVersion = base.HttpApiVersion
-	info.NotifyVersion = base.HttpNotifyVersion
-	info.StartTime = serverStartTime
-	info.ServerId = config.ServerId
-	h.asyncPost(config.HttpNotifyConfig.OnServerStart, info)
+	return httpNotify
+}
+
+// TODO(chef): Dispose
+
+// ---------------------------------------------------------------------------------------------------------------------
+
+func (h *HttpNotify) NotifyServerStart(info base.LalInfo) {
+	h.asyncPost(h.cfg.OnServerStart, info)
+}
+
+func (h *HttpNotify) NotifyUpdate(info base.UpdateInfo) {
+	h.asyncPost(h.cfg.OnUpdate, info)
+}
+
+func (h *HttpNotify) NotifyPubStart(info base.PubStartInfo) {
+	h.asyncPost(h.cfg.OnPubStart, info)
+}
+
+func (h *HttpNotify) NotifyPubStop(info base.PubStopInfo) {
+	h.asyncPost(h.cfg.OnPubStop, info)
+}
+
+func (h *HttpNotify) NotifySubStart(info base.SubStartInfo) {
+	h.asyncPost(h.cfg.OnSubStart, info)
+}
+
+func (h *HttpNotify) NotifySubStop(info base.SubStopInfo) {
+	h.asyncPost(h.cfg.OnSubStop, info)
+}
+
+func (h *HttpNotify) NotifyRtmpConnect(info base.RtmpConnectInfo) {
+	h.asyncPost(h.cfg.OnRtmpConnect, info)
+}
+
+// ----- implement INotifyHandler interface ----------------------------------------------------------------------------
+
+func (h *HttpNotify) OnServerStart(info base.LalInfo) {
+	h.NotifyServerStart(info)
 }
 
 func (h *HttpNotify) OnUpdate(info base.UpdateInfo) {
-	h.asyncPost(config.HttpNotifyConfig.OnUpdate, info)
+	h.NotifyUpdate(info)
 }
 
 func (h *HttpNotify) OnPubStart(info base.PubStartInfo) {
-	h.asyncPost(config.HttpNotifyConfig.OnPubStart, info)
+	h.NotifyPubStart(info)
 }
 
 func (h *HttpNotify) OnPubStop(info base.PubStopInfo) {
-	h.asyncPost(config.HttpNotifyConfig.OnPubStop, info)
+	h.NotifyPubStop(info)
 }
 
 func (h *HttpNotify) OnSubStart(info base.SubStartInfo) {
-	h.asyncPost(config.HttpNotifyConfig.OnSubStart, info)
+	h.NotifySubStart(info)
 }
 
 func (h *HttpNotify) OnSubStop(info base.SubStopInfo) {
-	h.asyncPost(config.HttpNotifyConfig.OnSubStop, info)
+	h.NotifySubStop(info)
 }
 
 func (h *HttpNotify) OnRtmpConnect(info base.RtmpConnectInfo) {
-	h.asyncPost(config.HttpNotifyConfig.OnRtmpConnect, info)
+	h.NotifyRtmpConnect(info)
 }
+
+// ---------------------------------------------------------------------------------------------------------------------
 
 func (h *HttpNotify) RunLoop() {
 	for {
@@ -81,8 +121,10 @@ func (h *HttpNotify) RunLoop() {
 	}
 }
 
+// ---------------------------------------------------------------------------------------------------------------------
+
 func (h *HttpNotify) asyncPost(url string, info interface{}) {
-	if !config.HttpNotifyConfig.Enable || url == "" {
+	if !h.cfg.Enable || url == "" {
 		return
 	}
 
@@ -98,16 +140,4 @@ func (h *HttpNotify) post(url string, info interface{}) {
 	if _, err := nazahttp.PostJson(url, info, h.client); err != nil {
 		nazalog.Errorf("http notify post error. err=%+v", err)
 	}
-}
-
-// TODO chef: dispose
-
-func init() {
-	httpNotify = &HttpNotify{
-		taskQueue: make(chan PostTask, maxTaskLen),
-		client: &http.Client{
-			Timeout: time.Duration(notifyTimeoutSec) * time.Second,
-		},
-	}
-	go httpNotify.RunLoop()
 }

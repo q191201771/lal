@@ -111,6 +111,11 @@ func (s *ServerSession) Write(msg []byte) error {
 	return err
 }
 
+func (s *ServerSession) Writev(msgs net.Buffers) error {
+	_, err := s.conn.Writev(msgs)
+	return err
+}
+
 func (s *ServerSession) Flush() error {
 	return s.conn.Flush()
 }
@@ -228,7 +233,7 @@ func (s *ServerSession) doMsg(stream *Stream) error {
 }
 
 func (s *ServerSession) doAck(stream *Stream) error {
-	seqNum := bele.BeUint32(stream.msg.buf[stream.msg.b:stream.msg.e])
+	seqNum := bele.BeUint32(stream.msg.buff.Bytes())
 	nazalog.Infof("[%s] < R Acknowledgement. ignore. sequence number=%d.", s.uniqueKey, seqNum)
 	return nil
 }
@@ -324,7 +329,7 @@ func (s *ServerSession) doCommandMessage(stream *Stream) error {
 
 func (s *ServerSession) doCommandAmf3Message(stream *Stream) error {
 	//去除前面的0就是Amf0的数据
-	stream.msg.consumed(1)
+	stream.msg.Skip(1)
 	return s.doCommandMessage(stream)
 }
 

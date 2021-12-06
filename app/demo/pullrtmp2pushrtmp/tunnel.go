@@ -17,8 +17,8 @@ import (
 	"github.com/q191201771/lal/pkg/base"
 	"github.com/q191201771/lal/pkg/remux"
 	"github.com/q191201771/lal/pkg/rtmp"
+	"github.com/q191201771/naza/pkg/nazabytes"
 	"github.com/q191201771/naza/pkg/nazalog"
-	"github.com/q191201771/naza/pkg/nazastring"
 	"github.com/q191201771/naza/pkg/unique"
 )
 
@@ -166,7 +166,7 @@ func (t *Tunnel) Start() (ret ErrorCode) {
 					currHeader := remux.MakeDefaultRtmpHeader(m.Header)
 					chunks := rtmp.Message2Chunks(m.Payload, &currHeader)
 					if debugWriteCount < maxDebugWriteCount {
-						nazalog.Infof("[%s] write. header=%+v, %+v, %s", t.uk, m.Header, currHeader, hex.Dump(nazastring.SubSliceSafety(m.Payload, 32)))
+						nazalog.Infof("[%s] write. header=%+v, %+v, %s", t.uk, m.Header, currHeader, hex.Dump(nazabytes.Prefix(m.Payload, 32)))
 						debugWriteCount++
 					}
 

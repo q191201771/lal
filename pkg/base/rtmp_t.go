@@ -42,6 +42,12 @@ const (
 	RtmpCodecIdAvc  uint8 = 7
 	RtmpCodecIdHevc uint8 = 12
 
+	// RtmpAvcPacketTypeSeqHeader RtmpAvcPacketTypeNalu RtmpHevcPacketTypeSeqHeader RtmpHevcPacketTypeNalu
+	// 注意，按照标准文档上描述，PacketType还有可能为2：
+	// 2: AVC end of sequence (lower level NALU sequence ender is not required or supported)
+	//
+	// 我自己遇到过在流结尾时，对端发送 27 02 00 00 00的情况（比如我们的使用wontcry.flv的单元测试，最后一个包）
+	//
 	RtmpAvcPacketTypeSeqHeader  uint8 = 0
 	RtmpAvcPacketTypeNalu       uint8 = 1
 	RtmpHevcPacketTypeSeqHeader       = RtmpAvcPacketTypeSeqHeader

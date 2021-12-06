@@ -2,9 +2,9 @@
 build: deps
 	./build.sh
 
-.PHONY: build_linux
-build_linux: deps
-	./build_linux.sh
+.PHONY: build_for_linux
+build_for_linux: deps
+	./build_for_linux.sh
 
 .PHONY: test
 test: deps

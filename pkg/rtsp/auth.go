@@ -37,23 +37,15 @@ type Auth struct {
 func (a *Auth) FeedWwwAuthenticate(auths []string, username, password string) {
 	a.Username = username
 	a.Password = password
+	//目前只处理第一个
 	var s string
-	if len(auths) > 1 {
-		for _, s = range auths {
-			s = strings.TrimPrefix(s, HeaderWwwAuthenticate)
-			s = strings.TrimSpace(s)
-			if strings.HasPrefix(s, AuthTypeDigest) {
-				break
-			}
-		}
-	} else if len(auths) == 1 {
+	if len(auths) > 0 {
 		s = auths[0]
-		s = strings.TrimPrefix(s, HeaderWwwAuthenticate)
-		s = strings.TrimSpace(s)
 	} else {
 		return
 	}
-
+	s = strings.TrimPrefix(s, HeaderWwwAuthenticate)
+	s = strings.TrimSpace(s)
 	if strings.HasPrefix(s, AuthTypeBasic) {
 		a.Typ = AuthTypeBasic
 		return
@@ -73,6 +65,10 @@ func (a *Auth) FeedWwwAuthenticate(auths []string, username, password string) {
 	}
 	if a.Nonce == "" {
 		nazalog.Warnf("FeedWwwAuthenticate realm invalid. v=%s", s)
+	}
+	if a.Algorithm == "" {
+		a.Algorithm = AuthAlgorithm
+		nazalog.Warnf("FeedWwwAuthenticate algorithm not found fallback to %s. v=%s", AuthAlgorithm, s)
 	}
 	if a.Algorithm != AuthAlgorithm {
 		nazalog.Warnf("FeedWwwAuthenticate algorithm invalid, only support MD5. v=%s", s)

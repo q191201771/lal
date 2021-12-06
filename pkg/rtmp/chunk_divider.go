@@ -8,8 +8,6 @@
 
 package rtmp
 
-// chunk_divider.go
-// @pure
 // 将message切割成chunk
 
 import (

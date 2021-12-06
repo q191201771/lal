@@ -4,6 +4,7 @@
 #
 # 步骤：
 # 1. 提交所有代码
+# 1-. 检查配置文件中的配置文件版本号和代码中的配置文件版本号是否匹配
 # 2. 修改CHANGELOG.md
 # 3. 执行gen_tag.sh
 
@@ -18,7 +19,7 @@ GitTag=`git tag --sort=version:refname | tail -n 1`
 echo "newest version in git tag: " $GitTag
 
 # 源码中的版本号
-FileVersion=`cat pkg/base/version.go | grep 'const LALVersion' | awk -F\" '{print $2}'`
+FileVersion=`cat pkg/base/version.go | grep 'const LalVersion' | awk -F\" '{print $2}'`
 echo "newest version in version.go: " $FileVersion
 
 # CHANGELOG.md和源码中的不一致，更新源码，并提交修改
@@ -26,8 +27,8 @@ if [ "$NewVersion" == "$FileVersion" ];then
   echo 'same tag, noop.'
 else
   echo 'update version.go'
-  gsed -i "/^const LALVersion/cconst LALVersion = \"${NewVersion}\"" pkg/base/version.go
-  git add .
+  gsed -i "/^const LalVersion/cconst LalVersion = \"${NewVersion}\"" pkg/base/version.go
+  git add pkg/base/version.go
   git commit -m "${NewVersion} -> version.go"
   git push
 fi

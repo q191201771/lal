@@ -9,7 +9,8 @@ if [ ! -d ${ROOT_DIR}/${OUT_DIR} ]; then
   mkdir ${ROOT_DIR}/${OUT_DIR}
 fi
 
-GitTag=`git tag --sort=version:refname | tail -n 1`
+#GitTag=`git tag --sort=version:refname | tail -n 1`
+GitTag=`git tag | sort -V | tail -n 1`
 GitCommitLog=`git log --pretty=oneline -n 1`
 # 将 log 原始字符串中的单引号替换成双引号
 GitCommitLog=${GitCommitLog//\'/\"}

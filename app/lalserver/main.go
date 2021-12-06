@@ -22,14 +22,14 @@ import (
 	"github.com/q191201771/naza/pkg/bininfo"
 )
 
-var sm *logic.ServerManager
-
 func main() {
 	defer nazalog.Sync()
 
 	confFile := parseFlag()
-	logic.Init(confFile)
-	logic.RunLoop()
+	sm := logic.NewLalServer(confFile, func(option *logic.Option) {
+	})
+	err := sm.RunLoop()
+	nazalog.Infof("server manager done. err=%+v", err)
 }
 
 func parseFlag() string {
@@ -57,6 +57,7 @@ func parseFlag() string {
 		filepath.FromSlash("../lalserver.conf.json"),
 		filepath.FromSlash("../../lalserver.conf.json"),
 		filepath.FromSlash("../../conf/lalserver.conf.json"),
+		filepath.FromSlash("lal/conf/lalserver.conf.json"),
 	}
 	for _, dcf := range defaultConfigFileList {
 		fi, err := os.Stat(dcf)
@@ -68,7 +69,7 @@ func parseFlag() string {
 		}
 	}
 
-	// 默认位置都没有，退出程序
+	// 所有默认位置都找不到配置文件，退出程序
 	flag.Usage()
 	_, _ = fmt.Fprintf(os.Stderr, `
 Example:

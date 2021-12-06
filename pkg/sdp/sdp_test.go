@@ -458,3 +458,123 @@ a=control:track3
 	assert.Equal(t, nil, err)
 	_ = ctx
 }
+
+// sdp aac中a=fmtp缺少config字段，这个case的实际情况是后续也没有aac的rtp包
+func TestCase10(t *testing.T) {
+	golden := `v=0
+o=- 0 0 IN IP4 0.0.0.0
+s=rtsp_demo
+t=0 0
+a=control:rtsp://10.10.10.188:554/stream0
+a=range:npt=0-
+m=video 0 RTP/AVP 96
+c=IN IP4 0.0.0.0
+a=rtpmap:96 H264/90000
+a=fmtp:96 packetization-mode=1;sprop-parameter-sets=Z00AKp2oHgCJ+WbgICAgQA==,aO48gA==
+a=control:rtsp://10.10.10.188:554/stream0/track1
+m=audio 0 RTP/AVP 97
+c=IN IP4 0.0.0.0
+a=rtpmap:97 MPEG4-GENERIC/44100/2
+a=fmtp:97 profile-level-id=1;mode=AAC-hbr;sizelength=13;indexlength=3;indexdeltalength=3
+a=control:rtsp://10.10.10.188:554/stream0/track2
+`
+	golden = strings.ReplaceAll(golden, "\n", "\r\n")
+	ctx, err := ParseSdp2LogicContext([]byte(golden))
+	assert.Equal(t, nil, err)
+	_ = ctx
+}
+
+// `fmtp:96 `后多了个`;`
+func TestCase11(t *testing.T) {
+	golden := `v=0
+o=- 3331435948 1116907222000 IN IP4 192.168.2.109
+s=Session
+c=IN IP4 192.168.2.109
+t=0 0
+a=range:npt=now-
+a=control:*
+m=video 0 RTP/AVP 96
+a=control:trackID=0
+a=rtpmap:96 H264/90000
+a=fmtp:96 ;packetization-mode=1;sprop-parameter-sets=Z00AKpY1QPAET8s3AQEBQAABwgAAV+Qh,aO4xsg==
+b=AS:5000
+`
+	golden = strings.ReplaceAll(golden, "\n", "\r\n")
+	ctx, err := ParseSdp2LogicContext([]byte(golden))
+	assert.Equal(t, nil, err)
+	_ = ctx
+}
+
+// `a=fmtp:104 `这行的尾部多了个`;`
+func TestCase12(t *testing.T) {
+	golden := `v=0
+o=- 2733083813174 2733083813174 IN IP4 192.168.0.101
+s=Media Presentation
+e=NONE
+b=AS:5100
+t=0 0
+a=control:rtsp://192.168.0.102:554/LiveMedia/ch1/Media1/
+m=video 0 RTP/AVP 96
+c=IN IP4 0.0.0.0
+b=AS:5000
+a=recvonly
+a=x-dimensions:1280,960
+a=control:rtsp://192.168.0.102:554/LiveMedia/ch1/Media1/trackID=1
+a=rtpmap:96 H264/90000
+a=fmtp:96 profile-level-id=420029; packetization-mode=1; sprop-parameter-sets=Z01AII2NQCgDz/gLcBAQFAAAD6AAAw1DoYAHmCu8uNDAA8wV3lwo,aO44gA==
+m=audio 0 RTP/AVP 104
+c=IN IP4 0.0.0.0
+b=AS:50
+a=recvonly
+a=control:rtsp://192.168.0.102:554/LiveMedia/ch1/Media1/trackID=2
+a=rtpmap:104 mpeg4-generic/16000/1
+a=fmtp:104 profile-level-id=15; streamtype=5; mode=AAC-hbr; config=1408;SizeLength=13; IndexLength=3; IndexDeltaLength=3; Profile=1;
+a=Media_header:MEDIAINFO=494D4B48010200000400000101200110803E0000007D000000000000000000000000000000000000;
+a=appversion:1.0
+`
+	golden = strings.ReplaceAll(golden, "\n", "\r\n")
+	ctx, err := ParseSdp2LogicContext([]byte(golden))
+	assert.Equal(t, nil, err)
+	_ = ctx
+}
+
+// `a=fmtp:96`这行被切割成了多行
+func TestCase13(t *testing.T) {
+	golden := `v=0
+o=- 16513881941979867928 16513881941979867928 IN IP4 HF-SW-P1-ROC
+s=Unnamed
+i=N/A
+c=IN IP4 0.0.0.0
+t=0 0
+a=tool:vlc 3.0.16
+a=recvonly
+a=type:broadcast
+a=charset:UTF-8
+a=control:rtsp://127.0.0.1:8066/demo
+m=video 0 RTP/AVP 96
+b=RR:0
+a=rtpmap:96 H265/90000
+a=fmtp:96 tx-mode=SRST;profile-id=1;level-id=3;tier-flag=0;profile-space=0;sprop-vps=QAEMAf//AWAAAAMAkAAAAwAAAwBdlZgJ;sprop-sps=QgEBAWAAAAMAkAAAAwAAAwBdoAKAgC0WWVmq8rgE
+AAADAlwAAEakIA==;sprop-pps=RAHBc9CJ;sprop-sei=TgEF/////////2Qsot4JtRdH27tVpP5/wvxOeDI2NSAoYnVpbGQgMTUxKSAtIDIuNzpbV2luZG93c11bR0NDIDYuNC4wXVs2NCBiaXRdIDhiaXQgLSBILjI2NS
+9IRVZDIGNvZGVjIC0gQ29weXJpZ2h0IDIwMTMtMjAxOCAoYykgTXVsdGljb3Jld2FyZSwgSW5jIC0gaHR0cDovL3gyNjUub3JnIC0gb3B0aW9uczogY3B1aWQ9MTE3MzUwMyBmcmFtZS10aHJlYWRzPTggbnVtYS1wb29scz
+04IG5vLXdwcCBuby1wbW9kZSBuby1wbWUgbm8tcHNuciBuby1zc2ltIGxvZy1sZXZlbD0yIGJpdGRlcHRoPTggaW5wdXQtY3NwPTEgZnBzPTQ1MjEvMTUxIGlucHV0LXJlcz0xMjgweDcyMCBpbnRlcmxhY2U9MCB0b3RhbC
+1mcmFtZXM9MCBsZXZlbC1pZGM9MCBoaWdoLXRpZXI9MSB1aGQtYmQ9MCByZWY9MyBuby1hbGxvdy1ub24tY29uZm9ybWFuY2Ugbm8tcmVwZWF0LWhlYWRlcnMgYW5uZXhiIG5vLWF1ZCBuby1ocmQgaW5mbyBoYXNoPTAgbm
+8tdGVtcG9yYWwtbGF5ZXJzIG9wZW4tZ29wIG1pbi1rZXlpbnQ9MjUga2V5aW50PTI1MCBnb3AtbG9va2FoZWFkPTAgYmZyYW1lcz00IGItYWRhcHQ9MiBiLXB5cmFtaWQgYmZyYW1lLWJpYXM9MCByYy1sb29rYWhlYWQ9Mj
+AgbG9va2FoZWFkLXNsaWNlcz00IHNjZW5lY3V0PTQwIHJhZGw9MCBuby1pbnRyYS1yZWZyZXNoIGN0dT0xNiBtaW4tY3Utc2l6ZT04IG5vLXJlY3Qgbm8tYW1wIG1heC10dS1zaXplPTE2IHR1LWludGVyLWRlcHRoPTEgdH
+UtaW50cmEtZGVwdGg9MSBsaW1pdC10dT0wIHJkb3EtbGV2ZWw9MCBkeW5hbWljLXJkPTAuMDAgbm8tc3NpbS1yZCBzaWduaGlkZSBuby10c2tpcCBuci1pbnRyYT0wIG5yLWludGVyPTAgbm8tY29uc3RyYWluZWQtaW50cm
+Egc3Ryb25nLWludHJhLXNtb290aGluZyBtYXgtbWVyZ2U9MiBsaW1pdC1yZWZzPTMgbm8tbGltaXQtbW9kZXMgbWU9MSBzdWJtZT0yIG1lcmFuZ2U9NTcgdGVtcG9yYWwtbXZwIHdlaWdodHAgbm8td2VpZ2h0YiBuby1hbm
+FseXplLXNyYy1waWNzIGRlYmxvY2s9MDowIHNhbyBuby1zYW8tbm9uLWRlYmxvY2sgcmQ9MyBuby1lYXJseS1za2lwIHJza2lwIG5vLWZhc3QtaW50cmEgbm8tdHNraXAtZmFzdCBuby1jdS1sb3NzbGVzcyBuby1iLWludH
+JhIG5vLXNwbGl0cmQtc2tpcCByZHBlbmFsdHk9MCBwc3ktcmQ9Mi4wMCBwc3ktcmRvcT0wLjAwIG5vLXJkLXJlZmluZSBuby1sb3NzbGVzcyBjYnFwb2Zmcz0wIGNycXBvZmZzPTAgcmM9Y3JmIGNyZj0yOC4wIHFjb21wPT
+AuNjAgcXBzdGVwPTQgc3RhdHMtd3JpdGU9MCBzdGF0cy1yZWFkPTAgaXByYXRpbz0xLjQwIHBicmF0aW89MS4zMCBhcS1tb2RlPTEgYXEtc3RyZW5ndGg9MS4wMCBjdXRyZWUgem9uZS1jb3VudD0wIG5vLXN0cmljdC1jYn
+IgcWctc2l6ZT0xNiBuby1yYy1ncmFpbiBxcG1heD02OSBxcG1pbj0wIG5vLWNvbnN0LXZidiBzYXI9MCBvdmVyc2Nhbj0wIHZpZGVvZm9ybWF0PTUgcmFuZ2U9MCBjb2xvcnByaW09MiB0cmFuc2Zlcj0yIGNvbG9ybWF0cm
+l4PTIgY2hyb21hbG9jPTAgZGlzcGxheS13aW5kb3c9MCBtYXgtY2xsPTAsMCBtaW4tbHVtYT0wIG1heC1sdW1hPTI1NSBsb2cyLW1heC1wb2MtbHNiPTggdnVpLXRpbWluZy1pbmZvIHZ1aS1ocmQtaW5mbyBzbGljZXM9MS
+Buby1vcHQtcXAtcHBzIG5vLW9wdC1yZWYtbGlzdC1sZW5ndGgtcHBzIG5vLW11bHRpLXBhc3Mtb3B0LXJwcyBzY2VuZWN1dC1iaWFzPTAuMDUgbm8tb3B0LWN1LWRlbHRhLXFwIG5vLWFxLW1vdGlvbiBuby1oZHIgbm8taG
+RyLW9wdCBuby1kaGRyMTAtb3B0IGFuYWx5c2lzLXJldXNlLWxldmVsPTUgc2NhbGUtZmFjdG9yPTAgcmVmaW5lLWludHJhPTAgcmVmaW5lLWludGVyPTAgcmVmaW5lLW12PTAgbm8tbGltaXQtc2FvIGN0dS1pbmZvPTAgbm
+8tbG93cGFzcy1kY3QgcmVmaW5lLW12LXR5cGU9MCBjb3B5LXBpYz0xgA==;
+a=control:rtsp://127.0.0.1:8066/demo/trackID=0
+`
+	golden = strings.ReplaceAll(golden, "\n", "\r\n")
+	ctx, err := ParseSdp2LogicContext([]byte(golden))
+	assert.Equal(t, nil, err)
+	_ = ctx
+}

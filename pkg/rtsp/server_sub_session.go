@@ -23,6 +23,8 @@ type SubSession struct {
 	urlCtx         base.UrlContext
 	cmdSession     *ServerCommandSession
 	baseOutSession *BaseOutSession
+
+	ShouldWaitVideoKeyFrame bool
 }
 
 func NewSubSession(urlCtx base.UrlContext, cmdSession *ServerCommandSession) *SubSession {
@@ -31,6 +33,8 @@ func NewSubSession(urlCtx base.UrlContext, cmdSession *ServerCommandSession) *Su
 		uniqueKey:  uk,
 		urlCtx:     urlCtx,
 		cmdSession: cmdSession,
+
+		ShouldWaitVideoKeyFrame: true,
 	}
 	baseOutSession := NewBaseOutSession(uk, s)
 	s.baseOutSession = baseOutSession
@@ -38,8 +42,8 @@ func NewSubSession(urlCtx base.UrlContext, cmdSession *ServerCommandSession) *Su
 	return s
 }
 
-func (session *SubSession) InitWithSdp(rawSdp []byte, sdpLogicCtx sdp.LogicContext) {
-	session.baseOutSession.InitWithSdp(rawSdp, sdpLogicCtx)
+func (session *SubSession) InitWithSdp(sdpCtx sdp.LogicContext) {
+	session.baseOutSession.InitWithSdp(sdpCtx)
 }
 
 func (session *SubSession) SetupWithConn(uri string, rtpConn, rtcpConn *nazanet.UdpConnection) error {

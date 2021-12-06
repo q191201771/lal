@@ -1,0 +1,29 @@
+name: Windows
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  build:
+    strategy:
+      matrix:
+        go: [1.14]
+        os: [windows-latest]
+    runs-on: ${{ matrix.os }}
+
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+
+      - name: Set up Go
+        uses: actions/setup-go@v2
+        with:
+          go-version: ${{ matrix.go }}
+
+      - name: Build
+        run: go build ./app/lalserver
+
+      - name: Test
+        run: echo "TODO(chef) Test on Windows"

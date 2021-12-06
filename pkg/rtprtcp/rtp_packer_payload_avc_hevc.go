@@ -20,9 +20,6 @@ const (
 	RtpPackerPayloadAvcHevcTypeNalu   RtpPackerPayloadAvcHevcType = 1
 	RtpPackerPayloadAvcHevcTypeAvcc                               = 2
 	RtpPackerPayloadAvcHevcTypeAnnexb                             = 3
-	RtpPackerPayloadHevcTypeNalu                                  = RtpPackerPayloadAvcHevcTypeNalu // hevc的外层格式和avc是一样的
-	RtpPackerPayloadHevcTypeAvcc                                  = RtpPackerPayloadAvcHevcTypeAvcc
-	RtpPackerPayloadHevcTypeAnnexb                                = RtpPackerPayloadAvcHevcTypeAnnexb
 )
 
 type RtpPackerPayloadAvcHevcOption struct {
@@ -41,14 +38,14 @@ type RtpPackerPayloadAvcHevc struct {
 type ModRtpPackerPayloadAvcHevcOption func(option *RtpPackerPayloadAvcHevcOption)
 
 func NewRtpPackerPayloadAvc(modOptions ...ModRtpPackerPayloadAvcHevcOption) *RtpPackerPayloadAvcHevc {
-	return newRtpPackerPayloadAvcHevc(base.AvPacketPtAvc, modOptions...)
+	return NewRtpPackerPayloadAvcHevc(base.AvPacketPtAvc, modOptions...)
 }
 
 func NewRtpPackerPayloadHevc(modOptions ...ModRtpPackerPayloadAvcHevcOption) *RtpPackerPayloadAvcHevc {
-	return newRtpPackerPayloadAvcHevc(base.AvPacketPtHevc, modOptions...)
+	return NewRtpPackerPayloadAvcHevc(base.AvPacketPtHevc, modOptions...)
 }
 
-func newRtpPackerPayloadAvcHevc(payloadType base.AvPacketPt, modOptions ...ModRtpPackerPayloadAvcHevcOption) *RtpPackerPayloadAvcHevc {
+func NewRtpPackerPayloadAvcHevc(payloadType base.AvPacketPt, modOptions ...ModRtpPackerPayloadAvcHevcOption) *RtpPackerPayloadAvcHevc {
 	option := defaultRtpPackerPayloadAvcHevcOption
 	for _, fn := range modOptions {
 		fn(&option)

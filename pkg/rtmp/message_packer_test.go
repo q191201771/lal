@@ -16,12 +16,12 @@ import (
 	"github.com/q191201771/naza/pkg/fake"
 )
 
-func TestWriteMessageHandler(t *testing.T) {
-	//buf := &bytes.Buffer{}
-	packer := NewMessagePacker()
-	packer.writeMessageHeader(1, 2, 3, 4)
-	assert.Equal(t, []byte{1, 0, 0, 0, 0, 0, 2, 3, 4, 0, 0, 0}, packer.b.Bytes())
-}
+//func TestWriteMessageHandler(t *testing.T) {
+//	//buf := &bytes.Buffer{}
+//	packer := NewMessagePacker()
+//	packer.writeMessageHeader(1, 2, 3, 4)
+//	assert.Equal(t, []byte{1, 0, 0, 0, 0, 0, 2, 3, 4, 0, 0, 0}, packer.b.Bytes())
+//}
 
 func TestWrite(t *testing.T) {
 	var (
@@ -106,14 +106,14 @@ func TestWrite(t *testing.T) {
 }
 
 func TestPackCorner(t *testing.T) {
-	func() {
-		defer func() {
-			recover()
-		}()
-		packer := NewMessagePacker()
-		// 测试csid超过63的情况
-		packer.writeMessageHeader(128, 0, 0, 0)
-	}()
+	//func() {
+	//	defer func() {
+	//		recover()
+	//	}()
+	//	packer := NewMessagePacker()
+	//	// 测试csid超过63的情况
+	//	packer.writeMessageHeader(128, 0, 0, 0)
+	//}()
 
 	var err error
 	mw := fake.NewWriter(fake.WriterTypeReturnError)

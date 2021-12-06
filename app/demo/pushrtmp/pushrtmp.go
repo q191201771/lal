@@ -100,19 +100,31 @@ func push(tags []httpflv.Tag, url string, isRecursive bool) {
 
 	nazalog.Infof("push succ. url=%s", url)
 
-	flvFilePump := httpflv.NewFileFilePump(func(option *httpflv.FlvFilePumpOption) {
-		option.IsRecursive = isRecursive
-	})
-	_ = flvFilePump.PumpWithTags(tags, func(tag httpflv.Tag) bool {
-		h := remux.FlvTagHeader2RtmpHeader(tag.Header)
-		chunks := rtmp.Message2Chunks(tag.Raw[11:11+h.MsgLen], &h)
+	go func() {
+		flvFilePump := httpflv.NewFileFilePump(func(option *httpflv.FlvFilePumpOption) {
+			option.IsRecursive = isRecursive
+		})
+		_ = flvFilePump.PumpWithTags(tags, func(tag httpflv.Tag) bool {
+			chunks := remux.FlvTag2RtmpChunks(tag)
 
-		if err := ps.Write(chunks); err != nil {
-			nazalog.Errorf("write data error. err=%v", err)
-			return false
-		}
-		return true
-	})
+			if err := ps.Write(chunks); err != nil {
+				nazalog.Errorf("write data error. err=%v", err)
+				return false
+			}
+			return true
+		})
+	}()
+
+	// 临时测试一下主动关闭client session
+	//go func() {
+	//	time.Sleep(5 * time.Second)
+	//	nazalog.Debugf("> session Dispose.")
+	//	err := ps.Dispose()
+	//	nazalog.Debugf("< session Dispose. err=%+v", err)
+	//}()
+
+	err := <-ps.WaitChan()
+	nazalog.Infof("< session WaitChan. err=%+v", err)
 }
 
 func collect(urlTmpl string, num int) (urls []string) {

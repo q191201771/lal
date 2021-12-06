@@ -28,3 +28,25 @@ func MakeDefaultRtmpHeader(in base.RtmpHeader) (out base.RtmpHeader) {
 	}
 	return
 }
+
+// ---------------------------------------------------------------------------------------------------------------------
+
+// LazyRtmpChunkDivider 在必要时，有且仅有一次做切分成chunk的操作
+//
+type LazyRtmpChunkDivider struct {
+	message []byte
+	header  *base.RtmpHeader
+	chunks  []byte
+}
+
+func (lcd *LazyRtmpChunkDivider) Init(message []byte, header *base.RtmpHeader) {
+	lcd.message = message
+	lcd.header = header
+}
+
+func (lcd *LazyRtmpChunkDivider) Get() []byte {
+	if lcd.chunks == nil {
+		lcd.chunks = rtmp.Message2Chunks(lcd.message, lcd.header)
+	}
+	return lcd.chunks
+}

@@ -41,19 +41,19 @@ func NewHttpServerHandler(observer HttpServerHandlerObserver) *HttpServerHandler
 }
 
 func (h *HttpServerHandler) ServeSubSession(writer http.ResponseWriter, req *http.Request) {
-	var (
-		isHttps bool
-		scheme  string
-	)
+	var scheme string
 	// TODO(chef) 这里scheme直接使用http和https，没有考虑ws和wss，注意，后续的逻辑可能会依赖此处
 	if req.TLS == nil {
-		isHttps = false
 		scheme = "http"
 	} else {
-		isHttps = true
 		scheme = "https"
 	}
 	rawUrl := fmt.Sprintf("%s://%s%s", scheme, req.Host, req.RequestURI)
+	urlCtx, err := base.ParseUrl(rawUrl, 80)
+	if err != nil {
+		nazalog.Errorf("parse url. err=%+v", err)
+		return
+	}
 
 	conn, bio, err := writer.(http.Hijacker).Hijack()
 	if err != nil {
@@ -73,14 +73,7 @@ func (h *HttpServerHandler) ServeSubSession(writer http.ResponseWriter, req *htt
 		webSocketKey = req.Header.Get("Sec-WebSocket-Key")
 	}
 
-	if strings.HasSuffix(rawUrl, ".flv") {
-		urlCtx, err := base.ParseHttpUrl(rawUrl, isHttps, ".flv")
-		if err != nil {
-			nazalog.Errorf("parse http url failed. err=%+v", err)
-			_ = conn.Close()
-			return
-		}
-
+	if strings.HasSuffix(urlCtx.LastItemOfPath, ".flv") {
 		session := httpflv.NewSubSession(conn, urlCtx, isWebSocket, webSocketKey)
 		nazalog.Debugf("[%s] < read http request. url=%s", session.UniqueKey(), session.Url())
 		if !h.observer.OnNewHttpflvSubSession(session) {
@@ -92,14 +85,7 @@ func (h *HttpServerHandler) ServeSubSession(writer http.ResponseWriter, req *htt
 		return
 	}
 
-	if strings.HasSuffix(rawUrl, ".ts") {
-		urlCtx, err := base.ParseHttpUrl(rawUrl, isHttps, ".ts")
-		if err != nil {
-			nazalog.Errorf("parse http url failed. err=%+v", err)
-			_ = conn.Close()
-			return
-		}
-
+	if strings.HasSuffix(urlCtx.LastItemOfPath, ".ts") {
 		session := httpts.NewSubSession(conn, urlCtx, isWebSocket, webSocketKey)
 		nazalog.Debugf("[%s] < read http request. url=%s", session.UniqueKey(), session.Url())
 		if !h.observer.OnNewHttptsSubSession(session) {

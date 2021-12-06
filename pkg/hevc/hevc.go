@@ -55,17 +55,21 @@ var NaluTypeMapping = map[uint8]string{
 // ISO_IEC_23008-2_2013.pdf
 // Table 7-1 – NAL unit type codes and NAL unit type classes
 const (
-	NaluTypeSliceTrailN uint8 = 0  // 0x0
-	NaluTypeSliceTrailR uint8 = 1  // 0x01
+	NaluTypeSliceTrailN uint8 = 0 // 0x0
+	NaluTypeSliceTrailR uint8 = 1 // 0x01
+
+	// 19, 20, 21都是关键帧
+	// TODO(chef): 16，17，18也是关键帧吗？
 	NaluTypeSliceIdr    uint8 = 19 // 0x13
 	NaluTypeSliceIdrNlp uint8 = 20 // 0x14
 	NaluTypeSliceCranut uint8 = 21 // 0x15
-	NaluTypeVps         uint8 = 32 // 0x20
-	NaluTypeSps         uint8 = 33 // 0x21
-	NaluTypePps         uint8 = 34 // 0x22
-	NaluTypeAud         uint8 = 35 // 0x23
-	NaluTypeSei         uint8 = 39 // 0x27
-	NaluTypeSeiSuffix   uint8 = 40 // 0x28
+
+	NaluTypeVps       uint8 = 32 // 0x20
+	NaluTypeSps       uint8 = 33 // 0x21
+	NaluTypePps       uint8 = 34 // 0x22
+	NaluTypeAud       uint8 = 35 // 0x23
+	NaluTypeSei       uint8 = 39 // 0x27
+	NaluTypeSeiSuffix uint8 = 40 // 0x28
 )
 
 type Context struct {

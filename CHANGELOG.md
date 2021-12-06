@@ -1,3 +1,55 @@
+#### v0.26.0 (2021-10-24)
+
+- [perf] rtmp合并发送功能使用writev实现
+- [feat] 兼容性: 运行时动态检查所有配置项是否存在
+- [refactor] 可定制性: logic: 抽象出ILalServer接口；业务方可在自身代码中创建server，选择是否获取notify通知，以及使用api控制server
+- [refactor] 兼容性: 两个不太标准的sdp格式(a=fmtp的前面或后面有多余的分号)
+- [refactor] 兼容性: aac解析失败日志; 输入的rtp包格式错误; 输入的rtmp包格式错误; hls中分割nalu增加日志; base.HttpServerManager增加日志
+- [refactor] 兼容性: 再增加一个配置文件默认搜索地址
+- [refactor] 可读性: logic: ServerManager和Config不再作为全局变量使用；去除entry.go中间层；iface_impl.go移入innertest中；signal_xxx.go移入base中
+- [refactor] 易用性: demo/pullrtsp2pushrtsp: 抽象出RtspTunnel结构体，一个对象对应一个转推任务
+- [refactor] logic: 新增GroupManager，管理所有Group
+- [chore] 配置文件中httpflv和httpts的url_pattern初始值改为没有限制
+- [chore] 使用github actions做CI（替换掉之前的travisCI）
+- [chore] 修复build.sh在linux下获取git tag信息失败报错的问题；去掉单元测试时不必要的错误日志
+- [chore] 增加docker运行脚本run_docker.sh
+
+#### v0.25.0 (2021-08-28)
+
+- [feat] 为rtmp pub推流添加静音AAC音频(可动态检测是否需要添加；配置文件中可开启或关闭这个功能)
+- [feat] 优化和统一所有client类型session的使用方式：session由于内部或对端原因导致关闭，外部不再需要显式调用Dispose函数释放资源
+- [feat] 增强兼容性：rtsp digest auth时，如果缺少algorithm字段，回复时该字段默认设置为MD5
+- [refactor] package avc: 重新实现sps的解析
+- [refactor] 新增函数remux.FlvTag2RtmpChunks()
+- [refactor] 增强健壮性：package rtmp: 对端协议错误时，主动关闭对端连接而不是主动panic
+- [refactor] 整理logic/group的代码
+- [refactor] httpflv.Sub和httpts.Sub显式调用base.HttpSubSession的函数
+- [fix] rtsp信令打包中部分字段缺少空格
+- [chore] 增强易用性：修改配置文件中的默认配置：hls、flv、mpegts的文件输出地址由绝对路径/tmp修改为相对路径./lal_record
+
+#### v0.24.0 (2021-07-31)
+
+- [feat] lalserver支持用rtsp sub协议拉取rtmp的pub推流 (#97)
+- [feat] 新增demo pullrtmp2pushrtsp，可以从远端拉取rtmp流并使用rtsp转推出去 (#96)
+- [feat] package rtprtcp: 支持h264，h265，aac rtp打包 (#83)
+- [feat] package sdp: 支持sdp打包 (#82)
+- [fix] 确保rtsp sub拉流从关键帧开始发送数据，避免因此引起的花屏
+- [fix] rtsp: 提高兼容性。兼容rtsp auth同时存在Digest和Basic两种字段的情况
+- [fix] rtsp: 提高兼容性。兼容rtsp摄像头的sdp中包含aac，但是没有config字段（后续也没有aac rtp包）的情况
+- [fix] rtmp: 提高兼容性。兼容rtmp client session处理对端回复两次publish或play信令的情况
+- [fix] rtmp: 提高兼容性。修复没有解析amf object中null类型数据导致和其他rtmp开源服务无法建连的问题 (#102)
+- [fix] rtmp: 信令打包参考本地chunk size
+- [fix] rtsp: 修复rtsp sub session没有正常释放导致协程泄漏的问题
+- [fix] 修复lalserver arm32编译失败的问题 (#92)
+- [fix] 修复lalserver http服务全部配置为不使用时崩溃的问题 (#58)
+- [fix] 修复hls.Muxer没有设置回调会导致崩溃的问题 (#101)
+- [fix] 修复demo calcrtmpdelay码率计算大了5倍的问题 (#58)
+- [refactor] package httpflv: 新增FlvFilePump，可循环匀速读取flv文件
+- [refactor] package aac: 增加adts, asc, seqheader间的转换代码；重构了整个包
+- [refactor] package avc: 部分函数提供复用传入参数内存和新申请内存两种实现
+- [refactor] demo benchrtmpconnect: 关闭日志，超时时长改为30秒，优化建连时长小于1毫秒的展示 (#58)
+- [chore] 增加Dockerfile (#91)
+
 #### v0.23.0 (2021-06-06)
 
 - [feat] HTTP端口复用：HTTP-FLV, HTTP-TS, HLS可使用相同的监听端口。HTTPS也支持端口复用 #64

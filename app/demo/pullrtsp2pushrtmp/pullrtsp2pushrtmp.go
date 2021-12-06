@@ -75,7 +75,7 @@ func main() {
 	}
 }
 
-func parseFlag() (inUrl string, outFilename string, overTcp int) {
+func parseFlag() (inUrl string, outUrl string, overTcp int) {
 	i := flag.String("i", "", "specify pull rtsp url")
 	o := flag.String("o", "", "specify push rtmp url")
 	t := flag.Int("t", 0, "specify interleaved mode(rtp/rtcp over tcp)")

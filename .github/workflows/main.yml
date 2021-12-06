@@ -1,0 +1,33 @@
+name: Main
+
+on:
+  push:
+  pull_request:
+  schedule:
+    - cron: '30 16 * * 6'
+
+jobs:
+  build:
+    strategy:
+      matrix:
+        go: [1.14, 1.17]
+        os: [ubuntu-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+
+      - name: Set up Go
+        uses: actions/setup-go@v2
+        with:
+          go-version: ${{ matrix.go }}
+
+      - name: Build
+        run: ./build.sh
+
+      - name: Test
+        run: ./test.sh
+
+      - name: Upload coverage to Codecov
+        run: bash <(curl -s https://codecov.io/bash)

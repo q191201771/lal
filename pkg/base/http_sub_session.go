@@ -50,11 +50,21 @@ func NewHttpSubSession(option HttpSubSessionOption) *HttpSubSession {
 	return s
 }
 
+// ---------------------------------------------------------------------------------------------------------------------
+// IServerSessionLifecycle interface
+// ---------------------------------------------------------------------------------------------------------------------
+
 func (session *HttpSubSession) RunLoop() error {
 	buf := make([]byte, 128)
 	_, err := session.conn.Read(buf)
 	return err
 }
+
+func (session *HttpSubSession) Dispose() error {
+	return session.conn.Close()
+}
+
+// ---------------------------------------------------------------------------------------------------------------------
 
 func (session *HttpSubSession) WriteHttpResponseHeader(b []byte) {
 	if session.IsWebSocket {
@@ -80,9 +90,17 @@ func (session *HttpSubSession) Write(b []byte) {
 	session.write(b)
 }
 
-func (session *HttpSubSession) Dispose() error {
-	return session.conn.Close()
+// ---------------------------------------------------------------------------------------------------------------------
+// IObject interface
+// ---------------------------------------------------------------------------------------------------------------------
+
+func (session *HttpSubSession) UniqueKey() string {
+	return session.Uk
 }
+
+// ---------------------------------------------------------------------------------------------------------------------
+// ISessionUrlContext interface
+// ---------------------------------------------------------------------------------------------------------------------
 
 func (session *HttpSubSession) Url() string {
 	return session.UrlCtx.Url
@@ -109,9 +127,9 @@ func (session *HttpSubSession) RawQuery() string {
 	return session.UrlCtx.RawQuery
 }
 
-func (session *HttpSubSession) UniqueKey() string {
-	return session.Uk
-}
+// ---------------------------------------------------------------------------------------------------------------------
+// ISessionStat interface
+// ---------------------------------------------------------------------------------------------------------------------
 
 func (session *HttpSubSession) GetStat() StatSession {
 	currStat := session.conn.GetStat()
@@ -144,6 +162,9 @@ func (session *HttpSubSession) IsAlive() (readAlive, writeAlive bool) {
 	return
 }
 
+// ---------------------------------------------------------------------------------------------------------------------
+
 func (session *HttpSubSession) write(b []byte) {
+	// TODO(chef) handle write error
 	_, _ = session.conn.Write(b)
 }

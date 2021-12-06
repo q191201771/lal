@@ -26,8 +26,10 @@ type Tag struct {
 	Raw    []byte // 结构为 (11字节的 tag header) + (body) + (4字节的 prev tag size)
 }
 
+// 只包含数据部分，去除了前面11字节的tag header和后面4字节的prev tag size
+//
 func (tag *Tag) Payload() []byte {
-	return tag.Raw[11 : len(tag.Raw)-4]
+	return tag.Raw[TagHeaderSize : len(tag.Raw)-PrevTagSizeFieldSize]
 }
 
 func (tag *Tag) IsMetadata() bool {

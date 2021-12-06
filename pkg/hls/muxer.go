@@ -109,10 +109,10 @@ func NewMuxer(streamName string, enable bool, config *MuxerConfig, observer Muxe
 		playlistFilenameBak:       playlistFilenameBak,
 		recordPlayListFilename:    recordPlaylistFilename,
 		recordPlayListFilenameBak: recordPlaylistFilenameBak,
-		enable:   enable,
-		config:   config,
-		observer: observer,
-		frags:    frags,
+		enable:                    enable,
+		config:                    config,
+		observer:                  observer,
+		frags:                     frags,
 	}
 	streamer := NewStreamer(m)
 	m.streamer = streamer
@@ -141,7 +141,9 @@ func (m *Muxer) FeedRtmpMessage(msg base.RtmpMsg) {
 
 func (m *Muxer) OnPatPmt(b []byte) {
 	m.patpmt = b
-	m.observer.OnPatPmt(b)
+	if m.observer != nil {
+		m.observer.OnPatPmt(b)
+	}
 }
 
 func (m *Muxer) OnFrame(streamer *Streamer, frame *mpegts.Frame) {
@@ -163,6 +165,7 @@ func (m *Muxer) OnFrame(streamer *Streamer, frame *mpegts.Frame) {
 
 		//nazalog.Debugf("[%s] WriteFrame A. dts=%d, len=%d", m.UniqueKey, frame.DTS, len(frame.Raw))
 	} else {
+		//nazalog.Debugf("[%s] OnFrame V. dts=%d, len=%d", m.UniqueKey, frame.Dts, len(frame.Raw))
 		// 收到视频，可能触发建立fragment的条件是：
 		// 关键帧数据 &&
 		// ((没有收到过音频seq header) || -> 只有视频
@@ -180,7 +183,7 @@ func (m *Muxer) OnFrame(streamer *Streamer, frame *mpegts.Frame) {
 			return
 		}
 
-		//nazalog.Debugf("[%s] WriteFrame V. dts=%d, len=%d", m.UniqueKey, frame.DTS, len(frame.Raw))
+		//nazalog.Debugf("[%s] WriteFrame V. dts=%d, len=%d", m.UniqueKey, frame.Dts, len(frame.Raw))
 	}
 
 	mpegts.PackTsPacket(frame, func(packet []byte) {

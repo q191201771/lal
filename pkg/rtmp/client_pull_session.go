@@ -61,15 +61,23 @@ func (s *PullSession) Pull(rawUrl string, onReadRtmpAvMsg OnReadRtmpAvMsg) error
 	return s.core.Do(rawUrl)
 }
 
-// 文档请参考： interface IClientSessionLifecycle
+// ---------------------------------------------------------------------------------------------------------------------
+// IClientSessionLifecycle interface
+// ---------------------------------------------------------------------------------------------------------------------
+
+// Dispose 文档请参考： IClientSessionLifecycle interface
+//
 func (s *PullSession) Dispose() error {
 	return s.core.Dispose()
 }
 
-// 文档请参考： interface IClientSessionLifecycle
+// WaitChan 文档请参考： IClientSessionLifecycle interface
+//
 func (s *PullSession) WaitChan() <-chan error {
 	return s.core.WaitChan()
 }
+
+// ---------------------------------------------------------------------------------------------------------------------
 
 // 文档请参考： interface ISessionUrlContext
 func (s *PullSession) Url() string {

@@ -17,8 +17,8 @@ import (
 	"github.com/q191201771/lal/pkg/hevc"
 	"github.com/q191201771/lal/pkg/mpegts"
 	"github.com/q191201771/naza/pkg/bele"
+	"github.com/q191201771/naza/pkg/nazabytes"
 	"github.com/q191201771/naza/pkg/nazalog"
-	"github.com/q191201771/naza/pkg/nazastring"
 )
 
 type StreamerObserver interface {
@@ -95,10 +95,14 @@ func (s *Streamer) AudioCacheEmpty() bool {
 }
 
 func (s *Streamer) feedVideo(msg base.RtmpMsg) {
-	if len(msg.Payload) < 5 {
-		nazalog.Errorf("[%s] invalid video message length. len=%d", s.UniqueKey, len(msg.Payload))
+	// 注意，有一种情况是msg.Payload为 27 02 00 00 00
+	// 此时打印错误并返回也不影响
+	//
+	if len(msg.Payload) <= 5 {
+		nazalog.Errorf("[%s] invalid video message length. header=%+v, payload=%s", s.UniqueKey, msg.Header, hex.Dump(msg.Payload))
 		return
 	}
+
 	codecId := msg.Payload[0] & 0xF
 	if codecId != base.RtmpCodecIdAvc && codecId != base.RtmpCodecIdHevc {
 		return
@@ -130,7 +134,7 @@ func (s *Streamer) feedVideo(msg base.RtmpMsg) {
 	// msg中可能有多个NALU，逐个获取
 	nals, err := avc.SplitNaluAvcc(msg.Payload[5:])
 	if err != nil {
-		nazalog.Errorf("[%s] iterate nalu failed. err=%+v, payload=%s", err, s.UniqueKey, hex.Dump(nazastring.SubSliceSafety(msg.Payload, 32)))
+		nazalog.Errorf("[%s] iterate nalu failed. err=%+v, header=%+v, payload=%s", err, s.UniqueKey, msg.Header, hex.Dump(nazabytes.Prefix(msg.Payload, 32)))
 		return
 	}
 	for _, nal := range nals {
