@@ -1,7 +1,7 @@
 # LAL
 
 [![Release](https://img.shields.io/github/tag/q191201771/lal.svg?label=release)](https://github.com/q191201771/lal/releases)
-[![CI](https://github.com/q191201771/lal/actions/workflows/main.yml/badge.svg?branch=master)](https://github.com/q191201771/lal/actions/workflows/main.yml)
+[![CI](https://github.com/q191201771/lal/actions/workflows/ci.yml/badge.svg?branch=master)](https://github.com/q191201771/lal/actions/workflows/ci.yml)
 [![goreportcard](https://goreportcard.com/badge/github.com/q191201771/lal)](https://goreportcard.com/report/github.com/q191201771/lal)
 ![wechat](https://img.shields.io/:微信-q191201771-blue.svg)
 ![qqgroup](https://img.shields.io/:QQ群-1090510973-blue.svg)
