@@ -69,7 +69,7 @@ func main() {
 
 func parseFlag() (inUrl string, outFilename string, overTcp int) {
 	i := flag.String("i", "", "specify pull rtsp url")
-	o := flag.String("o", "", "specify ouput flv file")
+	o := flag.String("o", "", "specify output flv file")
 	t := flag.Int("t", 0, "specify interleaved mode(rtp/rtcp over tcp)")
 	flag.Parse()
 	if *i == "" || *o == "" {

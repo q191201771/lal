@@ -62,7 +62,7 @@ func main() {
 
 func parseFlag() (url string, hlsOutPath string, fragmentDurationMs int, fragmentNum int) {
 	i := flag.String("i", "", "specify pull rtmp url")
-	o := flag.String("o", "", "specify ouput hls file")
+	o := flag.String("o", "", "specify output hls file")
 	d := flag.Int("d", 3000, "specify duration of each ts file in millisecond")
 	n := flag.Int("n", 6, "specify num of ts file in live m3u8 list")
 	flag.Parse()
