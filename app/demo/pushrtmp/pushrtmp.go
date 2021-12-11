@@ -101,7 +101,7 @@ func push(tags []httpflv.Tag, url string, isRecursive bool) {
 	nazalog.Infof("push succ. url=%s", url)
 
 	go func() {
-		flvFilePump := httpflv.NewFileFilePump(func(option *httpflv.FlvFilePumpOption) {
+		flvFilePump := httpflv.NewFlvFilePump(func(option *httpflv.FlvFilePumpOption) {
 			option.IsRecursive = isRecursive
 		})
 		_ = flvFilePump.PumpWithTags(tags, func(tag httpflv.Tag) bool {

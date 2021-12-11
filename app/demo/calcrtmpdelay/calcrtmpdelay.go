@@ -130,7 +130,7 @@ func main() {
 	}()
 
 	// 读取flv文件
-	flvFilePump := httpflv.NewFileFilePump(func(option *httpflv.FlvFilePumpOption) {
+	flvFilePump := httpflv.NewFlvFilePump(func(option *httpflv.FlvFilePumpOption) {
 		option.IsRecursive = false
 	})
 	err = flvFilePump.Pump(filename, func(tag httpflv.Tag) bool {

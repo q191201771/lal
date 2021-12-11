@@ -11,9 +11,15 @@ package mpegts_test
 import (
 	"testing"
 
+	"github.com/q191201771/lal/pkg/innertest"
+
 	"github.com/q191201771/lal/pkg/mpegts"
 	"github.com/q191201771/naza/pkg/nazalog"
 )
+
+func TestMpegts(t *testing.T) {
+	innertest.Entry(t)
+}
 
 func TestParseFixedTsPacket(t *testing.T) {
 	h := mpegts.ParseTsPacketHeader(mpegts.FixedFragmentHeader)

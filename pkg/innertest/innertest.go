@@ -46,11 +46,10 @@ import (
 var (
 	tt *testing.T
 
-	confFile = "testdata/lalserver.conf.json"
-
-	rFlvFileName      = "testdata/test.flv"
-	wFlvPullFileName  = "testdata/flvpull.flv"
-	wRtmpPullFileName = "testdata/rtmppull.flv"
+	confFile          = "../../testdata/lalserver.conf.json"
+	rFlvFileName      = "../../testdata/test.flv"
+	wFlvPullFileName  = "../../testdata/flvpull.flv"
+	wRtmpPullFileName = "../../testdata/rtmppull.flv"
 
 	pushUrl        string
 	httpflvPullUrl string
@@ -69,7 +68,16 @@ var (
 	rtmpPullTagCount    nazaatomic.Uint32
 )
 
-func InnerTestEntry(t *testing.T) {
+func Entry(t *testing.T) {
+	if _, err := os.Lstat(confFile); err != nil {
+		nazalog.Warnf("lstat %s error. err=%+v", confFile, err)
+		return
+	}
+	if _, err := os.Lstat(rFlvFileName); err != nil {
+		nazalog.Warnf("lstat %s error. err=%+v", rFlvFileName, err)
+		return
+	}
+
 	tt = t
 
 	var err error

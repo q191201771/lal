@@ -11,11 +11,17 @@ package httpflv
 import (
 	"time"
 
+	"github.com/q191201771/naza/pkg/mock"
+
 	"github.com/q191201771/naza/pkg/nazalog"
 )
 
-// 读取flv文件，将tag按时间戳间隔缓慢（类似于ffmpeg的-re）返回
+var Clock = mock.NewStdClock()
 
+// FlvFilePumpOption
+//
+// 读取flv文件，将tag按时间戳间隔缓慢（类似于ffmpeg的-re）返回
+//
 type FlvFilePumpOption struct {
 	IsRecursive bool // 如果为true，则循环返回文件内容（类似于ffmpeg的-stream_loop -1）
 }
@@ -30,7 +36,7 @@ type FlvFilePump struct {
 
 type ModFlvFilePumpOption func(option *FlvFilePumpOption)
 
-func NewFileFilePump(modOptions ...ModFlvFilePumpOption) *FlvFilePump {
+func NewFlvFilePump(modOptions ...ModFlvFilePumpOption) *FlvFilePump {
 	option := defaultFlvFilePumpOption
 	for _, fn := range modOptions {
 		fn(&option)
@@ -41,6 +47,8 @@ func NewFileFilePump(modOptions ...ModFlvFilePumpOption) *FlvFilePump {
 
 type OnPumpFlvTag func(tag Tag) bool
 
+// Pump
+//
 // @param onFlvTag 如果回调中返回false，则停止Pump
 //
 func (f *FlvFilePump) Pump(filename string, onFlvTag OnPumpFlvTag) error {
@@ -112,16 +120,16 @@ func (f *FlvFilePump) PumpWithTags(tags []Tag, onFlvTag OnPumpFlvTag) error {
 				diffTs := tag.Header.Timestamp - totalFirstTagTs
 
 				// 当前物理时间与第一轮的第一个tag的物理时间差值
-				diffTick := time.Now().UnixNano()/1000000 - totalFirstTagTick
+				diffTick := Clock.Now().UnixNano()/1000000 - totalFirstTagTick
 
 				// 如果还没到物理时间差值，就sleep
 				if diffTick < int64(diffTs) {
-					time.Sleep(time.Duration(int64(diffTs)-diffTick) * time.Millisecond)
+					Clock.Sleep(time.Duration(int64(diffTs)-diffTick) * time.Millisecond)
 				}
 			} else {
 				// 第一轮的第一个tag，记录下来
 
-				totalFirstTagTick = time.Now().UnixNano() / 1000000
+				totalFirstTagTick = Clock.Now().UnixNano() / 1000000
 				totalFirstTagTs = tag.Header.Timestamp
 				hasReadTotalFirstTag = true
 			}
