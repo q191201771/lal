@@ -11,8 +11,11 @@ package rtmp_test
 import (
 	"bytes"
 	"encoding/hex"
+	"errors"
 	"strings"
 	"testing"
+
+	"github.com/q191201771/lal/pkg/base"
 
 	"github.com/q191201771/naza/pkg/nazalog"
 
@@ -226,77 +229,77 @@ func TestAmf0Corner(t *testing.T) {
 	str, l, err = Amf0.ReadStringWithoutType(b)
 	assert.Equal(t, str, "")
 	assert.Equal(t, 0, l)
-	assert.Equal(t, ErrAmfTooShort, err)
+	assert.Equal(t, true, errors.Is(err, base.ErrAmfTooShort))
 	b = []byte{1, 1}
 	str, l, err = Amf0.ReadStringWithoutType(b)
 	assert.Equal(t, str, "")
 	assert.Equal(t, 0, l)
-	assert.Equal(t, ErrAmfTooShort, err)
+	assert.Equal(t, true, errors.Is(err, base.ErrAmfTooShort))
 
 	b = nil
 	str, l, err = Amf0.ReadLongStringWithoutType(b)
 	assert.Equal(t, str, "")
 	assert.Equal(t, 0, l)
-	assert.Equal(t, ErrAmfTooShort, err)
+	assert.Equal(t, true, errors.Is(err, base.ErrAmfTooShort))
 	b = []byte{1, 1, 1, 1}
 	str, l, err = Amf0.ReadLongStringWithoutType(b)
 	assert.Equal(t, str, "")
 	assert.Equal(t, 0, l)
-	assert.Equal(t, ErrAmfTooShort, err)
+	assert.Equal(t, true, errors.Is(err, base.ErrAmfTooShort))
 
 	b = nil
 	str, l, err = Amf0.ReadString(b)
 	assert.Equal(t, str, "")
 	assert.Equal(t, 0, l)
-	assert.Equal(t, ErrAmfTooShort, err)
+	assert.Equal(t, true, errors.Is(err, base.ErrAmfTooShort))
 	b = []byte{1}
 	str, l, err = Amf0.ReadString(b)
 	assert.Equal(t, str, "")
 	assert.Equal(t, 0, l)
-	assert.Equal(t, ErrAmfInvalidType, err)
+	assert.Equal(t, true, errors.Is(err, base.ErrAmfInvalidType))
 
 	b = nil
 	num, l, err = Amf0.ReadNumber(b)
 	assert.Equal(t, int(num), 0)
 	assert.Equal(t, 0, l)
-	assert.Equal(t, ErrAmfTooShort, err)
+	assert.Equal(t, true, errors.Is(err, base.ErrAmfTooShort))
 	str = strings.Repeat("1", 16)
 	b = []byte(str)
 	num, l, err = Amf0.ReadNumber(b)
 	assert.Equal(t, int(num), 0)
 	assert.Equal(t, 0, l)
-	assert.Equal(t, ErrAmfInvalidType, err)
+	assert.Equal(t, true, errors.Is(err, base.ErrAmfInvalidType))
 
 	b = nil
 	flag, l, err = Amf0.ReadBoolean(b)
 	assert.Equal(t, flag, false)
 	assert.Equal(t, 0, l)
-	assert.Equal(t, ErrAmfTooShort, err)
+	assert.Equal(t, true, errors.Is(err, base.ErrAmfTooShort))
 	b = []byte{0, 0}
 	flag, l, err = Amf0.ReadBoolean(b)
 	assert.Equal(t, flag, false)
 	assert.Equal(t, 0, l)
-	assert.Equal(t, ErrAmfInvalidType, err)
+	assert.Equal(t, true, errors.Is(err, base.ErrAmfInvalidType))
 
 	b = nil
 	l, err = Amf0.ReadNull(b)
 	assert.Equal(t, 0, l)
-	assert.Equal(t, ErrAmfTooShort, err)
+	assert.Equal(t, true, errors.Is(err, base.ErrAmfTooShort))
 	b = []byte{0}
 	l, err = Amf0.ReadNull(b)
 	assert.Equal(t, 0, l)
-	assert.Equal(t, ErrAmfInvalidType, err)
+	assert.Equal(t, true, errors.Is(err, base.ErrAmfInvalidType))
 
 	b = nil
 	objs, l, err = Amf0.ReadObject(b)
 	assert.Equal(t, nil, objs)
 	assert.Equal(t, 0, l)
-	assert.Equal(t, ErrAmfTooShort, err)
+	assert.Equal(t, true, errors.Is(err, base.ErrAmfTooShort))
 	b = []byte{0}
 	objs, l, err = Amf0.ReadObject(b)
 	assert.Equal(t, nil, objs)
 	assert.Equal(t, 0, l)
-	assert.Equal(t, ErrAmfInvalidType, err)
+	assert.Equal(t, true, errors.Is(err, base.ErrAmfInvalidType))
 
 	defer func() {
 		recover()

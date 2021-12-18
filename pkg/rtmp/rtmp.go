@@ -8,14 +8,6 @@
 
 package rtmp
 
-import (
-	"errors"
-)
-
-var (
-	ErrRtmp = errors.New("lal.rtmp: fxxk")
-)
-
 const (
 	CsidAmf   = 5
 	CsidAudio = 6

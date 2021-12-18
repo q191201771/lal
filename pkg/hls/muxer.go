@@ -13,6 +13,8 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/q191201771/naza/pkg/nazaerrors"
+
 	"github.com/q191201771/lal/pkg/mpegts"
 
 	"github.com/q191201771/lal/pkg/base"
@@ -279,7 +281,7 @@ func (m *Muxer) updateFragment(ts uint64, boundary bool) error {
 //
 func (m *Muxer) openFragment(ts uint64, discont bool) error {
 	if m.opened {
-		return ErrHls
+		return nazaerrors.Wrap(base.ErrHls)
 	}
 
 	id := m.getFragmentId()

@@ -11,7 +11,6 @@ package rtmp
 import (
 	"context"
 	"encoding/hex"
-	"errors"
 	"fmt"
 	"net"
 	"sync"
@@ -23,8 +22,6 @@ import (
 	"github.com/q191201771/naza/pkg/connection"
 	"github.com/q191201771/naza/pkg/nazalog"
 )
-
-var ErrClientSessionTimeout = errors.New("lal.rtmp: client session timeout")
 
 // rtmp 客户端类型连接的底层实现
 // package rtmp 的使用者应该优先使用基于 ClientSession 实现的 PushSession 和 PullSession
@@ -508,7 +505,7 @@ func (s *ClientSession) doResultMessage(stream *Stream, tid int) error {
 }
 func (s *ClientSession) doProtocolControlMessage(stream *Stream) error {
 	if stream.msg.Len() < 4 {
-		return ErrRtmp
+		return base.NewErrRtmpShortBuffer(4, int(stream.msg.Len()), "ClientSession::doProtocolControlMessage")
 	}
 	val := int(bele.BeUint32(stream.msg.buff.Bytes()))
 

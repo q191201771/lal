@@ -300,7 +300,7 @@ func (s *Streamer) cacheAacSeqHeader(msg base.RtmpMsg) error {
 
 func (s *Streamer) appendSpsPps(out []byte) ([]byte, error) {
 	if s.spspps == nil {
-		return out, ErrHls
+		return out, base.ErrHls
 	}
 
 	out = append(out, s.spspps...)

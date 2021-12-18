@@ -7,7 +7,3 @@
 // Author: Chef (191201771@qq.com)
 
 package httpts
-
-import "errors"
-
-var ErrHttpTs = errors.New("lal.httpts: fxxk")

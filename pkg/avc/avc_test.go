@@ -10,8 +10,10 @@ package avc_test
 
 import (
 	"bytes"
-	"fmt"
+	"errors"
 	"testing"
+
+	"github.com/q191201771/lal/pkg/base"
 
 	"github.com/q191201771/naza/pkg/nazabits"
 	"github.com/q191201771/naza/pkg/nazaerrors"
@@ -155,12 +157,12 @@ func TestCorner(t *testing.T) {
 	sps, pps, err := avc.ParseSpsPpsFromSeqHeader([]byte{0})
 	assert.Equal(t, nil, sps)
 	assert.Equal(t, nil, pps)
-	assert.Equal(t, avc.ErrAvc, err)
+	assert.Equal(t, true, errors.Is(err, base.ErrShortBuffer))
 
 	b := &bytes.Buffer{}
 	err = avc.CaptureAvcc2Annexb(b, []byte{0x17, 0x0, 0x1})
 	assert.Equal(t, nil, b.Bytes())
-	assert.Equal(t, avc.ErrAvc, err)
+	assert.Equal(t, true, errors.Is(err, base.ErrAvc))
 }
 
 func TestParsePps_Case2(t *testing.T) {
@@ -240,28 +242,28 @@ func TestIterateNaluAnnexb(t *testing.T) {
 			nalList: [][]byte{
 				{0xa, 0xb},
 			},
-			err: avc.ErrAvc,
+			err: base.ErrAvc,
 		},
 		{
 			nals:    []byte{0, 0, 1},
 			nalList: nil,
-			err:     avc.ErrAvc,
+			err:     base.ErrAvc,
 		},
 		{
 			nals:    []byte{0, 0, 1, 0, 0, 1},
 			nalList: nil,
-			err:     avc.ErrAvc,
+			err:     base.ErrAvc,
 		},
 		{
 			nals:    nil,
 			nalList: nil,
-			err:     avc.ErrAvc,
+			err:     base.ErrShortBuffer,
 		},
 	}
 	for _, v := range golden {
 		nalList, err := avc.SplitNaluAnnexb(v.nals)
 		assert.Equal(t, v.nalList, nalList)
-		assert.Equal(t, v.err, err, fmt.Sprintf("%+v", v))
+		assert.Equal(t, true, errors.Is(err, v.err))
 	}
 }
 
@@ -289,29 +291,29 @@ func TestIterateNaluAvcc(t *testing.T) {
 		{
 			nals:    []byte{0, 0}, // length不全
 			nalList: nil,
-			err:     avc.ErrAvc,
+			err:     base.ErrShortBuffer,
 		},
 		{
 			nals:    nil,
 			nalList: nil,
-			err:     avc.ErrAvc,
+			err:     base.ErrShortBuffer,
 		},
 		{
 			nals:    []byte{0, 0, 0, 1}, // 只有length
 			nalList: nil,
-			err:     avc.ErrAvc,
+			err:     base.ErrShortBuffer,
 		},
 		{
 			nals: []byte{0, 0, 0, 2, 0xa}, // 包体数据不全
 			nalList: [][]byte{
 				{0xa},
 			},
-			err: avc.ErrAvc,
+			err: base.ErrShortBuffer,
 		},
 	}
 	for _, v := range golden {
 		nalList, err := avc.SplitNaluAvcc(v.nals)
 		assert.Equal(t, v.nalList, nalList)
-		assert.Equal(t, v.err, err)
+		assert.Equal(t, true, errors.Is(err, v.err))
 	}
 }

@@ -9,7 +9,10 @@
 package aac_test
 
 import (
+	"errors"
 	"testing"
+
+	"github.com/q191201771/lal/pkg/base"
 
 	"github.com/q191201771/lal/pkg/aac"
 
@@ -58,10 +61,10 @@ func TestAscContext(t *testing.T) {
 
 	// error case
 	_, err = aac.NewAscContext(nil)
-	assert.Equal(t, aac.ErrAac, err)
+	assert.Equal(t, true, errors.Is(err, base.ErrShortBuffer))
 	// error case
 	_, err = aac.MakeAscWithAdtsHeader(nil)
-	assert.Equal(t, aac.ErrAac, err)
+	assert.Equal(t, true, errors.Is(err, base.ErrShortBuffer))
 }
 
 func TestMakeAudioDataSeqHeader(t *testing.T) {
@@ -78,10 +81,10 @@ func TestMakeAudioDataSeqHeader(t *testing.T) {
 
 	// error case
 	_, err = aac.MakeAudioDataSeqHeaderWithAsc(nil)
-	assert.Equal(t, aac.ErrAac, err)
+	assert.Equal(t, true, errors.Is(err, base.ErrShortBuffer))
 	// error case
 	_, err = aac.MakeAudioDataSeqHeaderWithAdtsHeader(nil)
-	assert.Equal(t, aac.ErrAac, err)
+	assert.Equal(t, true, errors.Is(err, base.ErrShortBuffer))
 }
 
 func TestSequenceHeaderContext(t *testing.T) {

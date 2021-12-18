@@ -9,13 +9,8 @@
 package base
 
 import (
-	"errors"
 	"io"
 	"strings"
-)
-
-var (
-	ErrSessionNotStarted = errors.New("lal.base: session has not been started yet")
 )
 
 // IsUseClosedConnectionError 当connection处于这些情况时，就不需要再Close了
@@ -95,24 +90,36 @@ type IServerSessionLifecycle interface {
 	Dispose() error
 }
 
+// ISessionStat
+//
 // 调用约束：对于Client类型的Session，调用Start函数并返回成功后才能调用，否则行为未定义
+//
 type ISessionStat interface {
+	// UpdateStat
+	//
 	// 周期性调用该函数，用于计算bitrate
 	//
 	// @param intervalSec 距离上次调用的时间间隔，单位毫秒
+	//
 	UpdateStat(intervalSec uint32)
 
+	// GetStat
+	//
 	// 获取session状态
 	//
 	// @return 注意，结构体中的`Bitrate`的值由最近一次`func UpdateStat`调用计算决定，其他值为当前最新值
+	//
 	GetStat() StatSession
 
+	// IsAlive
+	//
 	// 周期性调用该函数，判断是否有读取、写入数据
 	// 注意，判断的依据是，距离上次调用该函数的时间间隔内，是否有读取、写入数据
 	// 注意，不活跃，并一定是链路或网络有问题，也可能是业务层没有写入数据
 	//
 	// @return readAlive  读取是否获取
 	// @return writeAlive 写入是否活跃
+	//
 	IsAlive() (readAlive, writeAlive bool)
 }
 
@@ -128,7 +135,10 @@ type ISessionUrlContext interface {
 }
 
 type IObject interface {
+	// UniqueKey
+	//
 	// 对象的全局唯一标识
+	//
 	UniqueKey() string
 }
 

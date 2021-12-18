@@ -14,6 +14,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/q191201771/naza/pkg/nazaerrors"
+
 	"github.com/q191201771/lal/pkg/base"
 
 	"github.com/q191201771/naza/pkg/bele"
@@ -221,8 +223,7 @@ func (s *ServerSession) doMsg(stream *Stream) error {
 		fallthrough
 	case base.RtmpTypeIdVideo:
 		if s.t != ServerSessionTypePub {
-			nazalog.Errorf("[%s] read audio/video message but server session not pub type.", s.uniqueKey)
-			return ErrRtmp
+			return nazaerrors.Wrap(base.ErrRtmpUnexpectedMsg)
 		}
 		s.avObserver.OnReadRtmpAvMsg(stream.toAvMsg())
 	default:
@@ -240,8 +241,7 @@ func (s *ServerSession) doAck(stream *Stream) error {
 
 func (s *ServerSession) doDataMessageAmf0(stream *Stream) error {
 	if s.t != ServerSessionTypePub {
-		nazalog.Errorf("[%s] read audio/video message but server session not pub type.", s.uniqueKey)
-		return ErrRtmp
+		return nazaerrors.Wrap(base.ErrRtmpUnexpectedMsg)
 	}
 
 	val, err := stream.msg.peekStringWithType()

@@ -18,8 +18,6 @@ import (
 	"github.com/q191201771/naza/pkg/nazabytes"
 
 	"github.com/q191201771/lal/pkg/base"
-	"github.com/q191201771/naza/pkg/nazalog"
-
 	"github.com/q191201771/naza/pkg/bele"
 )
 
@@ -196,7 +194,7 @@ func (c *ChunkComposer) RunLoop(reader io.Reader, cb OnCompleteMessage) error {
 				for stream.msg.Len() != 0 {
 					// 读取sub message的头
 					if stream.msg.Len() < 11 {
-						return ErrRtmp
+						return base.NewErrRtmpShortBuffer(11, int(stream.msg.Len()), "parse rtmp aggregate sub message len")
 					}
 					aggregateStream.header.MsgTypeId = stream.msg.buff.Bytes()[0]
 					stream.msg.Skip(1)
@@ -218,7 +216,7 @@ func (c *ChunkComposer) RunLoop(reader io.Reader, cb OnCompleteMessage) error {
 
 					// message包体
 					if stream.msg.Len() < aggregateStream.header.MsgLen {
-						return ErrRtmp
+						return base.NewErrRtmpShortBuffer(int(aggregateStream.header.MsgLen), int(stream.msg.Len()), "parse rtmp aggregate sub message body")
 					}
 					aggregateStream.msg.buff = nazabytes.NewBufferRefBytes(stream.msg.buff.Peek(int(aggregateStream.header.MsgLen)))
 					stream.msg.Skip(aggregateStream.header.MsgLen)
@@ -230,7 +228,7 @@ func (c *ChunkComposer) RunLoop(reader io.Reader, cb OnCompleteMessage) error {
 
 					// 跳过prev size字段
 					if stream.msg.Len() < 4 {
-						return ErrRtmp
+						return base.NewErrRtmpShortBuffer(4, int(stream.msg.Len()), "parse rtmp aggregate prev message size")
 					}
 					stream.msg.Skip(4)
 				}
@@ -242,9 +240,10 @@ func (c *ChunkComposer) RunLoop(reader io.Reader, cb OnCompleteMessage) error {
 				stream.msg.Reset()
 			}
 		}
+
+		// TODO(chef): 这里应该永远执行不到，可以删除掉
 		if stream.msg.Len() > stream.header.MsgLen {
-			nazalog.Warnf("stream msg len should not greater than len field in header. stream.msg.len=%d, header=%+v", stream.msg.Len(), stream.header)
-			return ErrRtmp
+			return base.NewErrRtmpShortBuffer(int(aggregateStream.header.MsgLen), int(stream.msg.Len()), "len of msg bigger tthan msg len of header")
 		}
 	}
 }

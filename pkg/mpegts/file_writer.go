@@ -8,7 +8,11 @@
 
 package mpegts
 
-import "os"
+import (
+	"os"
+
+	"github.com/q191201771/lal/pkg/base"
+)
 
 type FileWriter struct {
 	fp *os.File
@@ -21,7 +25,7 @@ func (fw *FileWriter) Create(filename string) (err error) {
 
 func (fw *FileWriter) Write(b []byte) (err error) {
 	if fw.fp == nil {
-		return ErrMpegts
+		return base.ErrFileNotExist
 	}
 	_, err = fw.fp.Write(b)
 	return
@@ -29,7 +33,7 @@ func (fw *FileWriter) Write(b []byte) (err error) {
 
 func (fw *FileWriter) Dispose() error {
 	if fw.fp == nil {
-		return ErrMpegts
+		return base.ErrFileNotExist
 	}
 	return fw.fp.Close()
 }

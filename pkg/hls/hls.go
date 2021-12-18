@@ -9,7 +9,7 @@
 package hls
 
 import (
-	"errors"
+	"github.com/q191201771/lal/pkg/base"
 )
 
 // TODO chef:
@@ -31,8 +31,6 @@ import (
 
 // 进来的数据称为Frame帧，188字节的封装称为TSPacket包，TS文件称为Fragment
 
-var ErrHls = errors.New("lal.hls: fxxk")
-
 const (
 	// TODO chef 这些在配置项中提供
 	negMaxfraglen             uint64 = 1000 * 90 // 当前包时间戳回滚了，比当前fragment的首个时间戳还小，强制切割新的fragment，单位（毫秒*90）
@@ -42,7 +40,7 @@ const (
 
 func SplitFragment2TsPackets(content []byte) (ret [][]byte, err error) {
 	if len(content)%188 != 0 {
-		err = ErrHls
+		err = base.ErrHls
 		return
 	}
 	for {
