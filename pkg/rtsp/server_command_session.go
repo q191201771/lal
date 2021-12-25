@@ -14,6 +14,8 @@ import (
 	"net"
 	"strings"
 
+	"github.com/q191201771/naza/pkg/nazaerrors"
+
 	"github.com/q191201771/naza/pkg/connection"
 
 	"github.com/q191201771/lal/pkg/base"
@@ -23,17 +25,26 @@ import (
 )
 
 type ServerCommandSessionObserver interface {
+	// OnNewRtspPubSession
+	//
 	// @brief  Announce阶段回调
 	// @return 如果返回false，则表示上层要强制关闭这个推流请求
+	//
 	OnNewRtspPubSession(session *PubSession) bool
 
+	// OnNewRtspSubSessionDescribe
+	//
 	// @brief Describe阶段回调
 	// @return ok  如果返回false，则表示上层要强制关闭这个拉流请求
 	// @return sdp
+	//
 	OnNewRtspSubSessionDescribe(session *SubSession) (ok bool, sdp []byte)
 
+	// OnNewRtspSubSessionPlay
+	//
 	// @brief Describe阶段回调
 	// @return ok  如果返回false，则表示上层要强制关闭这个拉流请求
+	//
 	OnNewRtspSubSessionPlay(session *SubSession) bool
 }
 
@@ -72,7 +83,14 @@ func (session *ServerCommandSession) Dispose() error {
 	return session.conn.Close()
 }
 
+func (session *ServerCommandSession) FeedSdp(b []byte) {
+
+}
+
+// WriteInterleavedPacket
+//
 // 使用RTSP TCP命令连接，向对端发送RTP数据
+//
 func (session *ServerCommandSession) WriteInterleavedPacket(packet []byte, channel int) error {
 	_, err := session.conn.Write(packInterleaved(channel, packet))
 	return err
@@ -81,6 +99,8 @@ func (session *ServerCommandSession) WriteInterleavedPacket(packet []byte, chann
 func (session *ServerCommandSession) RemoteAddr() string {
 	return session.conn.RemoteAddr().String()
 }
+
+// ----- ISessionStat --------------------------------------------------------------------------------------------------
 
 func (session *ServerCommandSession) UpdateStat(intervalSec uint32) {
 	currStat := session.conn.GetStat()
@@ -112,9 +132,13 @@ func (session *ServerCommandSession) IsAlive() (readAlive, writeAlive bool) {
 	return
 }
 
+// ----- IObject -------------------------------------------------------------------------------------------------------
+
 func (session *ServerCommandSession) UniqueKey() string {
 	return session.uniqueKey
 }
+
+// ---------------------------------------------------------------------------------------------------------------------
 
 func (session *ServerCommandSession) runCmdLoop() error {
 	var r = bufio.NewReader(session.conn)
@@ -176,7 +200,7 @@ Loop:
 			nazalog.Errorf("[%s] unknown rtsp message. method=%s", session.uniqueKey, requestCtx.Method)
 		}
 		if handleMsgErr != nil {
-			nazalog.Errorf("[%s] handle rtsp message error. err=%+v", session.uniqueKey, handleMsgErr)
+			nazalog.Errorf("[%s] handle rtsp message error. err=%+v, ctx=%+v", session.uniqueKey, handleMsgErr, requestCtx)
 			break
 		}
 	}
@@ -214,8 +238,7 @@ func (session *ServerCommandSession) handleAnnounce(requestCtx nazahttp.HttpReqM
 	session.pubSession.InitWithSdp(sdpCtx)
 
 	if ok := session.observer.OnNewRtspPubSession(session.pubSession); !ok {
-		nazalog.Warnf("[%s] force close pubsession.", session.pubSession.uniqueKey)
-		return ErrRtsp
+		return base.ErrRtspClosedByObserver
 	}
 
 	resp := PackResponseAnnounce(requestCtx.Headers.Get(HeaderCSeq))
@@ -237,7 +260,7 @@ func (session *ServerCommandSession) handleDescribe(requestCtx nazahttp.HttpReqM
 	ok, rawSdp := session.observer.OnNewRtspSubSessionDescribe(session.subSession)
 	if !ok {
 		nazalog.Warnf("[%s] force close subSession.", session.uniqueKey)
-		return ErrRtsp
+		return base.ErrRtspClosedByObserver
 	}
 
 	sdpCtx, _ := sdp.ParseSdp2LogicContext(rawSdp)
@@ -275,7 +298,7 @@ func (session *ServerCommandSession) handleSetup(requestCtx nazahttp.HttpReqMsgC
 			}
 		} else {
 			nazalog.Errorf("[%s] setup but session not exist.", session.uniqueKey)
-			return ErrRtsp
+			return nazaerrors.Wrap(base.ErrRtsp)
 		}
 
 		resp := PackResponseSetup(requestCtx.Headers.Get(HeaderCSeq), htv)
@@ -310,7 +333,7 @@ func (session *ServerCommandSession) handleSetup(requestCtx nazahttp.HttpReqMsgC
 		htv = fmt.Sprintf(HeaderTransportServerPlayTmpl, rRtpPort, rRtcpPort, lRtpPort, lRtcpPort)
 	} else {
 		nazalog.Errorf("[%s] setup but session not exist.", session.uniqueKey)
-		return ErrRtsp
+		return nazaerrors.Wrap(base.ErrRtsp)
 	}
 
 	resp := PackResponseSetup(requestCtx.Headers.Get(HeaderCSeq), htv)
@@ -328,7 +351,7 @@ func (session *ServerCommandSession) handleRecord(requestCtx nazahttp.HttpReqMsg
 func (session *ServerCommandSession) handlePlay(requestCtx nazahttp.HttpReqMsgCtx) error {
 	nazalog.Infof("[%s] < R PLAY", session.uniqueKey)
 	if ok := session.observer.OnNewRtspSubSessionPlay(session.subSession); !ok {
-		return ErrRtsp
+		return base.ErrRtspClosedByObserver
 	}
 	resp := PackResponsePlay(requestCtx.Headers.Get(HeaderCSeq))
 	_, err := session.conn.Write([]byte(resp))

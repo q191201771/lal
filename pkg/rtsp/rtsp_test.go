@@ -6,7 +6,7 @@
 //
 // Author: Chef (191201771@qq.com)
 
-package sdp_test
+package rtsp_test
 
 import (
 	"testing"
@@ -14,6 +14,6 @@ import (
 	"github.com/q191201771/lal/pkg/innertest"
 )
 
-func TestSdp(t *testing.T) {
+func TestRtsp(t *testing.T) {
 	innertest.Entry(t)
 }

@@ -11,11 +11,14 @@ package innertest
 import (
 	"bytes"
 	"fmt"
-	"io"
 	"io/ioutil"
 	"os"
 	"testing"
 	"time"
+
+	"github.com/q191201771/lal/pkg/rtprtcp"
+	"github.com/q191201771/lal/pkg/rtsp"
+	"github.com/q191201771/lal/pkg/sdp"
 
 	"github.com/q191201771/lal/pkg/remux"
 
@@ -33,15 +36,14 @@ import (
 )
 
 // 开启了一个lalserver
-// 读取flv文件，使用rtmp协议推送至服务端
-// 分别用rtmp协议以及httpflv协议从服务端拉流，再将拉取的流保存为flv文件
+// rtmp pub              读取flv文件，使用rtmp协议推送至服务端
+// rtmp sub, httpflv sub 分别用rtmp协议以及httpflv协议从服务端拉流，再将拉取的流保存为flv文件
 // 对比三份flv文件，看是否完全一致
-// 并检查hls生成的m3u8和ts文件，是否和之前的完全一致
+// hls                   并检查hls生成的m3u8和ts文件，是否和之前的完全一致
 
 // TODO chef:
 // - 加上relay push
 // - 加上relay pull
-// - 加上rtspserver的测试
 
 var (
 	tt *testing.T
@@ -50,23 +52,41 @@ var (
 	rFlvFileName      = "../../testdata/test.flv"
 	wFlvPullFileName  = "../../testdata/flvpull.flv"
 	wRtmpPullFileName = "../../testdata/rtmppull.flv"
+	wRtspPullFileName = "../../testdata/rtsppull.flv"
 
 	pushUrl        string
 	httpflvPullUrl string
 	rtmpPullUrl    string
+	rtspPullUrl    string
 
-	fileReader    httpflv.FlvFileReader
 	httpFlvWriter httpflv.FlvFileWriter
 	rtmpWriter    httpflv.FlvFileWriter
 
 	pushSession        *rtmp.PushSession
 	httpflvPullSession *httpflv.PullSession
 	rtmpPullSession    *rtmp.PullSession
+	rtspPullSession    *rtsp.PullSession
 
-	fileTagCount        nazaatomic.Uint32
-	httpflvPullTagCount nazaatomic.Uint32
-	rtmpPullTagCount    nazaatomic.Uint32
+	fileTagCount          int
+	httpflvPullTagCount   nazaatomic.Uint32
+	rtmpPullTagCount      nazaatomic.Uint32
+	rtspSdpCtx            sdp.LogicContext
+	rtspPullAvPacketCount nazaatomic.Uint32
 )
+
+type RtspPullObserver struct {
+}
+
+func (r RtspPullObserver) OnSdp(sdpCtx sdp.LogicContext) {
+	rtspSdpCtx = sdpCtx
+}
+
+func (r RtspPullObserver) OnRtpPacket(pkt rtprtcp.RtpPacket) {
+}
+
+func (r RtspPullObserver) OnAvPacket(pkt base.AvPacket) {
+	rtspPullAvPacketCount.Increment()
+}
 
 func Entry(t *testing.T) {
 	if _, err := os.Lstat(confFile); err != nil {
@@ -93,9 +113,11 @@ func Entry(t *testing.T) {
 	pushUrl = fmt.Sprintf("rtmp://127.0.0.1%s/live/innertest", config.RtmpConfig.Addr)
 	httpflvPullUrl = fmt.Sprintf("http://127.0.0.1%s/live/innertest.flv", config.HttpflvConfig.HttpListenAddr)
 	rtmpPullUrl = fmt.Sprintf("rtmp://127.0.0.1%s/live/innertest", config.RtmpConfig.Addr)
+	rtspPullUrl = fmt.Sprintf("rtsp://127.0.0.1%s/live/innertest", config.RtspConfig.Addr)
 
-	err = fileReader.Open(rFlvFileName)
+	tags, err := httpflv.ReadAllTagsFromFlvFile(rFlvFileName)
 	assert.Equal(t, nil, err)
+	fileTagCount = len(tags)
 
 	err = httpFlvWriter.Open(wFlvPullFileName)
 	assert.Equal(t, nil, err)
@@ -109,7 +131,8 @@ func Entry(t *testing.T) {
 
 	go func() {
 		rtmpPullSession = rtmp.NewPullSession(func(option *rtmp.PullSessionOption) {
-			option.ReadAvTimeoutMs = 500
+			option.ReadAvTimeoutMs = 10000
+			option.ReadBufSize = 0
 		})
 		err := rtmpPullSession.Pull(
 			rtmpPullUrl,
@@ -119,16 +142,14 @@ func Entry(t *testing.T) {
 				assert.Equal(tt, nil, err)
 				rtmpPullTagCount.Increment()
 			})
-		if err != nil {
-			nazalog.Error(err)
-		}
+		nazalog.Assert(nil, err)
 		err = <-rtmpPullSession.WaitChan()
 		nazalog.Debug(err)
 	}()
 
 	go func() {
 		httpflvPullSession = httpflv.NewPullSession(func(option *httpflv.PullSessionOption) {
-			option.ReadTimeoutMs = 500
+			option.ReadTimeoutMs = 10000
 		})
 		err := httpflvPullSession.Pull(httpflvPullUrl, func(tag httpflv.Tag) {
 			err := httpFlvWriter.WriteTag(tag)
@@ -136,43 +157,77 @@ func Entry(t *testing.T) {
 			httpflvPullTagCount.Increment()
 		})
 		nazalog.Assert(nil, err)
+		err = <-httpflvPullSession.WaitChan()
+		nazalog.Debug(err)
 	}()
 
 	time.Sleep(200 * time.Millisecond)
 
-	pushSession = rtmp.NewPushSession()
+	// TODO(chef): [test] [2021.12.25] rtsp sub测试 由于rtsp sub不支持没有pub时sub，只能sub失败后重试，所以没有验证收到的数据
+	// TODO(chef): [perf] [2021.12.25] rtmp推rtsp拉的性能。开启rtsp pull后，rtmp pull的总时长增加了
+	go func() {
+		for {
+			rtspPullAvPacketCount.Store(0)
+			var rtspPullObserver RtspPullObserver
+			rtspPullSession = rtsp.NewPullSession(&rtspPullObserver, func(option *rtsp.PullSessionOption) {
+				option.PullTimeoutMs = 500
+			})
+			err := rtspPullSession.Pull(rtspPullUrl)
+			nazalog.Debug(err)
+			if rtspSdpCtx.RawSdp != nil {
+				break
+			}
+			time.Sleep(100 * time.Millisecond)
+		}
+	}()
+
+	pushSession = rtmp.NewPushSession(func(option *rtmp.PushSessionOption) {
+		option.WriteBufSize = 4096
+		option.WriteChanSize = 1024
+	})
 	err = pushSession.Push(pushUrl)
 	assert.Equal(t, nil, err)
 
-	for {
-		tag, err := fileReader.ReadTag()
-		if err == io.EOF {
-			break
-		}
+	nazalog.Debugf("CHEFERASEME start push %+v", time.Now())
+	for _, tag := range tags {
 		assert.Equal(t, nil, err)
-		fileTagCount.Increment()
 		chunks := remux.FlvTag2RtmpChunks(tag)
+		//nazalog.Debugf("rtmp push: %d", fileTagCount.Load())
 		err = pushSession.Write(chunks)
 		assert.Equal(t, nil, err)
 	}
 	err = pushSession.Flush()
 	assert.Equal(t, nil, err)
 
-	time.Sleep(1 * time.Second)
+	for {
+		if httpflvPullTagCount.Load() == uint32(fileTagCount) &&
+			rtmpPullTagCount.Load() == uint32(fileTagCount) {
+			time.Sleep(100 * time.Millisecond)
+			break
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
 
-	fileReader.Dispose()
+	nazalog.Debug("[innertest] start dispose.")
+
 	pushSession.Dispose()
 	httpflvPullSession.Dispose()
 	rtmpPullSession.Dispose()
+	//rtspPullSession.Dispose()
+
 	httpFlvWriter.Dispose()
 	rtmpWriter.Dispose()
+
 	// 由于windows没有信号，会导致编译错误，所以直接调用Dispose
 	//_ = syscall.Kill(syscall.Getpid(), syscall.SIGUSR1)
 	sm.Dispose()
 
-	nazalog.Debugf("count. %d %d %d", fileTagCount.Load(), httpflvPullTagCount.Load(), rtmpPullTagCount.Load())
+	nazalog.Debugf("tag count. in=%d, out httpflv=%d, out rtmp=%d, out rtsp=%d",
+		fileTagCount, httpflvPullTagCount.Load(), rtmpPullTagCount.Load(), rtspPullAvPacketCount.Load())
+
 	compareFile()
 
+	// 检查hls的ts文件
 	var allContent []byte
 	var fileNum int
 	err = filebatch.Walk(
@@ -201,7 +256,7 @@ func compareFile() {
 	nazalog.Debugf("%s filesize:%d", wFlvPullFileName, len(w))
 	res := bytes.Compare(r, w)
 	assert.Equal(tt, 0, res)
-	err = os.Remove(wFlvPullFileName)
+	//err = os.Remove(wFlvPullFileName)
 	assert.Equal(tt, nil, err)
 
 	w2, err := ioutil.ReadFile(wRtmpPullFileName)
@@ -209,6 +264,6 @@ func compareFile() {
 	nazalog.Debugf("%s filesize:%d", wRtmpPullFileName, len(w2))
 	res = bytes.Compare(r, w2)
 	assert.Equal(tt, 0, res)
-	err = os.Remove(wRtmpPullFileName)
+	//err = os.Remove(wRtmpPullFileName)
 	assert.Equal(tt, nil, err)
 }

@@ -14,6 +14,8 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/q191201771/naza/pkg/nazaerrors"
+
 	"github.com/q191201771/lal/pkg/aac"
 
 	"github.com/q191201771/lal/pkg/base"
@@ -33,7 +35,7 @@ func Pack(vps, sps, pps, asc []byte) (ctx LogicContext, err error) {
 	}
 
 	if !hasAudio && !hasVideo {
-		err = ErrSdp
+		err = nazaerrors.Wrap(base.ErrSdp)
 		return
 	}
 

@@ -11,6 +11,9 @@ package sdp
 import (
 	"strconv"
 	"strings"
+
+	"github.com/q191201771/lal/pkg/base"
+	"github.com/q191201771/naza/pkg/nazaerrors"
 )
 
 type RawContext struct {
@@ -83,7 +86,7 @@ func ParseM(s string) (ret M, err error) {
 	ss := strings.TrimPrefix(s, "m=")
 	items := strings.Split(ss, " ")
 	if len(items) < 1 {
-		return ret, ErrSdp
+		return ret, nazaerrors.Wrap(base.ErrSdp)
 	}
 	ret.Media = items[0]
 	return
@@ -99,12 +102,12 @@ func ParseARtpMap(s string) (ret ARtpMap, err error) {
 
 	items := strings.SplitN(s, ":", 2)
 	if len(items) != 2 {
-		err = ErrSdp
+		err = nazaerrors.Wrap(base.ErrSdp)
 		return
 	}
 	items = strings.SplitN(items[1], " ", 2)
 	if len(items) != 2 {
-		err = ErrSdp
+		err = nazaerrors.Wrap(base.ErrSdp)
 		return
 	}
 	ret.PayloadType, err = strconv.Atoi(items[0])
@@ -123,7 +126,7 @@ func ParseARtpMap(s string) (ret ARtpMap, err error) {
 			return
 		}
 	default:
-		err = ErrSdp
+		err = nazaerrors.Wrap(base.ErrSdp)
 	}
 	return
 }
@@ -139,13 +142,13 @@ func ParseAFmtPBase(s string) (ret AFmtPBase, err error) {
 
 	items := strings.SplitN(s, ":", 2)
 	if len(items) != 2 {
-		err = ErrSdp
+		err = nazaerrors.Wrap(base.ErrSdp)
 		return
 	}
 
 	items = strings.SplitN(items[1], " ", 2)
 	if len(items) != 2 {
-		err = ErrSdp
+		err = nazaerrors.Wrap(base.ErrSdp)
 		return
 	}
 
@@ -164,7 +167,7 @@ func ParseAFmtPBase(s string) (ret AFmtPBase, err error) {
 		pp = strings.TrimSpace(pp)
 		kv := strings.SplitN(pp, "=", 2)
 		if len(kv) != 2 {
-			err = ErrSdp
+			err = nazaerrors.Wrap(base.ErrSdp)
 			return
 		}
 		ret.Parameters[kv[0]] = kv[1]
@@ -175,7 +178,7 @@ func ParseAFmtPBase(s string) (ret AFmtPBase, err error) {
 
 func ParseAControl(s string) (ret AControl, err error) {
 	if !strings.HasPrefix(s, "a=control:") {
-		err = ErrSdp
+		err = nazaerrors.Wrap(base.ErrSdp)
 		return
 	}
 	ret.Value = strings.TrimPrefix(s, "a=control:")

@@ -8,12 +8,6 @@
 
 package rtprtcp
 
-import (
-	"errors"
-)
-
-var ErrRtp = errors.New("lal.rtp: fxxk")
-
 // rfc3984 5.2.  Common Structure of the RTP Payload Format
 // Table 1.  Summary of NAL unit types and their payload structures
 //

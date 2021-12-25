@@ -15,6 +15,7 @@ type ILalServer interface {
 	Dispose()
 
 	// StatLalInfo StatXxx... CtrlXxx...
+	//
 	// 一些获取状态、发送控制命令的API
 	// 目的是方便业务方在不修改logic包内代码的前提下，在外层实现一些特定逻辑的定制化开发
 	//

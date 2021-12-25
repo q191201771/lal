@@ -96,7 +96,7 @@ func MakeRtpPacket(h RtpHeader, payload []byte) (pkt RtpPacket) {
 
 func ParseRtpHeader(b []byte) (h RtpHeader, err error) {
 	if len(b) < RtpFixedHeaderLength {
-		err = ErrRtp
+		err = base.ErrRtpRtcpShortBuffer
 		return
 	}
 

@@ -31,8 +31,11 @@ type ServerObserver interface {
 
 	///////////////////////////////////////////////////////////////////////////
 
+	// OnNewRtspSubSessionDescribe
+	//
 	// @return 如果返回false，则表示上层要强制关闭这个拉流请求
 	// @return sdp
+	//
 	OnNewRtspSubSessionDescribe(session *SubSession) (ok bool, sdp []byte)
 
 	// @brief Describe阶段回调

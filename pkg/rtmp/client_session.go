@@ -62,16 +62,24 @@ const (
 
 type ClientSessionOption struct {
 	// 单位毫秒，如果为0，则没有超时
-	DoTimeoutMs          int  // 从发起连接（包含了建立连接的时间）到收到publish或play信令结果的超时
-	ReadAvTimeoutMs      int  // 读取音视频数据的超时
-	WriteAvTimeoutMs     int  // 发送音视频数据的超时
+	DoTimeoutMs      int // 从发起连接（包含了建立连接的时间）到收到publish或play信令结果的超时
+	ReadAvTimeoutMs  int // 读取音视频数据的超时
+	WriteAvTimeoutMs int // 发送音视频数据的超时
+
+	ReadBufSize   int // io层读取音视频数据时的缓冲大小，如果为0，则没有缓冲
+	WriteBufSize  int // io层发送音视频数据的缓冲大小，如果为0，则没有缓冲
+	WriteChanSize int // io层发送音视频数据的异步队列大小，如果为0，则同步发送
+
 	HandshakeComplexFlag bool // 握手是否使用复杂模式
 }
 
 var defaultClientSessOption = ClientSessionOption{
-	DoTimeoutMs:          0,
+	DoTimeoutMs:          10000,
 	ReadAvTimeoutMs:      0,
 	WriteAvTimeoutMs:     0,
+	ReadBufSize:          0,
+	WriteBufSize:         0,
+	WriteChanSize:        0,
 	HandshakeComplexFlag: false,
 }
 
@@ -304,7 +312,7 @@ func (s *ClientSession) tcpConnect() error {
 	}
 
 	s.conn = connection.New(conn, func(option *connection.Option) {
-		option.ReadBufSize = readBufSize
+		option.ReadBufSize = s.option.ReadBufSize
 		option.WriteChanFullBehavior = connection.WriteChanFullBehaviorBlock
 	})
 	return nil
@@ -533,8 +541,8 @@ func (s *ClientSession) notifyDoResultSucc() {
 	}
 	s.hasNotifyDoResultSucc = true
 
-	s.conn.ModWriteChanSize(wChanSize)
-	s.conn.ModWriteBufSize(writeBufSize)
+	s.conn.ModWriteChanSize(s.option.WriteChanSize)
+	s.conn.ModWriteBufSize(s.option.WriteBufSize)
 	s.conn.ModReadTimeoutMs(s.option.ReadAvTimeoutMs)
 	s.conn.ModWriteTimeoutMs(s.option.WriteAvTimeoutMs)
 

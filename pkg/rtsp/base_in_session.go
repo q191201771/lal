@@ -29,6 +29,8 @@ import (
 
 // 聚合PubSession和PullSession，也即流数据是输入类型的session
 
+// BaseInSessionObserver
+//
 // BaseInSession会向上层回调两种格式的数据(本质上是一份数据，业务方可自由选择使用)：
 // 1. 原始的rtp packet
 // 2. rtp合并后的av packet
@@ -36,10 +38,14 @@ import (
 type BaseInSessionObserver interface {
 	OnSdp(sdpCtx sdp.LogicContext)
 
-	// 回调收到的RTP包
+	// OnRtpPacket 回调收到的RTP包
+	//
 	OnRtpPacket(pkt rtprtcp.RtpPacket)
 
+	// OnAvPacket
+	//
 	// @param pkt: pkt结构体中字段含义见rtprtcp.OnAvPacket
+	//
 	OnAvPacket(pkt base.AvPacket)
 }
 
@@ -156,7 +162,7 @@ func (session *BaseInSession) SetupWithConn(uri string, rtpConn, rtcpConn *nazan
 		session.videoRtpConn = rtpConn
 		session.videoRtcpConn = rtcpConn
 	} else {
-		return ErrRtsp
+		return nazaerrors.Wrap(base.ErrRtsp)
 	}
 
 	go rtpConn.RunLoop(session.onReadRtpPacket)
@@ -175,7 +181,7 @@ func (session *BaseInSession) SetupWithChannel(uri string, rtpChannel, rtcpChann
 		session.videoRtcpChannel = rtcpChannel
 		return nil
 	}
-	return ErrRtsp
+	return nazaerrors.Wrap(base.ErrRtsp)
 }
 
 // ---------------------------------------------------------------------------------------------------------------------
@@ -322,7 +328,7 @@ func (session *BaseInSession) handleRtcpPacket(b []byte, rAddr *net.UDPAddr) err
 
 	if len(b) <= 0 {
 		nazalog.Errorf("[%s] handleRtcpPacket but length invalid. len=%d", session.uniqueKey, len(b))
-		return ErrRtsp
+		return nazaerrors.Wrap(base.ErrRtsp)
 	}
 
 	if session.loggedReadRtcpCount.Load() < session.debugLogMaxCount {
@@ -369,11 +375,11 @@ func (session *BaseInSession) handleRtcpPacket(b []byte, rAddr *net.UDPAddr) err
 			// ffmpeg推流时，会在发送第一个RTP包之前就发送一个SR，所以关闭这个警告日志
 			//nazalog.Warnf("[%s] read rtcp sr but senderSsrc invalid. senderSsrc=%d, audio=%d, video=%d",
 			//	p.uniqueKey, sr.SenderSsrc, p.audioSsrc, p.videoSsrc)
-			return ErrRtsp
+			return nazaerrors.Wrap(base.ErrRtsp)
 		}
 	default:
 		nazalog.Warnf("[%s] handleRtcpPacket but type unknown. type=%d", session.uniqueKey, b[1])
-		return ErrRtsp
+		return nazaerrors.Wrap(base.ErrRtsp)
 	}
 
 	return nil
@@ -384,13 +390,13 @@ func (session *BaseInSession) handleRtpPacket(b []byte) error {
 
 	if len(b) < rtprtcp.RtpFixedHeaderLength {
 		nazalog.Errorf("[%s] handleRtpPacket but length invalid. len=%d", session.uniqueKey, len(b))
-		return ErrRtsp
+		return nazaerrors.Wrap(base.ErrRtsp)
 	}
 
 	packetType := int(b[1] & 0x7F)
 	if !session.sdpCtx.IsPayloadTypeOrigin(packetType) {
 		nazalog.Errorf("[%s] handleRtpPacket but type invalid. type=%d", session.uniqueKey, packetType)
-		return ErrRtsp
+		return nazaerrors.Wrap(base.ErrRtsp)
 	}
 
 	h, err := rtprtcp.ParseRtpHeader(b)

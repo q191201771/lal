@@ -9,11 +9,12 @@
 package rtsp
 
 import (
-	"errors"
 	"fmt"
 	"net"
 	"strconv"
 	"strings"
+
+	"github.com/q191201771/naza/pkg/nazaerrors"
 
 	"github.com/q191201771/lal/pkg/base"
 
@@ -27,8 +28,6 @@ import (
 // - pull session回调有observer interface和on func回调两种方式，是否需要统一
 // - [refactor] BaseInSession和BaseOutSession有不少重复内容
 // - [refactor] PullSession和PushSession有不少重复内容
-
-var ErrRtsp = errors.New("lal.rtsp: fxxk")
 
 const (
 	MethodOptions      = "OPTIONS"
@@ -166,7 +165,7 @@ func parseTransport(setupTransport string, key string) (first, second uint16, er
 	}
 	items = strings.Split(clientPort, "-")
 	if len(items) != 2 {
-		return 0, 0, ErrRtsp
+		return 0, 0, nazaerrors.Wrap(base.ErrRtsp)
 	}
 	iFirst, err := strconv.Atoi(items[0])
 	if err != nil {

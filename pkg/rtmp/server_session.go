@@ -464,11 +464,6 @@ func (s *ServerSession) doPlay(tid int, stream *Stream) (err error) {
 
 func (s *ServerSession) modConnProps() {
 	s.conn.ModWriteChanSize(wChanSize)
-	// TODO chef:
-	// 使用合并发送
-	// naza.connection 这种方式会导致最后一点数据发送不出去，我们应该使用更好的方式，比如合并发送模式下，Dispose时发送剩余数据
-	//
-	//s.conn.ModWriteBufSize(writeBufSize)
 
 	switch s.t {
 	case ServerSessionTypePub:

@@ -14,6 +14,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/q191201771/naza/pkg/nazaatomic"
+
 	"github.com/q191201771/lal/pkg/rtprtcp"
 	"github.com/q191201771/naza/pkg/nazabytes"
 	"github.com/q191201771/naza/pkg/nazaerrors"
@@ -51,7 +53,8 @@ type BaseOutSession struct {
 	debugLogMaxCount         int
 	loggedWriteAudioRtpCount int
 	loggedWriteVideoRtpCount int
-	loggedReadUdpCount       int
+	loggedReadRtpCount       nazaatomic.Int32 // 因为音频和视频是两个连接，所以需要原子操作
+	loggedReadRtcpCount      nazaatomic.Int32
 
 	disposeOnce sync.Once
 	waitChan    chan error
@@ -87,11 +90,11 @@ func (session *BaseOutSession) SetupWithConn(uri string, rtpConn, rtcpConn *naza
 		session.videoRtpConn = rtpConn
 		session.videoRtcpConn = rtcpConn
 	} else {
-		return ErrRtsp
+		return nazaerrors.Wrap(base.ErrRtsp)
 	}
 
-	go rtpConn.RunLoop(session.onReadUdpPacket)
-	go rtcpConn.RunLoop(session.onReadUdpPacket)
+	go rtpConn.RunLoop(session.onReadRtpPacket)
+	go rtcpConn.RunLoop(session.onReadRtcpPacket)
 
 	return nil
 }
@@ -107,7 +110,7 @@ func (session *BaseOutSession) SetupWithChannel(uri string, rtpChannel, rtcpChan
 		return nil
 	}
 
-	return ErrRtsp
+	return nazaerrors.Wrap(base.ErrRtsp)
 }
 
 // ---------------------------------------------------------------------------------------------------------------------
@@ -176,7 +179,7 @@ func (session *BaseOutSession) WriteRtpPacket(packet rtprtcp.RtpPacket) error {
 		}
 	} else {
 		nazalog.Errorf("[%s] write rtp packet but type invalid. type=%d", session.uniqueKey, t)
-		err = ErrRtsp
+		err = nazaerrors.Wrap(base.ErrRtsp)
 	}
 
 	if err == nil {
@@ -224,12 +227,20 @@ func (session *BaseOutSession) UniqueKey() string {
 	return session.uniqueKey
 }
 
-func (session *BaseOutSession) onReadUdpPacket(b []byte, rAddr *net.UDPAddr, err error) bool {
+func (session *BaseOutSession) onReadRtpPacket(b []byte, rAddr *net.UDPAddr, err error) bool {
+	if session.loggedReadRtpCount.Load() < int32(session.debugLogMaxCount) {
+		nazalog.Debugf("[%s] LOGPACKET. read rtp=%s", session.uniqueKey, hex.Dump(nazabytes.Prefix(b, 32)))
+		session.loggedReadRtpCount.Increment()
+	}
+	return true
+}
+
+func (session *BaseOutSession) onReadRtcpPacket(b []byte, rAddr *net.UDPAddr, err error) bool {
 	// TODO chef: impl me
 
-	if session.loggedReadUdpCount < session.debugLogMaxCount {
-		nazalog.Debugf("[%s] LOGPACKET. read udp=%s", session.uniqueKey, hex.Dump(nazabytes.Prefix(b, 32)))
-		session.loggedReadUdpCount++
+	if session.loggedReadRtcpCount.Load() < int32(session.debugLogMaxCount) {
+		nazalog.Debugf("[%s] LOGPACKET. read rtcp=%s", session.uniqueKey, hex.Dump(nazabytes.Prefix(b, 32)))
+		session.loggedReadRtcpCount.Increment()
 	}
 	return true
 }

@@ -9,8 +9,6 @@
 package rtprtcp
 
 import (
-	"errors"
-
 	"github.com/q191201771/naza/pkg/bele"
 )
 
@@ -83,8 +81,6 @@ import (
 //        +=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+
 //        |                  profile-specific extensions                  |
 //        +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-
-var ErrRtcp = errors.New("lal.rtcp: fxxk")
 
 const (
 	RtcpPacketTypeSr  = 200 // 0xc8 Sender Report

@@ -17,6 +17,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/q191201771/naza/pkg/nazaerrors"
+
 	"github.com/q191201771/lal/pkg/base"
 	"github.com/q191201771/lal/pkg/rtprtcp"
 	"github.com/q191201771/lal/pkg/sdp"
@@ -564,7 +566,8 @@ func (session *ClientCommandSession) writeCmdReadResp(method, uri string, header
 		session.auth.FeedWwwAuthenticate(ctx.Headers.Values(HeaderWwwAuthenticate), session.urlCtx.Username, session.urlCtx.Password)
 	}
 
-	err = ErrRtsp
+	// TODO(chef): refactor never reach here？
+	err = nazaerrors.Wrap(base.ErrRtsp)
 	return
 }
 

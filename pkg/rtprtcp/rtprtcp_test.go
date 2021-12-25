@@ -6,7 +6,7 @@
 //
 // Author: Chef (191201771@qq.com)
 
-package sdp_test
+package rtprtcp_test
 
 import (
 	"testing"
@@ -14,6 +14,6 @@ import (
 	"github.com/q191201771/lal/pkg/innertest"
 )
 
-func TestSdp(t *testing.T) {
+func TestRtpRtcp(t *testing.T) {
 	innertest.Entry(t)
 }

@@ -22,12 +22,17 @@ type PushSessionOption struct {
 	PushTimeoutMs int
 
 	WriteAvTimeoutMs     int
+	WriteBufSize         int // io层发送音视频数据的缓冲大小，如果为0，则没有缓冲
+	WriteChanSize        int // io层发送音视频数据的异步队列大小，如果为0，则同步发送
 	HandshakeComplexFlag bool
 }
 
 var defaultPushSessionOption = PushSessionOption{
-	PushTimeoutMs:    10000,
-	WriteAvTimeoutMs: 0,
+	PushTimeoutMs:        10000,
+	WriteAvTimeoutMs:     0,
+	WriteBufSize:         0,
+	WriteChanSize:        0,
+	HandshakeComplexFlag: false,
 }
 
 type ModPushSessionOption func(option *PushSessionOption)
@@ -42,6 +47,8 @@ func NewPushSession(modOptions ...ModPushSessionOption) *PushSession {
 		core: NewClientSession(CstPushSession, func(option *ClientSessionOption) {
 			option.DoTimeoutMs = opt.PushTimeoutMs
 			option.WriteAvTimeoutMs = opt.WriteAvTimeoutMs
+			option.WriteBufSize = opt.WriteBufSize
+			option.WriteChanSize = opt.WriteChanSize
 			option.HandshakeComplexFlag = opt.HandshakeComplexFlag
 		}),
 	}

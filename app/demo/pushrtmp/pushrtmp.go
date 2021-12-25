@@ -90,6 +90,8 @@ func push(tags []httpflv.Tag, url string, isRecursive bool) {
 	ps := rtmp.NewPushSession(func(option *rtmp.PushSessionOption) {
 		option.PushTimeoutMs = 5000
 		option.WriteAvTimeoutMs = 10000
+		option.WriteBufSize = 0
+		option.WriteChanSize = 0
 	})
 
 	if err := ps.Push(url); err != nil {

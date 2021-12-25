@@ -58,7 +58,22 @@ var (
 	ErrRtmpUnexpectedMsg = errors.New("lal.rtmp: unexpected msg")
 )
 
-// TODO(chef): refactor 整理其他pkg的error
+// ----- pkg/rtprtcp ---------------------------------------------------------------------------------------------------
+
+var ErrRtpRtcpShortBuffer = errors.New("lal.rtprtcp: buffer too short")
+
+// ----- pkg/rtsp ------------------------------------------------------------------------------------------------------
+
+var (
+	ErrRtsp                 = errors.New("lal.rtsp: fxxk")
+	ErrRtspClosedByObserver = errors.New("lal.rtsp: close by observer")
+)
+
+// ----- pkg/sdp -------------------------------------------------------------------------------------------------------
+
+var ErrSdp = errors.New("lal.sdp: fxxk")
+
+// ---------------------------------------------------------------------------------------------------------------------
 
 func NewErrAmfInvalidType(b byte) error {
 	return fmt.Errorf("%w. b=%d", ErrAmfInvalidType, b)

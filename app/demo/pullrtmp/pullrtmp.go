@@ -95,6 +95,7 @@ func pull(url string, filename string) {
 	session := rtmp.NewPullSession(func(option *rtmp.PullSessionOption) {
 		option.PullTimeoutMs = 10000
 		option.ReadAvTimeoutMs = 10000
+		option.ReadBufSize = 0
 	})
 
 	err = session.Pull(url, func(msg base.RtmpMsg) {

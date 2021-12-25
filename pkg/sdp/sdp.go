@@ -8,13 +8,7 @@
 
 package sdp
 
-import (
-	"errors"
-)
-
 // rfc4566
-
-var ErrSdp = errors.New("lal.sdp: fxxk")
 
 const (
 	ARtpMapEncodingNameH265 = "H265"

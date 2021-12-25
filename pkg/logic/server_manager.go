@@ -380,7 +380,6 @@ func (sm *ServerManager) OnRtmpConnect(session *rtmp.ServerSession, opa rtmp.Obj
 }
 
 func (sm *ServerManager) OnNewRtmpPubSession(session *rtmp.ServerSession) bool {
-	nazalog.Debugf("CHEFERASEME [%s] OnNewRtmpPubSession. %s, %s, %s, %s", session.UniqueKey(), session.Url(), session.AppName(), session.StreamName(), session.RawQuery())
 	sm.mutex.Lock()
 	defer sm.mutex.Unlock()
 	group := sm.getOrCreateGroup(session.AppName(), session.StreamName())
@@ -404,7 +403,6 @@ func (sm *ServerManager) OnNewRtmpPubSession(session *rtmp.ServerSession) bool {
 }
 
 func (sm *ServerManager) OnDelRtmpPubSession(session *rtmp.ServerSession) {
-	nazalog.Debugf("CHEFERASEME [%s] OnDelRtmpPubSession. %s, %s, %s, %s", session.UniqueKey(), session.Url(), session.AppName(), session.StreamName(), session.RawQuery())
 	sm.mutex.Lock()
 	defer sm.mutex.Unlock()
 	group := sm.getGroup(session.AppName(), session.StreamName())
@@ -429,7 +427,6 @@ func (sm *ServerManager) OnDelRtmpPubSession(session *rtmp.ServerSession) {
 }
 
 func (sm *ServerManager) OnNewRtmpSubSession(session *rtmp.ServerSession) bool {
-	nazalog.Debugf("CHEFERASEME [%s] OnNewRtmpSubSession. %s, %s, %s, %s", session.UniqueKey(), session.Url(), session.AppName(), session.StreamName(), session.RawQuery())
 	sm.mutex.Lock()
 	defer sm.mutex.Unlock()
 	group := sm.getOrCreateGroup(session.AppName(), session.StreamName())
@@ -452,7 +449,6 @@ func (sm *ServerManager) OnNewRtmpSubSession(session *rtmp.ServerSession) bool {
 }
 
 func (sm *ServerManager) OnDelRtmpSubSession(session *rtmp.ServerSession) {
-	nazalog.Debugf("CHEFERASEME [%s] OnDelRtmpSubSession. %s, %s, %s, %s", session.UniqueKey(), session.Url(), session.AppName(), session.StreamName(), session.RawQuery())
 	sm.mutex.Lock()
 	defer sm.mutex.Unlock()
 	group := sm.getGroup(session.AppName(), session.StreamName())
@@ -478,7 +474,6 @@ func (sm *ServerManager) OnDelRtmpSubSession(session *rtmp.ServerSession) {
 // ----- implement HttpServerHandlerObserver interface -----------------------------------------------------------------
 
 func (sm *ServerManager) OnNewHttpflvSubSession(session *httpflv.SubSession) bool {
-	nazalog.Debugf("CHEFERASEME [%s] OnNewHttpflvSubSession. %s, %s, %s, %s", session.UniqueKey(), session.Url(), session.AppName(), session.StreamName(), session.RawQuery())
 	sm.mutex.Lock()
 	defer sm.mutex.Unlock()
 	group := sm.getOrCreateGroup(session.AppName(), session.StreamName())
@@ -500,7 +495,6 @@ func (sm *ServerManager) OnNewHttpflvSubSession(session *httpflv.SubSession) boo
 }
 
 func (sm *ServerManager) OnDelHttpflvSubSession(session *httpflv.SubSession) {
-	nazalog.Debugf("CHEFERASEME [%s] OnDelHttpflvSubSession. %s, %s, %s, %s", session.UniqueKey(), session.Url(), session.AppName(), session.StreamName(), session.RawQuery())
 	sm.mutex.Lock()
 	defer sm.mutex.Unlock()
 	group := sm.getGroup(session.AppName(), session.StreamName())
@@ -525,7 +519,6 @@ func (sm *ServerManager) OnDelHttpflvSubSession(session *httpflv.SubSession) {
 }
 
 func (sm *ServerManager) OnNewHttptsSubSession(session *httpts.SubSession) bool {
-	nazalog.Debugf("CHEFERASEME [%s] OnNewHttptsSubSession. %s, %s, %s, %s", session.UniqueKey(), session.Url(), session.AppName(), session.StreamName(), session.RawQuery())
 	sm.mutex.Lock()
 	defer sm.mutex.Unlock()
 	group := sm.getOrCreateGroup(session.AppName(), session.StreamName())
@@ -547,7 +540,6 @@ func (sm *ServerManager) OnNewHttptsSubSession(session *httpts.SubSession) bool 
 }
 
 func (sm *ServerManager) OnDelHttptsSubSession(session *httpts.SubSession) {
-	nazalog.Debugf("CHEFERASEME [%s] OnDelHttptsSubSession. %s, %s, %s, %s", session.UniqueKey(), session.Url(), session.AppName(), session.StreamName(), session.RawQuery())
 	sm.mutex.Lock()
 	defer sm.mutex.Unlock()
 	group := sm.getGroup(session.AppName(), session.StreamName())
@@ -582,7 +574,6 @@ func (sm *ServerManager) OnDelRtspSession(session *rtsp.ServerCommandSession) {
 }
 
 func (sm *ServerManager) OnNewRtspPubSession(session *rtsp.PubSession) bool {
-	nazalog.Debugf("CHEFERASEME [%s] OnNewRtspPubSession. %s, %s, %s, %s", session.UniqueKey(), session.Url(), session.AppName(), session.StreamName(), session.RawQuery())
 	sm.mutex.Lock()
 	defer sm.mutex.Unlock()
 	group := sm.getOrCreateGroup(session.AppName(), session.StreamName())
@@ -630,7 +621,6 @@ func (sm *ServerManager) OnDelRtspPubSession(session *rtsp.PubSession) {
 }
 
 func (sm *ServerManager) OnNewRtspSubSessionDescribe(session *rtsp.SubSession) (ok bool, sdp []byte) {
-	nazalog.Debugf("CHEFERASEME [%s] OnNewRtspSubSessionDescribe. %s, %s, %s, %s", session.UniqueKey(), session.Url(), session.AppName(), session.StreamName(), session.RawQuery())
 	sm.mutex.Lock()
 	defer sm.mutex.Unlock()
 	group := sm.getOrCreateGroup(session.AppName(), session.StreamName())
