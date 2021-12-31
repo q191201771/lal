@@ -219,6 +219,8 @@ func (s *ServerSession) doMsg(stream *Stream) error {
 		return s.doDataMessageAmf0(stream)
 	case base.RtmpTypeIdAck:
 		return s.doAck(stream)
+	case base.RtmpTypeIdUserControl:
+		s.doUserControl(stream)
 	case base.RtmpTypeIdAudio:
 		fallthrough
 	case base.RtmpTypeIdVideo:
@@ -238,7 +240,15 @@ func (s *ServerSession) doAck(stream *Stream) error {
 	nazalog.Infof("[%s] < R Acknowledgement. ignore. sequence number=%d.", s.uniqueKey, seqNum)
 	return nil
 }
-
+func (s *ServerSession) doUserControl(stream *Stream) error {
+	userControlType := bele.BeUint16(stream.msg.buff.Bytes())
+	if userControlType == uint16(base.RtmpUserControlPingRequest) {
+		stream.msg.buff.Skip(2)
+		timeStamp := bele.BeUint32(stream.msg.buff.Bytes())
+		s.packer.writePingResponse(s.conn, timeStamp)
+	}
+	return nil
+}
 func (s *ServerSession) doDataMessageAmf0(stream *Stream) error {
 	if s.t != ServerSessionTypePub {
 		return nazaerrors.Wrap(base.ErrRtmpUnexpectedMsg)

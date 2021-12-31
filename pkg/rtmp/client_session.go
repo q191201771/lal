@@ -367,6 +367,7 @@ func (s *ClientSession) doMsg(stream *Stream) error {
 			nazalog.Warnf("[%s] read user control message, ignore. buf=%s",
 				s.uniqueKey, hex.Dump(stream.msg.buff.Peek(32)))
 		}
+		s.doUserControl(stream)
 	case base.RtmpTypeIdAudio:
 		fallthrough
 	case base.RtmpTypeIdVideo:
@@ -381,6 +382,15 @@ func (s *ClientSession) doMsg(stream *Stream) error {
 func (s *ClientSession) doAck(stream *Stream) error {
 	seqNum := bele.BeUint32(stream.msg.buff.Bytes())
 	nazalog.Infof("[%s] < R Acknowledgement. ignore. sequence number=%d.", s.uniqueKey, seqNum)
+	return nil
+}
+func (s *ClientSession) doUserControl(stream *Stream) error {
+	userControlType := bele.BeUint16(stream.msg.buff.Bytes())
+	if userControlType == uint16(base.RtmpUserControlPingRequest) {
+		stream.msg.buff.Skip(2)
+		timeStamp := bele.BeUint32(stream.msg.buff.Bytes())
+		s.packer.writePingResponse(s.conn, timeStamp)
+	}
 	return nil
 }
 

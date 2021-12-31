@@ -253,6 +253,26 @@ func (packer *MessagePacker) writeStreamBegin(writer io.Writer, streamid uint32)
 	return packer.ChunkAndWrite(writer, csidProtocolControl, base.RtmpTypeIdUserControl, 0)
 }
 
+func (packer *MessagePacker) writePingRequest(writer io.Writer, timeStamp uint32) error {
+	packer.b.ModWritePos(12)
+
+	// 6
+	_ = bele.WriteBe(packer.b, uint16(base.RtmpUserControlPingRequest))
+	_ = bele.WriteBe(packer.b, uint32(timeStamp))
+
+	return packer.ChunkAndWrite(writer, csidProtocolControl, base.RtmpTypeIdUserControl, 0)
+}
+
+func (packer *MessagePacker) writePingResponse(writer io.Writer, timeStamp uint32) error {
+	packer.b.ModWritePos(12)
+
+	// 6
+	_ = bele.WriteBe(packer.b, uint16(base.RtmpUserControlPingResponse))
+	_ = bele.WriteBe(packer.b, uint32(timeStamp))
+
+	return packer.ChunkAndWrite(writer, csidProtocolControl, base.RtmpTypeIdUserControl, 0)
+}
+
 // ---------------------------------------------------------------------------------------------------------------------
 
 // TODO(chef): 整理所有的buffer
