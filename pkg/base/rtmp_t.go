@@ -24,8 +24,10 @@ const (
 	RtmpTypeIdAggregateMessage   uint8 = 22
 
 	// user control message type
-	RtmpUserControlStreamBegin uint8 = 0
-	RtmpUserControlRecorded    uint8 = 4
+	RtmpUserControlStreamBegin  uint8 = 0
+	RtmpUserControlRecorded     uint8 = 4
+	RtmpUserControlPingRequest  uint8 = 6
+	RtmpUserControlPingResponse uint8 = 7
 
 	// spec-video_file_format_spec_v10.pdf
 	// Video tags
