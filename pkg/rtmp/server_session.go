@@ -244,8 +244,8 @@ func (s *ServerSession) doUserControl(stream *Stream) error {
 	userControlType := bele.BeUint16(stream.msg.buff.Bytes())
 	if userControlType == uint16(base.RtmpUserControlPingRequest) {
 		stream.msg.buff.Skip(2)
-		timeStamp := bele.BeUint32(stream.msg.buff.Bytes())
-		s.packer.writePingResponse(s.conn, timeStamp)
+		timestamp := bele.BeUint32(stream.msg.buff.Bytes())
+		return s.packer.writePingResponse(s.conn, timestamp)
 	}
 	return nil
 }

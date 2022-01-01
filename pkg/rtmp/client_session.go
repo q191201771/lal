@@ -362,12 +362,7 @@ func (s *ClientSession) doMsg(stream *Stream) error {
 	case base.RtmpTypeIdAck:
 		return s.doAck(stream)
 	case base.RtmpTypeIdUserControl:
-		s.debugLogReadUserCtrlMsgCount++
-		if s.debugLogReadUserCtrlMsgCount <= s.debugLogReadUserCtrlMsgMax {
-			nazalog.Warnf("[%s] read user control message, ignore. buf=%s",
-				s.uniqueKey, hex.Dump(stream.msg.buff.Peek(32)))
-		}
-		s.doUserControl(stream)
+		return s.doUserControl(stream)
 	case base.RtmpTypeIdAudio:
 		fallthrough
 	case base.RtmpTypeIdVideo:
@@ -388,8 +383,14 @@ func (s *ClientSession) doUserControl(stream *Stream) error {
 	userControlType := bele.BeUint16(stream.msg.buff.Bytes())
 	if userControlType == uint16(base.RtmpUserControlPingRequest) {
 		stream.msg.buff.Skip(2)
-		timeStamp := bele.BeUint32(stream.msg.buff.Bytes())
-		s.packer.writePingResponse(s.conn, timeStamp)
+		timestamp := bele.BeUint32(stream.msg.buff.Bytes())
+		return s.packer.writePingResponse(s.conn, timestamp)
+	}
+
+	s.debugLogReadUserCtrlMsgCount++
+	if s.debugLogReadUserCtrlMsgCount <= s.debugLogReadUserCtrlMsgMax {
+		nazalog.Warnf("[%s] read user control message, ignore. buf=%s",
+			s.uniqueKey, hex.Dump(stream.msg.buff.Peek(32)))
 	}
 	return nil
 }
