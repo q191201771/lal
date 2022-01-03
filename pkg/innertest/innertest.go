@@ -12,9 +12,12 @@ import (
 	"bytes"
 	"fmt"
 	"io/ioutil"
+	"net/http"
 	"os"
 	"testing"
 	"time"
+
+	"github.com/q191201771/naza/pkg/nazahttp"
 
 	"github.com/q191201771/lal/pkg/rtprtcp"
 	"github.com/q191201771/lal/pkg/rtsp"
@@ -110,6 +113,8 @@ func Entry(t *testing.T) {
 
 	_ = os.RemoveAll(config.HlsConfig.OutPath)
 
+	getAllHttpApi(config.HttpApiConfig.Addr)
+
 	pushUrl = fmt.Sprintf("rtmp://127.0.0.1%s/live/innertest", config.RtmpConfig.Addr)
 	httpflvPullUrl = fmt.Sprintf("http://127.0.0.1%s/live/innertest.flv", config.HttpflvConfig.HttpListenAddr)
 	rtmpPullUrl = fmt.Sprintf("rtmp://127.0.0.1%s/live/innertest", config.RtmpConfig.Addr)
@@ -199,6 +204,8 @@ func Entry(t *testing.T) {
 	err = pushSession.Flush()
 	assert.Equal(t, nil, err)
 
+	getAllHttpApi(config.HttpApiConfig.Addr)
+
 	for {
 		if httpflvPullTagCount.Load() == uint32(fileTagCount) &&
 			rtmpPullTagCount.Load() == uint32(fileTagCount) {
@@ -266,4 +273,55 @@ func compareFile() {
 	assert.Equal(tt, 0, res)
 	//err = os.Remove(wRtmpPullFileName)
 	assert.Equal(tt, nil, err)
+}
+
+func getAllHttpApi(addr string) {
+	var b []byte
+	var err error
+
+	b, err = httpGet(fmt.Sprintf("http://%s/api/list", addr))
+	nazalog.Assert(nil, err)
+	nazalog.Debugf("%s", string(b))
+
+	b, err = httpGet(fmt.Sprintf("http://%s/api/stat/lal_info", addr))
+	nazalog.Assert(nil, err)
+	nazalog.Debugf("%s", string(b))
+
+	b, err = httpGet(fmt.Sprintf("http://%s/api/stat/group?stream_name=innertest", addr))
+	nazalog.Assert(nil, err)
+	nazalog.Debugf("%s", string(b))
+
+	b, err = httpGet(fmt.Sprintf("http://%s/api/stat/all_group", addr))
+	nazalog.Assert(nil, err)
+	nazalog.Debugf("%s", string(b))
+
+	var acspr base.ApiCtrlStartPullReq
+	b, err = httpPost(fmt.Sprintf("http://%s/api/ctrl/start_pull", addr), &acspr)
+	nazalog.Assert(nil, err)
+	nazalog.Debugf("%s", string(b))
+
+	var ackos base.ApiCtrlKickOutSession
+	b, err = httpPost(fmt.Sprintf("http://%s/api/ctrl/kick_out_session", addr), &ackos)
+	nazalog.Assert(nil, err)
+	nazalog.Debugf("%s", string(b))
+}
+
+// TODO(chef): refactor 移入naza中
+
+func httpGet(url string) ([]byte, error) {
+	resp, err := http.DefaultClient.Get(url)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+	return ioutil.ReadAll(resp.Body)
+}
+
+func httpPost(url string, info interface{}) ([]byte, error) {
+	resp, err := nazahttp.PostJson(url, info, nil)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+	return ioutil.ReadAll(resp.Body)
 }
