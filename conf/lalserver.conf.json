@@ -1,6 +1,6 @@
 {
   "# doc of config": "https://pengrl.com/lal/#/ConfigBrief",
-  "conf_version": "v0.2.4",
+  "conf_version": "v0.2.5",
   "rtmp": {
     "enable": true,
     "addr": ":1935",
@@ -70,6 +70,12 @@
     "on_sub_start": "http://127.0.0.1:10101/on_sub_start",
     "on_sub_stop": "http://127.0.0.1:10101/on_sub_stop",
     "on_rtmp_connect": "http://127.0.0.1:10101/on_rtmp_connect"
+  },
+  "simple_auth": {
+    "key": "q191201771",
+    "pub_rtmp_enable": false,
+    "sub_rtmp_enable": false,
+    "sub_httpflv_enable": false
   },
   "pprof": {
     "enable": true,

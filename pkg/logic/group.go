@@ -305,15 +305,15 @@ func (group *Group) Dispose() {
 
 // ---------------------------------------------------------------------------------------------------------------------
 
-func (group *Group) AddRtmpPubSession(session *rtmp.ServerSession) bool {
+func (group *Group) AddRtmpPubSession(session *rtmp.ServerSession) error {
 	nazalog.Debugf("[%s] [%s] add PubSession into group.", group.UniqueKey, session.UniqueKey())
 
 	group.mutex.Lock()
 	defer group.mutex.Unlock()
 
 	if group.hasInSession() {
-		nazalog.Errorf("[%s] in stream already exist. wanna add=%s", group.UniqueKey, session.UniqueKey())
-		return false
+		nazalog.Errorf("[%s] in stream already exist at group. wanna add=%s", group.UniqueKey, session.UniqueKey())
+		return base.ErrDupInStream
 	}
 
 	group.rtmpPubSession = session
@@ -337,7 +337,7 @@ func (group *Group) AddRtmpPubSession(session *rtmp.ServerSession) bool {
 		session.SetPubSessionObserver(group)
 	}
 
-	return true
+	return nil
 }
 
 // TODO chef: rtsp package中，增加回调返回值判断，如果是false，将连接关掉

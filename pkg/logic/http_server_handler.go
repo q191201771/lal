@@ -20,9 +20,13 @@ import (
 )
 
 type HttpServerHandlerObserver interface {
+	// OnNewHttpflvSubSession
+	//
 	// 通知上层有新的拉流者
-	// 返回值： true则允许拉流，false则关闭连接
-	OnNewHttpflvSubSession(session *httpflv.SubSession) bool
+	//
+	// @return true则允许拉流，false则关闭连接
+	//
+	OnNewHttpflvSubSession(session *httpflv.SubSession) error
 
 	OnDelHttpflvSubSession(session *httpflv.SubSession)
 
@@ -76,8 +80,10 @@ func (h *HttpServerHandler) ServeSubSession(writer http.ResponseWriter, req *htt
 	if strings.HasSuffix(urlCtx.LastItemOfPath, ".flv") {
 		session := httpflv.NewSubSession(conn, urlCtx, isWebSocket, webSocketKey)
 		nazalog.Debugf("[%s] < read http request. url=%s", session.UniqueKey(), session.Url())
-		if !h.observer.OnNewHttpflvSubSession(session) {
-			session.Dispose()
+		if err = h.observer.OnNewHttpflvSubSession(session); err != nil {
+			nazalog.Infof("[%s] dispose by observer. err=%+v", session.UniqueKey(), err)
+			_ = session.Dispose()
+			return
 		}
 		err = session.RunLoop()
 		nazalog.Debugf("[%s] httpflv sub session loop done. err=%v", session.UniqueKey(), err)

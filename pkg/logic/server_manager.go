@@ -51,6 +51,8 @@ type ServerManager struct {
 
 	mutex        sync.Mutex
 	groupManager IGroupManager
+
+	simpleAuthCtx *SimpleAuthCtx
 }
 
 func NewServerManager(confFile string, modOption ...ModOption) *ServerManager {
@@ -112,6 +114,8 @@ func NewServerManager(confFile string, modOption ...ModOption) *ServerManager {
 	if sm.config.HttpApiConfig.Enable {
 		sm.httpApiServer = NewHttpApiServer(sm.config.HttpApiConfig.Addr, sm)
 	}
+
+	sm.simpleAuthCtx = NewSimpleAuthCtx(sm.config.SimpleAuthConfig)
 
 	return sm
 }
@@ -379,13 +383,10 @@ func (sm *ServerManager) OnRtmpConnect(session *rtmp.ServerSession, opa rtmp.Obj
 	sm.option.NotifyHandler.OnRtmpConnect(info)
 }
 
-func (sm *ServerManager) OnNewRtmpPubSession(session *rtmp.ServerSession) bool {
+func (sm *ServerManager) OnNewRtmpPubSession(session *rtmp.ServerSession) error {
 	sm.mutex.Lock()
 	defer sm.mutex.Unlock()
-	group := sm.getOrCreateGroup(session.AppName(), session.StreamName())
-	res := group.AddRtmpPubSession(session)
 
-	// TODO chef: res值为false时，可以考虑不回调
 	// TODO chef: 每次赋值都逐个拼，代码冗余，考虑直接用ISession抽离一下代码
 	var info base.PubStartInfo
 	info.ServerId = sm.config.ServerId
@@ -396,10 +397,22 @@ func (sm *ServerManager) OnNewRtmpPubSession(session *rtmp.ServerSession) bool {
 	info.UrlParam = session.RawQuery()
 	info.SessionId = session.UniqueKey()
 	info.RemoteAddr = session.GetStat().RemoteAddr
+
+	// 先做simple auth鉴权
+	if err := sm.simpleAuthCtx.OnPubStart(info); err != nil {
+		return err
+	}
+
+	group := sm.getOrCreateGroup(session.AppName(), session.StreamName())
+	if err := group.AddRtmpPubSession(session); err != nil {
+		return err
+	}
+
 	info.HasInSession = group.HasInSession()
 	info.HasOutSession = group.HasOutSession()
+
 	sm.option.NotifyHandler.OnPubStart(info)
-	return res
+	return nil
 }
 
 func (sm *ServerManager) OnDelRtmpPubSession(session *rtmp.ServerSession) {
@@ -426,11 +439,9 @@ func (sm *ServerManager) OnDelRtmpPubSession(session *rtmp.ServerSession) {
 	sm.option.NotifyHandler.OnPubStop(info)
 }
 
-func (sm *ServerManager) OnNewRtmpSubSession(session *rtmp.ServerSession) bool {
+func (sm *ServerManager) OnNewRtmpSubSession(session *rtmp.ServerSession) error {
 	sm.mutex.Lock()
 	defer sm.mutex.Unlock()
-	group := sm.getOrCreateGroup(session.AppName(), session.StreamName())
-	group.AddRtmpSubSession(session)
 
 	var info base.SubStartInfo
 	info.ServerId = sm.config.ServerId
@@ -441,11 +452,19 @@ func (sm *ServerManager) OnNewRtmpSubSession(session *rtmp.ServerSession) bool {
 	info.UrlParam = session.RawQuery()
 	info.SessionId = session.UniqueKey()
 	info.RemoteAddr = session.GetStat().RemoteAddr
+
+	if err := sm.simpleAuthCtx.OnSubStart(info); err != nil {
+		return err
+	}
+
+	group := sm.getOrCreateGroup(session.AppName(), session.StreamName())
+	group.AddRtmpSubSession(session)
+
 	info.HasInSession = group.HasInSession()
 	info.HasOutSession = group.HasOutSession()
-	sm.option.NotifyHandler.OnSubStart(info)
 
-	return true
+	sm.option.NotifyHandler.OnSubStart(info)
+	return nil
 }
 
 func (sm *ServerManager) OnDelRtmpSubSession(session *rtmp.ServerSession) {
@@ -473,11 +492,9 @@ func (sm *ServerManager) OnDelRtmpSubSession(session *rtmp.ServerSession) {
 
 // ----- implement HttpServerHandlerObserver interface -----------------------------------------------------------------
 
-func (sm *ServerManager) OnNewHttpflvSubSession(session *httpflv.SubSession) bool {
+func (sm *ServerManager) OnNewHttpflvSubSession(session *httpflv.SubSession) error {
 	sm.mutex.Lock()
 	defer sm.mutex.Unlock()
-	group := sm.getOrCreateGroup(session.AppName(), session.StreamName())
-	group.AddHttpflvSubSession(session)
 
 	var info base.SubStartInfo
 	info.ServerId = sm.config.ServerId
@@ -488,10 +505,19 @@ func (sm *ServerManager) OnNewHttpflvSubSession(session *httpflv.SubSession) boo
 	info.UrlParam = session.RawQuery()
 	info.SessionId = session.UniqueKey()
 	info.RemoteAddr = session.GetStat().RemoteAddr
+
+	if err := sm.simpleAuthCtx.OnSubStart(info); err != nil {
+		return err
+	}
+
+	group := sm.getOrCreateGroup(session.AppName(), session.StreamName())
+	group.AddHttpflvSubSession(session)
+
 	info.HasInSession = group.HasInSession()
 	info.HasOutSession = group.HasOutSession()
+
 	sm.option.NotifyHandler.OnSubStart(info)
-	return true
+	return nil
 }
 
 func (sm *ServerManager) OnDelHttpflvSubSession(session *httpflv.SubSession) {

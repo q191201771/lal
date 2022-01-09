@@ -21,7 +21,7 @@ import (
 	"github.com/q191201771/naza/pkg/nazalog"
 )
 
-const ConfVersion = "v0.2.4"
+const ConfVersion = "v0.2.5"
 
 const (
 	defaultHlsCleanupMode    = hls.CleanupModeInTheEnd
@@ -45,6 +45,7 @@ type Config struct {
 	HttpApiConfig    HttpApiConfig    `json:"http_api"`
 	ServerId         string           `json:"server_id"`
 	HttpNotifyConfig HttpNotifyConfig `json:"http_notify"`
+	SimpleAuthConfig SimpleAuthConfig `json:"simple_auth"`
 	PprofConfig      PprofConfig      `json:"pprof"`
 	LogConfig        nazalog.Option   `json:"log"`
 }
@@ -116,6 +117,13 @@ type HttpNotifyConfig struct {
 	OnSubStart        string `json:"on_sub_start"`
 	OnSubStop         string `json:"on_sub_stop"`
 	OnRtmpConnect     string `json:"on_rtmp_connect"`
+}
+
+type SimpleAuthConfig struct {
+	Key              string `json:"key"`
+	PubRtmpEnable    bool   `json:"pub_rtmp_enable"`
+	SubRtmpEnable    bool   `json:"sub_rtmp_enable"`
+	SubHttpflvEnable bool   `json:"sub_httpflv_enable"`
 }
 
 type PprofConfig struct {
