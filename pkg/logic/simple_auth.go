@@ -10,6 +10,7 @@ package logic
 
 import (
 	"net/url"
+	"strings"
 
 	"github.com/q191201771/lal/pkg/base"
 	"github.com/q191201771/naza/pkg/nazamd5"
@@ -41,7 +42,8 @@ func NewSimpleAuthCtx(config SimpleAuthConfig) *SimpleAuthCtx {
 }
 
 func (s *SimpleAuthCtx) OnPubStart(info base.PubStartInfo) error {
-	if s.config.PubRtmpEnable && info.Protocol == base.ProtocolRtmp {
+	if s.config.PubRtmpEnable && info.Protocol == base.ProtocolRtmp ||
+		s.config.PubRtspEnable && info.Protocol == base.ProtocolRtsp {
 		return s.check(info.StreamName, info.UrlParam)
 	}
 
@@ -50,11 +52,17 @@ func (s *SimpleAuthCtx) OnPubStart(info base.PubStartInfo) error {
 
 func (s *SimpleAuthCtx) OnSubStart(info base.SubStartInfo) error {
 	if (s.config.SubRtmpEnable && info.Protocol == base.ProtocolRtmp) ||
-		(s.config.SubHttpflvEnable && info.Protocol == base.ProtocolHttpflv) {
+		(s.config.SubHttpflvEnable && info.Protocol == base.ProtocolHttpflv) ||
+		(s.config.SubHttptsEnable && info.Protocol == base.ProtocolHttpts) ||
+		(s.config.SubRtspEnable && info.Protocol == base.ProtocolRtsp) {
 		return s.check(info.StreamName, info.UrlParam)
 	}
 
 	return nil
+}
+
+func (s *SimpleAuthCtx) OnHls(streamName string, urlParam string) error {
+	return s.check(streamName, urlParam)
 }
 
 func (s *SimpleAuthCtx) check(streamName string, urlParam string) error {
@@ -66,8 +74,9 @@ func (s *SimpleAuthCtx) check(streamName string, urlParam string) error {
 	if v == "" {
 		return base.ErrSimpleAuthParamNotFound
 	}
+	v = strings.ToLower(v)
 	se := SimpleAuthCalcSecret(s.config.Key, streamName)
-	if se != v {
+	if v != s.config.DangerousLalSecret && v != se {
 		return base.ErrSimpleAuthFailed
 	}
 	return nil

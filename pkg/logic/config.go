@@ -21,7 +21,7 @@ import (
 	"github.com/q191201771/naza/pkg/nazalog"
 )
 
-const ConfVersion = "v0.2.5"
+const ConfVersion = "v0.2.6"
 
 const (
 	defaultHlsCleanupMode    = hls.CleanupModeInTheEnd
@@ -120,10 +120,14 @@ type HttpNotifyConfig struct {
 }
 
 type SimpleAuthConfig struct {
-	Key              string `json:"key"`
-	PubRtmpEnable    bool   `json:"pub_rtmp_enable"`
-	SubRtmpEnable    bool   `json:"sub_rtmp_enable"`
-	SubHttpflvEnable bool   `json:"sub_httpflv_enable"`
+	Key                string `json:"key"`
+	DangerousLalSecret string `json:"dangerous_lal_secret"`
+	PubRtmpEnable      bool   `json:"pub_rtmp_enable"`
+	SubRtmpEnable      bool   `json:"sub_rtmp_enable"`
+	SubHttpflvEnable   bool   `json:"sub_httpflv_enable"`
+	SubHttptsEnable    bool   `json:"sub_httpts_enable"`
+	PubRtspEnable      bool   `json:"pub_rtsp_enable"`
+	SubRtspEnable      bool   `json:"sub_rtsp_enable"`
 }
 
 type PprofConfig struct {

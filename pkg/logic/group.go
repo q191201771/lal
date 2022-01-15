@@ -312,7 +312,8 @@ func (group *Group) AddRtmpPubSession(session *rtmp.ServerSession) error {
 	defer group.mutex.Unlock()
 
 	if group.hasInSession() {
-		nazalog.Errorf("[%s] in stream already exist at group. wanna add=%s", group.UniqueKey, session.UniqueKey())
+		// TODO(chef): [refactor] 打印in session
+		nazalog.Errorf("[%s] in stream already exist at group. add=%s", group.UniqueKey, session.UniqueKey())
 		return base.ErrDupInStream
 	}
 
@@ -341,15 +342,15 @@ func (group *Group) AddRtmpPubSession(session *rtmp.ServerSession) error {
 }
 
 // TODO chef: rtsp package中，增加回调返回值判断，如果是false，将连接关掉
-func (group *Group) AddRtspPubSession(session *rtsp.PubSession) bool {
+func (group *Group) AddRtspPubSession(session *rtsp.PubSession) error {
 	nazalog.Debugf("[%s] [%s] add RTSP PubSession into group.", group.UniqueKey, session.UniqueKey())
 
 	group.mutex.Lock()
 	defer group.mutex.Unlock()
 
 	if group.hasInSession() {
-		nazalog.Errorf("[%s] in stream already exist. wanna add=%s", group.UniqueKey, session.UniqueKey())
-		return false
+		nazalog.Errorf("[%s] in stream already exist at group. wanna add=%s", group.UniqueKey, session.UniqueKey())
+		return base.ErrDupInStream
 	}
 
 	group.rtspPubSession = session
@@ -360,7 +361,7 @@ func (group *Group) AddRtspPubSession(session *rtsp.PubSession) bool {
 	})
 	session.SetObserver(group)
 
-	return true
+	return nil
 }
 
 func (group *Group) AddRtmpPullSession(session *rtmp.PullSession) bool {
@@ -462,7 +463,7 @@ func (group *Group) HandleNewRtspSubSessionDescribe(session *rtsp.SubSession) (o
 	return true, group.sdpCtx.RawSdp
 }
 
-func (group *Group) HandleNewRtspSubSessionPlay(session *rtsp.SubSession) bool {
+func (group *Group) HandleNewRtspSubSessionPlay(session *rtsp.SubSession) {
 	nazalog.Debugf("[%s] [%s] add rtsp SubSession into group.", group.UniqueKey, session.UniqueKey())
 
 	group.mutex.Lock()
@@ -473,8 +474,6 @@ func (group *Group) HandleNewRtspSubSessionPlay(session *rtsp.SubSession) bool {
 	}
 
 	// TODO(chef): rtsp sub也应该判断是否需要静态pull回源
-
-	return true
 }
 
 func (group *Group) AddRtmpPushSession(url string, session *rtmp.PushSession) {

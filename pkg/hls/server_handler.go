@@ -18,9 +18,6 @@ import (
 
 type ServerHandler struct {
 	outPath string
-	//addr    string
-	//ln      net.Listener
-	//httpSrv *http.Server
 }
 
 func NewServerHandler(outPath string) *ServerHandler {
@@ -29,37 +26,29 @@ func NewServerHandler(outPath string) *ServerHandler {
 	}
 }
 
-//
-//func (s *Server) Listen() (err error) {
-//	if s.ln, err = net.Listen("tcp", s.addr); err != nil {
-//		return
-//	}
-//	s.httpSrv = &http.Server{Addr: s.addr, Handler: s}
-//	nazalog.Infof("start hls server listen. addr=%s", s.addr)
-//	return
-//}
-//
-//func (s *Server) RunLoop() error {
-//	return s.httpSrv.Serve(s.ln)
-//}
-//
-//func (s *Server) Dispose() {
-//	if err := s.httpSrv.Close(); err != nil {
-//		nazalog.Error(err)
-//	}
-//}
-
 func (s *ServerHandler) ServeHTTP(resp http.ResponseWriter, req *http.Request) {
+	urlCtx, err := base.ParseUrl(base.ParseHttpRequest(req), 80)
+	if err != nil {
+		nazalog.Errorf("parse url. err=%+v", err)
+		return
+	}
+	s.ServeHTTPWithUrlCtx(resp, urlCtx)
+}
+
+func (s *ServerHandler) ServeHTTPWithUrlCtx(resp http.ResponseWriter, urlCtx base.UrlContext) {
 	//nazalog.Debugf("%+v", req)
 
 	// TODO chef:
 	// - check appname in URI path
 
-	ri := PathStrategy.GetRequestInfo(req.RequestURI, s.outPath)
+	filename := urlCtx.LastItemOfPath
+	filetype := urlCtx.GetFileType()
+
+	ri := PathStrategy.GetRequestInfo(urlCtx, s.outPath)
 	//nazalog.Debugf("%+v", ri)
 
-	if ri.FileName == "" || ri.StreamName == "" || ri.FileNameWithPath == "" || (ri.FileType != "m3u8" && ri.FileType != "ts") {
-		nazalog.Warnf("invalid hls request. uri=%s, request=%+v", req.RequestURI, ri)
+	if filename == "" || (filetype != "m3u8" && filetype != "ts") || ri.StreamName == "" || ri.FileNameWithPath == "" {
+		nazalog.Warnf("invalid hls request. url=%+v, request=%+v", urlCtx, ri)
 		resp.WriteHeader(404)
 		return
 	}
@@ -71,7 +60,7 @@ func (s *ServerHandler) ServeHTTP(resp http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	switch ri.FileType {
+	switch filetype {
 	case "m3u8":
 		resp.Header().Add("Content-Type", "application/x-mpegurl")
 		resp.Header().Add("Server", base.LalHlsM3u8Server)

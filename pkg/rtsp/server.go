@@ -23,9 +23,12 @@ type ServerObserver interface {
 
 	///////////////////////////////////////////////////////////////////////////
 
+	// OnNewRtspPubSession
+	//
 	// @brief  Announce阶段回调
-	// @return 如果返回false，则表示上层要强制关闭这个推流请求
-	OnNewRtspPubSession(session *PubSession) bool
+	// @return 如果返回非nil，则表示上层要强制关闭这个推流请求
+	//
+	OnNewRtspPubSession(session *PubSession) error
 
 	OnDelRtspPubSession(session *PubSession)
 
@@ -38,9 +41,12 @@ type ServerObserver interface {
 	//
 	OnNewRtspSubSessionDescribe(session *SubSession) (ok bool, sdp []byte)
 
-	// @brief Describe阶段回调
-	// @return ok  如果返回false，则表示上层要强制关闭这个拉流请求
-	OnNewRtspSubSessionPlay(session *SubSession) bool
+	// OnNewRtspSubSessionPlay
+	//
+	// @brief Play阶段回调
+	// @return ok  如果返回非nil，则表示上层要强制关闭这个拉流请求
+	//
+	OnNewRtspSubSessionPlay(session *SubSession) error
 
 	OnDelRtspSubSession(session *SubSession)
 }
@@ -87,30 +93,29 @@ func (s *Server) Dispose() {
 	}
 }
 
-// ServerCommandSessionObserver
-func (s *Server) OnNewRtspPubSession(session *PubSession) bool {
+// ----- ServerCommandSessionObserver ----------------------------------------------------------------------------------
+
+func (s *Server) OnNewRtspPubSession(session *PubSession) error {
 	return s.observer.OnNewRtspPubSession(session)
 }
 
-// ServerCommandSessionObserver
 func (s *Server) OnNewRtspSubSessionDescribe(session *SubSession) (ok bool, sdp []byte) {
 	return s.observer.OnNewRtspSubSessionDescribe(session)
 }
 
-// ServerCommandSessionObserver
-func (s *Server) OnNewRtspSubSessionPlay(session *SubSession) bool {
+func (s *Server) OnNewRtspSubSessionPlay(session *SubSession) error {
 	return s.observer.OnNewRtspSubSessionPlay(session)
 }
 
-// ServerCommandSessionObserver
 func (s *Server) OnDelRtspPubSession(session *PubSession) {
 	s.observer.OnDelRtspPubSession(session)
 }
 
-// ServerCommandSessionObserver
 func (s *Server) OnDelRtspSubSession(session *SubSession) {
 	s.observer.OnDelRtspSubSession(session)
 }
+
+// ---------------------------------------------------------------------------------------------------------------------
 
 func (s *Server) handleTcpConnect(conn net.Conn) {
 	session := NewServerCommandSession(s, conn)

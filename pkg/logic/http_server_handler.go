@@ -9,7 +9,6 @@
 package logic
 
 import (
-	"fmt"
 	"net/http"
 	"strings"
 
@@ -24,13 +23,12 @@ type HttpServerHandlerObserver interface {
 	//
 	// 通知上层有新的拉流者
 	//
-	// @return true则允许拉流，false则关闭连接
+	// @return nil则允许拉流，不为nil则关闭连接
 	//
 	OnNewHttpflvSubSession(session *httpflv.SubSession) error
-
 	OnDelHttpflvSubSession(session *httpflv.SubSession)
 
-	OnNewHttptsSubSession(session *httpts.SubSession) bool
+	OnNewHttptsSubSession(session *httpts.SubSession) error
 	OnDelHttptsSubSession(session *httpts.SubSession)
 }
 
@@ -45,15 +43,7 @@ func NewHttpServerHandler(observer HttpServerHandlerObserver) *HttpServerHandler
 }
 
 func (h *HttpServerHandler) ServeSubSession(writer http.ResponseWriter, req *http.Request) {
-	var scheme string
-	// TODO(chef) 这里scheme直接使用http和https，没有考虑ws和wss，注意，后续的逻辑可能会依赖此处
-	if req.TLS == nil {
-		scheme = "http"
-	} else {
-		scheme = "https"
-	}
-	rawUrl := fmt.Sprintf("%s://%s%s", scheme, req.Host, req.RequestURI)
-	urlCtx, err := base.ParseUrl(rawUrl, 80)
+	urlCtx, err := base.ParseUrl(base.ParseHttpRequest(req), 80)
 	if err != nil {
 		nazalog.Errorf("parse url. err=%+v", err)
 		return
@@ -94,8 +84,10 @@ func (h *HttpServerHandler) ServeSubSession(writer http.ResponseWriter, req *htt
 	if strings.HasSuffix(urlCtx.LastItemOfPath, ".ts") {
 		session := httpts.NewSubSession(conn, urlCtx, isWebSocket, webSocketKey)
 		nazalog.Debugf("[%s] < read http request. url=%s", session.UniqueKey(), session.Url())
-		if !h.observer.OnNewHttptsSubSession(session) {
-			session.Dispose()
+		if err = h.observer.OnNewHttptsSubSession(session); err != nil {
+			nazalog.Infof("[%s] dispose by observer. err=%+v", session.UniqueKey(), err)
+			_ = session.Dispose()
+			return
 		}
 		err = session.RunLoop()
 		nazalog.Debugf("[%s] httpts sub session loop done. err=%v", session.UniqueKey(), err)

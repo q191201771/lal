@@ -1,14 +1,17 @@
+# lalserver 配置文件说明
+
 ```
 {
   "# doc of config": "https://pengrl.com/lal/#/ConfigBrief", //. 配置文件对应的文档说明链接，在程序中没实际用途
-  "conf_version": "0.2.3",                                   //. 配置文件版本号，业务方不应该手动修改，程序中会检查该版本
+  "conf_version": "0.2.6",                                   //. 配置文件版本号，业务方不应该手动修改，程序中会检查该版本
                                                              //  号是否与代码中声明的一致
   "rtmp": {
     "enable": true,                      //. 是否开启rtmp服务的监听
                                          //  注意，配置文件中控制各协议类型的enable开关都应该按需打开，避免造成不必要的协议转换的开销
-    "addr": ":19350",                    //. RTMP服务监听的端口，客户端向lalserver推拉流都是这个地址
-    "gop_num": 2,                        //. RTMP拉流的GOP缓存数量，加速流打开时间，但是可能增加延时
-    "merge_write_size": 8192,            //. 将小包数据合并进行发送，单位字节，提高服务器性能，但是可能造成卡顿
+    "addr": ":1935",                     //. RTMP服务监听的端口，客户端向lalserver推拉流都是这个地址
+    "gop_num": 0,                        //. RTMP拉流的GOP缓存数量，加速流打开时间，但是可能增加延时
+                                         //. 如果为0，则不使用缓存发送
+    "merge_write_size": 0,               //. 将小包数据合并进行发送，单位字节，提高服务器性能，但是可能造成卡顿
                                          //  如果为0，则不合并发送
     "add_dummy_audio_enable": false,     //. 是否开启动态检测添加静音AAC数据的功能
                                          //  如果开启，rtmp pub推流时，如果超过`add_dummy_audio_wait_audio_ms`时间依然没有
@@ -28,7 +31,7 @@
     "enable_https": true,    //. 是否开启HTTPS-FLV监听
     "url_pattern": "/",      //. 拉流url路由路径地址。默认值为`/`，表示不受限制，路由地址可以为任意路径地址。
                              //  如果设置为`/live/`，则只能从`/live/`路径下拉流，比如`/live/test110.flv`
-    "gop_num": 2             //. 
+    "gop_num": 0             //. 见rtmp.gop_num
   },
   "hls": {
     "enable": true,                  //. 是否开启HLS服务的监听
@@ -93,6 +96,17 @@
     "on_sub_start": "http://127.0.0.1:10101/on_sub_start",
     "on_sub_stop": "http://127.0.0.1:10101/on_sub_stop",
     "on_rtmp_connect": "http://127.0.0.1:10101/on_rtmp_connect"
+  },
+  "simple_auth": {                    // 鉴权文档见： https://pengrl.com/lal/#/auth
+    "key": "q191201771",              // 私有key，计算md5鉴权参数时使用
+    "dangerous_lal_secret": "pengrl", // 后门鉴权参数，所有的流可通过该参数值鉴权
+    "pub_rtmp_enable": false,         // rtmp推流是否开启鉴权，true为开启鉴权，false为不开启鉴权
+    "sub_rtmp_enable": false,         // rtmp拉流是否开启鉴权
+    "sub_httpflv_enable": false,      // httpflv拉流是否开启鉴权
+    "sub_httpts_enable": false,       // httpts拉流是否开启鉴权
+    "pub_rtsp_enable": false,         // rtsp推流是否开启鉴权
+    "sub_rtsp_enable": false,         // rtsp拉流是否开启鉴权
+    "hls_m3u8_enable": true           // m3u8拉流是否开启鉴权
   },
   "pprof": {
     "enable": true, //. 是否开启Go pprof web服务的监听

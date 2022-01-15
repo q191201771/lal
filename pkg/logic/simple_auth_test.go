@@ -22,13 +22,35 @@ func TestSimpleAuthCalcSecret(t *testing.T) {
 
 func TestSimpleAuthCtx(t *testing.T) {
 	ctx := NewSimpleAuthCtx(SimpleAuthConfig{
-		Key:           "q191201771",
-		PubRtmpEnable: true,
+		Key:                "q191201771",
+		DangerousLalSecret: "pengrl",
+		PubRtmpEnable:      true,
 	})
 	var info base.PubStartInfo
 	info.Protocol = base.ProtocolRtmp
 	info.StreamName = "test110"
+
 	info.UrlParam = "lal_secret=700997e1595a06c9ffa60ebef79105b0"
 	res := ctx.OnPubStart(info)
 	assert.Equal(t, nil, res)
+
+	// 测试大写MD5
+	info.UrlParam = "lal_secret=700997E1595A06C9FFA60EBEF79105B0"
+	res = ctx.OnPubStart(info)
+	assert.Equal(t, nil, res)
+
+	// 测试DangerousLalSecret
+	info.UrlParam = "lal_secret=pengrl"
+	res = ctx.OnPubStart(info)
+	assert.Equal(t, nil, res)
+
+	// 测试失败1 缺少lal_secret
+	info.UrlParam = ""
+	res = ctx.OnPubStart(info)
+	assert.Equal(t, base.ErrSimpleAuthParamNotFound, res)
+
+	// 测试失败2 lal_secret值无效
+	info.UrlParam = "lal_secret=invalid"
+	res = ctx.OnPubStart(info)
+	assert.Equal(t, base.ErrSimpleAuthFailed, res)
 }

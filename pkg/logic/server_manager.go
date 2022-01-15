@@ -167,7 +167,7 @@ func (sm *ServerManager) RunLoop() error {
 	if err := addMux(sm.config.HttptsConfig.CommonHttpServerConfig, sm.httpServerHandler.ServeSubSession, "httpts"); err != nil {
 		return err
 	}
-	if err := addMux(sm.config.HlsConfig.CommonHttpServerConfig, sm.hlsServerHandler.ServeHTTP, "hls"); err != nil {
+	if err := addMux(sm.config.HlsConfig.CommonHttpServerConfig, sm.serveHls, "hls"); err != nil {
 		return err
 	}
 
@@ -544,11 +544,9 @@ func (sm *ServerManager) OnDelHttpflvSubSession(session *httpflv.SubSession) {
 	sm.option.NotifyHandler.OnSubStop(info)
 }
 
-func (sm *ServerManager) OnNewHttptsSubSession(session *httpts.SubSession) bool {
+func (sm *ServerManager) OnNewHttptsSubSession(session *httpts.SubSession) error {
 	sm.mutex.Lock()
 	defer sm.mutex.Unlock()
-	group := sm.getOrCreateGroup(session.AppName(), session.StreamName())
-	group.AddHttptsSubSession(session)
 
 	var info base.SubStartInfo
 	info.ServerId = sm.config.ServerId
@@ -559,10 +557,21 @@ func (sm *ServerManager) OnNewHttptsSubSession(session *httpts.SubSession) bool 
 	info.UrlParam = session.RawQuery()
 	info.SessionId = session.UniqueKey()
 	info.RemoteAddr = session.GetStat().RemoteAddr
+	sm.option.NotifyHandler.OnSubStart(info)
+
+	if err := sm.simpleAuthCtx.OnSubStart(info); err != nil {
+		return err
+	}
+
+	group := sm.getOrCreateGroup(session.AppName(), session.StreamName())
+	group.AddHttptsSubSession(session)
+
 	info.HasInSession = group.HasInSession()
 	info.HasOutSession = group.HasOutSession()
+
 	sm.option.NotifyHandler.OnSubStart(info)
-	return true
+
+	return nil
 }
 
 func (sm *ServerManager) OnDelHttptsSubSession(session *httpts.SubSession) {
@@ -599,11 +608,9 @@ func (sm *ServerManager) OnDelRtspSession(session *rtsp.ServerCommandSession) {
 	// TODO chef: impl me
 }
 
-func (sm *ServerManager) OnNewRtspPubSession(session *rtsp.PubSession) bool {
+func (sm *ServerManager) OnNewRtspPubSession(session *rtsp.PubSession) error {
 	sm.mutex.Lock()
 	defer sm.mutex.Unlock()
-	group := sm.getOrCreateGroup(session.AppName(), session.StreamName())
-	res := group.AddRtspPubSession(session)
 
 	var info base.PubStartInfo
 	info.ServerId = sm.config.ServerId
@@ -614,11 +621,21 @@ func (sm *ServerManager) OnNewRtspPubSession(session *rtsp.PubSession) bool {
 	info.UrlParam = session.RawQuery()
 	info.SessionId = session.UniqueKey()
 	info.RemoteAddr = session.GetStat().RemoteAddr
+
+	if err := sm.simpleAuthCtx.OnPubStart(info); err != nil {
+		return err
+	}
+
+	group := sm.getOrCreateGroup(session.AppName(), session.StreamName())
+	if err := group.AddRtspPubSession(session); err != nil {
+		return err
+	}
+
 	info.HasInSession = group.HasInSession()
 	info.HasOutSession = group.HasOutSession()
-	sm.option.NotifyHandler.OnPubStart(info)
 
-	return res
+	sm.option.NotifyHandler.OnPubStart(info)
+	return nil
 }
 
 func (sm *ServerManager) OnDelRtspPubSession(session *rtsp.PubSession) {
@@ -653,12 +670,9 @@ func (sm *ServerManager) OnNewRtspSubSessionDescribe(session *rtsp.SubSession) (
 	return group.HandleNewRtspSubSessionDescribe(session)
 }
 
-func (sm *ServerManager) OnNewRtspSubSessionPlay(session *rtsp.SubSession) bool {
+func (sm *ServerManager) OnNewRtspSubSessionPlay(session *rtsp.SubSession) error {
 	sm.mutex.Lock()
 	defer sm.mutex.Unlock()
-	group := sm.getOrCreateGroup(session.AppName(), session.StreamName())
-
-	res := group.HandleNewRtspSubSessionPlay(session)
 
 	var info base.SubStartInfo
 	info.ServerId = sm.config.ServerId
@@ -669,15 +683,22 @@ func (sm *ServerManager) OnNewRtspSubSessionPlay(session *rtsp.SubSession) bool 
 	info.UrlParam = session.RawQuery()
 	info.SessionId = session.UniqueKey()
 	info.RemoteAddr = session.GetStat().RemoteAddr
+
+	if err := sm.simpleAuthCtx.OnSubStart(info); err != nil {
+		return err
+	}
+
+	group := sm.getOrCreateGroup(session.AppName(), session.StreamName())
+	group.HandleNewRtspSubSessionPlay(session)
+
 	info.HasInSession = group.HasInSession()
 	info.HasOutSession = group.HasOutSession()
-	sm.option.NotifyHandler.OnSubStart(info)
 
-	return res
+	sm.option.NotifyHandler.OnSubStart(info)
+	return nil
 }
 
 func (sm *ServerManager) OnDelRtspSubSession(session *rtsp.SubSession) {
-	// TODO chef: impl me
 	sm.mutex.Lock()
 	defer sm.mutex.Unlock()
 	group := sm.getGroup(session.AppName(), session.StreamName())
@@ -763,6 +784,22 @@ func (sm *ServerManager) getOrCreateGroup(appName string, streamName string) *Gr
 
 func (sm *ServerManager) getGroup(appName string, streamName string) *Group {
 	return sm.groupManager.GetGroup(appName, streamName)
+}
+
+func (sm *ServerManager) serveHls(writer http.ResponseWriter, req *http.Request) {
+	urlCtx, err := base.ParseUrl(base.ParseHttpRequest(req), 80)
+	if err != nil {
+		nazalog.Errorf("parse url. err=%+v", err)
+		return
+	}
+	if urlCtx.GetFileType() == "m3u8" {
+		if err = sm.simpleAuthCtx.OnHls(urlCtx.GetFilenameWithoutType(), urlCtx.RawQuery); err != nil {
+			nazalog.Errorf("simple auth failed. err=%+v", err)
+			return
+		}
+	}
+
+	sm.hlsServerHandler.ServeHTTP(writer, req)
 }
 
 // ---------------------------------------------------------------------------------------------------------------------

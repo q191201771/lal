@@ -28,7 +28,7 @@ import (
 //   - rtsp是否也应该上层使用Command作为代理，避免生命周期管理混乱
 //
 // server.pub:  rtmp(), rtsp
-// server.sub:  rtmp(), rtsp, flv, ts
+// server.sub:  rtmp(), rtsp, flv, ts, 还有一个比较特殊的hls
 //
 // client.push: rtmp, rtsp
 // client.pull: rtmp, rtsp, flv
