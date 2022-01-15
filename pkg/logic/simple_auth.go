@@ -75,9 +75,16 @@ func (s *SimpleAuthCtx) check(streamName string, urlParam string) error {
 		return base.ErrSimpleAuthParamNotFound
 	}
 	v = strings.ToLower(v)
-	se := SimpleAuthCalcSecret(s.config.Key, streamName)
-	if v != s.config.DangerousLalSecret && v != se {
-		return base.ErrSimpleAuthFailed
+
+	// 注意，只有DangerousLalSecret配置了值，才验证参数是否和DangerousLalSecret相等
+	if len(s.config.DangerousLalSecret) != 0 && v == s.config.DangerousLalSecret {
+		return nil
 	}
-	return nil
+
+	se := SimpleAuthCalcSecret(s.config.Key, streamName)
+	if  v == se {
+		return nil
+	}
+
+	return base.ErrSimpleAuthFailed
 }
