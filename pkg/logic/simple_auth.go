@@ -27,14 +27,9 @@ func SimpleAuthCalcSecret(key string, streamName string) string {
 const secretName = "lal_secret"
 
 type SimpleAuthCtx struct {
-	key    string
 	config SimpleAuthConfig
 }
 
-// NewSimpleAuthCtx
-//
-// @param key: 如果为空，则所有鉴权接口都返回成功
-//
 func NewSimpleAuthCtx(config SimpleAuthConfig) *SimpleAuthCtx {
 	return &SimpleAuthCtx{
 		config: config,
@@ -46,7 +41,6 @@ func (s *SimpleAuthCtx) OnPubStart(info base.PubStartInfo) error {
 		s.config.PubRtspEnable && info.Protocol == base.ProtocolRtsp {
 		return s.check(info.StreamName, info.UrlParam)
 	}
-
 	return nil
 }
 
@@ -57,12 +51,14 @@ func (s *SimpleAuthCtx) OnSubStart(info base.SubStartInfo) error {
 		(s.config.SubRtspEnable && info.Protocol == base.ProtocolRtsp) {
 		return s.check(info.StreamName, info.UrlParam)
 	}
-
 	return nil
 }
 
 func (s *SimpleAuthCtx) OnHls(streamName string, urlParam string) error {
-	return s.check(streamName, urlParam)
+	if s.config.HlsM3u8Enable {
+		return s.check(streamName, urlParam)
+	}
+	return nil
 }
 
 func (s *SimpleAuthCtx) check(streamName string, urlParam string) error {
@@ -82,7 +78,7 @@ func (s *SimpleAuthCtx) check(streamName string, urlParam string) error {
 	}
 
 	se := SimpleAuthCalcSecret(s.config.Key, streamName)
-	if  v == se {
+	if v == se {
 		return nil
 	}
 

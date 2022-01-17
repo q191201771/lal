@@ -128,6 +128,7 @@ type SimpleAuthConfig struct {
 	SubHttptsEnable    bool   `json:"sub_httpts_enable"`
 	PubRtspEnable      bool   `json:"pub_rtsp_enable"`
 	SubRtspEnable      bool   `json:"sub_rtsp_enable"`
+	HlsM3u8Enable      bool   `json:"hls_m3u8_enable"`
 }
 
 type PprofConfig struct {
