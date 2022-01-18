@@ -546,18 +546,14 @@ func (group *Group) IsHlsMuxerAlive() bool {
 	return group.hlsMuxer != nil
 }
 
-func (group *Group) StringifyDebugStats() string {
-	group.mutex.Lock()
-	subLen := len(group.rtmpSubSessionSet) + len(group.httpflvSubSessionSet) + len(group.httptsSubSessionSet) + len(group.rtspSubSessionSet)
-	group.mutex.Unlock()
-	if subLen > 10 {
-		return fmt.Sprintf("[%s] not log out all stats. subLen=%d", group.UniqueKey, subLen)
-	}
-	b, _ := json.Marshal(group.GetStat())
+func (group *Group) StringifyDebugStats(maxsub int) string {
+	b, _ := json.Marshal(group.GetStat(maxsub))
 	return string(b)
 }
 
-func (group *Group) GetStat() base.StatGroup {
+func (group *Group) GetStat(maxsub int) base.StatGroup {
+	// TODO(chef): [refactor] param maxsub
+
 	group.mutex.Lock()
 	defer group.mutex.Unlock()
 
@@ -569,22 +565,39 @@ func (group *Group) GetStat() base.StatGroup {
 		group.stat.StatPub = base.StatPub{}
 	}
 
+	if group.pullProxy.pullSession != nil {
+		group.stat.StatPull = base.StatSession2Pull(group.pullProxy.pullSession.GetStat())
+	}
+
 	group.stat.StatSubs = nil
+	var statSubCount int
 	for s := range group.rtmpSubSessionSet {
+		statSubCount++
+		if statSubCount > maxsub {
+			break
+		}
 		group.stat.StatSubs = append(group.stat.StatSubs, base.StatSession2Sub(s.GetStat()))
 	}
 	for s := range group.httpflvSubSessionSet {
+		statSubCount++
+		if statSubCount > maxsub {
+			break
+		}
 		group.stat.StatSubs = append(group.stat.StatSubs, base.StatSession2Sub(s.GetStat()))
 	}
 	for s := range group.httptsSubSessionSet {
+		statSubCount++
+		if statSubCount > maxsub {
+			break
+		}
 		group.stat.StatSubs = append(group.stat.StatSubs, base.StatSession2Sub(s.GetStat()))
 	}
 	for s := range group.rtspSubSessionSet {
+		statSubCount++
+		if statSubCount > maxsub {
+			break
+		}
 		group.stat.StatSubs = append(group.stat.StatSubs, base.StatSession2Sub(s.GetStat()))
-	}
-
-	if group.pullProxy.pullSession != nil {
-		group.stat.StatPull = base.StatSession2Pull(group.pullProxy.pullSession.GetStat())
 	}
 
 	return group.stat

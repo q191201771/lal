@@ -10,6 +10,7 @@ package logic
 
 import (
 	"fmt"
+	"math"
 	"net/http"
 	"os"
 	"strings"
@@ -242,13 +243,18 @@ func (sm *ServerManager) RunLoop() error {
 				return true
 			})
 
-			// 定时打印一些group相关的日志
-			if (count % 30) == 0 {
+			// 定时打印一些group相关的debug日志
+			if sm.config.DebugConfig.LogGroupIntervalSec > 0 &&
+				count%uint32(sm.config.DebugConfig.LogGroupIntervalSec) == 0 {
 				groupNum := sm.groupManager.Len()
-				nazalog.Debugf("group size=%d", groupNum)
-				if groupNum < 10 {
+				nazalog.Debugf("DEBUG_GROUP_LOG: group size=%d", groupNum)
+				if sm.config.DebugConfig.LogGroupMaxGroupNum > 0 {
+					var loggedGroupCount int
 					sm.groupManager.Iterate(func(group *Group) bool {
-						nazalog.Debugf("%s", group.StringifyDebugStats())
+						loggedGroupCount++
+						if loggedGroupCount <= sm.config.DebugConfig.LogGroupMaxGroupNum {
+							nazalog.Debugf("DEBUG_GROUP_LOG: %d %s", loggedGroupCount, group.StringifyDebugStats(sm.config.DebugConfig.LogGroupMaxSubNumPerGroup))
+						}
 						return true
 					})
 				}
@@ -305,7 +311,7 @@ func (sm *ServerManager) StatAllGroup() (sgs []base.StatGroup) {
 	sm.mutex.Lock()
 	defer sm.mutex.Unlock()
 	sm.groupManager.Iterate(func(group *Group) bool {
-		sgs = append(sgs, group.GetStat())
+		sgs = append(sgs, group.GetStat(math.MaxInt32))
 		return true
 	})
 	return
@@ -320,7 +326,7 @@ func (sm *ServerManager) StatGroup(streamName string) *base.StatGroup {
 	}
 	// copy
 	var ret base.StatGroup
-	ret = g.GetStat()
+	ret = g.GetStat(math.MaxInt32)
 	return &ret
 }
 func (sm *ServerManager) CtrlStartPull(info base.ApiCtrlStartPullReq) {

@@ -21,7 +21,7 @@ import (
 	"github.com/q191201771/naza/pkg/nazalog"
 )
 
-const ConfVersion = "v0.2.6"
+const ConfVersion = "v0.2.7"
 
 const (
 	defaultHlsCleanupMode    = hls.CleanupModeInTheEnd
@@ -48,6 +48,7 @@ type Config struct {
 	SimpleAuthConfig SimpleAuthConfig `json:"simple_auth"`
 	PprofConfig      PprofConfig      `json:"pprof"`
 	LogConfig        nazalog.Option   `json:"log"`
+	DebugConfig      DebugConfig      `json:"debug"`
 }
 
 type RtmpConfig struct {
@@ -134,6 +135,12 @@ type SimpleAuthConfig struct {
 type PprofConfig struct {
 	Enable bool   `json:"enable"`
 	Addr   string `json:"addr"`
+}
+
+type DebugConfig struct {
+	LogGroupIntervalSec       int `json:"log_group_interval_sec"`
+	LogGroupMaxGroupNum       int `json:"log_group_max_group_num"`
+	LogGroupMaxSubNumPerGroup int `json:"log_group_max_sub_num_per_group"`
 }
 
 type CommonHttpServerConfig struct {

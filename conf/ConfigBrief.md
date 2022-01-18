@@ -3,7 +3,7 @@
 ```
 {
   "# doc of config": "https://pengrl.com/lal/#/ConfigBrief", //. 配置文件对应的文档说明链接，在程序中没实际用途
-  "conf_version": "0.2.6",                                   //. 配置文件版本号，业务方不应该手动修改，程序中会检查该版本
+  "conf_version": "0.2.7",                                   //. 配置文件版本号，业务方不应该手动修改，程序中会检查该版本
                                                              //  号是否与代码中声明的一致
   "rtmp": {
     "enable": true,                      //. 是否开启rtmp服务的监听
@@ -119,6 +119,11 @@
     "is_rotate_daily": true,            //. 日志按天翻滚
     "short_file_flag": true,            //. 日志末尾是否携带源码文件名以及行号的信息
     "assert_behavior": 1                //. 日志断言的行为，1 只打印错误日志 2 打印并退出程序 3 打印并panic
+  },
+  "debug": {
+    "log_group_interval_sec": 30,          // 打印group调试日志的间隔时间，单位秒。如果为0，则不打印
+    "log_group_max_group_num": 10,         // 最多打印多少个group
+    "log_group_max_sub_num_per_group": 10  // 每个group最多打印多少个sub session
   }
 }
 ```

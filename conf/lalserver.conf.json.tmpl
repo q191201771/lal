@@ -1,6 +1,6 @@
 {
   "# doc of config": "https://pengrl.com/lal/#/ConfigBrief",
-  "conf_version": "v0.2.6",
+  "conf_version": "v0.2.7",
   "rtmp": {
     "enable": true,
     "addr": ":1935",
@@ -96,5 +96,10 @@
     "timestamp_with_ms_flag": true,
     "level_flag": true,
     "assert_behavior": 1
+  },
+  "debug": {
+    "log_group_interval_sec": 30,
+    "log_group_max_group_num": 10,
+    "log_group_max_sub_num_per_group": 10
   }
 }
