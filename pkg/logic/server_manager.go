@@ -154,7 +154,7 @@ func (sm *ServerManager) RunLoop() error {
 				handler,
 			)
 			if err != nil {
-				nazalog.Errorf("add https listen for %s failed. addr=%s, pattern=%s, err=%+v", name, config.HttpListenAddr, config.UrlPattern, err)
+				nazalog.Errorf("add https listen for %s failed. addr=%s, pattern=%s, err=%+v", name, config.HttpsListenAddr, config.UrlPattern, err)
 			} else {
 				nazalog.Infof("add https listen for %s. addr=%s, pattern=%s", name, config.HttpsListenAddr, config.UrlPattern)
 			}
