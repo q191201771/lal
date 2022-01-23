@@ -8,8 +8,12 @@
 
 package hls
 
+import "github.com/q191201771/naza/pkg/mock"
+
 var (
 	PathStrategy IPathStrategy = &DefaultPathStrategy{}
+
+	Clock = mock.NewStdClock()
 )
 
 var (

@@ -11,7 +11,6 @@ package hls
 import (
 	"bytes"
 	"fmt"
-	"time"
 
 	"github.com/q191201771/naza/pkg/nazaerrors"
 
@@ -286,7 +285,7 @@ func (m *Muxer) openFragment(ts uint64, discont bool) error {
 
 	id := m.getFragmentId()
 
-	filename := PathStrategy.GetTsFileName(m.streamName, id, int(time.Now().UnixNano()/1e6))
+	filename := PathStrategy.GetTsFileName(m.streamName, id, int(Clock.Now().UnixNano()/1e6))
 	filenameWithPath := PathStrategy.GetTsFileNameWithPath(m.outPath, filename)
 	if m.enable {
 		if err := m.fragment.OpenFile(filenameWithPath); err != nil {

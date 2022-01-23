@@ -17,6 +17,9 @@ import (
 	"testing"
 	"time"
 
+	"github.com/q191201771/lal/pkg/hls"
+	"github.com/q191201771/naza/pkg/mock"
+
 	"github.com/q191201771/naza/pkg/nazahttp"
 
 	"github.com/q191201771/lal/pkg/rtprtcp"
@@ -100,6 +103,9 @@ func Entry(t *testing.T) {
 		nazalog.Warnf("lstat %s error. err=%+v", rFlvFileName, err)
 		return
 	}
+
+	hls.Clock = mock.NewFakeClock()
+	hls.Clock.Set(time.Date(2022, 1, 16, 23, 24, 25, 0, time.Local))
 
 	tt = t
 
@@ -234,6 +240,14 @@ func Entry(t *testing.T) {
 
 	compareFile()
 
+	// 检查hls的m3u8文件
+	playListM3u8, err := ioutil.ReadFile(fmt.Sprintf("%sinnertest/playlist.m3u8", config.HlsConfig.OutPath))
+	assert.Equal(t, nil, err)
+	assert.Equal(t, goldenPlaylistM3u8, string(playListM3u8))
+	recordM3u8, err := ioutil.ReadFile(fmt.Sprintf("%sinnertest/record.m3u8", config.HlsConfig.OutPath))
+	assert.Equal(t, nil, err)
+	assert.Equal(t, []byte(goldenRecordM3u8), recordM3u8)
+
 	// 检查hls的ts文件
 	var allContent []byte
 	var fileNum int
@@ -325,3 +339,49 @@ func httpPost(url string, info interface{}) ([]byte, error) {
 	defer resp.Body.Close()
 	return ioutil.ReadAll(resp.Body)
 }
+
+var goldenPlaylistM3u8 = `#EXTM3U
+#EXT-X-VERSION:3
+#EXT-X-ALLOW-CACHE:NO
+#EXT-X-TARGETDURATION:5
+#EXT-X-MEDIA-SEQUENCE:2
+
+#EXTINF:3.333,
+innertest-1642346665000-2.ts
+#EXTINF:4.000,
+innertest-1642346665000-3.ts
+#EXTINF:4.867,
+innertest-1642346665000-4.ts
+#EXTINF:3.133,
+innertest-1642346665000-5.ts
+#EXTINF:4.000,
+innertest-1642346665000-6.ts
+#EXTINF:2.621,
+innertest-1642346665000-7.ts
+#EXT-X-ENDLIST
+`
+
+var goldenRecordM3u8 = `#EXTM3U
+#EXT-X-VERSION:3
+#EXT-X-TARGETDURATION:5
+#EXT-X-MEDIA-SEQUENCE:0
+
+#EXT-X-DISCONTINUITY
+#EXTINF:4.000,
+innertest-1642346665000-0.ts
+#EXTINF:4.000,
+innertest-1642346665000-1.ts
+#EXTINF:3.333,
+innertest-1642346665000-2.ts
+#EXTINF:4.000,
+innertest-1642346665000-3.ts
+#EXTINF:4.867,
+innertest-1642346665000-4.ts
+#EXTINF:3.133,
+innertest-1642346665000-5.ts
+#EXTINF:4.000,
+innertest-1642346665000-6.ts
+#EXTINF:2.621,
+innertest-1642346665000-7.ts
+#EXT-X-ENDLIST
+`
