@@ -1,4 +1,4 @@
-#### v0.27.0 (2022-01-23)
+#### v0.27.1 (2022-01-23)
 
 - [feat] 新增simple auth鉴权功能，见文档： https://pengrl.com/lal/#/auth
 - [feat] httpflv: PullSession支持https，支持302跳转
