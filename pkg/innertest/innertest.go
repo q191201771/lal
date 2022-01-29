@@ -199,7 +199,6 @@ func Entry(t *testing.T) {
 	err = pushSession.Push(pushUrl)
 	assert.Equal(t, nil, err)
 
-	nazalog.Debugf("CHEFERASEME start push %+v", time.Now())
 	for _, tag := range tags {
 		assert.Equal(t, nil, err)
 		chunks := remux.FlvTag2RtmpChunks(tag)

@@ -740,7 +740,7 @@ func (sm *ServerManager) CleanupHlsIfNeeded(appName string, streamName string, p
 	if sm.config.HlsConfig.Enable &&
 		(sm.config.HlsConfig.CleanupMode == hls.CleanupModeInTheEnd || sm.config.HlsConfig.CleanupMode == hls.CleanupModeAsap) {
 		defertaskthread.Go(
-			sm.config.HlsConfig.FragmentDurationMs*sm.config.HlsConfig.FragmentNum*2,
+			sm.config.HlsConfig.FragmentDurationMs*(sm.config.HlsConfig.FragmentNum+sm.config.HlsConfig.DeleteThreshold),
 			func(param ...interface{}) {
 				appName := param[0].(string)
 				streamName := param[1].(string)

@@ -21,7 +21,7 @@ import (
 	"github.com/q191201771/naza/pkg/nazalog"
 )
 
-const ConfVersion = "v0.2.7"
+const ConfVersion = "v0.2.8"
 
 const (
 	defaultHlsCleanupMode    = hls.CleanupModeInTheEnd
@@ -270,9 +270,14 @@ func LoadConfAndInitLog(confFile string) *Config {
 	mergeCommonHttpAddrConfig(&config.HlsConfig.CommonHttpAddrConfig, &config.DefaultHttpConfig.CommonHttpAddrConfig)
 
 	// 为缺失的字段中的一些特定字段，设置特定默认值
-	if (config.HlsConfig.Enable || config.HlsConfig.EnableHttps) && !j.Exist("hls.cleanup_mode") {
+	if config.HlsConfig.Enable && !j.Exist("hls.cleanup_mode") {
 		nazalog.Warnf("config hls.cleanup_mode not exist. set to default which is %d", defaultHlsCleanupMode)
 		config.HlsConfig.CleanupMode = defaultHlsCleanupMode
+	}
+	if config.HlsConfig.Enable && !j.Exist("hls.delete_threshold") {
+		nazalog.Warnf("config hls.delete_threshold not exist. set to default same as hls.fragment_num which is %d",
+			config.HlsConfig.FragmentNum)
+		config.HlsConfig.DeleteThreshold = config.HlsConfig.FragmentNum
 	}
 	if (config.HttpflvConfig.Enable || config.HttpflvConfig.EnableHttps) && !j.Exist("httpflv.url_pattern") {
 		nazalog.Warnf("config httpflv.url_pattern not exist. set to default wchich is %s", defaultHttpflvUrlPattern)
