@@ -80,6 +80,7 @@
                                      //  注意，record.m3u8只在0和1模式下生成
                                      //
     "use_memory_as_disk_flag": false //. 是否使用内存取代磁盘，保存m3u8+ts文件
+                                     //  注意，使用该模式要注意内存容量。一般来说不应该搭配`cleanup_mode`为0或1使用
   },
   "httpts": {
     "enable": true,         //. 是否开启HTTP-TS服务的监听。注意，这并不是HLS中的TS，而是在一条HTTP长连接上持续性传输TS流
