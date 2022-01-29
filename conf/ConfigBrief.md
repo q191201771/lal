@@ -3,7 +3,7 @@
 ```
 {
   "# doc of config": "https://pengrl.com/lal/#/ConfigBrief", //. 配置文件对应的文档说明链接，在程序中没实际用途
-  "conf_version": "0.2.7",                                   //. 配置文件版本号，业务方不应该手动修改，程序中会检查该版本
+  "conf_version": "0.2.8",                                   //. 配置文件版本号，业务方不应该手动修改，程序中会检查该版本
                                                              //  号是否与代码中声明的一致
   "rtmp": {
     "enable": true,                      //. 是否开启rtmp服务的监听
