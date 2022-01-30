@@ -8,12 +8,11 @@
 
 package rtmp
 
-// chunk_composer.go
-// @pure
-// 读取chunk，并组织chunk，生成message返回给上层
-
 import (
+	"encoding/hex"
 	"io"
+
+	"github.com/q191201771/naza/pkg/nazalog"
 
 	"github.com/q191201771/naza/pkg/nazabytes"
 
@@ -21,6 +20,10 @@ import (
 	"github.com/q191201771/naza/pkg/bele"
 )
 
+// ChunkComposer
+//
+// 读取chunk，并合并chunk，生成message返回给上层
+//
 type ChunkComposer struct {
 	peerChunkSize uint32
 	csid2stream   map[int]*Stream
@@ -123,7 +126,10 @@ func (c *ChunkComposer) RunLoop(reader io.Reader, cb OnCompleteMessage) error {
 		case 3:
 			// noop
 		}
-		//nazalog.Debugf("RTMP_CHUNK_COMPOSER chunk.fmt=%d, csid=%d, header=%+v", fmt, csid, stream.header)
+		if nazalog.GetOption().Level == nazalog.LevelTrace {
+			nazalog.Tracef("[%p] RTMP_READ chunk.fmt=%d, csid=%d, header=%+v, timestamp=%d",
+				c, fmt, csid, stream.header, stream.timestamp)
+		}
 
 		// 5.3.1.3 Extended Timestamp
 		// 使用ffmpeg推流时，发现时间戳超过3字节最大值后，即使是fmt3(即包头大小为0)，依然存在ext ts字段
@@ -136,8 +142,12 @@ func (c *ChunkComposer) RunLoop(reader io.Reader, cb OnCompleteMessage) error {
 			if _, err := io.ReadAtLeast(reader, bootstrap[:4], 4); err != nil {
 				return err
 			}
-			stream.timestamp = bele.BeUint32(bootstrap)
-			//nazalog.Debugf("RTMP_CHUNK_COMPOSER ext. extTs=%d", stream.header.Timestamp)
+			newTs := bele.BeUint32(bootstrap)
+			if nazalog.GetOption().Level == nazalog.LevelTrace {
+				nazalog.Tracef("[%p] RTMP_READ ext. ts=(%d,%d,%d)",
+					c, stream.timestamp, newTs, stream.header.TimestampAbs)
+			}
+			stream.timestamp = newTs
 			switch fmt {
 			case 0:
 				stream.header.TimestampAbs = stream.timestamp
@@ -178,8 +188,10 @@ func (c *ChunkComposer) RunLoop(reader io.Reader, cb OnCompleteMessage) error {
 				stream.header.TimestampAbs += stream.timestamp
 			}
 			absTsFlag = false
-			//nazalog.Debugf("RTMP_CHUNK_COMPOSER cb. fmt=%d, csid=%d, header=%+v, ctimestamp=%d, c=%p",
-			//	fmt, csid, stream.header, stream.timestamp, c)
+			if nazalog.GetOption().Level == nazalog.LevelTrace {
+				nazalog.Tracef("[%p] RTMP_READ cb. fmt=%d, csid=%d, header=%+v, timestamp=%d, hex=%s",
+					c, fmt, csid, stream.header, stream.timestamp, hex.Dump(nazabytes.Prefix(stream.msg.buff.Bytes(), 32)))
+			}
 
 			if stream.header.MsgTypeId == base.RtmpTypeIdAggregateMessage {
 				firstSubMessage := true
