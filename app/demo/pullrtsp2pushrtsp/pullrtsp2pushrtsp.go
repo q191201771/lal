@@ -163,6 +163,7 @@ func main() {
 		option.AssertBehavior = nazalog.AssertFatal
 	})
 	defer nazalog.Sync()
+	base.LogoutStartInfo()
 
 	inUrl, outUrl, pullOverTcp, pushOverTcp := parseFlag()
 

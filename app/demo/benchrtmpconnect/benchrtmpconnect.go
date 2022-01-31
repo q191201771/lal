@@ -28,6 +28,7 @@ func main() {
 		option.Level = nazalog.LevelLogNothing
 	})
 	defer nazalog.Sync()
+	base.LogoutStartInfo()
 
 	urlTmpl, num := parseFlag()
 	urls := collect(urlTmpl, num)

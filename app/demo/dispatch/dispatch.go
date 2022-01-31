@@ -202,6 +202,7 @@ func main() {
 		option.AssertBehavior = nazalog.AssertFatal
 	})
 	defer nazalog.Sync()
+	base.LogoutStartInfo()
 
 	dataManager = datamanager.NewDataManager(datamanager.DmtMemory, config.ServerTimeoutSec)
 

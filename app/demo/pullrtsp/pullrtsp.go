@@ -26,6 +26,7 @@ func main() {
 		option.AssertBehavior = nazalog.AssertFatal
 	})
 	defer nazalog.Sync()
+	base.LogoutStartInfo()
 
 	inUrl, outFilename, overTcp := parseFlag()
 

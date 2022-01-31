@@ -13,7 +13,6 @@ import (
 	"math"
 	"net/http"
 	"os"
-	"strings"
 	"sync"
 	"time"
 
@@ -59,21 +58,12 @@ type ServerManager struct {
 func NewServerManager(confFile string, modOption ...ModOption) *ServerManager {
 	sm := &ServerManager{
 		serverStartTime: time.Now().Format("2006-01-02 15:04:05.999"),
-		exitChan:        make(chan struct{}),
+		exitChan:        make(chan struct{}, 1),
 	}
 	sm.groupManager = NewSimpleGroupManager(sm)
 
 	sm.config = LoadConfAndInitLog(confFile)
-
-	// TODO(chef): refactor 启动信息可以考虑放入package base中，所有的app都打印
-	dir, _ := os.Getwd()
-	nazalog.Infof("wd: %s", dir)
-	nazalog.Infof("args: %s", strings.Join(os.Args, " "))
-	nazalog.Infof("bininfo: %s", bininfo.StringifySingleLine())
-	nazalog.Infof("version: %s", base.LalFullInfo)
-	nazalog.Infof("github: %s", base.LalGithubSite)
-	nazalog.Infof("doc: %s", base.LalDocSite)
-	nazalog.Infof("serverStartTime: %s", sm.serverStartTime)
+	base.LogoutStartInfo()
 
 	if sm.config.HlsConfig.Enable && sm.config.HlsConfig.UseMemoryAsDiskFlag {
 		nazalog.Infof("hls use memory as disk.")
@@ -807,8 +797,6 @@ func (sm *ServerManager) serveHls(writer http.ResponseWriter, req *http.Request)
 
 	sm.hlsServerHandler.ServeHTTP(writer, req)
 }
-
-// ---------------------------------------------------------------------------------------------------------------------
 
 func runWebPprof(addr string) {
 	nazalog.Infof("start web pprof listen. addr=%s", addr)

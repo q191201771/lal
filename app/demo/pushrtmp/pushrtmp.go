@@ -53,6 +53,8 @@ var aliveSessionCount int32
 
 func main() {
 	defer nazalog.Sync()
+	base.LogoutStartInfo()
+
 	filename, urlTmpl, num, isRecursive, logfile := parseFlag()
 	initLog(logfile)
 
