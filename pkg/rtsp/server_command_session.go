@@ -67,6 +67,7 @@ func NewServerCommandSession(observer ServerCommandSessionObserver, conn net.Con
 		observer:  observer,
 		conn: connection.New(conn, func(option *connection.Option) {
 			option.ReadBufSize = serverCommandSessionReadBufSize
+			option.WriteChanSize = serverCommandSessionWriteChanSize
 		}),
 	}
 

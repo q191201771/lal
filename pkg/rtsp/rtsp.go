@@ -85,7 +85,8 @@ var (
 
 	unpackerItemMaxSize = 1024
 
-	serverCommandSessionReadBufSize = 256
+	serverCommandSessionReadBufSize   = 256
+	serverCommandSessionWriteChanSize = 1024
 
 	dummyRtpPacket = []byte{
 		0x80, 0x00, 0x00, 0x00,
