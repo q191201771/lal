@@ -13,7 +13,6 @@ import (
 )
 
 // TODO chef:
-// - 支持HEVC
 // - 补充单元测试
 // - 配置项
 // - Server
@@ -23,7 +22,7 @@ import (
 // https://developer.apple.com/documentation/http_live_streaming/example_playlists_for_http_live_streaming/event_playlist_construction
 // #EXTM3U                     // 固定串
 // #EXT-X-VERSION:3            // 固定串
-// #EXT-X-MEDIA-SEQUENCE       //
+// #EXT-X-MEDIA-SEQUENCE       // 列表中首个TS文件的序号（该序号指的是+1自增的序号，从首个TS文件开始，包含已经从列表中移除的TS文件）
 // #EXT-X-TARGETDURATION       // 所有TS文件，最长的时长
 // #EXT-X-PLAYLIST-TYPE: EVENT
 // #EXT-X-DISCONTINUITY        //

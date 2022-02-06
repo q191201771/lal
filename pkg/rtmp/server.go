@@ -16,9 +16,22 @@ import (
 
 type ServerObserver interface {
 	OnRtmpConnect(session *ServerSession, opa ObjectPairArray)
-	OnNewRtmpPubSession(session *ServerSession) bool // 返回true则允许推流，返回false则强制关闭这个连接
+
+	// OnNewRtmpPubSession
+	//
+	// 上层代码应该在这个事件回调中注册音视频数据的监听
+	//
+	// @return 上层如果想关闭这个session，则回调中返回不为nil的error值
+	//
+	OnNewRtmpPubSession(session *ServerSession) error
+
+	// OnDelRtmpPubSession
+	//
+	// 注意，如果session是上层通过 OnNewRtmpPubSession 回调的返回值关闭的，则该session不再触发这个逻辑
+	//
 	OnDelRtmpPubSession(session *ServerSession)
-	OnNewRtmpSubSession(session *ServerSession) bool // 返回true则允许拉流，返回false则强制关闭这个连接
+
+	OnNewRtmpSubSession(session *ServerSession) error
 	OnDelRtmpSubSession(session *ServerSession)
 }
 
@@ -65,8 +78,11 @@ func (server *Server) Dispose() {
 func (server *Server) handleTcpConnect(conn net.Conn) {
 	log.Infof("accept a rtmp connection. remoteAddr=%s", conn.RemoteAddr().String())
 	session := NewServerSession(server, conn)
-	err := session.RunLoop()
-	log.Infof("[%s] rtmp loop done. err=%v", session.uniqueKey, err)
+	_ = session.RunLoop()
+
+	if session.DisposeByObserverFlag {
+		return
+	}
 	switch session.t {
 	case ServerSessionTypeUnknown:
 	// noop
@@ -77,24 +93,16 @@ func (server *Server) handleTcpConnect(conn net.Conn) {
 	}
 }
 
-// ServerSessionObserver
+// ----- ServerSessionObserver ------------------------------------------------------------------------------------
+
 func (server *Server) OnRtmpConnect(session *ServerSession, opa ObjectPairArray) {
 	server.observer.OnRtmpConnect(session, opa)
 }
 
-// ServerSessionObserver
-func (server *Server) OnNewRtmpPubSession(session *ServerSession) {
-	if !server.observer.OnNewRtmpPubSession(session) {
-		log.Warnf("dispose PubSession since pub exist.")
-		session.Dispose()
-		return
-	}
+func (server *Server) OnNewRtmpPubSession(session *ServerSession) error {
+	return server.observer.OnNewRtmpPubSession(session)
 }
 
-// ServerSessionObserver
-func (server *Server) OnNewRtmpSubSession(session *ServerSession) {
-	if !server.observer.OnNewRtmpSubSession(session) {
-		session.Dispose()
-		return
-	}
+func (server *Server) OnNewRtmpSubSession(session *ServerSession) error {
+	return server.observer.OnNewRtmpSubSession(session)
 }

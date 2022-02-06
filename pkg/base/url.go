@@ -11,6 +11,7 @@ package base
 import (
 	"fmt"
 	"net"
+	"net/http"
 	"net/url"
 	"strconv"
 	"strings"
@@ -54,7 +55,32 @@ type UrlContext struct {
 	RawQuery            string
 
 	RawUrlWithoutUserInfo string
+
+	filenameWithoutType string
+	fileType            string
 }
+
+func (u *UrlContext) GetFilenameWithoutType() string {
+	u.calcFilenameAndTypeIfNeeded()
+	return u.filenameWithoutType
+}
+
+func (u *UrlContext) GetFileType() string {
+	u.calcFilenameAndTypeIfNeeded()
+	return u.fileType
+}
+
+func (u *UrlContext) calcFilenameAndTypeIfNeeded() {
+	if len(u.filenameWithoutType) == 0 || len(u.fileType) == 0 {
+		ss := strings.Split(u.LastItemOfPath, ".")
+		u.filenameWithoutType = ss[0]
+		if len(ss) > 1 {
+			u.fileType = ss[1]
+		}
+	}
+}
+
+// ---------------------------------------------------------------------------------------------------------------------
 
 // ParseUrl
 //
@@ -127,6 +153,8 @@ func ParseUrl(rawUrl string, defaultPort int) (ctx UrlContext, err error) {
 	return ctx, nil
 }
 
+// ---------------------------------------------------------------------------------------------------------------------
+
 func ParseRtmpUrl(rawUrl string) (ctx UrlContext, err error) {
 	ctx, err = ParseUrl(rawUrl, -1)
 	if err != nil {
@@ -147,10 +175,6 @@ func ParseRtmpUrl(rawUrl string) (ctx UrlContext, err error) {
 	return
 }
 
-func ParseHttpflvUrl(rawUrl string) (ctx UrlContext, err error) {
-	return ParseHttpUrl(rawUrl, ".flv")
-}
-
 func ParseRtspUrl(rawUrl string) (ctx UrlContext, err error) {
 	ctx, err = ParseUrl(rawUrl, -1)
 	if err != nil {
@@ -162,6 +186,29 @@ func ParseRtspUrl(rawUrl string) (ctx UrlContext, err error) {
 
 	return
 }
+
+func ParseHttpflvUrl(rawUrl string) (ctx UrlContext, err error) {
+	return parseHttpUrl(rawUrl, ".flv")
+}
+
+// ---------------------------------------------------------------------------------------------------------------------
+
+// ParseHttpRequest
+//
+// @return 完整url
+//
+func ParseHttpRequest(req *http.Request) string {
+	// TODO(chef): [refactor] scheme是否能从从req.URL.Scheme获取
+	var scheme string
+	if req.TLS == nil {
+		scheme = "http"
+	} else {
+		scheme = "https"
+	}
+	return fmt.Sprintf("%s://%s%s", scheme, req.Host, req.RequestURI)
+}
+
+// ----- private -------------------------------------------------------------------------------------------------------
 
 func parseUrlPath(stdUrl *url.URL) (ctx UrlPathContext, err error) {
 	ctx.Path = stdUrl.Path
@@ -194,12 +241,12 @@ func parseUrlPath(stdUrl *url.URL) (ctx UrlPathContext, err error) {
 	return ctx, nil
 }
 
-func ParseHttpUrl(rawUrl string, suffix string) (ctx UrlContext, err error) {
+func parseHttpUrl(rawUrl string, filetype string) (ctx UrlContext, err error) {
 	ctx, err = ParseUrl(rawUrl, -1)
 	if err != nil {
 		return
 	}
-	if (ctx.Scheme != "http" && ctx.Scheme != "https") || ctx.Host == "" || ctx.Path == "" || !strings.HasSuffix(ctx.LastItemOfPath, suffix) {
+	if (ctx.Scheme != "http" && ctx.Scheme != "https") || ctx.Host == "" || ctx.Path == "" || !strings.HasSuffix(ctx.LastItemOfPath, filetype) {
 		return ctx, fmt.Errorf("%w. url=%s", ErrInvalidUrl, rawUrl)
 	}
 

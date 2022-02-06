@@ -31,6 +31,7 @@ func main() {
 		option.AssertBehavior = nazalog.AssertFatal
 	})
 	defer nazalog.Sync()
+	base.LogoutStartInfo()
 
 	var err error
 	flvFileName, aacFileName, avcFileName := parseFlag()

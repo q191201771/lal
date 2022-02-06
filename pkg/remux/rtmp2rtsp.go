@@ -9,6 +9,7 @@
 package remux
 
 import (
+	"encoding/hex"
 	"math/rand"
 	"time"
 
@@ -89,6 +90,10 @@ func (r *Rtmp2RtspRemuxer) FeedRtmpMsg(msg base.RtmpMsg) {
 		}
 
 		if msg.IsAacSeqHeader() {
+			if len(msg.Payload) < 3 {
+				nazalog.Warnf("aac seq header payload too short. len=%d, payload=%s", len(msg.Payload), hex.Dump(msg.Payload))
+				return
+			}
 			r.asc = msg.Clone().Payload[2:]
 			r.doAnalyze()
 			return

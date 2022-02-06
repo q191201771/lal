@@ -30,7 +30,7 @@ type StatGroup struct {
 	VideoWidth  int       `json:"video_width"`
 	VideoHeight int       `json:"video_height"`
 	StatPub     StatPub   `json:"pub"`
-	StatSubs    []StatSub `json:"subs"`
+	StatSubs    []StatSub `json:"subs"` // TODO(chef): [opt] 增加数量字段，因为这里不一定全部放入
 	StatPull    StatPull  `json:"pull"`
 }
 

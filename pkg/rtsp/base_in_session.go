@@ -81,15 +81,13 @@ type BaseInSession struct {
 	audioSsrc nazaatomic.Uint32
 	videoSsrc nazaatomic.Uint32
 
-	// only for debug log
-	debugLogMaxCount        uint32
-	loggedReadAudioRtpCount nazaatomic.Uint32
-	loggedReadVideoRtpCount nazaatomic.Uint32
-	loggedReadRtcpCount     nazaatomic.Uint32
-	loggedReadSrCount       nazaatomic.Uint32
-
 	disposeOnce sync.Once
 	waitChan    chan error
+
+	dumpReadAudioRtp base.LogDump
+	dumpReadVideoRtp base.LogDump
+	dumpReadRtcp     base.LogDump
+	dumpReadSr       base.LogDump
 }
 
 func NewBaseInSession(uniqueKey string, cmdSession IInterleavedPacketWriter) *BaseInSession {
@@ -101,8 +99,10 @@ func NewBaseInSession(uniqueKey string, cmdSession IInterleavedPacketWriter) *Ba
 			StartTime: time.Now().Format("2006-01-02 15:04:05.999"),
 		},
 		cmdSession:       cmdSession,
-		debugLogMaxCount: 3,
 		waitChan:         make(chan error, 1),
+		dumpReadAudioRtp: base.NewLogDump(1),
+		dumpReadVideoRtp: base.NewLogDump(1),
+		dumpReadSr:       base.NewLogDump(2),
 	}
 	nazalog.Infof("[%s] lifecycle new rtsp BaseInSession. session=%p", uniqueKey, s)
 	return s
@@ -331,19 +331,13 @@ func (session *BaseInSession) handleRtcpPacket(b []byte, rAddr *net.UDPAddr) err
 		return nazaerrors.Wrap(base.ErrRtsp)
 	}
 
-	if session.loggedReadRtcpCount.Load() < session.debugLogMaxCount {
-		nazalog.Debugf("[%s] LOGPACKET. read rtcp=%s", session.uniqueKey, hex.Dump(nazabytes.Prefix(b, 32)))
-		session.loggedReadRtcpCount.Increment()
-	}
-
 	packetType := b[1]
 
 	switch packetType {
 	case rtprtcp.RtcpPacketTypeSr:
 		sr := rtprtcp.ParseSr(b)
-		if session.loggedReadSrCount.Load() < session.debugLogMaxCount {
-			nazalog.Debugf("[%s] LOGPACKET. %+v", session.uniqueKey, sr)
-			session.loggedReadSrCount.Increment()
+		if session.dumpReadSr.ShouldDump() {
+			session.dumpReadSr.Outf("[%s] READ_RTCP. sr=%+v", session.uniqueKey, sr)
 		}
 		var rrBuf []byte
 		switch sr.SenderSsrc {
@@ -372,13 +366,15 @@ func (session *BaseInSession) handleRtcpPacket(b []byte, rAddr *net.UDPAddr) err
 				session.currConnStat.WroteBytesSum.Add(uint64(len(b)))
 			}
 		default:
+			// noop
+			//
 			// ffmpeg推流时，会在发送第一个RTP包之前就发送一个SR，所以关闭这个警告日志
 			//nazalog.Warnf("[%s] read rtcp sr but senderSsrc invalid. senderSsrc=%d, audio=%d, video=%d",
 			//	p.uniqueKey, sr.SenderSsrc, p.audioSsrc, p.videoSsrc)
-			return nazaerrors.Wrap(base.ErrRtsp)
 		}
 	default:
-		nazalog.Warnf("[%s] handleRtcpPacket but type unknown. type=%d", session.uniqueKey, b[1])
+		nazalog.Warnf("[%s] handleRtcpPacket but type unknown. type=%d, len=%d, hex=%s",
+			session.uniqueKey, b[1], len(b), hex.Dump(nazabytes.Prefix(b, 32)))
 		return nazaerrors.Wrap(base.ErrRtsp)
 	}
 
@@ -411,9 +407,9 @@ func (session *BaseInSession) handleRtpPacket(b []byte) error {
 
 	// 接收数据时，保证了sdp的原始类型对应
 	if session.sdpCtx.IsAudioPayloadTypeOrigin(packetType) {
-		if session.loggedReadAudioRtpCount.Load() < session.debugLogMaxCount {
-			nazalog.Debugf("[%s] LOGPACKET. read audio rtp=%+v, len=%d", session.uniqueKey, h, len(b))
-			session.loggedReadAudioRtpCount.Increment()
+		if session.dumpReadAudioRtp.ShouldDump() {
+			session.dumpReadAudioRtp.Outf("[%s] READ_RTP. audio, h=%+v, len=%d, hex=%s",
+				session.uniqueKey, h, len(b), hex.Dump(nazabytes.Prefix(b, 32)))
 		}
 
 		session.audioSsrc.Store(h.Ssrc)
@@ -426,9 +422,9 @@ func (session *BaseInSession) handleRtpPacket(b []byte) error {
 			session.audioUnpacker.Feed(pkt)
 		}
 	} else if session.sdpCtx.IsVideoPayloadTypeOrigin(packetType) {
-		if session.loggedReadVideoRtpCount.Load() < session.debugLogMaxCount {
-			nazalog.Debugf("[%s] LOGPACKET. read video rtp=%+v, len=%d", session.uniqueKey, h, len(b))
-			session.loggedReadVideoRtpCount.Increment()
+		if session.dumpReadVideoRtp.ShouldDump() {
+			session.dumpReadVideoRtp.Outf("[%s] READ_RTP. video, h=%+v, len=%d, hex=%s",
+				session.uniqueKey, h, len(b), hex.Dump(nazabytes.Prefix(b, 32)))
 		}
 
 		session.videoSsrc.Store(h.Ssrc)

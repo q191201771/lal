@@ -28,9 +28,9 @@ type ServerCommandSessionObserver interface {
 	// OnNewRtspPubSession
 	//
 	// @brief  Announce阶段回调
-	// @return 如果返回false，则表示上层要强制关闭这个推流请求
+	// @return 如果返回非nil，则表示上层要强制关闭这个推流请求
 	//
-	OnNewRtspPubSession(session *PubSession) bool
+	OnNewRtspPubSession(session *PubSession) error
 
 	// OnNewRtspSubSessionDescribe
 	//
@@ -42,10 +42,10 @@ type ServerCommandSessionObserver interface {
 
 	// OnNewRtspSubSessionPlay
 	//
-	// @brief Describe阶段回调
-	// @return ok  如果返回false，则表示上层要强制关闭这个拉流请求
+	// @brief Play阶段回调
+	// @return ok  如果返回非nil，则表示上层要强制关闭这个拉流请求
 	//
-	OnNewRtspSubSessionPlay(session *SubSession) bool
+	OnNewRtspSubSessionPlay(session *SubSession) error
 }
 
 type ServerCommandSession struct {
@@ -237,8 +237,8 @@ func (session *ServerCommandSession) handleAnnounce(requestCtx nazahttp.HttpReqM
 	nazalog.Infof("[%s] link new PubSession. [%s]", session.uniqueKey, session.pubSession.uniqueKey)
 	session.pubSession.InitWithSdp(sdpCtx)
 
-	if ok := session.observer.OnNewRtspPubSession(session.pubSession); !ok {
-		return base.ErrRtspClosedByObserver
+	if err = session.observer.OnNewRtspPubSession(session.pubSession); err != nil {
+		return err
 	}
 
 	resp := PackResponseAnnounce(requestCtx.Headers.Get(HeaderCSeq))
@@ -350,8 +350,9 @@ func (session *ServerCommandSession) handleRecord(requestCtx nazahttp.HttpReqMsg
 
 func (session *ServerCommandSession) handlePlay(requestCtx nazahttp.HttpReqMsgCtx) error {
 	nazalog.Infof("[%s] < R PLAY", session.uniqueKey)
-	if ok := session.observer.OnNewRtspSubSessionPlay(session.subSession); !ok {
-		return base.ErrRtspClosedByObserver
+	// TODO(chef): [opt] 上层关闭，可以考虑回复非200状态码再关闭
+	if err := session.observer.OnNewRtspSubSessionPlay(session.subSession); err != nil {
+		return err
 	}
 	resp := PackResponsePlay(requestCtx.Headers.Get(HeaderCSeq))
 	_, err := session.conn.Write([]byte(resp))

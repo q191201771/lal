@@ -305,15 +305,16 @@ func (group *Group) Dispose() {
 
 // ---------------------------------------------------------------------------------------------------------------------
 
-func (group *Group) AddRtmpPubSession(session *rtmp.ServerSession) bool {
+func (group *Group) AddRtmpPubSession(session *rtmp.ServerSession) error {
 	nazalog.Debugf("[%s] [%s] add PubSession into group.", group.UniqueKey, session.UniqueKey())
 
 	group.mutex.Lock()
 	defer group.mutex.Unlock()
 
 	if group.hasInSession() {
-		nazalog.Errorf("[%s] in stream already exist. wanna add=%s", group.UniqueKey, session.UniqueKey())
-		return false
+		// TODO(chef): [refactor] 打印in session
+		nazalog.Errorf("[%s] in stream already exist at group. add=%s", group.UniqueKey, session.UniqueKey())
+		return base.ErrDupInStream
 	}
 
 	group.rtmpPubSession = session
@@ -337,19 +338,19 @@ func (group *Group) AddRtmpPubSession(session *rtmp.ServerSession) bool {
 		session.SetPubSessionObserver(group)
 	}
 
-	return true
+	return nil
 }
 
 // TODO chef: rtsp package中，增加回调返回值判断，如果是false，将连接关掉
-func (group *Group) AddRtspPubSession(session *rtsp.PubSession) bool {
+func (group *Group) AddRtspPubSession(session *rtsp.PubSession) error {
 	nazalog.Debugf("[%s] [%s] add RTSP PubSession into group.", group.UniqueKey, session.UniqueKey())
 
 	group.mutex.Lock()
 	defer group.mutex.Unlock()
 
 	if group.hasInSession() {
-		nazalog.Errorf("[%s] in stream already exist. wanna add=%s", group.UniqueKey, session.UniqueKey())
-		return false
+		nazalog.Errorf("[%s] in stream already exist at group. wanna add=%s", group.UniqueKey, session.UniqueKey())
+		return base.ErrDupInStream
 	}
 
 	group.rtspPubSession = session
@@ -360,7 +361,7 @@ func (group *Group) AddRtspPubSession(session *rtsp.PubSession) bool {
 	})
 	session.SetObserver(group)
 
-	return true
+	return nil
 }
 
 func (group *Group) AddRtmpPullSession(session *rtmp.PullSession) bool {
@@ -462,7 +463,7 @@ func (group *Group) HandleNewRtspSubSessionDescribe(session *rtsp.SubSession) (o
 	return true, group.sdpCtx.RawSdp
 }
 
-func (group *Group) HandleNewRtspSubSessionPlay(session *rtsp.SubSession) bool {
+func (group *Group) HandleNewRtspSubSessionPlay(session *rtsp.SubSession) {
 	nazalog.Debugf("[%s] [%s] add rtsp SubSession into group.", group.UniqueKey, session.UniqueKey())
 
 	group.mutex.Lock()
@@ -473,8 +474,6 @@ func (group *Group) HandleNewRtspSubSessionPlay(session *rtsp.SubSession) bool {
 	}
 
 	// TODO(chef): rtsp sub也应该判断是否需要静态pull回源
-
-	return true
 }
 
 func (group *Group) AddRtmpPushSession(url string, session *rtmp.PushSession) {
@@ -547,18 +546,14 @@ func (group *Group) IsHlsMuxerAlive() bool {
 	return group.hlsMuxer != nil
 }
 
-func (group *Group) StringifyDebugStats() string {
-	group.mutex.Lock()
-	subLen := len(group.rtmpSubSessionSet) + len(group.httpflvSubSessionSet) + len(group.httptsSubSessionSet) + len(group.rtspSubSessionSet)
-	group.mutex.Unlock()
-	if subLen > 10 {
-		return fmt.Sprintf("[%s] not log out all stats. subLen=%d", group.UniqueKey, subLen)
-	}
-	b, _ := json.Marshal(group.GetStat())
+func (group *Group) StringifyDebugStats(maxsub int) string {
+	b, _ := json.Marshal(group.GetStat(maxsub))
 	return string(b)
 }
 
-func (group *Group) GetStat() base.StatGroup {
+func (group *Group) GetStat(maxsub int) base.StatGroup {
+	// TODO(chef): [refactor] param maxsub
+
 	group.mutex.Lock()
 	defer group.mutex.Unlock()
 
@@ -570,22 +565,39 @@ func (group *Group) GetStat() base.StatGroup {
 		group.stat.StatPub = base.StatPub{}
 	}
 
+	if group.pullProxy.pullSession != nil {
+		group.stat.StatPull = base.StatSession2Pull(group.pullProxy.pullSession.GetStat())
+	}
+
 	group.stat.StatSubs = nil
+	var statSubCount int
 	for s := range group.rtmpSubSessionSet {
+		statSubCount++
+		if statSubCount > maxsub {
+			break
+		}
 		group.stat.StatSubs = append(group.stat.StatSubs, base.StatSession2Sub(s.GetStat()))
 	}
 	for s := range group.httpflvSubSessionSet {
+		statSubCount++
+		if statSubCount > maxsub {
+			break
+		}
 		group.stat.StatSubs = append(group.stat.StatSubs, base.StatSession2Sub(s.GetStat()))
 	}
 	for s := range group.httptsSubSessionSet {
+		statSubCount++
+		if statSubCount > maxsub {
+			break
+		}
 		group.stat.StatSubs = append(group.stat.StatSubs, base.StatSession2Sub(s.GetStat()))
 	}
 	for s := range group.rtspSubSessionSet {
+		statSubCount++
+		if statSubCount > maxsub {
+			break
+		}
 		group.stat.StatSubs = append(group.stat.StatSubs, base.StatSession2Sub(s.GetStat()))
-	}
-
-	if group.pullProxy.pullSession != nil {
-		group.stat.StatPull = base.StatSession2Pull(group.pullProxy.pullSession.GetStat())
 	}
 
 	return group.stat

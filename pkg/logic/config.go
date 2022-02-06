@@ -21,7 +21,7 @@ import (
 	"github.com/q191201771/naza/pkg/nazalog"
 )
 
-const ConfVersion = "v0.2.4"
+const ConfVersion = "v0.2.8"
 
 const (
 	defaultHlsCleanupMode    = hls.CleanupModeInTheEnd
@@ -45,8 +45,10 @@ type Config struct {
 	HttpApiConfig    HttpApiConfig    `json:"http_api"`
 	ServerId         string           `json:"server_id"`
 	HttpNotifyConfig HttpNotifyConfig `json:"http_notify"`
+	SimpleAuthConfig SimpleAuthConfig `json:"simple_auth"`
 	PprofConfig      PprofConfig      `json:"pprof"`
 	LogConfig        nazalog.Option   `json:"log"`
+	DebugConfig      DebugConfig      `json:"debug"`
 }
 
 type RtmpConfig struct {
@@ -118,9 +120,27 @@ type HttpNotifyConfig struct {
 	OnRtmpConnect     string `json:"on_rtmp_connect"`
 }
 
+type SimpleAuthConfig struct {
+	Key                string `json:"key"`
+	DangerousLalSecret string `json:"dangerous_lal_secret"`
+	PubRtmpEnable      bool   `json:"pub_rtmp_enable"`
+	SubRtmpEnable      bool   `json:"sub_rtmp_enable"`
+	SubHttpflvEnable   bool   `json:"sub_httpflv_enable"`
+	SubHttptsEnable    bool   `json:"sub_httpts_enable"`
+	PubRtspEnable      bool   `json:"pub_rtsp_enable"`
+	SubRtspEnable      bool   `json:"sub_rtsp_enable"`
+	HlsM3u8Enable      bool   `json:"hls_m3u8_enable"`
+}
+
 type PprofConfig struct {
 	Enable bool   `json:"enable"`
 	Addr   string `json:"addr"`
+}
+
+type DebugConfig struct {
+	LogGroupIntervalSec       int `json:"log_group_interval_sec"`
+	LogGroupMaxGroupNum       int `json:"log_group_max_group_num"`
+	LogGroupMaxSubNumPerGroup int `json:"log_group_max_sub_num_per_group"`
 }
 
 type CommonHttpServerConfig struct {
@@ -250,9 +270,14 @@ func LoadConfAndInitLog(confFile string) *Config {
 	mergeCommonHttpAddrConfig(&config.HlsConfig.CommonHttpAddrConfig, &config.DefaultHttpConfig.CommonHttpAddrConfig)
 
 	// 为缺失的字段中的一些特定字段，设置特定默认值
-	if (config.HlsConfig.Enable || config.HlsConfig.EnableHttps) && !j.Exist("hls.cleanup_mode") {
+	if config.HlsConfig.Enable && !j.Exist("hls.cleanup_mode") {
 		nazalog.Warnf("config hls.cleanup_mode not exist. set to default which is %d", defaultHlsCleanupMode)
 		config.HlsConfig.CleanupMode = defaultHlsCleanupMode
+	}
+	if config.HlsConfig.Enable && !j.Exist("hls.delete_threshold") {
+		nazalog.Warnf("config hls.delete_threshold not exist. set to default same as hls.fragment_num which is %d",
+			config.HlsConfig.FragmentNum)
+		config.HlsConfig.DeleteThreshold = config.HlsConfig.FragmentNum
 	}
 	if (config.HttpflvConfig.Enable || config.HttpflvConfig.EnableHttps) && !j.Exist("httpflv.url_pattern") {
 		nazalog.Warnf("config httpflv.url_pattern not exist. set to default wchich is %s", defaultHttpflvUrlPattern)

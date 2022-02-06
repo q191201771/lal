@@ -12,9 +12,15 @@ import (
 	"bytes"
 	"fmt"
 	"io/ioutil"
+	"net/http"
 	"os"
 	"testing"
 	"time"
+
+	"github.com/q191201771/lal/pkg/hls"
+	"github.com/q191201771/naza/pkg/mock"
+
+	"github.com/q191201771/naza/pkg/nazahttp"
 
 	"github.com/q191201771/lal/pkg/rtprtcp"
 	"github.com/q191201771/lal/pkg/rtsp"
@@ -98,6 +104,9 @@ func Entry(t *testing.T) {
 		return
 	}
 
+	hls.Clock = mock.NewFakeClock()
+	hls.Clock.Set(time.Date(2022, 1, 16, 23, 24, 25, 0, time.Local))
+
 	tt = t
 
 	var err error
@@ -109,6 +118,8 @@ func Entry(t *testing.T) {
 	config := sm.Config()
 
 	_ = os.RemoveAll(config.HlsConfig.OutPath)
+
+	getAllHttpApi(config.HttpApiConfig.Addr)
 
 	pushUrl = fmt.Sprintf("rtmp://127.0.0.1%s/live/innertest", config.RtmpConfig.Addr)
 	httpflvPullUrl = fmt.Sprintf("http://127.0.0.1%s/live/innertest.flv", config.HttpflvConfig.HttpListenAddr)
@@ -188,7 +199,6 @@ func Entry(t *testing.T) {
 	err = pushSession.Push(pushUrl)
 	assert.Equal(t, nil, err)
 
-	nazalog.Debugf("CHEFERASEME start push %+v", time.Now())
 	for _, tag := range tags {
 		assert.Equal(t, nil, err)
 		chunks := remux.FlvTag2RtmpChunks(tag)
@@ -198,6 +208,8 @@ func Entry(t *testing.T) {
 	}
 	err = pushSession.Flush()
 	assert.Equal(t, nil, err)
+
+	getAllHttpApi(config.HttpApiConfig.Addr)
 
 	for {
 		if httpflvPullTagCount.Load() == uint32(fileTagCount) &&
@@ -226,6 +238,14 @@ func Entry(t *testing.T) {
 		fileTagCount, httpflvPullTagCount.Load(), rtmpPullTagCount.Load(), rtspPullAvPacketCount.Load())
 
 	compareFile()
+
+	// 检查hls的m3u8文件
+	playListM3u8, err := ioutil.ReadFile(fmt.Sprintf("%sinnertest/playlist.m3u8", config.HlsConfig.OutPath))
+	assert.Equal(t, nil, err)
+	assert.Equal(t, goldenPlaylistM3u8, string(playListM3u8))
+	recordM3u8, err := ioutil.ReadFile(fmt.Sprintf("%sinnertest/record.m3u8", config.HlsConfig.OutPath))
+	assert.Equal(t, nil, err)
+	assert.Equal(t, []byte(goldenRecordM3u8), recordM3u8)
 
 	// 检查hls的ts文件
 	var allContent []byte
@@ -267,3 +287,100 @@ func compareFile() {
 	//err = os.Remove(wRtmpPullFileName)
 	assert.Equal(tt, nil, err)
 }
+
+func getAllHttpApi(addr string) {
+	var b []byte
+	var err error
+
+	b, err = httpGet(fmt.Sprintf("http://%s/api/list", addr))
+	nazalog.Assert(nil, err)
+	nazalog.Debugf("%s", string(b))
+
+	b, err = httpGet(fmt.Sprintf("http://%s/api/stat/lal_info", addr))
+	nazalog.Assert(nil, err)
+	nazalog.Debugf("%s", string(b))
+
+	b, err = httpGet(fmt.Sprintf("http://%s/api/stat/group?stream_name=innertest", addr))
+	nazalog.Assert(nil, err)
+	nazalog.Debugf("%s", string(b))
+
+	b, err = httpGet(fmt.Sprintf("http://%s/api/stat/all_group", addr))
+	nazalog.Assert(nil, err)
+	nazalog.Debugf("%s", string(b))
+
+	var acspr base.ApiCtrlStartPullReq
+	b, err = httpPost(fmt.Sprintf("http://%s/api/ctrl/start_pull", addr), &acspr)
+	nazalog.Assert(nil, err)
+	nazalog.Debugf("%s", string(b))
+
+	var ackos base.ApiCtrlKickOutSession
+	b, err = httpPost(fmt.Sprintf("http://%s/api/ctrl/kick_out_session", addr), &ackos)
+	nazalog.Assert(nil, err)
+	nazalog.Debugf("%s", string(b))
+}
+
+// TODO(chef): refactor 移入naza中
+
+func httpGet(url string) ([]byte, error) {
+	resp, err := http.DefaultClient.Get(url)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+	return ioutil.ReadAll(resp.Body)
+}
+
+func httpPost(url string, info interface{}) ([]byte, error) {
+	resp, err := nazahttp.PostJson(url, info, nil)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+	return ioutil.ReadAll(resp.Body)
+}
+
+var goldenPlaylistM3u8 = `#EXTM3U
+#EXT-X-VERSION:3
+#EXT-X-ALLOW-CACHE:NO
+#EXT-X-TARGETDURATION:5
+#EXT-X-MEDIA-SEQUENCE:2
+
+#EXTINF:3.333,
+innertest-1642346665000-2.ts
+#EXTINF:4.000,
+innertest-1642346665000-3.ts
+#EXTINF:4.867,
+innertest-1642346665000-4.ts
+#EXTINF:3.133,
+innertest-1642346665000-5.ts
+#EXTINF:4.000,
+innertest-1642346665000-6.ts
+#EXTINF:2.621,
+innertest-1642346665000-7.ts
+#EXT-X-ENDLIST
+`
+
+var goldenRecordM3u8 = `#EXTM3U
+#EXT-X-VERSION:3
+#EXT-X-TARGETDURATION:5
+#EXT-X-MEDIA-SEQUENCE:0
+
+#EXT-X-DISCONTINUITY
+#EXTINF:4.000,
+innertest-1642346665000-0.ts
+#EXTINF:4.000,
+innertest-1642346665000-1.ts
+#EXTINF:3.333,
+innertest-1642346665000-2.ts
+#EXTINF:4.000,
+innertest-1642346665000-3.ts
+#EXTINF:4.867,
+innertest-1642346665000-4.ts
+#EXTINF:3.133,
+innertest-1642346665000-5.ts
+#EXTINF:4.000,
+innertest-1642346665000-6.ts
+#EXTINF:2.621,
+innertest-1642346665000-7.ts
+#EXT-X-ENDLIST
+`

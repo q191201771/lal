@@ -77,6 +77,7 @@ func main() {
 		option.AssertBehavior = nazalog.AssertFatal
 	})
 	defer nazalog.Sync()
+	base.LogoutStartInfo()
 
 	url := parseFlag()
 	session := httpflv.NewPullSession()

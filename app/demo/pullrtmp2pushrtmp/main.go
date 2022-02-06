@@ -15,6 +15,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/q191201771/lal/pkg/base"
+
 	"github.com/q191201771/naza/pkg/nazalog"
 )
 
@@ -23,6 +25,7 @@ func main() {
 		option.AssertBehavior = nazalog.AssertFatal
 	})
 	defer nazalog.Sync()
+	base.LogoutStartInfo()
 
 	i := flag.String("i", "", "specify pull rtmp url")
 	o := flag.String("o", "", "specify push rtmp url list, separated by a comma")

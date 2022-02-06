@@ -40,6 +40,7 @@ func main() {
 		option.AssertBehavior = nazalog.AssertFatal
 	})
 	defer nazalog.Sync()
+	base.LogoutStartInfo()
 
 	var err error
 	inFileName, outFileName := parseFlag()

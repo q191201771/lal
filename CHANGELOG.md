@@ -1,3 +1,30 @@
+#### v0.27.1 (2022-01-23)
+
+- [feat] 新增simple auth鉴权功能，见文档： https://pengrl.com/lal/#/auth
+- [feat] httpflv: PullSession支持https，支持302跳转
+- [feat] rtmp: client类型的session新增方法用于配置WriteBuf和ReadBuf大小，以及WriteChanSize
+- [opt] rtmp: 收到ping request回应ping response
+- [fix] rtmp: 增强兼容性，当收到的rtmp message中aac seq header payload长度为0时忽略，避免崩溃 #116
+- [fix] rtmp: 增强兼容性，当收到的rtmp message中的payload长度为0时忽略 #112
+- [opt] rtsp: 增强兼容性，处理rtsp信令中header存在没有转义的\r\n的情况
+- [fix] rtsp: 增强兼容性，修复读取http返回header解析失败的bug #110
+- [opt] https: 增强兼容性，服务初始化失败时打印错误日志而不是退出程序
+- [opt] avc: 增强兼容性，分隔avcc格式的nal时，如果存在长度为0的nal则忽略
+- [fix] sdp: 增强兼容性，fmtp内发生换行时做兼容性处理
+- [fix] httpflv: 修复httpflv多级路径下无法播放的问题
+- [opt] 整理完所有error返回值，error信息更友好
+- [log] 通过配置文件控制group调试日志
+- [log] rtsp: client信令增加错误日志
+- [fix] 修复logic.Option.NotifyHandler首字母小写外部无法设置的问题
+- [refactor] 将logic包中的DummyAudioFilter, GopCache, LazyRtmpChunkDivider, LazyRtmpMsg2FlvTag移入remux中
+- [refactor] rtmp: base.Buffer移入naza中
+- [chore] CI: 迁移到github action，已支持linux，macos平台，Go1.14和Go1.17，每次push代码和每周定时触发，并自动提交docker hub镜像
+- [chore] 修复go vet signal unbound channel的警告
+- [test] 提高测试覆盖，目前lal测试覆盖超过60%，文档中增加测试覆盖率徽章
+- [test] innertest增加m3u8文件检测，增加http api
+- [test] 测试各session的ISessionUrlContext接口
+- [test] 修复base/url_test.go中的测试用例
+
 #### v0.26.0 (2021-10-24)
 
 - [perf] rtmp合并发送功能使用writev实现

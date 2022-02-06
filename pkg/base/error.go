@@ -73,6 +73,15 @@ var (
 
 var ErrSdp = errors.New("lal.sdp: fxxk")
 
+// ----- pkg/logic -------------------------------------------------------------------------------------------------------
+
+var (
+	ErrDupInStream = errors.New("lal.logic: in stream already exist at group")
+
+	ErrSimpleAuthParamNotFound = errors.New("lal.logic: simple auth failed since url param lal_secret not found")
+	ErrSimpleAuthFailed        = errors.New("lal.logic: simple auth failed since url param lal_secret invalid")
+)
+
 // ---------------------------------------------------------------------------------------------------------------------
 
 func NewErrAmfInvalidType(b byte) error {

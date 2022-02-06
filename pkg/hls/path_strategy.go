@@ -12,6 +12,8 @@ import (
 	"fmt"
 	"path/filepath"
 	"strings"
+
+	"github.com/q191201771/lal/pkg/base"
 )
 
 // 聚合以下功能：
@@ -19,11 +21,8 @@ import (
 // - 路由策略： HTTP请求HLS时，request URI和文件路径的映射规则
 
 type RequestInfo struct {
-	FileName string
-	FileType string
-
-	StreamName       string
-	FileNameWithPath string
+	StreamName       string // uri结合策略
+	FileNameWithPath string // uri结合策略, 从磁盘打开文件时使用
 }
 
 type IPathStrategy interface {
@@ -31,11 +30,17 @@ type IPathStrategy interface {
 	IPathWriteStrategy
 }
 
+// IPathRequestStrategy
+//
 // 路由策略
 // 接到HTTP请求时，对应文件路径的映射逻辑
+//
 type IPathRequestStrategy interface {
-	// 解析HTTP请求，得到文件名、文件类型、流名称、文件所在路径
-	GetRequestInfo(uri string, rootOutPath string) RequestInfo
+	// GetRequestInfo
+	//
+	// 解析HTTP请求，得到流名称、文件所在路径
+	//
+	GetRequestInfo(urlCtx base.UrlContext, rootOutPath string) RequestInfo
 }
 
 // 落盘策略
@@ -99,6 +104,8 @@ const (
 type DefaultPathStrategy struct {
 }
 
+// GetRequestInfo
+//
 // RequestURI example:
 // uri                                    -> FileName                  StreamName FileType FileNameWithPath
 // /hls/test110.m3u8                      -> test110.m3u8              test110    m3u8     {rootOutPath}/test110/playlist.m3u8
@@ -106,24 +113,24 @@ type DefaultPathStrategy struct {
 // /hls/test110/record.m3u8               -> record.m3u8               test110    m3u8     {rootOutPath}/test110/record.m3u8
 // /hls/test110/test110-1620540712084-.ts -> test110-1620540712084-.ts test110    ts       {rootOutPath/test110/test110-1620540712084-.ts
 // /hls/test110-1620540712084-.ts         -> test110-1620540712084-.ts test110    ts       {rootOutPath/test110/test110-1620540712084-.ts
-func (dps *DefaultPathStrategy) GetRequestInfo(uri string, rootOutPath string) (ri RequestInfo) {
-	uriItems := strings.Split(uri, "/")
-	ri.FileName = uriItems[len(uriItems)-1]
-	fileNameItems := strings.Split(ri.FileName, ".")
-	fileNameWithOutType := fileNameItems[0]
-	ri.FileType = fileNameItems[len(fileNameItems)-1]
+//
+func (dps *DefaultPathStrategy) GetRequestInfo(urlCtx base.UrlContext, rootOutPath string) (ri RequestInfo) {
+	filename := urlCtx.LastItemOfPath
+	filetype := urlCtx.GetFileType()
+	fileNameWithoutType := urlCtx.GetFilenameWithoutType()
 
-	if ri.FileType == "m3u8" {
-		if ri.FileName == playlistM3u8FileName || ri.FileName == recordM3u8FileName {
+	if filetype == "m3u8" {
+		if filename == playlistM3u8FileName || filename == recordM3u8FileName {
+			uriItems := strings.Split(urlCtx.Path, "/")
 			ri.StreamName = uriItems[len(uriItems)-2]
-			ri.FileNameWithPath = filepath.Join(rootOutPath, ri.StreamName, ri.FileName)
+			ri.FileNameWithPath = filepath.Join(rootOutPath, ri.StreamName, filename)
 		} else {
-			ri.StreamName = fileNameWithOutType
+			ri.StreamName = fileNameWithoutType
 			ri.FileNameWithPath = filepath.Join(rootOutPath, ri.StreamName, playlistM3u8FileName)
 		}
-	} else if ri.FileType == "ts" {
-		ri.StreamName = dps.getStreamNameFromTsFileName(ri.FileName)
-		ri.FileNameWithPath = filepath.Join(rootOutPath, ri.StreamName, ri.FileName)
+	} else if filetype == "ts" {
+		ri.StreamName = dps.getStreamNameFromTsFileName(filename)
+		ri.FileNameWithPath = filepath.Join(rootOutPath, ri.StreamName, filename)
 	}
 
 	return

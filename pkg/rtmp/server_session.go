@@ -12,6 +12,7 @@ import (
 	"fmt"
 	"net"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/q191201771/naza/pkg/nazaerrors"
@@ -27,8 +28,16 @@ import (
 
 type ServerSessionObserver interface {
 	OnRtmpConnect(session *ServerSession, opa ObjectPairArray)
-	OnNewRtmpPubSession(session *ServerSession) // 上层代码应该在这个事件回调中注册音视频数据的监听
-	OnNewRtmpSubSession(session *ServerSession)
+
+	// OnNewRtmpPubSession
+	//
+	// 上层代码应该在这个事件回调中注册音视频数据的监听
+	//
+	// @return 上层如果想关闭这个session，则回调中返回不为nil的error值
+	//
+	OnNewRtmpPubSession(session *ServerSession) error
+
+	OnNewRtmpSubSession(session *ServerSession) error
 }
 
 type PubSessionObserver interface {
@@ -74,6 +83,10 @@ type ServerSession struct {
 	// only for SubSession
 	IsFresh                 bool
 	ShouldWaitVideoKeyFrame bool
+
+	disposeOnce sync.Once
+
+	DisposeByObserverFlag bool
 }
 
 func NewServerSession(observer ServerSessionObserver, conn net.Conn) *ServerSession {
@@ -102,10 +115,14 @@ func NewServerSession(observer ServerSessionObserver, conn net.Conn) *ServerSess
 
 func (s *ServerSession) RunLoop() (err error) {
 	if err = s.handshake(); err != nil {
+		_ = s.dispose(err)
 		return err
 	}
 
-	return s.runReadLoop()
+	err = s.runReadLoop()
+	_ = s.dispose(err)
+
+	return err
 }
 
 func (s *ServerSession) Write(msg []byte) error {
@@ -123,8 +140,7 @@ func (s *ServerSession) Flush() error {
 }
 
 func (s *ServerSession) Dispose() error {
-	nazalog.Infof("[%s] lifecycle dispose rtmp ServerSession.", s.uniqueKey)
-	return s.conn.Close()
+	return s.dispose(nil)
 }
 
 func (s *ServerSession) Url() string {
@@ -244,8 +260,8 @@ func (s *ServerSession) doUserControl(stream *Stream) error {
 	userControlType := bele.BeUint16(stream.msg.buff.Bytes())
 	if userControlType == uint16(base.RtmpUserControlPingRequest) {
 		stream.msg.buff.Skip(2)
-		timeStamp := bele.BeUint32(stream.msg.buff.Bytes())
-		s.packer.writePingResponse(s.conn, timeStamp)
+		timestamp := bele.BeUint32(stream.msg.buff.Bytes())
+		return s.packer.writePingResponse(s.conn, timestamp)
 	}
 	return nil
 }
@@ -419,7 +435,7 @@ func (s *ServerSession) doPublish(tid int, stream *Stream) (err error) {
 	nazalog.Infof("[%s] < R publish('%s')", s.uniqueKey, s.streamNameWithRawQuery)
 
 	nazalog.Infof("[%s] > W onStatus('NetStream.Publish.Start').", s.uniqueKey)
-	if err := s.packer.writeOnStatusPublish(s.conn, Msid1); err != nil {
+	if err = s.packer.writeOnStatusPublish(s.conn, Msid1); err != nil {
 		return err
 	}
 
@@ -427,9 +443,11 @@ func (s *ServerSession) doPublish(tid int, stream *Stream) (err error) {
 	s.modConnProps()
 
 	s.t = ServerSessionTypePub
-	s.observer.OnNewRtmpPubSession(s)
-
-	return nil
+	err = s.observer.OnNewRtmpPubSession(s)
+	if err != nil {
+		s.DisposeByObserverFlag = true
+	}
+	return err
 }
 
 func (s *ServerSession) doPlay(tid int, stream *Stream) (err error) {
@@ -467,9 +485,11 @@ func (s *ServerSession) doPlay(tid int, stream *Stream) (err error) {
 	s.modConnProps()
 
 	s.t = ServerSessionTypeSub
-	s.observer.OnNewRtmpSubSession(s)
-
-	return nil
+	err = s.observer.OnNewRtmpSubSession(s)
+	if err != nil {
+		s.DisposeByObserverFlag = true
+	}
+	return err
 }
 
 func (s *ServerSession) modConnProps() {
@@ -481,4 +501,17 @@ func (s *ServerSession) modConnProps() {
 	case ServerSessionTypeSub:
 		s.conn.ModWriteTimeoutMs(serverSessionWriteAvTimeoutMs)
 	}
+}
+
+func (s *ServerSession) dispose(err error) error {
+	var retErr error
+	s.disposeOnce.Do(func() {
+		nazalog.Infof("[%s] lifecycle dispose rtmp ServerSession. err=%+v", s.uniqueKey, err)
+		if s.conn == nil {
+			retErr = base.ErrSessionNotStarted
+			return
+		}
+		retErr = s.conn.Close()
+	})
+	return retErr
 }

@@ -53,6 +53,7 @@ func main() {
 		option.AssertBehavior = nazalog.AssertFatal
 	})
 	defer nazalog.Sync()
+	base.LogoutStartInfo()
 
 	var mu sync.Mutex
 	tagKey2writeTime := make(map[string]time.Time)
