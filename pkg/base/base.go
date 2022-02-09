@@ -14,7 +14,6 @@ import (
 	"time"
 
 	"github.com/q191201771/naza/pkg/bininfo"
-	"github.com/q191201771/naza/pkg/nazalog"
 )
 
 // base包提供被其他多个package依赖的基础内容，自身不依赖任何package
@@ -33,13 +32,13 @@ func ReadableNowTime() string {
 
 func LogoutStartInfo() {
 	dir, _ := os.Getwd()
-	nazalog.Infof("     start: %s", startTime)
-	nazalog.Infof("        wd: %s", dir)
-	nazalog.Infof("      args: %s", strings.Join(os.Args, " "))
-	nazalog.Infof("   bininfo: %s", bininfo.StringifySingleLine())
-	nazalog.Infof("   version: %s", LalFullInfo)
-	nazalog.Infof("    github: %s", LalGithubSite)
-	nazalog.Infof("       doc: %s", LalDocSite)
+	Log.Infof("     start: %s", startTime)
+	Log.Infof("        wd: %s", dir)
+	Log.Infof("      args: %s", strings.Join(os.Args, " "))
+	Log.Infof("   bininfo: %s", bininfo.StringifySingleLine())
+	Log.Infof("   version: %s", LalFullInfo)
+	Log.Infof("    github: %s", LalGithubSite)
+	Log.Infof("       doc: %s", LalDocSite)
 }
 
 func init() {

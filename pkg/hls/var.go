@@ -8,12 +8,17 @@
 
 package hls
 
-import "github.com/q191201771/naza/pkg/mock"
+import (
+	"github.com/q191201771/naza/pkg/mock"
+	"github.com/q191201771/naza/pkg/nazalog"
+)
 
 var (
 	PathStrategy IPathStrategy = &DefaultPathStrategy{}
 
 	Clock = mock.NewStdClock()
+
+	Log = nazalog.GetGlobalLogger()
 )
 
 var (

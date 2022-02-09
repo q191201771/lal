@@ -18,7 +18,6 @@ import (
 	"github.com/q191201771/lal/pkg/mpegts"
 	"github.com/q191201771/naza/pkg/bele"
 	"github.com/q191201771/naza/pkg/nazabytes"
-	"github.com/q191201771/naza/pkg/nazalog"
 )
 
 type StreamerObserver interface {
@@ -99,7 +98,7 @@ func (s *Streamer) feedVideo(msg base.RtmpMsg) {
 	// 此时打印错误并返回也不影响
 	//
 	if len(msg.Payload) <= 5 {
-		nazalog.Errorf("[%s] invalid video message length. header=%+v, payload=%s", s.UniqueKey, msg.Header, hex.Dump(msg.Payload))
+		Log.Errorf("[%s] invalid video message length. header=%+v, payload=%s", s.UniqueKey, msg.Header, hex.Dump(msg.Payload))
 		return
 	}
 
@@ -114,12 +113,12 @@ func (s *Streamer) feedVideo(msg base.RtmpMsg) {
 	var err error
 	if msg.IsAvcKeySeqHeader() {
 		if s.spspps, err = avc.SpsPpsSeqHeader2Annexb(msg.Payload); err != nil {
-			nazalog.Errorf("[%s] cache spspps failed. err=%+v", s.UniqueKey, err)
+			Log.Errorf("[%s] cache spspps failed. err=%+v", s.UniqueKey, err)
 		}
 		return
 	} else if msg.IsHevcKeySeqHeader() {
 		if s.spspps, err = hevc.VpsSpsPpsSeqHeader2Annexb(msg.Payload); err != nil {
-			nazalog.Errorf("[%s] cache vpsspspps failed. err=%+v", s.UniqueKey, err)
+			Log.Errorf("[%s] cache vpsspspps failed. err=%+v", s.UniqueKey, err)
 		}
 		return
 	}
@@ -134,7 +133,7 @@ func (s *Streamer) feedVideo(msg base.RtmpMsg) {
 	// msg中可能有多个NALU，逐个获取
 	nals, err := avc.SplitNaluAvcc(msg.Payload[5:])
 	if err != nil {
-		nazalog.Errorf("[%s] iterate nalu failed. err=%+v, header=%+v, payload=%s", err, s.UniqueKey, msg.Header, hex.Dump(nazabytes.Prefix(msg.Payload, 32)))
+		Log.Errorf("[%s] iterate nalu failed. err=%+v, header=%+v, payload=%s", err, s.UniqueKey, msg.Header, hex.Dump(nazabytes.Prefix(msg.Payload, 32)))
 		return
 	}
 	for _, nal := range nals {
@@ -146,7 +145,7 @@ func (s *Streamer) feedVideo(msg base.RtmpMsg) {
 			nalType = hevc.ParseNaluType(nal[0])
 		}
 
-		//nazalog.Debugf("[%s] naltype=%d, len=%d(%d), cts=%d, key=%t.", s.UniqueKey, nalType, nalBytes, len(msg.Payload), cts, msg.IsVideoKeyNalu())
+		//Log.Debugf("[%s] naltype=%d, len=%d(%d), cts=%d, key=%t.", s.UniqueKey, nalType, nalBytes, len(msg.Payload), cts, msg.IsVideoKeyNalu())
 
 		// 过滤掉原流中的sps pps aud
 		// sps pps前面已经缓存过了，后面有自己的写入逻辑
@@ -176,7 +175,7 @@ func (s *Streamer) feedVideo(msg base.RtmpMsg) {
 			case avc.NaluTypeIdrSlice:
 				if !spsppsSent {
 					if out, err = s.appendSpsPps(out); err != nil {
-						nazalog.Warnf("[%s] append spspps by not exist.", s.UniqueKey)
+						Log.Warnf("[%s] append spspps by not exist.", s.UniqueKey)
 						return
 					}
 				}
@@ -190,7 +189,7 @@ func (s *Streamer) feedVideo(msg base.RtmpMsg) {
 			case hevc.NaluTypeSliceIdr, hevc.NaluTypeSliceIdrNlp, hevc.NaluTypeSliceCranut:
 				if !spsppsSent {
 					if out, err = s.appendSpsPps(out); err != nil {
-						nazalog.Warnf("[%s] append spspps by not exist.", s.UniqueKey)
+						Log.Warnf("[%s] append spspps by not exist.", s.UniqueKey)
 						return
 					}
 				}
@@ -233,24 +232,24 @@ func (s *Streamer) feedVideo(msg base.RtmpMsg) {
 
 func (s *Streamer) feedAudio(msg base.RtmpMsg) {
 	if len(msg.Payload) < 3 {
-		nazalog.Errorf("[%s] invalid audio message length. len=%d", s.UniqueKey, len(msg.Payload))
+		Log.Errorf("[%s] invalid audio message length. len=%d", s.UniqueKey, len(msg.Payload))
 		return
 	}
 	if msg.Payload[0]>>4 != base.RtmpSoundFormatAac {
 		return
 	}
 
-	//nazalog.Debugf("[%s] hls: feedAudio. dts=%d len=%d", s.UniqueKey, msg.Header.TimestampAbs, len(msg.Payload))
+	//Log.Debugf("[%s] hls: feedAudio. dts=%d len=%d", s.UniqueKey, msg.Header.TimestampAbs, len(msg.Payload))
 
 	if msg.Payload[1] == base.RtmpAacPacketTypeSeqHeader {
 		if err := s.cacheAacSeqHeader(msg); err != nil {
-			nazalog.Errorf("[%s] cache aac seq header failed. err=%+v", s.UniqueKey, err)
+			Log.Errorf("[%s] cache aac seq header failed. err=%+v", s.UniqueKey, err)
 		}
 		return
 	}
 
 	if !s.AudioSeqHeaderCached() {
-		nazalog.Warnf("[%s] feed audio message but aac seq header not exist.", s.UniqueKey)
+		Log.Warnf("[%s] feed audio message but aac seq header not exist.", s.UniqueKey)
 		return
 	}
 

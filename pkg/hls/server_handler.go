@@ -12,8 +12,6 @@ import (
 	"net/http"
 
 	"github.com/q191201771/lal/pkg/base"
-
-	"github.com/q191201771/naza/pkg/nazalog"
 )
 
 type ServerHandler struct {
@@ -29,14 +27,14 @@ func NewServerHandler(outPath string) *ServerHandler {
 func (s *ServerHandler) ServeHTTP(resp http.ResponseWriter, req *http.Request) {
 	urlCtx, err := base.ParseUrl(base.ParseHttpRequest(req), 80)
 	if err != nil {
-		nazalog.Errorf("parse url. err=%+v", err)
+		Log.Errorf("parse url. err=%+v", err)
 		return
 	}
 	s.ServeHTTPWithUrlCtx(resp, urlCtx)
 }
 
 func (s *ServerHandler) ServeHTTPWithUrlCtx(resp http.ResponseWriter, urlCtx base.UrlContext) {
-	//nazalog.Debugf("%+v", req)
+	//Log.Debugf("%+v", req)
 
 	// TODO chef:
 	// - check appname in URI path
@@ -45,17 +43,17 @@ func (s *ServerHandler) ServeHTTPWithUrlCtx(resp http.ResponseWriter, urlCtx bas
 	filetype := urlCtx.GetFileType()
 
 	ri := PathStrategy.GetRequestInfo(urlCtx, s.outPath)
-	//nazalog.Debugf("%+v", ri)
+	//Log.Debugf("%+v", ri)
 
 	if filename == "" || (filetype != "m3u8" && filetype != "ts") || ri.StreamName == "" || ri.FileNameWithPath == "" {
-		nazalog.Warnf("invalid hls request. url=%+v, request=%+v", urlCtx, ri)
+		Log.Warnf("invalid hls request. url=%+v, request=%+v", urlCtx, ri)
 		resp.WriteHeader(404)
 		return
 	}
 
 	content, err := ReadFile(ri.FileNameWithPath)
 	if err != nil {
-		nazalog.Warnf("read hls file failed. request=%+v, err=%+v", ri, err)
+		Log.Warnf("read hls file failed. request=%+v, err=%+v", ri, err)
 		resp.WriteHeader(404)
 		return
 	}

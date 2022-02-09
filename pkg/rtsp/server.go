@@ -10,8 +10,6 @@ package rtsp
 
 import (
 	"net"
-
-	"github.com/q191201771/naza/pkg/nazalog"
 )
 
 type ServerObserver interface {
@@ -70,7 +68,7 @@ func (s *Server) Listen() (err error) {
 	if err != nil {
 		return
 	}
-	nazalog.Infof("start rtsp server listen. addr=%s", s.addr)
+	Log.Infof("start rtsp server listen. addr=%s", s.addr)
 	return
 }
 
@@ -89,7 +87,7 @@ func (s *Server) Dispose() {
 		return
 	}
 	if err := s.ln.Close(); err != nil {
-		nazalog.Error(err)
+		Log.Error(err)
 	}
 }
 
@@ -122,7 +120,7 @@ func (s *Server) handleTcpConnect(conn net.Conn) {
 	s.observer.OnNewRtspSessionConnect(session)
 
 	err := session.RunLoop()
-	nazalog.Info(err)
+	Log.Info(err)
 
 	if session.pubSession != nil {
 		s.observer.OnDelRtspPubSession(session.pubSession)

@@ -11,10 +11,8 @@ package avc
 import (
 	"io"
 
-	"github.com/q191201771/naza/pkg/nazabytes"
-	"github.com/q191201771/naza/pkg/nazalog"
-
 	"github.com/q191201771/lal/pkg/base"
+	"github.com/q191201771/naza/pkg/nazabytes"
 
 	"github.com/q191201771/naza/pkg/nazaerrors"
 
@@ -36,7 +34,7 @@ var (
 	NaluStartCode3 = []byte{0x0, 0x0, 0x1}
 	NaluStartCode4 = []byte{0x0, 0x0, 0x0, 0x1}
 
-	// aud nalu
+	// AudNalu aud nalu
 	AudNalu = []byte{0x00, 0x00, 0x00, 0x01, 0x09, 0xf0}
 )
 
@@ -498,7 +496,7 @@ func IterateNaluAvcc(nals []byte, handler func(nal []byte)) error {
 
 			// length为0的直接过滤掉
 			if length == 0 {
-				nazalog.Warnf("avcc nalu length equal 0. nals=%s", nazabytes.Prefix(nals, 128))
+				Log.Warnf("avcc nalu length equal 0. nals=%s", nazabytes.Prefix(nals, 128))
 				continue
 			}
 			handler(nals[pos:epos])
@@ -507,7 +505,7 @@ func IterateNaluAvcc(nals []byte, handler func(nal []byte)) error {
 			// 最后一个
 
 			if length == 0 {
-				nazalog.Warnf("avcc nalu length equal 0. nals=%s", nazabytes.Prefix(nals, 128))
+				Log.Warnf("avcc nalu length equal 0. nals=%s", nazabytes.Prefix(nals, 128))
 				continue
 			}
 			handler(nals[pos:epos])

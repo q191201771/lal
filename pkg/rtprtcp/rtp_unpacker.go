@@ -10,7 +10,6 @@ package rtprtcp
 
 import (
 	"github.com/q191201771/lal/pkg/base"
-	"github.com/q191201771/naza/pkg/nazalog"
 )
 
 // 传入RTP包，合成帧数据，并回调返回
@@ -71,7 +70,7 @@ func DefaultRtpUnpackerFactory(payloadType base.AvPacketPt, clockRate int, maxSi
 	case base.AvPacketPtHevc:
 		protocol = NewRtpUnpackerAvcHevc(payloadType, clockRate, onAvPacket)
 	default:
-		nazalog.Fatalf("payload type not support yet. payloadType=%d", payloadType)
+		Log.Fatalf("payload type not support yet. payloadType=%d", payloadType)
 	}
 	return NewRtpUnpackContainer(maxSize, protocol)
 }

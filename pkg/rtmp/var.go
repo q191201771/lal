@@ -8,8 +8,14 @@
 
 package rtmp
 
-// TODO chef
-// 一些更专业的配置项，暂时只在该源码文件中配置，不提供外部配置接口
+import "github.com/q191201771/naza/pkg/nazalog"
+
+// TODO chef 一些更专业的配置项，暂时只在该源码文件中配置，不提供外部配置接口
+
+var (
+	Log = nazalog.GetGlobalLogger()
+)
+
 var (
 	readBufSize                   = 4096  // server session connection读缓冲的大小
 	wChanSize                     = 1024  // server session 发送数据时，channel 的大小

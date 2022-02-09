@@ -15,7 +15,6 @@ import (
 	"github.com/q191201771/lal/pkg/rtprtcp"
 	"github.com/q191201771/lal/pkg/sdp"
 	"github.com/q191201771/naza/pkg/nazaerrors"
-	"github.com/q191201771/naza/pkg/nazalog"
 	"github.com/q191201771/naza/pkg/nazanet"
 )
 
@@ -58,14 +57,14 @@ func NewPushSession(modOptions ...ModPushSessionOption) *PushSession {
 	baseOutSession := NewBaseOutSession(uk, s)
 	s.cmdSession = cmdSession
 	s.baseOutSession = baseOutSession
-	nazalog.Infof("[%s] lifecycle new rtsp PushSession. session=%p", uk, s)
+	Log.Infof("[%s] lifecycle new rtsp PushSession. session=%p", uk, s)
 	return s
 }
 
 // Push 阻塞直到和对端完成推流前，握手部分的工作（也即收到RTSP Record response），或者发生错误
 //
 func (session *PushSession) Push(rawUrl string, sdpCtx sdp.LogicContext) error {
-	nazalog.Debugf("[%s] push. url=%s", session.uniqueKey, rawUrl)
+	Log.Debugf("[%s] push. url=%s", session.uniqueKey, rawUrl)
 	session.cmdSession.InitWithSdp(sdpCtx)
 	session.baseOutSession.InitWithSdp(sdpCtx)
 	if err := session.cmdSession.Do(rawUrl); err != nil {
@@ -85,7 +84,7 @@ func (session *PushSession) Push(rawUrl string, sdpCtx sdp.LogicContext) error {
 					_ = session.baseOutSession.Dispose()
 				}
 				if cmdSessionDisposed {
-					nazalog.Errorf("[%s] cmd session disposed already.", session.uniqueKey)
+					Log.Errorf("[%s] cmd session disposed already.", session.uniqueKey)
 				}
 				cmdSessionDisposed = true
 			case err = <-session.baseOutSession.WaitChan():
@@ -94,7 +93,7 @@ func (session *PushSession) Push(rawUrl string, sdpCtx sdp.LogicContext) error {
 					_ = session.cmdSession.Dispose()
 				}
 				if baseInSessionDisposed {
-					nazalog.Errorf("[%s] base in session disposed already.", session.uniqueKey)
+					Log.Errorf("[%s] base in session disposed already.", session.uniqueKey)
 				}
 				baseInSessionDisposed = true
 			} // select loop
@@ -217,7 +216,7 @@ func (session *PushSession) WriteInterleavedPacket(packet []byte, channel int) e
 func (session *PushSession) dispose(err error) error {
 	var retErr error
 	session.disposeOnce.Do(func() {
-		nazalog.Infof("[%s] lifecycle dispose rtsp PushSession. session=%p", session.uniqueKey, session)
+		Log.Infof("[%s] lifecycle dispose rtsp PushSession. session=%p", session.uniqueKey, session)
 		e1 := session.cmdSession.Dispose()
 		e2 := session.baseOutSession.Dispose()
 		retErr = nazaerrors.CombineErrors(e1, e2)

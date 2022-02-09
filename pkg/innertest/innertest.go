@@ -38,7 +38,6 @@ import (
 	"github.com/q191201771/lal/pkg/rtmp"
 	"github.com/q191201771/naza/pkg/assert"
 	"github.com/q191201771/naza/pkg/nazaatomic"
-	"github.com/q191201771/naza/pkg/nazalog"
 )
 
 // 开启了一个lalserver
@@ -96,11 +95,11 @@ func (r RtspPullObserver) OnAvPacket(pkt base.AvPacket) {
 
 func Entry(t *testing.T) {
 	if _, err := os.Lstat(confFile); err != nil {
-		nazalog.Warnf("lstat %s error. err=%+v", confFile, err)
+		Log.Warnf("lstat %s error. err=%+v", confFile, err)
 		return
 	}
 	if _, err := os.Lstat(rFlvFileName); err != nil {
-		nazalog.Warnf("lstat %s error. err=%+v", rFlvFileName, err)
+		Log.Warnf("lstat %s error. err=%+v", rFlvFileName, err)
 		return
 	}
 
@@ -153,9 +152,9 @@ func Entry(t *testing.T) {
 				assert.Equal(tt, nil, err)
 				rtmpPullTagCount.Increment()
 			})
-		nazalog.Assert(nil, err)
+		Log.Assert(nil, err)
 		err = <-rtmpPullSession.WaitChan()
-		nazalog.Debug(err)
+		Log.Debug(err)
 	}()
 
 	go func() {
@@ -167,9 +166,9 @@ func Entry(t *testing.T) {
 			assert.Equal(t, nil, err)
 			httpflvPullTagCount.Increment()
 		})
-		nazalog.Assert(nil, err)
+		Log.Assert(nil, err)
 		err = <-httpflvPullSession.WaitChan()
-		nazalog.Debug(err)
+		Log.Debug(err)
 	}()
 
 	time.Sleep(200 * time.Millisecond)
@@ -184,7 +183,7 @@ func Entry(t *testing.T) {
 				option.PullTimeoutMs = 500
 			})
 			err := rtspPullSession.Pull(rtspPullUrl)
-			nazalog.Debug(err)
+			Log.Debug(err)
 			if rtspSdpCtx.RawSdp != nil {
 				break
 			}
@@ -202,7 +201,7 @@ func Entry(t *testing.T) {
 	for _, tag := range tags {
 		assert.Equal(t, nil, err)
 		chunks := remux.FlvTag2RtmpChunks(tag)
-		//nazalog.Debugf("rtmp push: %d", fileTagCount.Load())
+		//Log.Debugf("rtmp push: %d", fileTagCount.Load())
 		err = pushSession.Write(chunks)
 		assert.Equal(t, nil, err)
 	}
@@ -220,7 +219,7 @@ func Entry(t *testing.T) {
 		time.Sleep(10 * time.Millisecond)
 	}
 
-	nazalog.Debug("[innertest] start dispose.")
+	Log.Debug("[innertest] start dispose.")
 
 	pushSession.Dispose()
 	httpflvPullSession.Dispose()
@@ -234,7 +233,7 @@ func Entry(t *testing.T) {
 	//_ = syscall.Kill(syscall.Getpid(), syscall.SIGUSR1)
 	sm.Dispose()
 
-	nazalog.Debugf("tag count. in=%d, out httpflv=%d, out rtmp=%d, out rtsp=%d",
+	Log.Debugf("tag count. in=%d, out httpflv=%d, out rtmp=%d, out rtsp=%d",
 		fileTagCount, httpflvPullTagCount.Load(), rtmpPullTagCount.Load(), rtspPullAvPacketCount.Load())
 
 	compareFile()
@@ -269,11 +268,11 @@ func Entry(t *testing.T) {
 func compareFile() {
 	r, err := ioutil.ReadFile(rFlvFileName)
 	assert.Equal(tt, nil, err)
-	nazalog.Debugf("%s filesize:%d", rFlvFileName, len(r))
+	Log.Debugf("%s filesize:%d", rFlvFileName, len(r))
 
 	w, err := ioutil.ReadFile(wFlvPullFileName)
 	assert.Equal(tt, nil, err)
-	nazalog.Debugf("%s filesize:%d", wFlvPullFileName, len(w))
+	Log.Debugf("%s filesize:%d", wFlvPullFileName, len(w))
 	res := bytes.Compare(r, w)
 	assert.Equal(tt, 0, res)
 	//err = os.Remove(wFlvPullFileName)
@@ -281,7 +280,7 @@ func compareFile() {
 
 	w2, err := ioutil.ReadFile(wRtmpPullFileName)
 	assert.Equal(tt, nil, err)
-	nazalog.Debugf("%s filesize:%d", wRtmpPullFileName, len(w2))
+	Log.Debugf("%s filesize:%d", wRtmpPullFileName, len(w2))
 	res = bytes.Compare(r, w2)
 	assert.Equal(tt, 0, res)
 	//err = os.Remove(wRtmpPullFileName)
@@ -293,30 +292,30 @@ func getAllHttpApi(addr string) {
 	var err error
 
 	b, err = httpGet(fmt.Sprintf("http://%s/api/list", addr))
-	nazalog.Assert(nil, err)
-	nazalog.Debugf("%s", string(b))
+	Log.Assert(nil, err)
+	Log.Debugf("%s", string(b))
 
 	b, err = httpGet(fmt.Sprintf("http://%s/api/stat/lal_info", addr))
-	nazalog.Assert(nil, err)
-	nazalog.Debugf("%s", string(b))
+	Log.Assert(nil, err)
+	Log.Debugf("%s", string(b))
 
 	b, err = httpGet(fmt.Sprintf("http://%s/api/stat/group?stream_name=innertest", addr))
-	nazalog.Assert(nil, err)
-	nazalog.Debugf("%s", string(b))
+	Log.Assert(nil, err)
+	Log.Debugf("%s", string(b))
 
 	b, err = httpGet(fmt.Sprintf("http://%s/api/stat/all_group", addr))
-	nazalog.Assert(nil, err)
-	nazalog.Debugf("%s", string(b))
+	Log.Assert(nil, err)
+	Log.Debugf("%s", string(b))
 
 	var acspr base.ApiCtrlStartPullReq
 	b, err = httpPost(fmt.Sprintf("http://%s/api/ctrl/start_pull", addr), &acspr)
-	nazalog.Assert(nil, err)
-	nazalog.Debugf("%s", string(b))
+	Log.Assert(nil, err)
+	Log.Debugf("%s", string(b))
 
 	var ackos base.ApiCtrlKickOutSession
 	b, err = httpPost(fmt.Sprintf("http://%s/api/ctrl/kick_out_session", addr), &ackos)
-	nazalog.Assert(nil, err)
-	nazalog.Debugf("%s", string(b))
+	Log.Assert(nil, err)
+	Log.Debugf("%s", string(b))
 }
 
 // TODO(chef): refactor 移入naza中

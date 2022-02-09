@@ -12,8 +12,6 @@ import (
 	"time"
 
 	"github.com/q191201771/naza/pkg/mock"
-
-	"github.com/q191201771/naza/pkg/nazalog"
 )
 
 var Clock = mock.NewStdClock()
@@ -79,7 +77,7 @@ func (f *FlvFilePump) PumpWithTags(tags []Tag, onFlvTag OnPumpFlvTag) error {
 
 	// 循环一次，代表遍历文件一次
 	for roundIndex := 0; ; roundIndex++ {
-		nazalog.Debugf("new round. index=%d", roundIndex)
+		Log.Debugf("new round. index=%d", roundIndex)
 
 		hasReadThisBaseTs = false
 

@@ -13,7 +13,6 @@ import (
 	"github.com/q191201771/lal/pkg/base"
 	"github.com/q191201771/lal/pkg/hevc"
 	"github.com/q191201771/naza/pkg/bele"
-	"github.com/q191201771/naza/pkg/nazalog"
 )
 
 // -----------------------------------
@@ -127,7 +126,7 @@ func ParseRtpPacket(b []byte) (pkt RtpPacket, err error) {
 
 func (p *RtpPacket) Body() []byte {
 	if p.Header.payloadOffset == 0 {
-		nazalog.Warnf("CHEFNOTICEME. payloadOffset=%d", p.Header.payloadOffset)
+		Log.Warnf("CHEFNOTICEME. payloadOffset=%d", p.Header.payloadOffset)
 		p.Header.payloadOffset = RtpFixedHeaderLength
 	}
 	return p.Raw[p.Header.payloadOffset:]

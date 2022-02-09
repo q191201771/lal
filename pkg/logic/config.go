@@ -221,16 +221,16 @@ func LoadConfAndInitLog(confFile string) *Config {
 		cacheLog = append(cacheLog, fmt.Sprintf("log.assert_behavior=%s", config.LogConfig.AssertBehavior.ReadableString()))
 	}
 
-	if err := nazalog.Init(func(option *nazalog.Option) {
+	if err := Log.Init(func(option *nazalog.Option) {
 		*option = config.LogConfig
 	}); err != nil {
 		_, _ = fmt.Fprintf(os.Stderr, "initial log failed. err=%+v\n", err)
 		base.OsExitAndWaitPressIfWindows(1)
 	}
-	nazalog.Info("initial log succ.")
+	Log.Info("initial log succ.")
 
 	// 打印Logo
-	nazalog.Info(`
+	Log.Info(`
     __    ___    __
    / /   /   |  / /
   / /   / /| | / /
@@ -240,7 +240,7 @@ func LoadConfAndInitLog(confFile string) *Config {
 
 	// 检查配置版本号是否匹配
 	if config.ConfVersion != ConfVersion {
-		nazalog.Warnf("config version invalid. conf version of lalserver=%s, conf version of config file=%s",
+		Log.Warnf("config version invalid. conf version of lalserver=%s, conf version of config file=%s",
 			ConfVersion, config.ConfVersion)
 	}
 
@@ -253,15 +253,15 @@ func LoadConfAndInitLog(confFile string) *Config {
 		"httpts.http_listen_addr", "httpts.https_listen_addr", "httpts.https_cert_file", "httpts.https_key_file",
 	)
 	if err != nil {
-		nazalog.Warnf("config nazajson collect not exist fields failed. err=%+v", err)
+		Log.Warnf("config nazajson collect not exist fields failed. err=%+v", err)
 	}
 	if len(notExistFields) != 0 {
-		nazalog.Warnf("config some fields do not exist which have been set to the zero value. fields=%+v", notExistFields)
+		Log.Warnf("config some fields do not exist which have been set to the zero value. fields=%+v", notExistFields)
 	}
 
 	// 日志字段检查，缺失的字段，打印前面设置的默认值
 	if len(cacheLog) > 0 {
-		nazalog.Warnf("config some log fields do not exist which have been set to default value. %s", strings.Join(cacheLog, ", "))
+		Log.Warnf("config some log fields do not exist which have been set to default value. %s", strings.Join(cacheLog, ", "))
 	}
 
 	// 如果具体的HTTP应用没有设置HTTP监听相关的配置，则尝试使用全局配置
@@ -271,39 +271,39 @@ func LoadConfAndInitLog(confFile string) *Config {
 
 	// 为缺失的字段中的一些特定字段，设置特定默认值
 	if config.HlsConfig.Enable && !j.Exist("hls.cleanup_mode") {
-		nazalog.Warnf("config hls.cleanup_mode not exist. set to default which is %d", defaultHlsCleanupMode)
+		Log.Warnf("config hls.cleanup_mode not exist. set to default which is %d", defaultHlsCleanupMode)
 		config.HlsConfig.CleanupMode = defaultHlsCleanupMode
 	}
 	if config.HlsConfig.Enable && !j.Exist("hls.delete_threshold") {
-		nazalog.Warnf("config hls.delete_threshold not exist. set to default same as hls.fragment_num which is %d",
+		Log.Warnf("config hls.delete_threshold not exist. set to default same as hls.fragment_num which is %d",
 			config.HlsConfig.FragmentNum)
 		config.HlsConfig.DeleteThreshold = config.HlsConfig.FragmentNum
 	}
 	if (config.HttpflvConfig.Enable || config.HttpflvConfig.EnableHttps) && !j.Exist("httpflv.url_pattern") {
-		nazalog.Warnf("config httpflv.url_pattern not exist. set to default wchich is %s", defaultHttpflvUrlPattern)
+		Log.Warnf("config httpflv.url_pattern not exist. set to default wchich is %s", defaultHttpflvUrlPattern)
 		config.HttpflvConfig.UrlPattern = defaultHttpflvUrlPattern
 	}
 	if (config.HttptsConfig.Enable || config.HttptsConfig.EnableHttps) && !j.Exist("httpts.url_pattern") {
-		nazalog.Warnf("config httpts.url_pattern not exist. set to default wchich is %s", defaultHttptsUrlPattern)
+		Log.Warnf("config httpts.url_pattern not exist. set to default wchich is %s", defaultHttptsUrlPattern)
 		config.HttptsConfig.UrlPattern = defaultHttptsUrlPattern
 	}
 	if (config.HlsConfig.Enable || config.HlsConfig.EnableHttps) && !j.Exist("hls.url_pattern") {
-		nazalog.Warnf("config hls.url_pattern not exist. set to default wchich is %s", defaultHlsUrlPattern)
+		Log.Warnf("config hls.url_pattern not exist. set to default wchich is %s", defaultHlsUrlPattern)
 		config.HttpflvConfig.UrlPattern = defaultHlsUrlPattern
 	}
 
 	// 对一些常见的格式错误做修复
 	// 确保url pattern以`/`开始，并以`/`结束
 	if urlPattern, changed := ensureStartAndEndWithSlash(config.HttpflvConfig.UrlPattern); changed {
-		nazalog.Warnf("fix config. httpflv.url_pattern %s -> %s", config.HttpflvConfig.UrlPattern, urlPattern)
+		Log.Warnf("fix config. httpflv.url_pattern %s -> %s", config.HttpflvConfig.UrlPattern, urlPattern)
 		config.HttpflvConfig.UrlPattern = urlPattern
 	}
 	if urlPattern, changed := ensureStartAndEndWithSlash(config.HttptsConfig.UrlPattern); changed {
-		nazalog.Warnf("fix config. httpts.url_pattern %s -> %s", config.HttptsConfig.UrlPattern, urlPattern)
+		Log.Warnf("fix config. httpts.url_pattern %s -> %s", config.HttptsConfig.UrlPattern, urlPattern)
 		config.HttpflvConfig.UrlPattern = urlPattern
 	}
 	if urlPattern, changed := ensureStartAndEndWithSlash(config.HlsConfig.UrlPattern); changed {
-		nazalog.Warnf("fix config. hls.url_pattern %s -> %s", config.HlsConfig.UrlPattern, urlPattern)
+		Log.Warnf("fix config. hls.url_pattern %s -> %s", config.HlsConfig.UrlPattern, urlPattern)
 		config.HttpflvConfig.UrlPattern = urlPattern
 	}
 
@@ -318,7 +318,7 @@ func LoadConfAndInitLog(confFile string) *Config {
 		tlines = append(tlines, strings.TrimSpace(l))
 	}
 	compactRawContent := strings.Join(tlines, " ")
-	nazalog.Infof("load conf file succ. filename=%s, raw content=%s parsed=%+v", confFile, compactRawContent, config)
+	Log.Infof("load conf file succ. filename=%s, raw content=%s parsed=%+v", confFile, compactRawContent, config)
 
 	return config
 }

@@ -10,8 +10,6 @@ package base
 
 import (
 	"net"
-
-	"github.com/q191201771/naza/pkg/nazalog"
 )
 
 // TODO(chef): feat 通过时间戳（目前是数据大小）来设定合并阈值
@@ -47,7 +45,7 @@ func NewMergeWriter(onWritev OnWritev, size int) *MergeWriter {
 // 注意，函数调用结束后，`b`内存块会被内部持有
 //
 func (w *MergeWriter) Write(b []byte) {
-	nazalog.Debugf("[%p] MergeWriter::Write. len=%d", w, len(b))
+	Log.Debugf("[%p] MergeWriter::Write. len=%d", w, len(b))
 	w.bs = append(w.bs, b)
 	w.currSize += len(b)
 	if w.currSize >= w.size {
@@ -58,7 +56,7 @@ func (w *MergeWriter) Write(b []byte) {
 // Flush 强制将内部缓冲的数据全部回调排空
 //
 func (w *MergeWriter) Flush() {
-	nazalog.Debugf("[%p] MergeWriter::Flush.", w)
+	Log.Debugf("[%p] MergeWriter::Flush.", w)
 	if w.currSize > 0 {
 		w.flush()
 	}
@@ -74,7 +72,7 @@ func (w *MergeWriter) flush() {
 		n += len(v)
 		ns = append(ns, len(v))
 	}
-	nazalog.Debugf("[%p] MergeWriter::flush. len=%d(%v)", w, n, ns)
+	Log.Debugf("[%p] MergeWriter::flush. len=%d(%v)", w, n, ns)
 	w.onWritev(w.bs)
 	w.currSize = 0
 	w.bs = nil

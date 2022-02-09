@@ -18,14 +18,13 @@ import (
 	"github.com/q191201771/naza/pkg/bele"
 	"github.com/q191201771/naza/pkg/nazabits"
 	"github.com/q191201771/naza/pkg/nazabytes"
-	"github.com/q191201771/naza/pkg/nazalog"
 )
 
 func ParseSps(payload []byte, ctx *Context) error {
 	br := nazabits.NewBitReader(payload)
 	var sps Sps
 	if err := parseSpsBasic(&br, &sps); err != nil {
-		nazalog.Errorf("parseSpsBasic failed. err=%+v, payload=%s", err, hex.Dump(nazabytes.Prefix(payload, 128)))
+		Log.Errorf("parseSpsBasic failed. err=%+v, payload=%s", err, hex.Dump(nazabytes.Prefix(payload, 128)))
 		return err
 	}
 	ctx.Profile = sps.ProfileIdc
@@ -37,9 +36,9 @@ func ParseSps(payload []byte, ctx *Context) error {
 
 	if err := parseSpsGamma(&br, &sps); err != nil {
 		// 注意，这里不将错误返回给上层，因为可能是Beta自身解析的问题
-		nazalog.Errorf("parseSpsGamma failed. err=%+v, payload=%s", err, hex.Dump(nazabytes.Prefix(payload, 128)))
+		Log.Errorf("parseSpsGamma failed. err=%+v, payload=%s", err, hex.Dump(nazabytes.Prefix(payload, 128)))
 	}
-	nazalog.Debugf("sps=%+v", sps)
+	Log.Debugf("sps=%+v", sps)
 
 	ctx.Width = (sps.PicWidthInMbsMinusOne+1)*16 - (sps.FrameCropLeftOffset+sps.FrameCropRightOffset)*2
 	ctx.Height = (2-uint32(sps.FrameMbsOnlyFlag))*(sps.PicHeightInMapUnitsMinusOne+1)*16 - (sps.FrameCropTopOffset+sps.FrameCropBottomOffset)*2
@@ -94,7 +93,7 @@ func TryParseSeqHeader(payload []byte) error {
 	b, err = br.ReadBytes(2)
 	dcr.PpsLength = bele.BeUint16(b)
 
-	nazalog.Debugf("%+v", dcr)
+	Log.Debugf("%+v", dcr)
 
 	// 5 + 5 + 1 + 2
 	var ctx Context

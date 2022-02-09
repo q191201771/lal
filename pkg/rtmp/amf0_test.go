@@ -17,8 +17,6 @@ import (
 
 	"github.com/q191201771/lal/pkg/base"
 
-	"github.com/q191201771/naza/pkg/nazalog"
-
 	. "github.com/q191201771/lal/pkg/rtmp"
 	"github.com/q191201771/naza/pkg/assert"
 	"github.com/q191201771/naza/pkg/fake"
@@ -118,7 +116,7 @@ func TestAmf0_ReadArray(t *testing.T) {
 	assert.Equal(t, 16, len(ops))
 	assert.Equal(t, 359, len(gold))
 	assert.Equal(t, 359, l)
-	nazalog.Debug(ops)
+	Log.Debug(ops)
 }
 
 func TestAmf0_ReadCase1(t *testing.T) {

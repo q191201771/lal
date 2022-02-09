@@ -14,7 +14,6 @@ import (
 
 	"github.com/q191201771/lal/pkg/base"
 	"github.com/q191201771/lal/pkg/remux"
-	"github.com/q191201771/naza/pkg/nazalog"
 )
 
 // #85
@@ -39,7 +38,7 @@ func TestCase1(t *testing.T) {
 	}
 
 	remuxer := remux.NewAvPacket2RtmpRemuxer(func(msg base.RtmpMsg) {
-		nazalog.Debugf("%+v", msg)
+		remux.Log.Debugf("%+v", msg)
 	})
 	for _, p := range golden {
 		remuxer.FeedAvPacket(p)
@@ -78,7 +77,7 @@ func TestCase2(t *testing.T) {
 	}
 
 	remuxer := remux.NewAvPacket2RtmpRemuxer(func(msg base.RtmpMsg) {
-		nazalog.Debugf("%+v", msg)
+		remux.Log.Debugf("%+v", msg)
 	})
 	for _, p := range golden {
 		remuxer.FeedAvPacket(p)

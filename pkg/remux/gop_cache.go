@@ -10,7 +10,6 @@ package remux
 
 import (
 	"github.com/q191201771/lal/pkg/base"
-	"github.com/q191201771/naza/pkg/nazalog"
 )
 
 // GopCache
@@ -87,18 +86,18 @@ func (gc *GopCache) Feed(msg base.RtmpMsg, lg LazyGet) {
 	switch msg.Header.MsgTypeId {
 	case base.RtmpTypeIdMetadata:
 		gc.Metadata = lg()
-		nazalog.Debugf("[%s] cache %s metadata. size:%d", gc.uniqueKey, gc.t, len(gc.Metadata))
+		Log.Debugf("[%s] cache %s metadata. size:%d", gc.uniqueKey, gc.t, len(gc.Metadata))
 		return
 	case base.RtmpTypeIdAudio:
 		if msg.IsAacSeqHeader() {
 			gc.AacSeqHeader = lg()
-			nazalog.Debugf("[%s] cache %s aac seq header. size:%d", gc.uniqueKey, gc.t, len(gc.AacSeqHeader))
+			Log.Debugf("[%s] cache %s aac seq header. size:%d", gc.uniqueKey, gc.t, len(gc.AacSeqHeader))
 			return
 		}
 	case base.RtmpTypeIdVideo:
 		if msg.IsVideoKeySeqHeader() {
 			gc.VideoSeqHeader = lg()
-			nazalog.Debugf("[%s] cache %s video seq header. size:%d", gc.uniqueKey, gc.t, len(gc.VideoSeqHeader))
+			Log.Debugf("[%s] cache %s video seq header. size:%d", gc.uniqueKey, gc.t, len(gc.VideoSeqHeader))
 			return
 		}
 	}

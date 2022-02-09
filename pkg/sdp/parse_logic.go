@@ -12,8 +12,6 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/q191201771/naza/pkg/nazalog"
-
 	"github.com/q191201771/lal/pkg/base"
 )
 
@@ -122,10 +120,10 @@ func ParseSdp2LogicContext(b []byte) (LogicContext, error) {
 				if md.AFmtPBase != nil {
 					ret.Asc, err = ParseAsc(md.AFmtPBase)
 					if err != nil {
-						nazalog.Warnf("parse asc from afmtp failed. err=%+v", err)
+						Log.Warnf("parse asc from afmtp failed. err=%+v", err)
 					}
 				} else {
-					nazalog.Warnf("aac afmtp not exist.")
+					Log.Warnf("aac afmtp not exist.")
 				}
 			} else {
 				ret.audioPayloadTypeBase = base.AvPacketPtUnknown
@@ -142,20 +140,20 @@ func ParseSdp2LogicContext(b []byte) (LogicContext, error) {
 				if md.AFmtPBase != nil {
 					ret.Sps, ret.Pps, err = ParseSpsPps(md.AFmtPBase)
 					if err != nil {
-						nazalog.Warnf("parse sps pps from afmtp failed. err=%+v", err)
+						Log.Warnf("parse sps pps from afmtp failed. err=%+v", err)
 					}
 				} else {
-					nazalog.Warnf("avc afmtp not exist.")
+					Log.Warnf("avc afmtp not exist.")
 				}
 			case ARtpMapEncodingNameH265:
 				ret.videoPayloadTypeBase = base.AvPacketPtHevc
 				if md.AFmtPBase != nil {
 					ret.Vps, ret.Sps, ret.Pps, err = ParseVpsSpsPps(md.AFmtPBase)
 					if err != nil {
-						nazalog.Warnf("parse vps sps pps from afmtp failed. err=%+v", err)
+						Log.Warnf("parse vps sps pps from afmtp failed. err=%+v", err)
 					}
 				} else {
-					nazalog.Warnf("hevc afmtp not exist.")
+					Log.Warnf("hevc afmtp not exist.")
 				}
 			default:
 				ret.videoPayloadTypeBase = base.AvPacketPtUnknown
