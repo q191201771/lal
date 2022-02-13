@@ -20,9 +20,7 @@ image:
 
 .PHONY: clean
 clean:
-	rm -rf ./bin ./release ./logs ./lal_record ./pkg/base/logs ./pkg/base/lal_record ./pkg/httpts/logs ./pkg/httpts/lal_record
-	rm -rf ./pkg/mpegts/logs ./pkg/mpegts/lal_record ./pkg/remux/logs ./pkg/remux/lal_record ./pkg/rtprtcp/logs ./pkg/rtprtcp/lal_record
-	rm -rf ./pkg/rtsp/logs ./pkg/rtsp/lal_record ./pkg/sdp/logs ./pkg/sdp/lal_record
+	rm -rf ./bin ./lal_record ./logs coverage.txt
 
 .PHONY: all
 all: build test
