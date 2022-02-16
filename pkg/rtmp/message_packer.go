@@ -23,7 +23,7 @@ const (
 	peerBandwidthLimitTypeDynamic = uint8(2)
 )
 
-// 打包并发送 rtmp 信令
+// MessagePacker 打包并发送 rtmp 信令
 //
 type MessagePacker struct {
 	b *Buffer

@@ -56,7 +56,7 @@ type ServerManager struct {
 
 func NewServerManager(confFile string, modOption ...ModOption) *ServerManager {
 	sm := &ServerManager{
-		serverStartTime: time.Now().Format("2006-01-02 15:04:05.999"),
+		serverStartTime: base.ReadableNowTime(),
 		exitChan:        make(chan struct{}, 1),
 	}
 	sm.groupManager = NewSimpleGroupManager(sm)

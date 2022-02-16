@@ -157,7 +157,7 @@ func (group *Group) RunLoop() {
 	<-group.exitChan
 }
 
-// TODO chef: 传入时间
+// Tick TODO chef: 传入时间
 // 目前每秒触发一次
 func (group *Group) Tick() {
 	group.mutex.Lock()
@@ -253,7 +253,7 @@ func (group *Group) Tick() {
 	group.tickCount++
 }
 
-// 主动释放所有资源。保证所有资源的生命周期逻辑上都在我们的控制中。降低出bug的几率，降低心智负担。
+// Dispose 主动释放所有资源。保证所有资源的生命周期逻辑上都在我们的控制中。降低出bug的几率，降低心智负担。
 // 注意，Dispose后，不应再使用这个对象。
 // 值得一提，如果是从其他协程回调回来的消息，在使用Group中的资源前，要判断资源是否存在以及可用。
 //
@@ -340,7 +340,7 @@ func (group *Group) AddRtmpPubSession(session *rtmp.ServerSession) error {
 	return nil
 }
 
-// TODO chef: rtsp package中，增加回调返回值判断，如果是false，将连接关掉
+// AddRtspPubSession TODO chef: rtsp package中，增加回调返回值判断，如果是false，将连接关掉
 func (group *Group) AddRtspPubSession(session *rtsp.PubSession) error {
 	Log.Debugf("[%s] [%s] add RTSP PubSession into group.", group.UniqueKey, session.UniqueKey())
 
@@ -435,7 +435,7 @@ func (group *Group) AddHttpflvSubSession(session *httpflv.SubSession) {
 	group.pullIfNeeded()
 }
 
-// TODO chef:
+// AddHttptsSubSession TODO chef:
 //   这里应该也要考虑触发hls muxer开启
 //   也即HTTPTS sub需要使用hls muxer，hls muxer开启和关闭都要考虑HTTPTS sub
 func (group *Group) AddHttptsSubSession(session *httpts.SubSession) {
@@ -644,7 +644,7 @@ func (group *Group) KickOutSession(sessionId string) bool {
 	return false
 }
 
-// 外部命令主动触发pull拉流
+// StartPull 外部命令主动触发pull拉流
 //
 // 当前调用时机：
 // 1. 比如http api
@@ -922,14 +922,14 @@ func (group *Group) disposeHlsMuxer() {
 // 音视频数据转发、转封装的逻辑
 // ---------------------------------------------------------------------------------------------------------------------
 
-// rtmp.PubSession or rtmp.PullSession
+// OnReadRtmpAvMsg rtmp.PubSession or rtmp.PullSession
 func (group *Group) OnReadRtmpAvMsg(msg base.RtmpMsg) {
 	group.mutex.Lock()
 	defer group.mutex.Unlock()
 	group.broadcastByRtmpMsg(msg)
 }
 
-// rtsp.PubSession
+// OnRtpPacket rtsp.PubSession
 func (group *Group) OnRtpPacket(pkt rtprtcp.RtpPacket) {
 	group.mutex.Lock()
 	defer group.mutex.Unlock()
@@ -937,7 +937,7 @@ func (group *Group) OnRtpPacket(pkt rtprtcp.RtpPacket) {
 	group.onRtpPacket(pkt)
 }
 
-// rtsp.PubSession
+// OnSdp rtsp.PubSession
 func (group *Group) OnSdp(sdpCtx sdp.LogicContext) {
 	group.mutex.Lock()
 	defer group.mutex.Unlock()
@@ -946,7 +946,7 @@ func (group *Group) OnSdp(sdpCtx sdp.LogicContext) {
 	group.rtsp2RtmpRemuxer.OnSdp(sdpCtx)
 }
 
-// rtsp.PubSession
+// OnAvPacket rtsp.PubSession
 func (group *Group) OnAvPacket(pkt base.AvPacket) {
 	group.mutex.Lock()
 	defer group.mutex.Unlock()
@@ -955,7 +955,7 @@ func (group *Group) OnAvPacket(pkt base.AvPacket) {
 	group.rtsp2RtmpRemuxer.OnAvPacket(pkt)
 }
 
-// hls.Muxer
+// OnPatPmt hls.Muxer
 func (group *Group) OnPatPmt(b []byte) {
 	group.patpmt = b
 
@@ -966,7 +966,7 @@ func (group *Group) OnPatPmt(b []byte) {
 	}
 }
 
-// hls.Muxer
+// OnTsPackets hls.Muxer
 func (group *Group) OnTsPackets(rawFrame []byte, boundary bool) {
 	// 因为最前面Feed时已经加锁了，所以这里回调上来就不用加锁了
 

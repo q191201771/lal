@@ -9,7 +9,7 @@
 package base
 
 const (
-	// spec-rtmp_specification_1.0.pdf
+	// RtmpTypeIdAudio spec-rtmp_specification_1.0.pdf
 	// 7.1. Types of Messages
 	RtmpTypeIdAudio              uint8 = 8
 	RtmpTypeIdVideo              uint8 = 9
@@ -32,7 +32,7 @@ const (
 	RtmpUserControlPingRequest  uint8 = 6
 	RtmpUserControlPingResponse uint8 = 7
 
-	// spec-video_file_format_spec_v10.pdf
+	// RtmpFrameTypeKey spec-video_file_format_spec_v10.pdf
 	// Video tags
 	//   VIDEODATA
 	//     FrameType UB[4]
@@ -63,7 +63,7 @@ const (
 	RtmpAvcInterFrame  = RtmpFrameTypeInter<<4 | RtmpCodecIdAvc
 	RtmpHevcInterFrame = RtmpFrameTypeInter<<4 | RtmpCodecIdHevc
 
-	// spec-video_file_format_spec_v10.pdf
+	// RtmpSoundFormatAac spec-video_file_format_spec_v10.pdf
 	// Audio tags
 	//   AUDIODATA
 	//     SoundFormat UB[4]

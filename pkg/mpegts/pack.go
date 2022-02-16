@@ -8,6 +8,8 @@
 
 package mpegts
 
+// Frame 帧数据
+//
 type Frame struct {
 	Pts uint64 // =(毫秒 * 90)
 	Dts uint64
@@ -32,11 +34,11 @@ type Frame struct {
 	Raw []byte
 }
 
-// @param packet: 188字节大小的TS包，注意，一次Pack对应的多个TSPacket，复用的是一块内存
+// OnTsPacket @param packet: 188字节大小的TS包，注意，一次Pack对应的多个TSPacket，复用的是一块内存
 //
 type OnTsPacket func(packet []byte)
 
-// Annexb格式的流转换为mpegts packet
+// PackTsPacket Annexb格式的流转换为mpegts packet
 //
 // @param frame: 各字段含义见mpegts.Frame结构体定义
 //               frame.CC  注意，内部会修改frame.CC的值，外部在调用结束后，可保存CC的值，供下次调用时使用

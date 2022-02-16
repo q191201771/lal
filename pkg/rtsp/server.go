@@ -13,10 +13,10 @@ import (
 )
 
 type ServerObserver interface {
-	// @brief 使得上层有能力管理未进化到Pub、Sub阶段的Session
+	// OnNewRtspSessionConnect @brief 使得上层有能力管理未进化到Pub、Sub阶段的Session
 	OnNewRtspSessionConnect(session *ServerCommandSession)
 
-	// @brief 注意，对于已经进化到了Pub、Sub阶段的Session，该回调依然会被调用
+	// OnDelRtspSession @brief 注意，对于已经进化到了Pub、Sub阶段的Session，该回调依然会被调用
 	OnDelRtspSession(session *ServerCommandSession)
 
 	///////////////////////////////////////////////////////////////////////////

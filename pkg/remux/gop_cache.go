@@ -65,7 +65,7 @@ type GopCache struct {
 	gopSize      int
 }
 
-// @param gopNum: gop缓存大小
+// NewGopCache @param gopNum: gop缓存大小
 //                如果为0，则不缓存音频数据，也即GOP缓存功能不生效
 //                如果>0，则缓存<gopNum>个完整GOP，另外还可能有半个最近不完整的GOP
 //
@@ -111,7 +111,7 @@ func (gc *GopCache) Feed(msg base.RtmpMsg, lg LazyGet) {
 	}
 }
 
-// 获取GOP数量，注意，最后一个可能是不完整的
+// GetGopCount 获取GOP数量，注意，最后一个可能是不完整的
 func (gc *GopCache) GetGopCount() int {
 	return (gc.gopRingLast + gc.gopSize - gc.gopRingFirst) % gc.gopSize
 }

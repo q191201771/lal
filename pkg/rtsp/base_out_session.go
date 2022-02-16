@@ -12,7 +12,6 @@ import (
 	"encoding/hex"
 	"net"
 	"sync"
-	"time"
 
 	"github.com/q191201771/naza/pkg/nazaatomic"
 
@@ -26,7 +25,7 @@ import (
 	"github.com/q191201771/naza/pkg/nazanet"
 )
 
-// out的含义是音视频由本端发送至对端
+// BaseOutSession out的含义是音视频由本端发送至对端
 //
 type BaseOutSession struct {
 	uniqueKey  string
@@ -66,7 +65,7 @@ func NewBaseOutSession(uniqueKey string, cmdSession IInterleavedPacketWriter) *B
 		stat: base.StatSession{
 			Protocol:  base.ProtocolRtsp,
 			SessionId: uniqueKey,
-			StartTime: time.Now().Format("2006-01-02 15:04:05.999"),
+			StartTime: base.ReadableNowTime(),
 		},
 		audioRtpChannel:  -1,
 		videoRtpChannel:  -1,

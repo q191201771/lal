@@ -21,10 +21,10 @@ import (
 )
 
 type StreamerObserver interface {
-	// @param b const只读内存块，上层可以持有，但是不允许修改
+	// OnPatPmt @param b const只读内存块，上层可以持有，但是不允许修改
 	OnPatPmt(b []byte)
 
-	// @param streamer: 供上层获取streamer内部的一些状态，比如spspps是否已缓存，音频缓存队列是否有数据等
+	// OnFrame @param streamer: 供上层获取streamer内部的一些状态，比如spspps是否已缓存，音频缓存队列是否有数据等
 	//
 	// @param frame:    各字段含义见mpegts.Frame结构体定义
 	//                  frame.CC  注意，回调结束后，Streamer会保存frame.CC，上层在TS打包完成后，可通过frame.CC将cc值传递给Streamer
@@ -33,7 +33,7 @@ type StreamerObserver interface {
 	OnFrame(streamer *Streamer, frame *mpegts.Frame)
 }
 
-// 输入rtmp流，回调转封装成Annexb格式的流
+// Streamer 输入rtmp流，回调转封装成Annexb格式的流
 type Streamer struct {
 	UniqueKey string
 
@@ -61,7 +61,7 @@ func NewStreamer(observer StreamerObserver) *Streamer {
 	return streamer
 }
 
-// @param msg msg.Payload 调用结束后，函数内部不会持有这块内存
+// FeedRtmpMessage @param msg msg.Payload 调用结束后，函数内部不会持有这块内存
 //
 // TODO chef: 可以考虑数据有问题时，返回给上层，直接主动关闭输入流的连接
 func (s *Streamer) FeedRtmpMessage(msg base.RtmpMsg) {
@@ -268,7 +268,7 @@ func (s *Streamer) feedAudio(msg base.RtmpMsg) {
 	s.audioCacheFrames = append(s.audioCacheFrames, msg.Payload[2:]...)
 }
 
-// 吐出音频数据的三种情况：
+// FlushAudio 吐出音频数据的三种情况：
 // 1. 收到音频或视频时，音频缓存队列已达到一定长度
 // 2. 打开一个新的TS文件切片时
 // 3. 输入流关闭时

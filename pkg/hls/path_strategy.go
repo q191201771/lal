@@ -43,17 +43,17 @@ type IPathRequestStrategy interface {
 	GetRequestInfo(urlCtx base.UrlContext, rootOutPath string) RequestInfo
 }
 
-// 落盘策略
+// IPathWriteStrategy 落盘策略
 type IPathWriteStrategy interface {
-	// 获取单个流对应的文件根路径
+	// GetMuxerOutPath 获取单个流对应的文件根路径
 	GetMuxerOutPath(rootOutPath string, streamName string) string
 
-	// 获取单个流对应的m3u8文件路径
+	// GetLiveM3u8FileName 获取单个流对应的m3u8文件路径
 	//
 	// @param outPath: func GetMuxerOutPath的结果
 	GetLiveM3u8FileName(outPath string, streamName string) string
 
-	// 获取单个流对应的record类型的m3u8文件路径
+	// GetRecordM3u8FileName 获取单个流对应的record类型的m3u8文件路径
 	//
 	// live m3u8和record m3u8的区别：
 	// live记录的是当前最近的可播放内容，record记录的是从流开始时的可播放内容
@@ -61,12 +61,12 @@ type IPathWriteStrategy interface {
 	// @param outPath: func GetMuxerOutPath的结果
 	GetRecordM3u8FileName(outPath string, streamName string) string
 
-	// 获取单个流对应的ts文件路径
+	// GetTsFileNameWithPath 获取单个流对应的ts文件路径
 	//
 	// @param outPath: func GetMuxerOutPath的结果
 	GetTsFileNameWithPath(outPath string, fileName string) string
 
-	// ts文件名的生成策略
+	// GetTsFileName ts文件名的生成策略
 	GetTsFileName(streamName string, index int, timestamp int) string
 }
 
@@ -77,7 +77,7 @@ const (
 	recordM3u8FileName   = "record.m3u8"
 )
 
-// 默认的路由，落盘策略
+// DefaultPathStrategy 默认的路由，落盘策略
 //
 // 每个流在<rootPath>下以流名称生成一个子目录，目录下包含:
 //
@@ -136,7 +136,7 @@ func (dps *DefaultPathStrategy) GetRequestInfo(urlCtx base.UrlContext, rootOutPa
 	return
 }
 
-// <rootOutPath>/<streamName>
+// GetMuxerOutPath <rootOutPath>/<streamName>
 func (*DefaultPathStrategy) GetMuxerOutPath(rootOutPath string, streamName string) string {
 	return filepath.Join(rootOutPath, streamName)
 }

@@ -143,79 +143,79 @@ func (session *PullSession) WaitChan() <-chan error {
 
 // ---------------------------------------------------------------------------------------------------------------------
 
-// 文档请参考： interface ISessionUrlContext
+// Url 文档请参考： interface ISessionUrlContext
 func (session *PullSession) Url() string {
 	return session.cmdSession.Url()
 }
 
-// 文档请参考： interface ISessionUrlContext
+// AppName 文档请参考： interface ISessionUrlContext
 func (session *PullSession) AppName() string {
 	return session.cmdSession.AppName()
 }
 
-// 文档请参考： interface ISessionUrlContext
+// StreamName 文档请参考： interface ISessionUrlContext
 func (session *PullSession) StreamName() string {
 	return session.cmdSession.StreamName()
 }
 
-// 文档请参考： interface ISessionUrlContext
+// RawQuery 文档请参考： interface ISessionUrlContext
 func (session *PullSession) RawQuery() string {
 	return session.cmdSession.RawQuery()
 }
 
-// 文档请参考： interface IObject
+// UniqueKey 文档请参考： interface IObject
 func (session *PullSession) UniqueKey() string {
 	return session.uniqueKey
 }
 
-// 文档请参考： interface ISessionStat
+// GetStat 文档请参考： interface ISessionStat
 func (session *PullSession) GetStat() base.StatSession {
 	stat := session.baseInSession.GetStat()
 	stat.RemoteAddr = session.cmdSession.RemoteAddr()
 	return stat
 }
 
-// 文档请参考： interface ISessionStat
+// UpdateStat 文档请参考： interface ISessionStat
 func (session *PullSession) UpdateStat(intervalSec uint32) {
 	session.baseInSession.UpdateStat(intervalSec)
 }
 
-// 文档请参考： interface ISessionStat
+// IsAlive 文档请参考： interface ISessionStat
 func (session *PullSession) IsAlive() (readAlive, writeAlive bool) {
 	return session.baseInSession.IsAlive()
 }
 
-// ClientCommandSessionObserver, callback by ClientCommandSession
+// OnConnectResult ClientCommandSessionObserver, callback by ClientCommandSession
 func (session *PullSession) OnConnectResult() {
 	// noop
 }
 
-// ClientCommandSessionObserver, callback by ClientCommandSession
+// OnDescribeResponse ClientCommandSessionObserver, callback by ClientCommandSession
 func (session *PullSession) OnDescribeResponse(sdpCtx sdp.LogicContext) {
 	session.baseInSession.InitWithSdp(sdpCtx)
 }
 
-// ClientCommandSessionObserver, callback by ClientCommandSession
+// OnSetupWithConn ClientCommandSessionObserver, callback by ClientCommandSession
 func (session *PullSession) OnSetupWithConn(uri string, rtpConn, rtcpConn *nazanet.UdpConnection) {
 	_ = session.baseInSession.SetupWithConn(uri, rtpConn, rtcpConn)
 }
 
-// ClientCommandSessionObserver, callback by ClientCommandSession
+// OnSetupWithChannel ClientCommandSessionObserver, callback by ClientCommandSession
 func (session *PullSession) OnSetupWithChannel(uri string, rtpChannel, rtcpChannel int) {
 	_ = session.baseInSession.SetupWithChannel(uri, rtpChannel, rtcpChannel)
 }
 
-// ClientCommandSessionObserver, callback by ClientCommandSession
+// OnSetupResult ClientCommandSessionObserver, callback by ClientCommandSession
 func (session *PullSession) OnSetupResult() {
 	session.baseInSession.WriteRtpRtcpDummy()
 }
 
-// ClientCommandSessionObserver, callback by ClientCommandSession
+// OnInterleavedPacket ClientCommandSessionObserver, callback by ClientCommandSession
 func (session *PullSession) OnInterleavedPacket(packet []byte, channel int) {
 	session.baseInSession.HandleInterleavedPacket(packet, channel)
 }
 
-// IInterleavedPacketWriter, callback by BaseInSession
+// WriteInterleavedPacket IInterleavedPacketWriter, callback by BaseInSession
 func (session *PullSession) WriteInterleavedPacket(packet []byte, channel int) error {
 	return session.cmdSession.WriteInterleavedPacket(packet, channel)
 }

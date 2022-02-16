@@ -12,7 +12,6 @@ import (
 	"encoding/hex"
 	"net"
 	"sync"
-	"time"
 
 	"github.com/q191201771/naza/pkg/nazaatomic"
 
@@ -95,7 +94,7 @@ func NewBaseInSession(uniqueKey string, cmdSession IInterleavedPacketWriter) *Ba
 		stat: base.StatSession{
 			Protocol:  base.ProtocolRtsp,
 			SessionId: uniqueKey,
-			StartTime: time.Now().Format("2006-01-02 15:04:05.999"),
+			StartTime: base.ReadableNowTime(),
 		},
 		cmdSession:       cmdSession,
 		waitChan:         make(chan error, 1),
@@ -143,7 +142,8 @@ func (session *BaseInSession) InitWithSdp(sdpCtx sdp.LogicContext) {
 	}
 }
 
-// 如果没有设置回调监听对象，可以通过该函数设置，调用方保证调用该函数发生在调用InitWithSdp之后
+// SetObserver 如果没有设置回调监听对象，可以通过该函数设置，调用方保证调用该函数发生在调用InitWithSdp之后
+//
 func (session *BaseInSession) SetObserver(observer BaseInSessionObserver) {
 	session.observer = observer
 
@@ -224,7 +224,7 @@ func (session *BaseInSession) HandleInterleavedPacket(b []byte, channel int) {
 	}
 }
 
-// 发现pull时，需要先给对端发送数据，才能收到数据
+// WriteRtpRtcpDummy 发现pull时，需要先给对端发送数据，才能收到数据
 func (session *BaseInSession) WriteRtpRtcpDummy() {
 	if session.videoRtpConn != nil {
 		_ = session.videoRtpConn.Write(dummyRtpPacket)

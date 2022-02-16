@@ -22,9 +22,7 @@ import (
 
 var startTime string
 
-// ReadableNowTime
-//
-// TODO(chef): refactor 使用ReadableNowTime
+// ReadableNowTime 当前时间，可读字符串形式
 //
 func ReadableNowTime() string {
 	return time.Now().Format("2006-01-02 15:04:05.999")

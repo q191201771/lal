@@ -92,7 +92,7 @@ func ParseM(s string) (ret M, err error) {
 	return
 }
 
-// 例子见单元测试
+// ParseARtpMap 例子见单元测试
 func ParseARtpMap(s string) (ret ARtpMap, err error) {
 	// rfc 3640 3.3.1.  General
 	// rfc 3640 3.3.6.  High Bit-rate AAC
@@ -131,7 +131,7 @@ func ParseARtpMap(s string) (ret ARtpMap, err error) {
 	return
 }
 
-// 例子见单元测试
+// ParseAFmtPBase 例子见单元测试
 func ParseAFmtPBase(s string) (ret AFmtPBase, err error) {
 	// rfc 3640 4.4.1.  The a=fmtp Keyword
 	//

@@ -19,7 +19,7 @@ import (
 	"github.com/q191201771/naza/pkg/bele"
 )
 
-// AvPacket转换为RTMP
+// AvPacket2RtmpRemuxer AvPacket转换为RTMP
 // 目前AvPacket来自RTSP的sdp以及rtp的合帧包。理论上也支持webrtc，后续接入webrtc时再验证
 //
 type AvPacket2RtmpRemuxer struct {
@@ -42,7 +42,7 @@ func NewAvPacket2RtmpRemuxer(onRtmpAvMsg rtmp.OnReadRtmpAvMsg) *AvPacket2RtmpRem
 	}
 }
 
-// 实现RTSP回调数据的三个接口，使得接入时方便些
+// OnRtpPacket 实现RTSP回调数据的三个接口，使得接入时方便些
 func (r *AvPacket2RtmpRemuxer) OnRtpPacket(pkt rtprtcp.RtpPacket) {
 	// noop
 }
@@ -53,7 +53,7 @@ func (r *AvPacket2RtmpRemuxer) OnAvPacket(pkt base.AvPacket) {
 	r.FeedAvPacket(pkt)
 }
 
-// rtsp场景下，有时sps、pps等信息只包含在sdp中，有时包含在rtp包中，
+// InitWithAvConfig rtsp场景下，有时sps、pps等信息只包含在sdp中，有时包含在rtp包中，
 // 这里提供输入sdp的sps、pps等信息的机会，如果没有，可以不调用
 //
 // 内部不持有输入参数的内存块
@@ -112,7 +112,7 @@ func (r *AvPacket2RtmpRemuxer) InitWithAvConfig(asc, vps, sps, pps []byte) {
 	}
 }
 
-// @param pkt: 内部不持有该内存块
+// FeedAvPacket @param pkt: 内部不持有该内存块
 //
 func (r *AvPacket2RtmpRemuxer) FeedAvPacket(pkt base.AvPacket) {
 	switch pkt.PayloadType {

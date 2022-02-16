@@ -29,7 +29,7 @@ var (
 	maxAnalyzeAvMsgSize = 16
 )
 
-// 提供rtmp数据向sdp+rtp数据的转换
+// Rtmp2RtspRemuxer 提供rtmp数据向sdp+rtp数据的转换
 type Rtmp2RtspRemuxer struct {
 	onSdp       OnSdp
 	onRtpPacket OnRtpPacket
@@ -49,7 +49,7 @@ type Rtmp2RtspRemuxer struct {
 type OnSdp func(sdpCtx sdp.LogicContext)
 type OnRtpPacket func(pkt rtprtcp.RtpPacket)
 
-// @param onSdp:       每次回调为独立的内存块，回调结束后，内部不再使用该内存块
+// NewRtmp2RtspRemuxer @param onSdp:       每次回调为独立的内存块，回调结束后，内部不再使用该内存块
 // @param onRtpPacket: 每次回调为独立的内存块，回调结束后，内部不再使用该内存块
 //
 func NewRtmp2RtspRemuxer(onSdp OnSdp, onRtpPacket OnRtpPacket) *Rtmp2RtspRemuxer {
@@ -61,7 +61,7 @@ func NewRtmp2RtspRemuxer(onSdp OnSdp, onRtpPacket OnRtpPacket) *Rtmp2RtspRemuxer
 	}
 }
 
-// @param msg: 函数调用结束后，内部不持有`msg`内存块
+// FeedRtmpMsg @param msg: 函数调用结束后，内部不持有`msg`内存块
 //
 func (r *Rtmp2RtspRemuxer) FeedRtmpMsg(msg base.RtmpMsg) {
 	var err error

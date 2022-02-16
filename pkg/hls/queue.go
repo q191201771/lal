@@ -13,7 +13,7 @@ import (
 	"github.com/q191201771/lal/pkg/mpegts"
 )
 
-// 缓存流起始的一些数据，判断流中是否存在音频、视频，以及编码格式
+// Queue 缓存流起始的一些数据，判断流中是否存在音频、视频，以及编码格式
 // 一旦判断结束，该队列变成直进直出，不再有实际缓存
 type Queue struct {
 	maxMsgSize int
@@ -26,14 +26,14 @@ type Queue struct {
 }
 
 type IQueueObserver interface {
-	// 该回调一定发生在数据回调之前
+	// OnPatPmt 该回调一定发生在数据回调之前
 	// TODO(chef) 这里可以考虑换成只通知drain，由上层完成FragmentHeader的组装逻辑
 	OnPatPmt(b []byte)
 
 	OnPop(msg base.RtmpMsg)
 }
 
-// @param maxMsgSize 最大缓存多少个包
+// NewQueue @param maxMsgSize 最大缓存多少个包
 func NewQueue(maxMsgSize int, observer IQueueObserver) *Queue {
 	return &Queue{
 		maxMsgSize:   maxMsgSize,
@@ -45,7 +45,7 @@ func NewQueue(maxMsgSize int, observer IQueueObserver) *Queue {
 	}
 }
 
-// @param msg 函数调用结束后，内部不持有该内存块
+// Push @param msg 函数调用结束后，内部不持有该内存块
 func (q *Queue) Push(msg base.RtmpMsg) {
 	if q.done {
 		q.observer.OnPop(msg)

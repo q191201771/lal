@@ -22,7 +22,7 @@ import (
 	"github.com/q191201771/naza/pkg/connection"
 )
 
-// rtmp 客户端类型连接的底层实现
+// ClientSession rtmp 客户端类型连接的底层实现
 // package rtmp 的使用者应该优先使用基于 ClientSession 实现的 PushSession 和 PullSession
 type ClientSession struct {
 	uniqueKey string
@@ -84,7 +84,7 @@ var defaultClientSessOption = ClientSessionOption{
 
 type ModClientSessionOption func(option *ClientSessionOption)
 
-// @param t: session的类型，只能是推或者拉
+// NewClientSession @param t: session的类型，只能是推或者拉
 func NewClientSession(t ClientSessionType, modOptions ...ModClientSessionOption) *ClientSession {
 	var uk string
 	switch t {
@@ -116,7 +116,7 @@ func NewClientSession(t ClientSessionType, modOptions ...ModClientSessionOption)
 		stat: base.StatSession{
 			Protocol:  base.ProtocolRtmp,
 			SessionId: uk,
-			StartTime: time.Now().Format("2006-01-02 15:04:05.999"),
+			StartTime: base.ReadableNowTime(),
 		},
 		debugLogReadUserCtrlMsgMax: 5,
 		hc:                         hc,
@@ -125,7 +125,7 @@ func NewClientSession(t ClientSessionType, modOptions ...ModClientSessionOption)
 	return s
 }
 
-// 阻塞直到收到服务端返回的 publish / play 对应结果的信令或者发生错误
+// Do 阻塞直到收到服务端返回的 publish / play 对应结果的信令或者发生错误
 func (s *ClientSession) Do(rawUrl string) error {
 	Log.Debugf("[%s] Do. url=%s", s.uniqueKey, rawUrl)
 

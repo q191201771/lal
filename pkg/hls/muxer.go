@@ -25,7 +25,7 @@ import (
 type MuxerObserver interface {
 	OnPatPmt(b []byte)
 
-	// @param rawFrame TS流，回调结束后，内部不再使用该内存块
+	// OnTsPackets @param rawFrame TS流，回调结束后，内部不再使用该内存块
 	// @param boundary 新的TS流接收者，应该从该标志为true时开始发送数据
 	//
 	OnTsPackets(rawFrame []byte, boundary bool)
@@ -135,7 +135,7 @@ func (m *Muxer) Dispose() {
 	}
 }
 
-// @param msg 函数调用结束后，内部不持有msg中的内存块
+// FeedRtmpMessage @param msg 函数调用结束后，内部不持有msg中的内存块
 //
 func (m *Muxer) FeedRtmpMessage(msg base.RtmpMsg) {
 	m.streamer.FeedRtmpMessage(msg)

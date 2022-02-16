@@ -13,7 +13,6 @@ import (
 	"net"
 	"strings"
 	"sync"
-	"time"
 
 	"github.com/q191201771/naza/pkg/nazaerrors"
 
@@ -40,7 +39,7 @@ type ServerSessionObserver interface {
 }
 
 type PubSessionObserver interface {
-	// 注意，回调结束后，内部会复用Payload内存块
+	// OnReadRtmpAvMsg 注意，回调结束后，内部会复用Payload内存块
 	OnReadRtmpAvMsg(msg base.RtmpMsg)
 }
 
@@ -97,7 +96,7 @@ func NewServerSession(observer ServerSessionObserver, conn net.Conn) *ServerSess
 		stat: base.StatSession{
 			Protocol:   base.ProtocolRtmp,
 			SessionId:  uk,
-			StartTime:  time.Now().Format("2006-01-02 15:04:05.999"),
+			StartTime:  base.ReadableNowTime(),
 			RemoteAddr: conn.RemoteAddr().String(),
 		},
 		uniqueKey:               uk,

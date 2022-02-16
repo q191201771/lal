@@ -74,7 +74,7 @@ func (a *Auth) FeedWwwAuthenticate(auths []string, username, password string) {
 	}
 }
 
-// 如果没有调用`FeedWwwAuthenticate`初始化过，则直接返回空字符串
+// MakeAuthorization 如果没有调用`FeedWwwAuthenticate`初始化过，则直接返回空字符串
 func (a *Auth) MakeAuthorization(method, uri string) string {
 	if a.Username == "" {
 		return ""

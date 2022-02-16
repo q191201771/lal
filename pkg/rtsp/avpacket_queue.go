@@ -41,7 +41,7 @@ func NewAvPacketQueue(onAvPacket OnAvPacket) *AvPacketQueue {
 	}
 }
 
-// 注意，调用方保证，音频相较于音频，视频相较于视频，时间戳是线性递增的。
+// Feed 注意，调用方保证，音频相较于音频，视频相较于视频，时间戳是线性递增的。
 func (a *AvPacketQueue) Feed(pkt base.AvPacket) {
 	//Log.Debugf("AVQ feed. t=%d, ts=%d", pkt.PayloadType, pkt.Timestamp)
 	switch pkt.PayloadType {

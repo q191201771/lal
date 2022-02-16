@@ -102,7 +102,7 @@ func (session *SubSession) IsAlive() (readAlive, writeAlive bool) {
 	return session.baseOutSession.IsAlive()
 }
 
-// IInterleavedPacketWriter, callback by BaseOutSession
+// WriteInterleavedPacket IInterleavedPacketWriter, callback by BaseOutSession
 func (session *SubSession) WriteInterleavedPacket(packet []byte, channel int) error {
 	return session.cmdSession.WriteInterleavedPacket(packet, channel)
 }

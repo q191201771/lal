@@ -9,14 +9,14 @@
 package base
 
 const (
-	// StatGroup.AudioCodec
+	// AudioCodecAac StatGroup.AudioCodec
 	AudioCodecAac = "AAC"
 
-	// StatGroup.VideoCodec
+	// VideoCodecAvc StatGroup.VideoCodec
 	VideoCodecAvc  = "H264"
 	VideoCodecHevc = "H265"
 
-	// StatSession.Protocol
+	// ProtocolRtmp StatSession.Protocol
 	ProtocolRtmp    = "RTMP"
 	ProtocolRtsp    = "RTSP"
 	ProtocolHttpflv = "HTTP-FLV"

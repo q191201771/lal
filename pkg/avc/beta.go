@@ -45,7 +45,7 @@ func ParseSps(payload []byte, ctx *Context) error {
 	return nil
 }
 
-// 尝试解析PPS所有字段，实验中，请勿直接使用该函数
+// TryParsePps 尝试解析PPS所有字段，实验中，请勿直接使用该函数
 func TryParsePps(payload []byte) error {
 	// ISO-14496-10.pdf
 	// 7.3.2.2 Picture parameter set RBSP syntax
@@ -54,7 +54,7 @@ func TryParsePps(payload []byte) error {
 	return nil
 }
 
-// 尝试解析SeqHeader所有字段，实验中，请勿直接使用该函数
+// TryParseSeqHeader 尝试解析SeqHeader所有字段，实验中，请勿直接使用该函数
 //
 // @param <payload> rtmp message的payload部分或者flv tag的payload部分
 //                  注意，包含了头部2字节类型以及3字节的cts

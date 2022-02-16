@@ -35,7 +35,7 @@ func NewRtpUnpackContainer(maxSize int, unpackerProtocol IRtpUnpackerProtocol) *
 	}
 }
 
-// 输入收到的rtp包
+// Feed 输入收到的rtp包
 func (r *RtpUnpackContainer) Feed(pkt RtpPacket) {
 	// 过期的包
 	if r.isStale(pkt.Header.Seq) {

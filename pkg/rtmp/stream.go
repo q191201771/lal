@@ -57,7 +57,7 @@ type StreamMsg struct {
 	buff *nazabytes.Buffer
 }
 
-// 确保可写空间，如果不够会扩容
+// Grow 确保可写空间，如果不够会扩容
 func (msg *StreamMsg) Grow(n uint32) {
 	msg.buff.Grow(int(n))
 }

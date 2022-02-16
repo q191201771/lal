@@ -52,7 +52,7 @@ var defaultClientCommandSessionOption = ClientCommandSessionOption{
 type ClientCommandSessionObserver interface {
 	OnConnectResult()
 
-	// only for PullSession
+	// OnDescribeResponse only for PullSession
 	OnDescribeResponse(sdpCtx sdp.LogicContext)
 
 	OnSetupWithConn(uri string, rtpConn, rtcpConn *nazanet.UdpConnection)
@@ -62,7 +62,7 @@ type ClientCommandSessionObserver interface {
 	OnInterleavedPacket(packet []byte, channel int)
 }
 
-// Push和Pull共用，封装了客户端底层信令信令部分。
+// ClientCommandSession Push和Pull共用，封装了客户端底层信令信令部分。
 // 业务方应该使用PushSession和PullSession，而不是直接使用ClientCommandSession，除非你确定要这么做。
 type ClientCommandSession struct {
 	uniqueKey string
@@ -103,7 +103,7 @@ func NewClientCommandSession(t ClientCommandSessionType, uniqueKey string, obser
 	return s
 }
 
-// only for PushSession
+// InitWithSdp only for PushSession
 func (session *ClientCommandSession) InitWithSdp(sdpCtx sdp.LogicContext) {
 	session.sdpCtx = sdpCtx
 }

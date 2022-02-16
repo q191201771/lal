@@ -68,7 +68,7 @@ func NewPullSession(modOptions ...ModPullSessionOption) *PullSession {
 	return s
 }
 
-// @param tag: 底层保证回调上来的Raw数据长度是完整的（但是不会分析Raw内部的编码数据）
+// OnReadFlvTag @param tag: 底层保证回调上来的Raw数据长度是完整的（但是不会分析Raw内部的编码数据）
 type OnReadFlvTag func(tag Tag)
 
 // Pull 阻塞直到和对端完成拉流前，握手部分的工作，或者发生错误
@@ -115,32 +115,32 @@ func (session *PullSession) WaitChan() <-chan error {
 
 // ---------------------------------------------------------------------------------------------------------------------
 
-// 文档请参考： interface ISessionUrlContext
+// Url 文档请参考： interface ISessionUrlContext
 func (session *PullSession) Url() string {
 	return session.urlCtx.Url
 }
 
-// 文档请参考： interface ISessionUrlContext
+// AppName 文档请参考： interface ISessionUrlContext
 func (session *PullSession) AppName() string {
 	return session.urlCtx.PathWithoutLastItem
 }
 
-// 文档请参考： interface ISessionUrlContext
+// StreamName 文档请参考： interface ISessionUrlContext
 func (session *PullSession) StreamName() string {
 	return session.urlCtx.LastItemOfPath
 }
 
-// 文档请参考： interface ISessionUrlContext
+// RawQuery 文档请参考： interface ISessionUrlContext
 func (session *PullSession) RawQuery() string {
 	return session.urlCtx.RawQuery
 }
 
-// 文档请参考： interface IObject
+// UniqueKey 文档请参考： interface IObject
 func (session *PullSession) UniqueKey() string {
 	return session.uniqueKey
 }
 
-// 文档请参考： interface ISessionStat
+// UpdateStat 文档请参考： interface ISessionStat
 func (session *PullSession) UpdateStat(intervalSec uint32) {
 	currStat := session.conn.GetStat()
 	rDiff := currStat.ReadBytesSum - session.prevConnStat.ReadBytesSum
@@ -151,7 +151,7 @@ func (session *PullSession) UpdateStat(intervalSec uint32) {
 	session.prevConnStat = currStat
 }
 
-// 文档请参考： interface ISessionStat
+// GetStat 文档请参考： interface ISessionStat
 func (session *PullSession) GetStat() base.StatSession {
 	connStat := session.conn.GetStat()
 	session.stat.ReadBytesSum = connStat.ReadBytesSum
@@ -159,7 +159,7 @@ func (session *PullSession) GetStat() base.StatSession {
 	return session.stat
 }
 
-// 文档请参考： interface ISessionStat
+// IsAlive 文档请参考： interface ISessionStat
 func (session *PullSession) IsAlive() (readAlive, writeAlive bool) {
 	currStat := session.conn.GetStat()
 	if session.staleStat == nil {

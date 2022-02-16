@@ -56,7 +56,7 @@ func NewRtpPackerPayloadAvcHevc(payloadType base.AvPacketPt, modOptions ...ModRt
 	}
 }
 
-// @param in: AVCC格式
+// Pack @param in: AVCC格式
 //
 // @return out: 内存块为独立新申请；函数返回后，内部不再持有该内存块
 //

@@ -66,23 +66,3 @@ var defaultOption = Option{
 }
 
 type ModOption func(option *Option)
-
-// ---------------------------------------------------------------------------------------------------------------------
-
-// 一些没有放入配置文件中，包级别的配置，暂时没有对外暴露
-//
-var (
-	relayPushTimeoutMs                = 5000
-	relayPushWriteAvTimeoutMs         = 5000
-	relayPullTimeoutMs                = 5000
-	relayPullReadAvTimeoutMs          = 5000
-	calcSessionStatIntervalSec uint32 = 5
-
-	// checkSessionAliveIntervalSec
-	//
-	// - 对于输入型session，检查一定时间内，是否没有收到数据
-	// - 对于输出型session，检查一定时间内，是否没有发送数据
-	//   注意，这里既检查socket发送阻塞，又检查上层没有给session喂数据
-	//
-	checkSessionAliveIntervalSec uint32 = 10
-)
