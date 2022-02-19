@@ -13,8 +13,11 @@ import (
 	"github.com/q191201771/lal/pkg/mpegts"
 )
 
-// Queue 缓存流起始的一些数据，判断流中是否存在音频、视频，以及编码格式
+// Queue
+//
+// 缓存流起始的一些数据，判断流中是否存在音频、视频，以及编码格式
 // 一旦判断结束，该队列变成直进直出，不再有实际缓存
+//
 type Queue struct {
 	maxMsgSize int
 	data       []base.RtmpMsg

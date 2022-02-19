@@ -51,6 +51,8 @@ func PackTsPacket(frame *Frame, onTsPacket OnTsPacket) {
 	lpos := 0              // 当前帧的处理位置
 	rpos := len(frame.Raw) // 当前帧大小
 	first := true          // 是否为帧的首个packet的标准
+
+	// TODO(chef): [perf] 由于上层并不需要区分单个packet，所以可以考虑预分配内存，存储整个packet流
 	packet := make([]byte, 188)
 
 	for lpos != rpos {

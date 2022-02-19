@@ -131,6 +131,8 @@ func (gc *GopCache) Clear() {
 	gc.gopRingFirst = 0
 }
 
+// ---------------------------------------------------------------------------------------------------------------------
+
 // 往最后一个GOP元素追加一个msg
 // 注意，如果GopCache为空，则不缓存msg
 func (gc *GopCache) feedLastGop(msg base.RtmpMsg, b []byte) {
@@ -156,6 +158,8 @@ func (gc *GopCache) isGopRingFull() bool {
 func (gc *GopCache) isGopRingEmpty() bool {
 	return gc.gopRingFirst == gc.gopRingLast
 }
+
+// ---------------------------------------------------------------------------------------------------------------------
 
 type Gop struct {
 	data [][]byte

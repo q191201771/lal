@@ -955,6 +955,8 @@ func (group *Group) OnAvPacket(pkt base.AvPacket) {
 	group.rtsp2RtmpRemuxer.OnAvPacket(pkt)
 }
 
+// ----- implement hls.MuxerObserver of hls.Muxer ----------------------------------------------------------------------
+
 // OnPatPmt hls.Muxer
 func (group *Group) OnPatPmt(b []byte) {
 	group.patpmt = b
@@ -988,6 +990,8 @@ func (group *Group) OnTsPackets(rawFrame []byte, boundary bool) {
 		}
 	}
 }
+
+// ---------------------------------------------------------------------------------------------------------------------
 
 // TODO chef: 目前相当于其他类型往rtmp.AVMsg转了，考虑统一往一个通用类型转
 //

@@ -24,13 +24,15 @@ type StreamerObserver interface {
 	// OnPatPmt @param b const只读内存块，上层可以持有，但是不允许修改
 	OnPatPmt(b []byte)
 
-	// OnFrame @param streamer: 供上层获取streamer内部的一些状态，比如spspps是否已缓存，音频缓存队列是否有数据等
+	// OnFrame
 	//
-	// @param frame:    各字段含义见mpegts.Frame结构体定义
+	// @param streamer: 供上层获取streamer内部的一些状态，比如spspps是否已缓存，音频缓存队列是否有数据等
+	//
+	// @param frame:    各字段含义见 mpegts.Frame 结构体定义
 	//                  frame.CC  注意，回调结束后，Streamer会保存frame.CC，上层在TS打包完成后，可通过frame.CC将cc值传递给Streamer
 	//                  frame.Raw 回调结束后，这块内存可能会被内部重复使用
 	//
-	OnFrame(streamer *Streamer, frame *mpegts.Frame)
+	OnFrame(streamer *Streamer, frame *mpegts.Frame, boundary bool)
 }
 
 // Streamer 输入rtmp流，回调转封装成Annexb格式的流
@@ -46,6 +48,8 @@ type Streamer struct {
 	audioCacheFirstFramePts uint64 // audioCacheFrames中第一个音频帧的时间戳 TODO chef: rename to DTS
 	audioCc                 uint8
 	videoCc                 uint8
+
+	opened bool
 }
 
 func NewStreamer(observer StreamerObserver) *Streamer {
@@ -68,6 +72,8 @@ func (s *Streamer) FeedRtmpMessage(msg base.RtmpMsg) {
 	s.calcFragmentHeaderQueue.Push(msg)
 }
 
+// ----- implement IQueueObserver of Queue -----------------------------------------------------------------------------
+
 func (s *Streamer) OnPatPmt(b []byte) {
 	s.observer.OnPatPmt(b)
 }
@@ -81,6 +87,34 @@ func (s *Streamer) OnPop(msg base.RtmpMsg) {
 	}
 }
 
+// ---------------------------------------------------------------------------------------------------------------------
+
+// FlushAudio
+//
+// 吐出音频数据的三种情况：
+// 1. 收到音频或视频时，音频缓存队列已达到一定长度
+// 2. 打开一个新的TS文件切片时
+// 3. 输入流关闭时
+//
+func (s *Streamer) FlushAudio() {
+	if s.audioCacheFrames == nil {
+		return
+	}
+
+	var frame mpegts.Frame
+	frame.Cc = s.audioCc
+	frame.Dts = s.audioCacheFirstFramePts
+	frame.Pts = s.audioCacheFirstFramePts
+	frame.Key = false
+	frame.Raw = s.audioCacheFrames
+	frame.Pid = mpegts.PidAudio
+	frame.Sid = mpegts.StreamIdAudio
+	s.onFrame(&frame)
+	s.audioCc = frame.Cc
+
+	s.audioCacheFrames = nil
+}
+
 func (s *Streamer) AudioSeqHeaderCached() bool {
 	return s.ascCtx != nil
 }
@@ -92,6 +126,8 @@ func (s *Streamer) VideoSeqHeaderCached() bool {
 func (s *Streamer) AudioCacheEmpty() bool {
 	return s.audioCacheFrames == nil
 }
+
+// ----- private -------------------------------------------------------------------------------------------------------
 
 func (s *Streamer) feedVideo(msg base.RtmpMsg) {
 	// 注意，有一种情况是msg.Payload为 27 02 00 00 00
@@ -226,7 +262,7 @@ func (s *Streamer) feedVideo(msg base.RtmpMsg) {
 	frame.Pid = mpegts.PidVideo
 	frame.Sid = mpegts.StreamIdVideo
 
-	s.observer.OnFrame(s, &frame)
+	s.onFrame(&frame)
 	s.videoCc = frame.Cc
 }
 
@@ -268,29 +304,6 @@ func (s *Streamer) feedAudio(msg base.RtmpMsg) {
 	s.audioCacheFrames = append(s.audioCacheFrames, msg.Payload[2:]...)
 }
 
-// FlushAudio 吐出音频数据的三种情况：
-// 1. 收到音频或视频时，音频缓存队列已达到一定长度
-// 2. 打开一个新的TS文件切片时
-// 3. 输入流关闭时
-func (s *Streamer) FlushAudio() {
-	if s.audioCacheFrames == nil {
-		return
-	}
-
-	var frame mpegts.Frame
-	frame.Cc = s.audioCc
-	frame.Dts = s.audioCacheFirstFramePts
-	frame.Pts = s.audioCacheFirstFramePts
-	frame.Key = false
-	frame.Raw = s.audioCacheFrames
-	frame.Pid = mpegts.PidAudio
-	frame.Sid = mpegts.StreamIdAudio
-	s.observer.OnFrame(s, &frame)
-	s.audioCc = frame.Cc
-
-	s.audioCacheFrames = nil
-}
-
 func (s *Streamer) cacheAacSeqHeader(msg base.RtmpMsg) error {
 	var err error
 	s.ascCtx, err = aac.NewAscContext(msg.Payload[2:])
@@ -304,4 +317,28 @@ func (s *Streamer) appendSpsPps(out []byte) ([]byte, error) {
 
 	out = append(out, s.spspps...)
 	return out, nil
+}
+
+func (s *Streamer) onFrame(frame *mpegts.Frame) {
+	var boundary bool
+
+	if frame.Sid == mpegts.StreamIdAudio {
+		// 为了考虑没有视频的情况也能切片，所以这里判断spspps为空时，也建议生成fragment
+		boundary = !s.VideoSeqHeaderCached()
+	} else {
+		// 收到视频，可能触发建立fragment的条件是：
+		// 关键帧数据 &&
+		// (
+		//  (没有收到过音频seq header) || 说明 只有视频
+		//  (收到过音频seq header && fragment没有打开) || 说明 音视频都有，且都已ready
+		//  (收到过音频seq header && fragment已经打开 && 音频缓存数据不为空) 说明 为什么音频缓存需不为空？
+		// )
+		boundary = frame.Key && (!s.AudioSeqHeaderCached() || !s.opened || !s.AudioCacheEmpty())
+	}
+
+	if boundary {
+		s.opened = true
+	}
+
+	s.observer.OnFrame(s, frame, boundary)
 }
