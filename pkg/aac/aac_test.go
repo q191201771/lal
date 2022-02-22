@@ -16,8 +16,6 @@ import (
 
 	"github.com/q191201771/lal/pkg/aac"
 
-	"github.com/q191201771/naza/pkg/nazalog"
-
 	"github.com/q191201771/naza/pkg/assert"
 )
 
@@ -90,5 +88,5 @@ func TestMakeAudioDataSeqHeader(t *testing.T) {
 func TestSequenceHeaderContext(t *testing.T) {
 	var shCtx aac.SequenceHeaderContext
 	shCtx.Unpack(goldenSh)
-	nazalog.Debugf("%+v", shCtx)
+	aac.Log.Debugf("%+v", shCtx)
 }

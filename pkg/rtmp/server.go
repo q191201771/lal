@@ -10,8 +10,6 @@ package rtmp
 
 import (
 	"net"
-
-	log "github.com/q191201771/naza/pkg/nazalog"
 )
 
 type ServerObserver interface {
@@ -52,7 +50,7 @@ func (server *Server) Listen() (err error) {
 	if server.ln, err = net.Listen("tcp", server.addr); err != nil {
 		return
 	}
-	log.Infof("start rtmp server listen. addr=%s", server.addr)
+	Log.Infof("start rtmp server listen. addr=%s", server.addr)
 	return
 }
 
@@ -71,12 +69,12 @@ func (server *Server) Dispose() {
 		return
 	}
 	if err := server.ln.Close(); err != nil {
-		log.Error(err)
+		Log.Error(err)
 	}
 }
 
 func (server *Server) handleTcpConnect(conn net.Conn) {
-	log.Infof("accept a rtmp connection. remoteAddr=%s", conn.RemoteAddr().String())
+	Log.Infof("accept a rtmp connection. remoteAddr=%s", conn.RemoteAddr().String())
 	session := NewServerSession(server, conn)
 	_ = session.RunLoop()
 

@@ -13,7 +13,7 @@ import (
 	"github.com/q191201771/lal/pkg/httpflv"
 )
 
-// @return 返回的内存块为新申请的独立内存块
+// RtmpMsg2FlvTag @return 返回的内存块为新申请的独立内存块
 func RtmpMsg2FlvTag(msg base.RtmpMsg) *httpflv.Tag {
 	var tag httpflv.Tag
 	tag.Header.Type = msg.Header.MsgTypeId

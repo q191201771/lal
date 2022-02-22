@@ -53,7 +53,7 @@ mkdir "./testdata/conf"
 cp ./conf/cert.pem ./conf/key.pem ./testdata/conf/
 cp ./conf/cert.pem ./conf/key.pem ./testdata/conf/
 
-## 
+## 执行所有pkg里的单元测试，并生成测试覆盖文件
 echo "" > coverage.txt
 for d in $(go list ./... | grep -v vendor | grep pkg | grep -v innertest); do
     go test -race -coverprofile=profile.out -covermode=atomic $d
@@ -63,8 +63,8 @@ for d in $(go list ./... | grep -v vendor | grep pkg | grep -v innertest); do
     fi
 done
 
-rm -rf ./pkg/logic/logs ./pkg/rtmp/logs ./pkg/httpflv/logs ./pkg/hls/logs
-rm -rf ./pkg/logic/testdata ./pkg/rtmp/testdata ./pkg/httpflv/testdata ./pkg/hls/testdata
-rm -rf ./pkg/logic/lal_record ./pkg/rtmp/lal_record ./pkg/httpflv/lal_record ./pkg/hls/lal_record
+## 删除测试生成的垃圾文件
+find ./pkg -name 'lal_record' | xargs rm -rf
+find ./pkg -name 'logs' | xargs rm -rf
 
 echo 'done.'

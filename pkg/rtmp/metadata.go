@@ -32,7 +32,7 @@ func ParseMetadata(b []byte) (ObjectPairArray, error) {
 	return opa, err
 }
 
-// spec-video_file_format_spec_v10.pdf
+// BuildMetadata spec-video_file_format_spec_v10.pdf
 // onMetaData
 // - duration        DOUBLE, seconds
 // - width           DOUBLE

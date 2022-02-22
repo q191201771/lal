@@ -41,7 +41,7 @@ const (
 )
 
 const (
-	// header key
+	// HeaderAccept header key
 	HeaderAccept          = "Accept"
 	HeaderUserAgent       = "User-Agent"
 	HeaderCSeq            = "CSeq"
@@ -53,7 +53,7 @@ const (
 	HeaderAuthorization   = "Authorization"
 	HeaderPublic          = "Public"
 
-	// header value
+	// HeaderAcceptApplicationSdp header value
 	HeaderAcceptApplicationSdp         = "application/sdp"
 	HeaderRangeDefault                 = "npt=0.000-"
 	HeaderTransportClientPlayTmpl      = "RTP/AVP/UDP;unicast;client_port=%d-%d" // localRtpPort, localRtcpPort
@@ -61,8 +61,11 @@ const (
 	HeaderTransportClientRecordTmpl    = "RTP/AVP/UDP;unicast;client_port=%d-%d;mode=record"
 	HeaderTransportClientRecordTcpTmpl = "RTP/AVP/TCP;unicast;interleaved=%d-%d;mode=record"
 	HeaderTransportServerPlayTmpl      = "RTP/AVP/UDP;unicast;client_port=%d-%d;server_port=%d-%d"
+
 	//HeaderTransportServerPlayTCPTmpl   = "RTP/AVP/TCP;unicast;interleaved=%d-%d"
+
 	HeaderTransportServerRecordTmpl = "RTP/AVP/UDP;unicast;client_port=%d-%d;server_port=%d-%d;mode=record"
+
 	//HeaderTransportServerRecordTCPTmpl = "RTP/AVP/TCP;unicast;interleaved=%d-%d;mode=record"
 )
 

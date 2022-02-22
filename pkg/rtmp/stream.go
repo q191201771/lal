@@ -15,7 +15,6 @@ import (
 	"github.com/q191201771/naza/pkg/nazabytes"
 
 	"github.com/q191201771/lal/pkg/base"
-	"github.com/q191201771/naza/pkg/nazalog"
 )
 
 // ----- Stream --------------------------------------------------------------------------------------------------------
@@ -44,7 +43,7 @@ func (stream *Stream) toDebugString() string {
 func (stream *Stream) toAvMsg() base.RtmpMsg {
 	// TODO chef: 考虑可能出现header中的len和buf的大小不一致的情况
 	if stream.header.MsgLen != uint32(stream.msg.buff.Len()) {
-		nazalog.Errorf("toAvMsg. headerMsgLen=%d, bufLen=%d", stream.header.MsgLen, stream.msg.buff.Len())
+		Log.Errorf("toAvMsg. headerMsgLen=%d, bufLen=%d", stream.header.MsgLen, stream.msg.buff.Len())
 	}
 	return base.RtmpMsg{
 		Header:  stream.header,
@@ -58,7 +57,7 @@ type StreamMsg struct {
 	buff *nazabytes.Buffer
 }
 
-// 确保可写空间，如果不够会扩容
+// Grow 确保可写空间，如果不够会扩容
 func (msg *StreamMsg) Grow(n uint32) {
 	msg.buff.Grow(int(n))
 }

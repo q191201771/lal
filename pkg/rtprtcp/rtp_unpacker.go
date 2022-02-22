@@ -10,7 +10,6 @@ package rtprtcp
 
 import (
 	"github.com/q191201771/lal/pkg/base"
-	"github.com/q191201771/naza/pkg/nazalog"
 )
 
 // 传入RTP包，合成帧数据，并回调返回
@@ -32,10 +31,10 @@ type IRtpUnpackContainer interface {
 }
 
 type IRtpUnpackerProtocol interface {
-	// 计算rtp包处于帧中的位置
+	// CalcPositionIfNeeded 计算rtp包处于帧中的位置
 	CalcPositionIfNeeded(pkt *RtpPacket)
 
-	// 尝试合成一个完整帧
+	// TryUnpackOne 尝试合成一个完整帧
 	//
 	// 从当前队列的第一个包开始合成
 	// 如果一个rtp包对应一个完整帧，则合成一帧
@@ -47,7 +46,7 @@ type IRtpUnpackerProtocol interface {
 	TryUnpackOne(list *RtpPacketList) (unpackedFlag bool, unpackedSeq uint16)
 }
 
-// @param pkt: pkt.Timestamp   RTP包头中的时间戳(pts)经过clockrate换算后的时间戳，单位毫秒
+// OnAvPacket @param pkt: pkt.Timestamp   RTP包头中的时间戳(pts)经过clockrate换算后的时间戳，单位毫秒
 //                             注意，不支持带B帧的视频流，pts和dts永远相同
 //             pkt.PayloadType base.AvPacketPTXXX
 //             pkt.Payload     AAC:
@@ -60,7 +59,7 @@ type IRtpUnpackerProtocol interface {
 //                               假如sps和pps是一个stapA包，则合并结果为一个AvPacket
 type OnAvPacket func(pkt base.AvPacket)
 
-// 目前支持AVC，HEVC和AAC MPEG4-GENERIC，业务方也可以自己实现IRtpUnpackerProtocol，甚至是IRtpUnpackContainer
+// DefaultRtpUnpackerFactory 目前支持AVC，HEVC和AAC MPEG4-GENERIC，业务方也可以自己实现IRtpUnpackerProtocol，甚至是IRtpUnpackContainer
 func DefaultRtpUnpackerFactory(payloadType base.AvPacketPt, clockRate int, maxSize int, onAvPacket OnAvPacket) IRtpUnpacker {
 	var protocol IRtpUnpackerProtocol
 	switch payloadType {
@@ -71,7 +70,7 @@ func DefaultRtpUnpackerFactory(payloadType base.AvPacketPt, clockRate int, maxSi
 	case base.AvPacketPtHevc:
 		protocol = NewRtpUnpackerAvcHevc(payloadType, clockRate, onAvPacket)
 	default:
-		nazalog.Fatalf("payload type not support yet. payloadType=%d", payloadType)
+		Log.Fatalf("payload type not support yet. payloadType=%d", payloadType)
 	}
 	return NewRtpUnpackContainer(maxSize, protocol)
 }

@@ -12,8 +12,6 @@ import (
 	"encoding/hex"
 	"testing"
 
-	"github.com/q191201771/naza/pkg/nazalog"
-
 	"github.com/q191201771/naza/pkg/bele"
 
 	"github.com/q191201771/lal/pkg/base"
@@ -176,7 +174,7 @@ func testHelperAddPrefixLength(in []byte) (out []byte) {
 func testHelperUnpack(payloadType base.AvPacketPt, clockRate int, maxSize int, rtpPackets []RtpPacket) []base.AvPacket {
 	var outPkts []base.AvPacket
 	unpacker := DefaultRtpUnpackerFactory(payloadType, clockRate, maxSize, func(pkt base.AvPacket) {
-		nazalog.Debugf("%s", hex.EncodeToString(pkt.Payload))
+		Log.Debugf("%s", hex.EncodeToString(pkt.Payload))
 		outPkts = append(outPkts, pkt)
 	})
 	for _, pkt := range rtpPackets {

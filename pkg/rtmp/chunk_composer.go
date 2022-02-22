@@ -126,8 +126,8 @@ func (c *ChunkComposer) RunLoop(reader io.Reader, cb OnCompleteMessage) error {
 		case 3:
 			// noop
 		}
-		if nazalog.GetOption().Level == nazalog.LevelTrace {
-			nazalog.Tracef("[%p] RTMP_READ chunk.fmt=%d, csid=%d, header=%+v, timestamp=%d",
+		if Log.GetOption().Level == nazalog.LevelTrace {
+			Log.Tracef("[%p] RTMP_READ chunk.fmt=%d, csid=%d, header=%+v, timestamp=%d",
 				c, fmt, csid, stream.header, stream.timestamp)
 		}
 
@@ -143,8 +143,8 @@ func (c *ChunkComposer) RunLoop(reader io.Reader, cb OnCompleteMessage) error {
 				return err
 			}
 			newTs := bele.BeUint32(bootstrap)
-			if nazalog.GetOption().Level == nazalog.LevelTrace {
-				nazalog.Tracef("[%p] RTMP_READ ext. ts=(%d,%d,%d)",
+			if Log.GetOption().Level == nazalog.LevelTrace {
+				Log.Tracef("[%p] RTMP_READ ext. ts=(%d,%d,%d)",
 					c, stream.timestamp, newTs, stream.header.TimestampAbs)
 			}
 			stream.timestamp = newTs
@@ -188,8 +188,8 @@ func (c *ChunkComposer) RunLoop(reader io.Reader, cb OnCompleteMessage) error {
 				stream.header.TimestampAbs += stream.timestamp
 			}
 			absTsFlag = false
-			if nazalog.GetOption().Level == nazalog.LevelTrace {
-				nazalog.Tracef("[%p] RTMP_READ cb. fmt=%d, csid=%d, header=%+v, timestamp=%d, hex=%s",
+			if Log.GetOption().Level == nazalog.LevelTrace {
+				Log.Tracef("[%p] RTMP_READ cb. fmt=%d, csid=%d, header=%+v, timestamp=%d, hex=%s",
 					c, fmt, csid, stream.header, stream.timestamp, hex.Dump(nazabytes.Prefix(stream.msg.buff.Bytes(), 32)))
 			}
 

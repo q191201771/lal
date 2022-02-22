@@ -14,7 +14,6 @@ import (
 	"github.com/q191201771/lal/pkg/innertest"
 
 	"github.com/q191201771/lal/pkg/mpegts"
-	"github.com/q191201771/naza/pkg/nazalog"
 )
 
 func TestMpegts(t *testing.T) {
@@ -23,12 +22,12 @@ func TestMpegts(t *testing.T) {
 
 func TestParseFixedTsPacket(t *testing.T) {
 	h := mpegts.ParseTsPacketHeader(mpegts.FixedFragmentHeader)
-	nazalog.Debugf("%+v", h)
+	mpegts.Log.Debugf("%+v", h)
 	pat := mpegts.ParsePat(mpegts.FixedFragmentHeader[5:])
-	nazalog.Debugf("%+v", pat)
+	mpegts.Log.Debugf("%+v", pat)
 
 	h = mpegts.ParseTsPacketHeader(mpegts.FixedFragmentHeaderHevc[188:])
-	nazalog.Debugf("%+v", h)
+	mpegts.Log.Debugf("%+v", h)
 	pmt := mpegts.ParsePmt(mpegts.FixedFragmentHeader[188+5:])
-	nazalog.Debugf("%+v", pmt)
+	mpegts.Log.Debugf("%+v", pmt)
 }

@@ -16,7 +16,7 @@ import (
 	"github.com/q191201771/naza/pkg/bele"
 )
 
-// The WebSocket Protocol
+// WsOpcode The WebSocket Protocol
 // https://tools.ietf.org/html/rfc6455
 //
 // 0                   1                   2                   3
@@ -59,7 +59,8 @@ const (
 	Wso_Continuous WsOpcode = iota //连续消息片断
 	Wso_Text                       //文本消息片断,
 	Wso_Binary                     //二进制消息片断,
-	//非控制消息片断保留的操作码,
+
+	// Wso_Rsv3 非控制消息片断保留的操作码,
 	Wso_Rsv3
 	Wso_Rsv4
 	Wso_Rsv5
@@ -68,7 +69,8 @@ const (
 	Wso_Close //连接关闭,
 	Wso_Ping  //心跳检查的ping,
 	Wso_Pong  //心跳检查的pong,
-	//为将来的控制消息片断的保留操作码
+
+	// Wso_RsvB 为将来的控制消息片断的保留操作码
 	Wso_RsvB
 	Wso_RsvC
 	Wso_RsvD

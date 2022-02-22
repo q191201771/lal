@@ -17,8 +17,6 @@ import (
 	"github.com/q191201771/lal/pkg/mpegts"
 
 	"github.com/q191201771/lal/pkg/base"
-
-	"github.com/q191201771/naza/pkg/nazalog"
 )
 
 // TODO chef: 转换TS流的功能（通过回调供httpts使用）也放在了Muxer中，好处是hls和httpts可以共用一份TS流。
@@ -27,8 +25,11 @@ import (
 type MuxerObserver interface {
 	OnPatPmt(b []byte)
 
-	// @param rawFrame TS流，回调结束后，内部不再使用该内存块
-	// @param boundary 新的TS流接收者，应该从该标志为true时开始发送数据
+	// OnTsPackets
+	//
+	// @param rawFrame: TS流，回调结束后，内部不再使用该内存块
+	//
+	// @param boundary: 新的TS流接收者，应该从该标志为true时开始发送数据
 	//
 	OnTsPackets(rawFrame []byte, boundary bool)
 }
@@ -70,9 +71,13 @@ type Muxer struct {
 	observer MuxerObserver
 
 	fragment Fragment
-	opened   bool
 	videoCc  uint8
 	audioCc  uint8
+
+	// 初始值为false，调用openFragment时设置为true，调用closeFragment时设置为false
+	// 整个对象关闭时设置为false
+	// 中途切换Fragment时，调用close后会立即调用open
+	opened bool
 
 	fragTs                uint64 // 新建立fragment时的时间戳，毫秒 * 90
 	recordMaxFragDuration float64
@@ -120,28 +125,30 @@ func NewMuxer(streamName string, enable bool, config *MuxerConfig, observer Muxe
 	m.makeFrags()
 	streamer := NewStreamer(m)
 	m.streamer = streamer
-	nazalog.Infof("[%s] lifecycle new hls muxer. muxer=%p, streamName=%s", uk, m, streamName)
+	Log.Infof("[%s] lifecycle new hls muxer. muxer=%p, streamName=%s", uk, m, streamName)
 	return m
 }
 
 func (m *Muxer) Start() {
-	nazalog.Infof("[%s] start hls muxer.", m.UniqueKey)
+	Log.Infof("[%s] start hls muxer.", m.UniqueKey)
 	m.ensureDir()
 }
 
 func (m *Muxer) Dispose() {
-	nazalog.Infof("[%s] lifecycle dispose hls muxer.", m.UniqueKey)
+	Log.Infof("[%s] lifecycle dispose hls muxer.", m.UniqueKey)
 	m.streamer.FlushAudio()
 	if err := m.closeFragment(true); err != nil {
-		nazalog.Errorf("[%s] close fragment error. err=%+v", m.UniqueKey, err)
+		Log.Errorf("[%s] close fragment error. err=%+v", m.UniqueKey, err)
 	}
 }
 
-// @param msg 函数调用结束后，内部不持有msg中的内存块
+// FeedRtmpMessage @param msg 函数调用结束后，内部不持有msg中的内存块
 //
 func (m *Muxer) FeedRtmpMessage(msg base.RtmpMsg) {
 	m.streamer.FeedRtmpMessage(msg)
 }
+
+// ----- implement StreamerObserver of Streamer ------------------------------------------------------------------------
 
 func (m *Muxer) OnPatPmt(b []byte) {
 	m.patpmt = b
@@ -150,50 +157,38 @@ func (m *Muxer) OnPatPmt(b []byte) {
 	}
 }
 
-func (m *Muxer) OnFrame(streamer *Streamer, frame *mpegts.Frame) {
-	var boundary bool
+func (m *Muxer) OnFrame(streamer *Streamer, frame *mpegts.Frame, boundary bool) {
 	var packets []byte
 
 	if frame.Sid == mpegts.StreamIdAudio {
-		// 为了考虑没有视频的情况也能切片，所以这里判断spspps为空时，也建议生成fragment
-		boundary = !streamer.VideoSeqHeaderCached()
+		// TODO(chef): 为什么音频用pts，视频用dts
 		if err := m.updateFragment(frame.Pts, boundary); err != nil {
-			nazalog.Errorf("[%s] update fragment error. err=%+v", m.UniqueKey, err)
+			Log.Errorf("[%s] update fragment error. err=%+v", m.UniqueKey, err)
 			return
 		}
-
+		// TODO(chef): 有updateFragment的返回值判断，这里的判断可以考虑删除
 		if !m.opened {
-			nazalog.Warnf("[%s] OnFrame A not opened. boundary=%t", m.UniqueKey, boundary)
+			Log.Warnf("[%s] OnFrame A not opened. boundary=%t", m.UniqueKey, boundary)
 			return
 		}
-
-		//nazalog.Debugf("[%s] WriteFrame A. dts=%d, len=%d", m.UniqueKey, frame.DTS, len(frame.Raw))
+		//Log.Debugf("[%s] WriteFrame A. dts=%d, len=%d", m.UniqueKey, frame.DTS, len(frame.Raw))
 	} else {
-		//nazalog.Debugf("[%s] OnFrame V. dts=%d, len=%d", m.UniqueKey, frame.Dts, len(frame.Raw))
-		// 收到视频，可能触发建立fragment的条件是：
-		// 关键帧数据 &&
-		// ((没有收到过音频seq header) || -> 只有视频
-		//  (收到过音频seq header && fragment没有打开) || -> 音视频都有，且都已ready
-		//  (收到过音频seq header && fragment已经打开 && 音频缓存数据不为空) -> 为什么音频缓存需不为空？
-		// )
-		boundary = frame.Key && (!streamer.AudioSeqHeaderCached() || !m.opened || !streamer.AudioCacheEmpty())
 		if err := m.updateFragment(frame.Dts, boundary); err != nil {
-			nazalog.Errorf("[%s] update fragment error. err=%+v", m.UniqueKey, err)
+			Log.Errorf("[%s] update fragment error. err=%+v", m.UniqueKey, err)
 			return
 		}
-
+		// TODO(chef): 有updateFragment的返回值判断，这里的判断可以考虑删除
 		if !m.opened {
-			nazalog.Warnf("[%s] OnFrame V not opened. boundary=%t, key=%t", m.UniqueKey, boundary, frame.Key)
+			Log.Warnf("[%s] OnFrame V not opened. boundary=%t, key=%t", m.UniqueKey, boundary, frame.Key)
 			return
 		}
-
-		//nazalog.Debugf("[%s] WriteFrame V. dts=%d, len=%d", m.UniqueKey, frame.Dts, len(frame.Raw))
+		//Log.Debugf("[%s] WriteFrame V. dts=%d, len=%d", m.UniqueKey, frame.Dts, len(frame.Raw))
 	}
 
 	mpegts.PackTsPacket(frame, func(packet []byte) {
 		if m.enable {
 			if err := m.fragment.WriteFile(packet); err != nil {
-				nazalog.Errorf("[%s] fragment write error. err=%+v", m.UniqueKey, err)
+				Log.Errorf("[%s] fragment write error. err=%+v", m.UniqueKey, err)
 				return
 			}
 		}
@@ -206,13 +201,19 @@ func (m *Muxer) OnFrame(streamer *Streamer, frame *mpegts.Frame) {
 	}
 }
 
+// ---------------------------------------------------------------------------------------------------------------------
+
 func (m *Muxer) OutPath() string {
 	return m.outPath
 }
 
-// 决定是否开启新的TS切片文件（注意，可能已经有TS切片，也可能没有，这是第一个切片）
+// ---------------------------------------------------------------------------------------------------------------------
+
+// updateFragment 决定是否开启新的TS切片文件（注意，可能已经有TS切片，也可能没有，这是第一个切片）
 //
-// @param boundary 调用方认为可能是开启新TS切片的时间点
+// @param boundary: 调用方认为可能是开启新TS切片的时间点
+//
+// @return: 理论上，只有文件操作失败才会返回错误
 //
 func (m *Muxer) updateFragment(ts uint64, boundary bool) error {
 	discont := true
@@ -231,7 +232,7 @@ func (m *Muxer) updateFragment(ts uint64, boundary bool) error {
 		//
 		maxfraglen := uint64(m.config.FragmentDurationMs * 90 * 10)
 		if (ts > m.fragTs && ts-m.fragTs > maxfraglen) || (m.fragTs > ts && m.fragTs-ts > negMaxfraglen) {
-			nazalog.Warnf("[%s] force fragment split. fragTs=%d, ts=%d", m.UniqueKey, m.fragTs, ts)
+			Log.Warnf("[%s] force fragment split. fragTs=%d, ts=%d", m.UniqueKey, m.fragTs, ts)
 
 			if err := m.closeFragment(false); err != nil {
 				return err
@@ -279,7 +280,11 @@ func (m *Muxer) updateFragment(ts uint64, boundary bool) error {
 	return nil
 }
 
-// @param discont 不连续标志，会在m3u8文件的fragment前增加`#EXT-X-DISCONTINUITY`
+// openFragment
+//
+// @param discont: 不连续标志，会在m3u8文件的fragment前增加`#EXT-X-DISCONTINUITY`
+//
+// @return: 理论上，只有文件操作失败才会返回错误
 //
 func (m *Muxer) openFragment(ts uint64, discont bool) error {
 	if m.opened {
@@ -314,6 +319,10 @@ func (m *Muxer) openFragment(ts uint64, discont bool) error {
 	return nil
 }
 
+// closeFragment
+//
+// @return: 理论上，只有文件操作失败才会返回错误
+//
 func (m *Muxer) closeFragment(isLast bool) error {
 	if !m.opened {
 		// 注意，首次调用closeFragment时，有可能opened为false
@@ -343,7 +352,7 @@ func (m *Muxer) closeFragment(isLast bool) error {
 		if frag.filename != "" {
 			filenameWithPath := PathStrategy.GetTsFileNameWithPath(m.outPath, frag.filename)
 			if err := fslCtx.Remove(filenameWithPath); err != nil {
-				nazalog.Warnf("[%s] remove stale fragment file failed. filename=%s, err=%+v", m.UniqueKey, filenameWithPath, err)
+				Log.Warnf("[%s] remove stale fragment file failed. filename=%s, err=%+v", m.UniqueKey, filenameWithPath, err)
 			}
 		}
 	}
@@ -371,7 +380,7 @@ func (m *Muxer) writeRecordPlaylist() {
 		content = bytes.TrimSuffix(content, []byte("#EXT-X-ENDLIST\n"))
 		content, err = updateTargetDurationInM3u8(content, int(m.recordMaxFragDuration))
 		if err != nil {
-			nazalog.Errorf("[%s] update target duration failed. err=%+v", m.UniqueKey, err)
+			Log.Errorf("[%s] update target duration failed. err=%+v", m.UniqueKey, err)
 			return
 		}
 
@@ -400,7 +409,7 @@ func (m *Muxer) writeRecordPlaylist() {
 	}
 
 	if err := writeM3u8File(content, m.recordPlayListFilename, m.recordPlayListFilenameBak); err != nil {
-		nazalog.Errorf("[%s] write record m3u8 file error. err=%+v", m.UniqueKey, err)
+		Log.Errorf("[%s] write record m3u8 file error. err=%+v", m.UniqueKey, err)
 	}
 }
 
@@ -438,7 +447,7 @@ func (m *Muxer) writePlaylist(isLast bool) {
 	}
 
 	if err := writeM3u8File(buf.Bytes(), m.playlistFilename, m.playlistFilenameBak); err != nil {
-		nazalog.Errorf("[%s] write live m3u8 file error. err=%+v", m.UniqueKey, err)
+		Log.Errorf("[%s] write live m3u8 file error. err=%+v", m.UniqueKey, err)
 	}
 }
 
@@ -447,9 +456,9 @@ func (m *Muxer) ensureDir() {
 		return
 	}
 	//err := fslCtx.RemoveAll(m.outPath)
-	//nazalog.Assert(nil, err)
+	//Log.Assert(nil, err)
 	err := fslCtx.MkdirAll(m.outPath, 0777)
-	nazalog.Assert(nil, err)
+	Log.Assert(nil, err)
 }
 
 // ---------------------------------------------------------------------------------------------------------------------

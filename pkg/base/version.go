@@ -15,7 +15,7 @@ import "strings"
 // 另外，我们也在本文件提供另外一些信息
 // 并且将这些信息打入可执行文件、日志、各协议中的标准版本字段中
 
-// 版本，该变量由外部脚本修改维护
+// LalVersion 版本，该变量由外部脚本修改维护
 const LalVersion = "v0.27.1"
 
 var (
@@ -24,57 +24,57 @@ var (
 	LalGithubSite  = "https://github.com/q191201771/lal"
 	LalDocSite     = "https://pengrl.com/lal"
 
-	// e.g. lal v0.12.3 (github.com/q191201771/lal)
+	// LalFullInfo e.g. lal v0.12.3 (github.com/q191201771/lal)
 	LalFullInfo = LalLibraryName + " " + LalVersion + " (" + LalGithubRepo + ")"
 
-	// e.g. 0.12.3
+	// LalVersionDot e.g. 0.12.3
 	LalVersionDot string
 
-	// e.g. 0,12,3
+	// LalVersionComma e.g. 0,12,3
 	LalVersionComma string
 )
 
 var (
-	// 植入rtmp握手随机字符串中
+	// LalRtmpHandshakeWaterMark 植入rtmp握手随机字符串中
 	// e.g. lal v0.12.3 (github.com/q191201771/lal)
 	LalRtmpHandshakeWaterMark string
 
-	// 植入rtmp server中的connect result信令中
+	// LalRtmpConnectResultVersion 植入rtmp server中的connect result信令中
 	// 注意，有两个object，第一个object中的fmsVer我们保持通用公认的值，在第二个object中植入
 	// e.g. 0,12,3
 	LalRtmpConnectResultVersion string
 
-	// e.g. lal0.12.3
+	// LalRtmpPushSessionConnectVersion e.g. lal0.12.3
 	LalRtmpPushSessionConnectVersion string
 
-	// e.g. lal0.12.3
+	// LalRtmpBuildMetadataEncoder e.g. lal0.12.3
 	LalRtmpBuildMetadataEncoder string
 
-	// e.g. lal/0.12.3
+	// LalHttpflvPullSessionUa e.g. lal/0.12.3
 	LalHttpflvPullSessionUa string
 
-	// e.g. lal0.12.3
+	// LalHttpflvSubSessionServer e.g. lal0.12.3
 	LalHttpflvSubSessionServer string
 
-	// e.g. lal0.12.3
+	// LalHlsM3u8Server e.g. lal0.12.3
 	LalHlsM3u8Server string
 
-	// e.g. lal0.12.3
+	// LalHlsTsServer e.g. lal0.12.3
 	LalHlsTsServer string
 
-	// e.g. lal0.12.3
+	// LalRtspOptionsResponseServer e.g. lal0.12.3
 	LalRtspOptionsResponseServer string
 
-	// e.g. lal0.12.3
+	// LalHttptsSubSessionServer e.g. lal0.12.3
 	LalHttptsSubSessionServer string
 
-	// e.g. lal0.12.3
+	// LalHttpApiServer e.g. lal0.12.3
 	LalHttpApiServer string
 
-	// e.g. lal/0.12.3
+	// LalRtspPullSessionUa e.g. lal/0.12.3
 	LalRtspPullSessionUa string
 
-	// e.g. lal 0.12.3
+	// LalPackSdp e.g. lal 0.12.3
 	LalPackSdp string
 )
 

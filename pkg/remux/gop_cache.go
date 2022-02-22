@@ -10,7 +10,6 @@ package remux
 
 import (
 	"github.com/q191201771/lal/pkg/base"
-	"github.com/q191201771/naza/pkg/nazalog"
 )
 
 // GopCache
@@ -66,7 +65,7 @@ type GopCache struct {
 	gopSize      int
 }
 
-// @param gopNum: gop缓存大小
+// NewGopCache @param gopNum: gop缓存大小
 //                如果为0，则不缓存音频数据，也即GOP缓存功能不生效
 //                如果>0，则缓存<gopNum>个完整GOP，另外还可能有半个最近不完整的GOP
 //
@@ -87,18 +86,18 @@ func (gc *GopCache) Feed(msg base.RtmpMsg, lg LazyGet) {
 	switch msg.Header.MsgTypeId {
 	case base.RtmpTypeIdMetadata:
 		gc.Metadata = lg()
-		nazalog.Debugf("[%s] cache %s metadata. size:%d", gc.uniqueKey, gc.t, len(gc.Metadata))
+		Log.Debugf("[%s] cache %s metadata. size:%d", gc.uniqueKey, gc.t, len(gc.Metadata))
 		return
 	case base.RtmpTypeIdAudio:
 		if msg.IsAacSeqHeader() {
 			gc.AacSeqHeader = lg()
-			nazalog.Debugf("[%s] cache %s aac seq header. size:%d", gc.uniqueKey, gc.t, len(gc.AacSeqHeader))
+			Log.Debugf("[%s] cache %s aac seq header. size:%d", gc.uniqueKey, gc.t, len(gc.AacSeqHeader))
 			return
 		}
 	case base.RtmpTypeIdVideo:
 		if msg.IsVideoKeySeqHeader() {
 			gc.VideoSeqHeader = lg()
-			nazalog.Debugf("[%s] cache %s video seq header. size:%d", gc.uniqueKey, gc.t, len(gc.VideoSeqHeader))
+			Log.Debugf("[%s] cache %s video seq header. size:%d", gc.uniqueKey, gc.t, len(gc.VideoSeqHeader))
 			return
 		}
 	}
@@ -112,7 +111,7 @@ func (gc *GopCache) Feed(msg base.RtmpMsg, lg LazyGet) {
 	}
 }
 
-// 获取GOP数量，注意，最后一个可能是不完整的
+// GetGopCount 获取GOP数量，注意，最后一个可能是不完整的
 func (gc *GopCache) GetGopCount() int {
 	return (gc.gopRingLast + gc.gopSize - gc.gopRingFirst) % gc.gopSize
 }
@@ -131,6 +130,8 @@ func (gc *GopCache) Clear() {
 	gc.gopRingLast = 0
 	gc.gopRingFirst = 0
 }
+
+// ---------------------------------------------------------------------------------------------------------------------
 
 // 往最后一个GOP元素追加一个msg
 // 注意，如果GopCache为空，则不缓存msg
@@ -157,6 +158,8 @@ func (gc *GopCache) isGopRingFull() bool {
 func (gc *GopCache) isGopRingEmpty() bool {
 	return gc.gopRingFirst == gc.gopRingLast
 }
+
+// ---------------------------------------------------------------------------------------------------------------------
 
 type Gop struct {
 	data [][]byte

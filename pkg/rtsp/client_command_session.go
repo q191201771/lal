@@ -24,7 +24,6 @@ import (
 	"github.com/q191201771/lal/pkg/sdp"
 	"github.com/q191201771/naza/pkg/connection"
 	"github.com/q191201771/naza/pkg/nazahttp"
-	"github.com/q191201771/naza/pkg/nazalog"
 	"github.com/q191201771/naza/pkg/nazanet"
 )
 
@@ -53,7 +52,7 @@ var defaultClientCommandSessionOption = ClientCommandSessionOption{
 type ClientCommandSessionObserver interface {
 	OnConnectResult()
 
-	// only for PullSession
+	// OnDescribeResponse only for PullSession
 	OnDescribeResponse(sdpCtx sdp.LogicContext)
 
 	OnSetupWithConn(uri string, rtpConn, rtcpConn *nazanet.UdpConnection)
@@ -63,7 +62,7 @@ type ClientCommandSessionObserver interface {
 	OnInterleavedPacket(packet []byte, channel int)
 }
 
-// Push和Pull共用，封装了客户端底层信令信令部分。
+// ClientCommandSession Push和Pull共用，封装了客户端底层信令信令部分。
 // 业务方应该使用PushSession和PullSession，而不是直接使用ClientCommandSession，除非你确定要这么做。
 type ClientCommandSession struct {
 	uniqueKey string
@@ -100,11 +99,11 @@ func NewClientCommandSession(t ClientCommandSessionType, uniqueKey string, obser
 		observer:  observer,
 		option:    option,
 	}
-	nazalog.Infof("[%s] lifecycle new rtsp ClientCommandSession. session=%p", uniqueKey, s)
+	Log.Infof("[%s] lifecycle new rtsp ClientCommandSession. session=%p", uniqueKey, s)
 	return s
 }
 
-// only for PushSession
+// InitWithSdp only for PushSession
 func (session *ClientCommandSession) InitWithSdp(sdpCtx sdp.LogicContext) {
 	session.sdpCtx = sdpCtx
 }
@@ -275,7 +274,7 @@ func (session *ClientCommandSession) runReadLoop() {
 
 	// 对端支持get_parameter，需要定时向对端发送get_parameter进行保活
 
-	nazalog.Debugf("[%s] start get_parameter timer.", session.uniqueKey)
+	Log.Debugf("[%s] start get_parameter timer.", session.uniqueKey)
 	var r = bufio.NewReader(session.conn)
 	t := time.NewTicker(writeGetParameterIntervalMs * time.Millisecond)
 	defer t.Stop()
@@ -333,7 +332,7 @@ func (session *ClientCommandSession) connect(rawUrl string) (err error) {
 		return err
 	}
 
-	nazalog.Debugf("[%s] > tcp connect.", session.uniqueKey)
+	Log.Debugf("[%s] > tcp connect.", session.uniqueKey)
 
 	// # 建立连接
 	conn, err := net.Dial("tcp", session.urlCtx.HostWithPort)
@@ -343,7 +342,7 @@ func (session *ClientCommandSession) connect(rawUrl string) (err error) {
 	session.conn = connection.New(conn, func(option *connection.Option) {
 		option.ReadBufSize = readBufSize
 	})
-	nazalog.Debugf("[%s] < tcp connect. laddr=%s, raddr=%s", session.uniqueKey, conn.LocalAddr().String(), conn.RemoteAddr().String())
+	Log.Debugf("[%s] < tcp connect. laddr=%s, raddr=%s", session.uniqueKey, conn.LocalAddr().String(), conn.RemoteAddr().String())
 
 	session.observer.OnConnectResult()
 	return nil
@@ -448,7 +447,7 @@ func (session *ClientCommandSession) writeOneSetup(setupUri string) error {
 		return err
 	}
 
-	nazalog.Debugf("[%s] init conn. lRtpPort=%d, lRtcpPort=%d, rRtpPort=%d, rRtcpPort=%d",
+	Log.Debugf("[%s] init conn. lRtpPort=%d, lRtcpPort=%d, rRtpPort=%d, rRtcpPort=%d",
 		session.uniqueKey, lRtpPort, lRtcpPort, rRtpPort, rRtcpPort)
 
 	rtpConn, err := nazanet.NewUdpConnection(func(option *nazanet.UdpConnectionOption) {
@@ -538,8 +537,8 @@ func (session *ClientCommandSession) writeCmd(method, uri string, headers map[st
 	}
 
 	req := PackRequest(method, uri, headers, body)
-	nazalog.Debugf("[%s] > write %s.", session.uniqueKey, method)
-	//nazalog.Debugf("[%s] > write %s. req=%s", session.uniqueKey, method, req)
+	Log.Debugf("[%s] > write %s.", session.uniqueKey, method)
+	//Log.Debugf("[%s] > write %s. req=%s", session.uniqueKey, method, req)
 	_, err := session.conn.Write([]byte(req))
 	return err
 }
@@ -556,7 +555,7 @@ func (session *ClientCommandSession) writeCmdReadResp(method, uri string, header
 		if err != nil {
 			return
 		}
-		nazalog.Debugf("[%s] < read response. version=%s, code=%s, reason=%s, headers=%+v, body=%s",
+		Log.Debugf("[%s] < read response. version=%s, code=%s, reason=%s, headers=%+v, body=%s",
 			session.uniqueKey, ctx.Version, ctx.StatusCode, ctx.Reason, ctx.Headers, string(ctx.Body))
 
 		if ctx.StatusCode != "401" {
@@ -574,7 +573,7 @@ func (session *ClientCommandSession) writeCmdReadResp(method, uri string, header
 func (session *ClientCommandSession) dispose(err error) error {
 	var retErr error
 	session.disposeOnce.Do(func() {
-		nazalog.Infof("[%s] lifecycle dispose rtsp ClientCommandSession. session=%p, err=%+v", session.uniqueKey, session, err)
+		Log.Infof("[%s] lifecycle dispose rtsp ClientCommandSession. session=%p, err=%+v", session.uniqueKey, session, err)
 		if session.conn == nil {
 			retErr = base.ErrSessionNotStarted
 			return

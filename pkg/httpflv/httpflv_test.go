@@ -13,8 +13,6 @@ import (
 	"os"
 	"testing"
 
-	"github.com/q191201771/naza/pkg/nazalog"
-
 	"github.com/q191201771/lal/pkg/httpflv"
 	"github.com/q191201771/naza/pkg/assert"
 	"github.com/q191201771/naza/pkg/mock"
@@ -30,7 +28,7 @@ func TestHttpflv(t *testing.T) {
 func TestFlvFilePump(t *testing.T) {
 	const flvFile = "../../testdata/test.flv"
 	if _, err := os.Lstat(flvFile); err != nil {
-		nazalog.Warnf("lstat %s error. err=%+v", flvFile, err)
+		httpflv.Log.Warnf("lstat %s error. err=%+v", flvFile, err)
 		return
 	}
 

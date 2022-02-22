@@ -31,7 +31,6 @@ import (
 
 	"github.com/q191201771/lal/pkg/httpflv"
 	"github.com/q191201771/lal/pkg/rtmp"
-	"github.com/q191201771/naza/pkg/nazalog"
 	//"github.com/felixge/fgprof"
 )
 
@@ -57,7 +56,7 @@ type ServerManager struct {
 
 func NewServerManager(confFile string, modOption ...ModOption) *ServerManager {
 	sm := &ServerManager{
-		serverStartTime: time.Now().Format("2006-01-02 15:04:05.999"),
+		serverStartTime: base.ReadableNowTime(),
 		exitChan:        make(chan struct{}, 1),
 	}
 	sm.groupManager = NewSimpleGroupManager(sm)
@@ -66,16 +65,16 @@ func NewServerManager(confFile string, modOption ...ModOption) *ServerManager {
 	base.LogoutStartInfo()
 
 	if sm.config.HlsConfig.Enable && sm.config.HlsConfig.UseMemoryAsDiskFlag {
-		nazalog.Infof("hls use memory as disk.")
+		Log.Infof("hls use memory as disk.")
 		hls.SetUseMemoryAsDiskFlag(true)
 	}
 
 	if sm.config.RecordConfig.EnableFlv {
 		if err := os.MkdirAll(sm.config.RecordConfig.FlvOutPath, 0777); err != nil {
-			nazalog.Errorf("record flv mkdir error. path=%s, err=%+v", sm.config.RecordConfig.FlvOutPath, err)
+			Log.Errorf("record flv mkdir error. path=%s, err=%+v", sm.config.RecordConfig.FlvOutPath, err)
 		}
 		if err := os.MkdirAll(sm.config.RecordConfig.MpegtsOutPath, 0777); err != nil {
-			nazalog.Errorf("record mpegts mkdir error. path=%s, err=%+v", sm.config.RecordConfig.MpegtsOutPath, err)
+			Log.Errorf("record mpegts mkdir error. path=%s, err=%+v", sm.config.RecordConfig.MpegtsOutPath, err)
 		}
 	}
 
@@ -132,10 +131,10 @@ func (sm *ServerManager) RunLoop() error {
 				handler,
 			)
 			if err != nil {
-				nazalog.Errorf("add http listen for %s failed. addr=%s, pattern=%s, err=%+v", name, config.HttpListenAddr, config.UrlPattern, err)
+				Log.Errorf("add http listen for %s failed. addr=%s, pattern=%s, err=%+v", name, config.HttpListenAddr, config.UrlPattern, err)
 				return err
 			}
-			nazalog.Infof("add http listen for %s. addr=%s, pattern=%s", name, config.HttpListenAddr, config.UrlPattern)
+			Log.Infof("add http listen for %s. addr=%s, pattern=%s", name, config.HttpListenAddr, config.UrlPattern)
 		}
 		if config.EnableHttps {
 			err := sm.httpServerManager.AddListen(
@@ -144,9 +143,9 @@ func (sm *ServerManager) RunLoop() error {
 				handler,
 			)
 			if err != nil {
-				nazalog.Errorf("add https listen for %s failed. addr=%s, pattern=%s, err=%+v", name, config.HttpsListenAddr, config.UrlPattern, err)
+				Log.Errorf("add https listen for %s failed. addr=%s, pattern=%s, err=%+v", name, config.HttpsListenAddr, config.UrlPattern, err)
 			} else {
-				nazalog.Infof("add https listen for %s. addr=%s, pattern=%s", name, config.HttpsListenAddr, config.UrlPattern)
+				Log.Infof("add https listen for %s. addr=%s, pattern=%s", name, config.HttpsListenAddr, config.UrlPattern)
 			}
 		}
 		return nil
@@ -165,7 +164,7 @@ func (sm *ServerManager) RunLoop() error {
 	if sm.httpServerManager != nil {
 		go func() {
 			if err := sm.httpServerManager.RunLoop(); err != nil {
-				nazalog.Error(err)
+				Log.Error(err)
 			}
 		}()
 	}
@@ -176,7 +175,7 @@ func (sm *ServerManager) RunLoop() error {
 		}
 		go func() {
 			if err := sm.rtmpServer.RunLoop(); err != nil {
-				nazalog.Error(err)
+				Log.Error(err)
 			}
 		}()
 	}
@@ -187,7 +186,7 @@ func (sm *ServerManager) RunLoop() error {
 		}
 		go func() {
 			if err := sm.rtspServer.RunLoop(); err != nil {
-				nazalog.Error(err)
+				Log.Error(err)
 			}
 		}()
 	}
@@ -198,7 +197,7 @@ func (sm *ServerManager) RunLoop() error {
 		}
 		go func() {
 			if err := sm.httpApiServer.RunLoop(); err != nil {
-				nazalog.Error(err)
+				Log.Error(err)
 			}
 		}()
 	}
@@ -224,7 +223,7 @@ func (sm *ServerManager) RunLoop() error {
 			// 关闭空闲的group
 			sm.groupManager.Iterate(func(group *Group) bool {
 				if group.IsTotalEmpty() {
-					nazalog.Infof("erase empty group. [%s]", group.UniqueKey)
+					Log.Infof("erase empty group. [%s]", group.UniqueKey)
 					group.Dispose()
 					return false
 				}
@@ -237,13 +236,13 @@ func (sm *ServerManager) RunLoop() error {
 			if sm.config.DebugConfig.LogGroupIntervalSec > 0 &&
 				count%uint32(sm.config.DebugConfig.LogGroupIntervalSec) == 0 {
 				groupNum := sm.groupManager.Len()
-				nazalog.Debugf("DEBUG_GROUP_LOG: group size=%d", groupNum)
+				Log.Debugf("DEBUG_GROUP_LOG: group size=%d", groupNum)
 				if sm.config.DebugConfig.LogGroupMaxGroupNum > 0 {
 					var loggedGroupCount int
 					sm.groupManager.Iterate(func(group *Group) bool {
 						loggedGroupCount++
 						if loggedGroupCount <= sm.config.DebugConfig.LogGroupMaxGroupNum {
-							nazalog.Debugf("DEBUG_GROUP_LOG: %d %s", loggedGroupCount, group.StringifyDebugStats(sm.config.DebugConfig.LogGroupMaxSubNumPerGroup))
+							Log.Debugf("DEBUG_GROUP_LOG: %d %s", loggedGroupCount, group.StringifyDebugStats(sm.config.DebugConfig.LogGroupMaxSubNumPerGroup))
 						}
 						return true
 					})
@@ -265,7 +264,7 @@ func (sm *ServerManager) RunLoop() error {
 }
 
 func (sm *ServerManager) Dispose() {
-	nazalog.Debug("dispose server manager.")
+	Log.Debug("dispose server manager.")
 
 	// TODO(chef) add httpServer
 
@@ -324,7 +323,7 @@ func (sm *ServerManager) CtrlStartPull(info base.ApiCtrlStartPullReq) {
 	defer sm.mutex.Unlock()
 	g := sm.getGroup(info.AppName, info.StreamName)
 	if g == nil {
-		nazalog.Warnf("group not exist, ignore start pull. streamName=%s", info.StreamName)
+		Log.Warnf("group not exist, ignore start pull. streamName=%s", info.StreamName)
 		return
 	}
 	var url string
@@ -738,14 +737,14 @@ func (sm *ServerManager) CleanupHlsIfNeeded(appName string, streamName string, p
 
 				if g := sm.GetGroup(appName, streamName); g != nil {
 					if g.IsHlsMuxerAlive() {
-						nazalog.Warnf("cancel cleanup hls file path since hls muxer still alive. streamName=%s", streamName)
+						Log.Warnf("cancel cleanup hls file path since hls muxer still alive. streamName=%s", streamName)
 						return
 					}
 				}
 
-				nazalog.Infof("cleanup hls file path. streamName=%s, path=%s", streamName, outPath)
+				Log.Infof("cleanup hls file path. streamName=%s, path=%s", streamName, outPath)
 				if err := hls.RemoveAll(outPath); err != nil {
-					nazalog.Warnf("cleanup hls file path error. path=%s, err=%+v", outPath, err)
+					Log.Warnf("cleanup hls file path error. path=%s, err=%+v", outPath, err)
 				}
 			},
 			appName,
@@ -785,12 +784,12 @@ func (sm *ServerManager) getGroup(appName string, streamName string) *Group {
 func (sm *ServerManager) serveHls(writer http.ResponseWriter, req *http.Request) {
 	urlCtx, err := base.ParseUrl(base.ParseHttpRequest(req), 80)
 	if err != nil {
-		nazalog.Errorf("parse url. err=%+v", err)
+		Log.Errorf("parse url. err=%+v", err)
 		return
 	}
 	if urlCtx.GetFileType() == "m3u8" {
 		if err = sm.simpleAuthCtx.OnHls(urlCtx.GetFilenameWithoutType(), urlCtx.RawQuery); err != nil {
-			nazalog.Errorf("simple auth failed. err=%+v", err)
+			Log.Errorf("simple auth failed. err=%+v", err)
 			return
 		}
 	}
@@ -799,13 +798,13 @@ func (sm *ServerManager) serveHls(writer http.ResponseWriter, req *http.Request)
 }
 
 func runWebPprof(addr string) {
-	nazalog.Infof("start web pprof listen. addr=%s", addr)
+	Log.Infof("start web pprof listen. addr=%s", addr)
 
-	//nazalog.Warn("start fgprof.")
+	//Log.Warn("start fgprof.")
 	//http.DefaultServeMux.Handle("/debug/fgprof", fgprof.Handler())
 
 	if err := http.ListenAndServe(addr, nil); err != nil {
-		nazalog.Error(err)
+		Log.Error(err)
 		return
 	}
 }

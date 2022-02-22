@@ -119,7 +119,7 @@ func ParseRtcpHeader(b []byte) RtcpHeader {
 	return h
 }
 
-// rfc3550 6.4.1
+// ParseSr rfc3550 6.4.1
 //
 // @param b rtcp包，包含包头
 func ParseSr(b []byte) Sr {
@@ -133,7 +133,7 @@ func ParseSr(b []byte) Sr {
 	return s
 }
 
-// @param out 传出参数，注意，调用方保证长度>=4
+// PackTo @param out 传出参数，注意，调用方保证长度>=4
 func (r *RtcpHeader) PackTo(out []byte) {
 	out[0] = r.Version<<6 | r.Padding<<5 | r.CountOrFormat
 	out[1] = r.PacketType

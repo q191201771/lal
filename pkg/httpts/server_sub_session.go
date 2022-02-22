@@ -13,7 +13,6 @@ import (
 
 	"github.com/q191201771/lal/pkg/base"
 	"github.com/q191201771/naza/pkg/connection"
-	"github.com/q191201771/naza/pkg/nazalog"
 )
 
 var tsHttpResponseHeader []byte
@@ -40,7 +39,7 @@ func NewSubSession(conn net.Conn, urlCtx base.UrlContext, isWebSocket bool, webs
 		}),
 		true,
 	}
-	nazalog.Infof("[%s] lifecycle new httpts SubSession. session=%p, remote addr=%s", uk, s, conn.RemoteAddr().String())
+	Log.Infof("[%s] lifecycle new httpts SubSession. session=%p, remote addr=%s", uk, s, conn.RemoteAddr().String())
 	return s
 }
 
@@ -53,14 +52,14 @@ func (session *SubSession) RunLoop() error {
 }
 
 func (session *SubSession) Dispose() error {
-	nazalog.Infof("[%s] lifecycle dispose httpts SubSession.", session.core.UniqueKey())
+	Log.Infof("[%s] lifecycle dispose httpts SubSession.", session.core.UniqueKey())
 	return session.core.Dispose()
 }
 
 // ---------------------------------------------------------------------------------------------------------------------
 
 func (session *SubSession) WriteHttpResponseHeader() {
-	nazalog.Debugf("[%s] > W http response header.", session.core.UniqueKey())
+	Log.Debugf("[%s] > W http response header.", session.core.UniqueKey())
 	session.core.WriteHttpResponseHeader(tsHttpResponseHeader)
 }
 

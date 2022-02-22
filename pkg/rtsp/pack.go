@@ -17,7 +17,7 @@ import (
 
 // rfc2326 10.1 OPTIONS
 
-// CSeq
+// ResponseOptionsTmpl CSeq
 var ResponseOptionsTmpl = "RTSP/1.0 200 OK\r\n" +
 	"Server: " + base.LalRtspOptionsResponseServer + "\r\n" +
 	"CSeq: %s\r\n" +
@@ -27,14 +27,14 @@ var ResponseOptionsTmpl = "RTSP/1.0 200 OK\r\n" +
 // rfc2326 10.3 ANNOUNCE
 //var RequestAnnounceTmpl = "not impl"
 
-// CSeq
+// ResponseAnnounceTmpl CSeq
 var ResponseAnnounceTmpl = "RTSP/1.0 200 OK\r\n" +
 	"CSeq: %s\r\n" +
 	"\r\n"
 
 // rfc2326 10.2 DESCRIBE
 
-// CSeq, Date, Content-Length,
+// ResponseDescribeTmpl CSeq, Date, Content-Length,
 var ResponseDescribeTmpl = "RTSP/1.0 200 OK\r\n" +
 	"CSeq: %s\r\n" +
 	"Date: %s\r\n" +
@@ -43,7 +43,7 @@ var ResponseDescribeTmpl = "RTSP/1.0 200 OK\r\n" +
 	"\r\n" +
 	"%s"
 
-// rfc2326 10.4 SETUP
+// ResponseSetupTmpl rfc2326 10.4 SETUP
 // CSeq, Date, Session, Transport
 var ResponseSetupTmpl = "RTSP/1.0 200 OK\r\n" +
 	"CSeq: %s\r\n" +
@@ -55,7 +55,7 @@ var ResponseSetupTmpl = "RTSP/1.0 200 OK\r\n" +
 // rfc2326 10.11 RECORD
 //var RequestRecordTmpl = "not impl"
 
-// CSeq, Session
+// ResponseRecordTmpl CSeq, Session
 var ResponseRecordTmpl = "RTSP/1.0 200 OK\r\n" +
 	"CSeq: %s\r\n" +
 	"Session: %s\r\n" +
@@ -63,7 +63,7 @@ var ResponseRecordTmpl = "RTSP/1.0 200 OK\r\n" +
 
 // rfc2326 10.5 PLAY
 
-// CSeq Date
+// ResponsePlayTmpl CSeq Date
 var ResponsePlayTmpl = "RTSP/1.0 200 OK\r\n" +
 	"CSeq: %s\r\n" +
 	"Date: %s\r\n" +
@@ -72,7 +72,7 @@ var ResponsePlayTmpl = "RTSP/1.0 200 OK\r\n" +
 // rfc2326 10.7 TEARDOWN
 //var RequestTeardownTmpl = "not impl"
 
-// CSeq
+// ResponseTeardownTmpl CSeq
 var ResponseTeardownTmpl = "RTSP/1.0 200 OK\r\n" +
 	"CSeq: %s\r\n" +
 	"\r\n"
@@ -109,7 +109,7 @@ func PackResponseTeardown(cseq string) string {
 	return fmt.Sprintf(ResponseTeardownTmpl, cseq)
 }
 
-// @param body 可以为空
+// PackRequest @param body 可以为空
 func PackRequest(method, uri string, headers map[string]string, body string) (ret string) {
 	ret = method + " " + uri + " RTSP/1.0\r\n"
 	for k, v := range headers {

@@ -59,7 +59,7 @@ func updateTargetDurationInM3u8(content []byte, currDuration int) ([]byte, error
 	return content, nil
 }
 
-// @param content 传入m3u8文件内容
+// CalcM3u8Duration @param content 传入m3u8文件内容
 //
 // @return durationSec m3u8中所有ts的时间总和。注意，使用的是m3u8文件中描述的ts时间，而不是读取ts文件中实际音视频数据的时间。
 //

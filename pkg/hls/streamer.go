@@ -18,23 +18,24 @@ import (
 	"github.com/q191201771/lal/pkg/mpegts"
 	"github.com/q191201771/naza/pkg/bele"
 	"github.com/q191201771/naza/pkg/nazabytes"
-	"github.com/q191201771/naza/pkg/nazalog"
 )
 
 type StreamerObserver interface {
-	// @param b const只读内存块，上层可以持有，但是不允许修改
+	// OnPatPmt @param b const只读内存块，上层可以持有，但是不允许修改
 	OnPatPmt(b []byte)
 
+	// OnFrame
+	//
 	// @param streamer: 供上层获取streamer内部的一些状态，比如spspps是否已缓存，音频缓存队列是否有数据等
 	//
-	// @param frame:    各字段含义见mpegts.Frame结构体定义
+	// @param frame:    各字段含义见 mpegts.Frame 结构体定义
 	//                  frame.CC  注意，回调结束后，Streamer会保存frame.CC，上层在TS打包完成后，可通过frame.CC将cc值传递给Streamer
 	//                  frame.Raw 回调结束后，这块内存可能会被内部重复使用
 	//
-	OnFrame(streamer *Streamer, frame *mpegts.Frame)
+	OnFrame(streamer *Streamer, frame *mpegts.Frame, boundary bool)
 }
 
-// 输入rtmp流，回调转封装成Annexb格式的流
+// Streamer 输入rtmp流，回调转封装成Annexb格式的流
 type Streamer struct {
 	UniqueKey string
 
@@ -47,6 +48,8 @@ type Streamer struct {
 	audioCacheFirstFramePts uint64 // audioCacheFrames中第一个音频帧的时间戳 TODO chef: rename to DTS
 	audioCc                 uint8
 	videoCc                 uint8
+
+	opened bool
 }
 
 func NewStreamer(observer StreamerObserver) *Streamer {
@@ -62,12 +65,14 @@ func NewStreamer(observer StreamerObserver) *Streamer {
 	return streamer
 }
 
-// @param msg msg.Payload 调用结束后，函数内部不会持有这块内存
+// FeedRtmpMessage @param msg msg.Payload 调用结束后，函数内部不会持有这块内存
 //
 // TODO chef: 可以考虑数据有问题时，返回给上层，直接主动关闭输入流的连接
 func (s *Streamer) FeedRtmpMessage(msg base.RtmpMsg) {
 	s.calcFragmentHeaderQueue.Push(msg)
 }
+
+// ----- implement IQueueObserver of Queue -----------------------------------------------------------------------------
 
 func (s *Streamer) OnPatPmt(b []byte) {
 	s.observer.OnPatPmt(b)
@@ -82,6 +87,34 @@ func (s *Streamer) OnPop(msg base.RtmpMsg) {
 	}
 }
 
+// ---------------------------------------------------------------------------------------------------------------------
+
+// FlushAudio
+//
+// 吐出音频数据的三种情况：
+// 1. 收到音频或视频时，音频缓存队列已达到一定长度
+// 2. 打开一个新的TS文件切片时
+// 3. 输入流关闭时
+//
+func (s *Streamer) FlushAudio() {
+	if s.audioCacheFrames == nil {
+		return
+	}
+
+	var frame mpegts.Frame
+	frame.Cc = s.audioCc
+	frame.Dts = s.audioCacheFirstFramePts
+	frame.Pts = s.audioCacheFirstFramePts
+	frame.Key = false
+	frame.Raw = s.audioCacheFrames
+	frame.Pid = mpegts.PidAudio
+	frame.Sid = mpegts.StreamIdAudio
+	s.onFrame(&frame)
+	s.audioCc = frame.Cc
+
+	s.audioCacheFrames = nil
+}
+
 func (s *Streamer) AudioSeqHeaderCached() bool {
 	return s.ascCtx != nil
 }
@@ -94,12 +127,14 @@ func (s *Streamer) AudioCacheEmpty() bool {
 	return s.audioCacheFrames == nil
 }
 
+// ----- private -------------------------------------------------------------------------------------------------------
+
 func (s *Streamer) feedVideo(msg base.RtmpMsg) {
 	// 注意，有一种情况是msg.Payload为 27 02 00 00 00
 	// 此时打印错误并返回也不影响
 	//
 	if len(msg.Payload) <= 5 {
-		nazalog.Errorf("[%s] invalid video message length. header=%+v, payload=%s", s.UniqueKey, msg.Header, hex.Dump(msg.Payload))
+		Log.Errorf("[%s] invalid video message length. header=%+v, payload=%s", s.UniqueKey, msg.Header, hex.Dump(msg.Payload))
 		return
 	}
 
@@ -114,12 +149,12 @@ func (s *Streamer) feedVideo(msg base.RtmpMsg) {
 	var err error
 	if msg.IsAvcKeySeqHeader() {
 		if s.spspps, err = avc.SpsPpsSeqHeader2Annexb(msg.Payload); err != nil {
-			nazalog.Errorf("[%s] cache spspps failed. err=%+v", s.UniqueKey, err)
+			Log.Errorf("[%s] cache spspps failed. err=%+v", s.UniqueKey, err)
 		}
 		return
 	} else if msg.IsHevcKeySeqHeader() {
 		if s.spspps, err = hevc.VpsSpsPpsSeqHeader2Annexb(msg.Payload); err != nil {
-			nazalog.Errorf("[%s] cache vpsspspps failed. err=%+v", s.UniqueKey, err)
+			Log.Errorf("[%s] cache vpsspspps failed. err=%+v", s.UniqueKey, err)
 		}
 		return
 	}
@@ -134,7 +169,7 @@ func (s *Streamer) feedVideo(msg base.RtmpMsg) {
 	// msg中可能有多个NALU，逐个获取
 	nals, err := avc.SplitNaluAvcc(msg.Payload[5:])
 	if err != nil {
-		nazalog.Errorf("[%s] iterate nalu failed. err=%+v, header=%+v, payload=%s", err, s.UniqueKey, msg.Header, hex.Dump(nazabytes.Prefix(msg.Payload, 32)))
+		Log.Errorf("[%s] iterate nalu failed. err=%+v, header=%+v, payload=%s", err, s.UniqueKey, msg.Header, hex.Dump(nazabytes.Prefix(msg.Payload, 32)))
 		return
 	}
 	for _, nal := range nals {
@@ -146,7 +181,7 @@ func (s *Streamer) feedVideo(msg base.RtmpMsg) {
 			nalType = hevc.ParseNaluType(nal[0])
 		}
 
-		//nazalog.Debugf("[%s] naltype=%d, len=%d(%d), cts=%d, key=%t.", s.UniqueKey, nalType, nalBytes, len(msg.Payload), cts, msg.IsVideoKeyNalu())
+		//Log.Debugf("[%s] naltype=%d, len=%d(%d), cts=%d, key=%t.", s.UniqueKey, nalType, nalBytes, len(msg.Payload), cts, msg.IsVideoKeyNalu())
 
 		// 过滤掉原流中的sps pps aud
 		// sps pps前面已经缓存过了，后面有自己的写入逻辑
@@ -176,7 +211,7 @@ func (s *Streamer) feedVideo(msg base.RtmpMsg) {
 			case avc.NaluTypeIdrSlice:
 				if !spsppsSent {
 					if out, err = s.appendSpsPps(out); err != nil {
-						nazalog.Warnf("[%s] append spspps by not exist.", s.UniqueKey)
+						Log.Warnf("[%s] append spspps by not exist.", s.UniqueKey)
 						return
 					}
 				}
@@ -190,7 +225,7 @@ func (s *Streamer) feedVideo(msg base.RtmpMsg) {
 			case hevc.NaluTypeSliceIdr, hevc.NaluTypeSliceIdrNlp, hevc.NaluTypeSliceCranut:
 				if !spsppsSent {
 					if out, err = s.appendSpsPps(out); err != nil {
-						nazalog.Warnf("[%s] append spspps by not exist.", s.UniqueKey)
+						Log.Warnf("[%s] append spspps by not exist.", s.UniqueKey)
 						return
 					}
 				}
@@ -227,30 +262,30 @@ func (s *Streamer) feedVideo(msg base.RtmpMsg) {
 	frame.Pid = mpegts.PidVideo
 	frame.Sid = mpegts.StreamIdVideo
 
-	s.observer.OnFrame(s, &frame)
+	s.onFrame(&frame)
 	s.videoCc = frame.Cc
 }
 
 func (s *Streamer) feedAudio(msg base.RtmpMsg) {
 	if len(msg.Payload) < 3 {
-		nazalog.Errorf("[%s] invalid audio message length. len=%d", s.UniqueKey, len(msg.Payload))
+		Log.Errorf("[%s] invalid audio message length. len=%d", s.UniqueKey, len(msg.Payload))
 		return
 	}
 	if msg.Payload[0]>>4 != base.RtmpSoundFormatAac {
 		return
 	}
 
-	//nazalog.Debugf("[%s] hls: feedAudio. dts=%d len=%d", s.UniqueKey, msg.Header.TimestampAbs, len(msg.Payload))
+	//Log.Debugf("[%s] hls: feedAudio. dts=%d len=%d", s.UniqueKey, msg.Header.TimestampAbs, len(msg.Payload))
 
 	if msg.Payload[1] == base.RtmpAacPacketTypeSeqHeader {
 		if err := s.cacheAacSeqHeader(msg); err != nil {
-			nazalog.Errorf("[%s] cache aac seq header failed. err=%+v", s.UniqueKey, err)
+			Log.Errorf("[%s] cache aac seq header failed. err=%+v", s.UniqueKey, err)
 		}
 		return
 	}
 
 	if !s.AudioSeqHeaderCached() {
-		nazalog.Warnf("[%s] feed audio message but aac seq header not exist.", s.UniqueKey)
+		Log.Warnf("[%s] feed audio message but aac seq header not exist.", s.UniqueKey)
 		return
 	}
 
@@ -269,29 +304,6 @@ func (s *Streamer) feedAudio(msg base.RtmpMsg) {
 	s.audioCacheFrames = append(s.audioCacheFrames, msg.Payload[2:]...)
 }
 
-// 吐出音频数据的三种情况：
-// 1. 收到音频或视频时，音频缓存队列已达到一定长度
-// 2. 打开一个新的TS文件切片时
-// 3. 输入流关闭时
-func (s *Streamer) FlushAudio() {
-	if s.audioCacheFrames == nil {
-		return
-	}
-
-	var frame mpegts.Frame
-	frame.Cc = s.audioCc
-	frame.Dts = s.audioCacheFirstFramePts
-	frame.Pts = s.audioCacheFirstFramePts
-	frame.Key = false
-	frame.Raw = s.audioCacheFrames
-	frame.Pid = mpegts.PidAudio
-	frame.Sid = mpegts.StreamIdAudio
-	s.observer.OnFrame(s, &frame)
-	s.audioCc = frame.Cc
-
-	s.audioCacheFrames = nil
-}
-
 func (s *Streamer) cacheAacSeqHeader(msg base.RtmpMsg) error {
 	var err error
 	s.ascCtx, err = aac.NewAscContext(msg.Payload[2:])
@@ -305,4 +317,28 @@ func (s *Streamer) appendSpsPps(out []byte) ([]byte, error) {
 
 	out = append(out, s.spspps...)
 	return out, nil
+}
+
+func (s *Streamer) onFrame(frame *mpegts.Frame) {
+	var boundary bool
+
+	if frame.Sid == mpegts.StreamIdAudio {
+		// 为了考虑没有视频的情况也能切片，所以这里判断spspps为空时，也建议生成fragment
+		boundary = !s.VideoSeqHeaderCached()
+	} else {
+		// 收到视频，可能触发建立fragment的条件是：
+		// 关键帧数据 &&
+		// (
+		//  (没有收到过音频seq header) || 说明 只有视频
+		//  (收到过音频seq header && fragment没有打开) || 说明 音视频都有，且都已ready
+		//  (收到过音频seq header && fragment已经打开 && 音频缓存数据不为空) 说明 为什么音频缓存需不为空？
+		// )
+		boundary = frame.Key && (!s.AudioSeqHeaderCached() || !s.opened || !s.AudioCacheEmpty())
+	}
+
+	if boundary {
+		s.opened = true
+	}
+
+	s.observer.OnFrame(s, frame, boundary)
 }

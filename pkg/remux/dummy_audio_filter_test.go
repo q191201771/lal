@@ -17,7 +17,6 @@ import (
 	"github.com/q191201771/lal/pkg/base"
 	"github.com/q191201771/lal/pkg/remux"
 	"github.com/q191201771/naza/pkg/assert"
-	"github.com/q191201771/naza/pkg/nazalog"
 )
 
 func TestDummyAudioFilter(t *testing.T) {
@@ -116,7 +115,7 @@ func helperUnpackRtmpMsg(logstr string) base.RtmpMsg {
 	}
 	var fetchIntItemFn = func(str string, prefix string, suffix string) int {
 		ret, err := strconv.Atoi(fetchItemFn(str, prefix, suffix))
-		nazalog.Assert(nil, err)
+		remux.Log.Assert(nil, err)
 		return ret
 	}
 
@@ -129,7 +128,7 @@ func helperUnpackRtmpMsg(logstr string) base.RtmpMsg {
 
 	hexStr := fetchItemFn(logstr, "payload=", "")
 	payload, err := hex.DecodeString(hexStr)
-	nazalog.Assert(nil, err)
+	remux.Log.Assert(nil, err)
 
 	return base.RtmpMsg{
 		Header:  header,

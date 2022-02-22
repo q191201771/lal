@@ -12,7 +12,6 @@ import (
 	"encoding/hex"
 	"net"
 	"sync"
-	"time"
 
 	"github.com/q191201771/naza/pkg/nazaatomic"
 
@@ -23,11 +22,10 @@ import (
 	"github.com/q191201771/lal/pkg/base"
 	"github.com/q191201771/lal/pkg/sdp"
 	"github.com/q191201771/naza/pkg/connection"
-	"github.com/q191201771/naza/pkg/nazalog"
 	"github.com/q191201771/naza/pkg/nazanet"
 )
 
-// out的含义是音视频由本端发送至对端
+// BaseOutSession out的含义是音视频由本端发送至对端
 //
 type BaseOutSession struct {
 	uniqueKey  string
@@ -67,14 +65,14 @@ func NewBaseOutSession(uniqueKey string, cmdSession IInterleavedPacketWriter) *B
 		stat: base.StatSession{
 			Protocol:  base.ProtocolRtsp,
 			SessionId: uniqueKey,
-			StartTime: time.Now().Format("2006-01-02 15:04:05.999"),
+			StartTime: base.ReadableNowTime(),
 		},
 		audioRtpChannel:  -1,
 		videoRtpChannel:  -1,
 		debugLogMaxCount: 3,
 		waitChan:         make(chan error, 1),
 	}
-	nazalog.Infof("[%s] lifecycle new rtsp BaseOutSession. session=%p", uniqueKey, s)
+	Log.Infof("[%s] lifecycle new rtsp BaseOutSession. session=%p", uniqueKey, s)
 	return s
 }
 
@@ -138,13 +136,13 @@ func (session *BaseOutSession) HandleInterleavedPacket(b []byte, channel int) {
 	case session.audioRtpChannel:
 		fallthrough
 	case session.videoRtpChannel:
-		nazalog.Warnf("[%s] not supposed to read packet in rtp channel of BaseOutSession. channel=%d, len=%d", session.uniqueKey, channel, len(b))
+		Log.Warnf("[%s] not supposed to read packet in rtp channel of BaseOutSession. channel=%d, len=%d", session.uniqueKey, channel, len(b))
 	case session.audioRtcpChannel:
 		fallthrough
 	case session.videoRtcpChannel:
-		nazalog.Debugf("[%s] read interleaved rtcp packet. b=%s", session.uniqueKey, hex.Dump(nazabytes.Prefix(b, 32)))
+		Log.Debugf("[%s] read interleaved rtcp packet. b=%s", session.uniqueKey, hex.Dump(nazabytes.Prefix(b, 32)))
 	default:
-		nazalog.Errorf("[%s] read interleaved packet but channel invalid. channel=%d", session.uniqueKey, channel)
+		Log.Errorf("[%s] read interleaved packet but channel invalid. channel=%d", session.uniqueKey, channel)
 	}
 }
 
@@ -155,7 +153,7 @@ func (session *BaseOutSession) WriteRtpPacket(packet rtprtcp.RtpPacket) error {
 	t := int(packet.Header.PacketType)
 	if session.sdpCtx.IsAudioPayloadTypeOrigin(t) {
 		if session.loggedWriteAudioRtpCount < session.debugLogMaxCount {
-			nazalog.Debugf("[%s] LOGPACKET. write audio rtp=%+v", session.uniqueKey, packet.Header)
+			Log.Debugf("[%s] LOGPACKET. write audio rtp=%+v", session.uniqueKey, packet.Header)
 			session.loggedWriteAudioRtpCount++
 		}
 
@@ -167,7 +165,7 @@ func (session *BaseOutSession) WriteRtpPacket(packet rtprtcp.RtpPacket) error {
 		}
 	} else if session.sdpCtx.IsVideoPayloadTypeOrigin(t) {
 		if session.loggedWriteVideoRtpCount < session.debugLogMaxCount {
-			nazalog.Debugf("[%s] LOGPACKET. write video rtp=%+v", session.uniqueKey, packet.Header)
+			Log.Debugf("[%s] LOGPACKET. write video rtp=%+v", session.uniqueKey, packet.Header)
 			session.loggedWriteVideoRtpCount++
 		}
 
@@ -178,7 +176,7 @@ func (session *BaseOutSession) WriteRtpPacket(packet rtprtcp.RtpPacket) error {
 			err = session.cmdSession.WriteInterleavedPacket(packet.Raw, session.videoRtpChannel)
 		}
 	} else {
-		nazalog.Errorf("[%s] write rtp packet but type invalid. type=%d", session.uniqueKey, t)
+		Log.Errorf("[%s] write rtp packet but type invalid. type=%d", session.uniqueKey, t)
 		err = nazaerrors.Wrap(base.ErrRtsp)
 	}
 
@@ -229,7 +227,7 @@ func (session *BaseOutSession) UniqueKey() string {
 
 func (session *BaseOutSession) onReadRtpPacket(b []byte, rAddr *net.UDPAddr, err error) bool {
 	if session.loggedReadRtpCount.Load() < int32(session.debugLogMaxCount) {
-		nazalog.Debugf("[%s] LOGPACKET. read rtp=%s", session.uniqueKey, hex.Dump(nazabytes.Prefix(b, 32)))
+		Log.Debugf("[%s] LOGPACKET. read rtp=%s", session.uniqueKey, hex.Dump(nazabytes.Prefix(b, 32)))
 		session.loggedReadRtpCount.Increment()
 	}
 	return true
@@ -239,7 +237,7 @@ func (session *BaseOutSession) onReadRtcpPacket(b []byte, rAddr *net.UDPAddr, er
 	// TODO chef: impl me
 
 	if session.loggedReadRtcpCount.Load() < int32(session.debugLogMaxCount) {
-		nazalog.Debugf("[%s] LOGPACKET. read rtcp=%s", session.uniqueKey, hex.Dump(nazabytes.Prefix(b, 32)))
+		Log.Debugf("[%s] LOGPACKET. read rtcp=%s", session.uniqueKey, hex.Dump(nazabytes.Prefix(b, 32)))
 		session.loggedReadRtcpCount.Increment()
 	}
 	return true
@@ -248,7 +246,7 @@ func (session *BaseOutSession) onReadRtcpPacket(b []byte, rAddr *net.UDPAddr, er
 func (session *BaseOutSession) dispose(err error) error {
 	var retErr error
 	session.disposeOnce.Do(func() {
-		nazalog.Infof("[%s] lifecycle dispose rtsp BaseOutSession. session=%p", session.uniqueKey, session)
+		Log.Infof("[%s] lifecycle dispose rtsp BaseOutSession. session=%p", session.uniqueKey, session)
 		var e1, e2, e3, e4 error
 		if session.audioRtpConn != nil {
 			e1 = session.audioRtpConn.Dispose()

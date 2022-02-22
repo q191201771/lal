@@ -26,7 +26,7 @@ type Tag struct {
 	Raw    []byte // 结构为 (11字节的 tag header) + (body) + (4字节的 prev tag size)
 }
 
-// 只包含数据部分，去除了前面11字节的tag header和后面4字节的prev tag size
+// Payload 只包含数据部分，去除了前面11字节的tag header和后面4字节的prev tag size
 //
 func (tag *Tag) Payload() []byte {
 	return tag.Raw[TagHeaderSize : len(tag.Raw)-PrevTagSizeFieldSize]
@@ -52,7 +52,7 @@ func (tag *Tag) IsHevcKeySeqHeader() bool {
 	return tag.Header.Type == TagTypeVideo && tag.Raw[TagHeaderSize] == HevcKeyFrame && tag.Raw[TagHeaderSize+1] == HevcPacketTypeSeqHeader
 }
 
-// AVC或HEVC的seq header
+// IsVideoKeySeqHeader AVC或HEVC的seq header
 func (tag *Tag) IsVideoKeySeqHeader() bool {
 	return tag.IsAvcKeySeqHeader() || tag.IsHevcKeySeqHeader()
 }
@@ -65,7 +65,7 @@ func (tag *Tag) IsHevcKeyNalu() bool {
 	return tag.Header.Type == TagTypeVideo && tag.Raw[TagHeaderSize] == HevcKeyFrame && tag.Raw[TagHeaderSize+1] == HevcPacketTypeNalu
 }
 
-// AVC或HEVC的关键帧
+// IsVideoKeyNalu AVC或HEVC的关键帧
 func (tag *Tag) IsVideoKeyNalu() bool {
 	return tag.IsAvcKeyNalu() || tag.IsHevcKeyNalu()
 }
@@ -87,7 +87,7 @@ func (tag *Tag) ModTagTimestamp(timestamp uint32) {
 	tag.Raw[7] = byte(timestamp >> 24)
 }
 
-// 打包一个序列化后的 tag 二进制buffer，包含 tag header，body，prev tag size
+// PackHttpflvTag 打包一个序列化后的 tag 二进制buffer，包含 tag header，body，prev tag size
 func PackHttpflvTag(t uint8, timestamp uint32, in []byte) []byte {
 	out := make([]byte, TagHeaderSize+len(in)+PrevTagSizeFieldSize)
 	out[0] = t

@@ -15,6 +15,7 @@ import (
 )
 
 type LogDump struct {
+	log         nazalog.Logger
 	debugMaxNum int
 
 	debugCount int
@@ -24,14 +25,15 @@ type LogDump struct {
 //
 // @param debugMaxNum: 日志最小级别为debug时，使用debug打印日志次数的阈值
 //
-func NewLogDump(debugMaxNum int) LogDump {
+func NewLogDump(log nazalog.Logger, debugMaxNum int) LogDump {
 	return LogDump{
+		log:         log,
 		debugMaxNum: debugMaxNum,
 	}
 }
 
 func (ld *LogDump) ShouldDump() bool {
-	switch nazalog.GetOption().Level {
+	switch ld.log.GetOption().Level {
 	case nazalog.LevelTrace:
 		return true
 	case nazalog.LevelDebug:
@@ -52,5 +54,5 @@ func (ld *LogDump) ShouldDump() bool {
 // 这个hex.Dump调用
 //
 func (ld *LogDump) Outf(format string, v ...interface{}) {
-	nazalog.Out(nazalog.GetOption().Level, 3, fmt.Sprintf(format, v...))
+	ld.log.Out(ld.log.GetOption().Level, 3, fmt.Sprintf(format, v...))
 }

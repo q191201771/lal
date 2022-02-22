@@ -1,18 +1,20 @@
 /.idea
 /.vscode
-/SECRET.md
 
-profile.out
-coverage.html
-/coverage.txt
+lal_record
 logs
 testdata
 /bin
 /release
-/.trash
-/playground
 /tmp
+/playground
+profile.out
+coverage.html
+/coverage.txt
+delay.txt
 
+/.trash
+/SECRET.md
 /TODO.md
 /pre-commit.sh
 /conf/self.conf.json
@@ -23,5 +25,3 @@ testdata
 *.aac
 *.h264
 *.flv
-lal_record
-delay.txt

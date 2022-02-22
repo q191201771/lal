@@ -15,8 +15,6 @@ import (
 
 	"github.com/q191201771/lal/pkg/base"
 
-	"github.com/q191201771/naza/pkg/nazalog"
-
 	"github.com/q191201771/naza/pkg/assert"
 )
 
@@ -48,7 +46,7 @@ var goldenPps = []byte{
 func TestParseSdp2RawContext(t *testing.T) {
 	sdpCtx, err := ParseSdp2RawContext([]byte(goldenSdp))
 	assert.Equal(t, nil, err)
-	nazalog.Debugf("sdp=%+v", sdpCtx)
+	Log.Debugf("sdp=%+v", sdpCtx)
 }
 
 func TestParseARtpMap(t *testing.T) {
@@ -145,9 +143,9 @@ func TestParseVpsSpsPps(t *testing.T) {
 	assert.Equal(t, nil, err)
 	vps, sps, pps, err := ParseVpsSpsPps(&f)
 	assert.Equal(t, nil, err)
-	nazalog.Debugf("%s", hex.Dump(vps))
-	nazalog.Debugf("%s", hex.Dump(sps))
-	nazalog.Debugf("%s", hex.Dump(pps))
+	Log.Debugf("%s", hex.Dump(vps))
+	Log.Debugf("%s", hex.Dump(sps))
+	Log.Debugf("%s", hex.Dump(pps))
 }
 
 func TestParseSdp2LogicContext(t *testing.T) {
@@ -198,7 +196,7 @@ a=recvonly`
 	assert.IsNotNil(t, ctx.Vps)
 	assert.IsNotNil(t, ctx.Sps)
 	assert.IsNotNil(t, ctx.Pps)
-	nazalog.Debugf("%+v", ctx)
+	Log.Debugf("%+v", ctx)
 }
 
 func TestCase3(t *testing.T) {
@@ -239,7 +237,7 @@ a=recvonly`
 	assert.Equal(t, nil, ctx.Vps)
 	assert.IsNotNil(t, ctx.Sps)
 	assert.IsNotNil(t, ctx.Pps)
-	nazalog.Debugf("%+v", ctx)
+	Log.Debugf("%+v", ctx)
 }
 
 func TestCase4(t *testing.T) {
@@ -283,7 +281,7 @@ a=appversion:1.0`
 	assert.Equal(t, nil, ctx.Vps)
 	assert.IsNotNil(t, ctx.Sps)
 	assert.IsNotNil(t, ctx.Pps)
-	nazalog.Debugf("%+v", ctx)
+	Log.Debugf("%+v", ctx)
 }
 
 func TestCase5(t *testing.T) {
@@ -314,7 +312,7 @@ a=recvonly`
 	assert.Equal(t, nil, ctx.Vps)
 	assert.IsNotNil(t, ctx.Sps)
 	assert.IsNotNil(t, ctx.Pps)
-	nazalog.Debugf("%+v", ctx)
+	Log.Debugf("%+v", ctx)
 }
 
 func TestCase6(t *testing.T) {
@@ -358,7 +356,7 @@ a=appversion:1.0`
 	assert.Equal(t, nil, ctx.Pps)
 	assert.Equal(t, true, ctx.hasAudio)
 	assert.Equal(t, true, ctx.hasVideo)
-	nazalog.Debugf("%+v", ctx)
+	Log.Debugf("%+v", ctx)
 }
 
 // #85

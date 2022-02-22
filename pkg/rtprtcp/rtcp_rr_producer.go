@@ -40,7 +40,7 @@ func NewRrProducer(clockRate int) *RrProducer {
 	}
 }
 
-// 每次收到rtp包，都将seq序号传入这个函数
+// FeedRtpPacket 每次收到rtp包，都将seq序号传入这个函数
 func (r *RrProducer) FeedRtpPacket(seq uint16) {
 	r.received++
 
@@ -62,7 +62,7 @@ func (r *RrProducer) FeedRtpPacket(seq uint16) {
 	r.extendedSeq = (r.cycles << 16) | uint32(r.maxSeq)
 }
 
-// 收到sr包时，产生rr包
+// Produce 收到sr包时，产生rr包
 //
 // @param lsr: 从sr包中获取，见func SR.GetMiddleNtp
 // @return:    rr包的二进制数据

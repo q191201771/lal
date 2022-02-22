@@ -11,8 +11,6 @@ package hls_test
 import (
 	"testing"
 
-	"github.com/q191201771/naza/pkg/nazalog"
-
 	"github.com/q191201771/lal/pkg/base"
 
 	"github.com/q191201771/lal/pkg/hls"
@@ -48,7 +46,7 @@ func TestDefaultPathStrategy_GetRequestInfo(t *testing.T) {
 
 	for k, v := range golden {
 		ctx, err := base.ParseUrl(k, -1)
-		nazalog.Assert(nil, err)
+		hls.Log.Assert(nil, err)
 		out := dps.GetRequestInfo(ctx, rootOutPath)
 		assert.Equal(t, v, out)
 	}

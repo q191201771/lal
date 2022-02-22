@@ -10,6 +10,4 @@ package base
 
 import "github.com/q191201771/naza/pkg/nazalog"
 
-var (
-	Logger = nazalog.GetGlobalLogger()
-)
+var Log = nazalog.GetGlobalLogger()

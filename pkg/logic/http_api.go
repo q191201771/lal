@@ -16,7 +16,6 @@ import (
 	"github.com/q191201771/naza/pkg/nazahttp"
 
 	"github.com/q191201771/lal/pkg/base"
-	"github.com/q191201771/naza/pkg/nazalog"
 )
 
 type HttpApiServer struct {
@@ -37,7 +36,7 @@ func (h *HttpApiServer) Listen() (err error) {
 	if h.ln, err = net.Listen("tcp", h.addr); err != nil {
 		return
 	}
-	nazalog.Infof("start httpapi server listen. addr=%s", h.addr)
+	Log.Infof("start httpapi server listen. addr=%s", h.addr)
 	return
 }
 
@@ -106,13 +105,13 @@ func (h *HttpApiServer) ctrlStartPullHandler(w http.ResponseWriter, req *http.Re
 
 	err := nazahttp.UnmarshalRequestJsonBody(req, &info, "protocol", "addr", "app_name", "stream_name")
 	if err != nil {
-		nazalog.Warnf("http api start pull error. err=%+v", err)
+		Log.Warnf("http api start pull error. err=%+v", err)
 		v.ErrorCode = base.ErrorCodeParamMissing
 		v.Desp = base.DespParamMissing
 		feedback(v, w)
 		return
 	}
-	nazalog.Infof("http api start pull. req info=%+v", info)
+	Log.Infof("http api start pull. req info=%+v", info)
 
 	h.sm.CtrlStartPull(info)
 	v.ErrorCode = base.ErrorCodeSucc
@@ -127,13 +126,13 @@ func (h *HttpApiServer) ctrlKickOutSessionHandler(w http.ResponseWriter, req *ht
 
 	err := nazahttp.UnmarshalRequestJsonBody(req, &info, "stream_name", "session_id")
 	if err != nil {
-		nazalog.Warnf("http api kick out session error. err=%+v", err)
+		Log.Warnf("http api kick out session error. err=%+v", err)
 		v.ErrorCode = base.ErrorCodeParamMissing
 		v.Desp = base.DespParamMissing
 		feedback(v, w)
 		return
 	}
-	nazalog.Infof("http api kick out session. req info=%+v", info)
+	Log.Infof("http api kick out session. req info=%+v", info)
 
 	resp := h.sm.CtrlKickOutSession(info)
 	feedback(resp, w)

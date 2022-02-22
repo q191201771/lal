@@ -38,7 +38,6 @@ import (
 
 	"github.com/q191201771/lal/pkg/httpflv"
 	"github.com/q191201771/lal/pkg/rtmp"
-	"github.com/q191201771/naza/pkg/nazalog"
 )
 
 type GroupObserver interface {
@@ -149,7 +148,7 @@ func NewGroup(appName string, streamName string, config *Config, observer GroupO
 	if config.RtmpConfig.MergeWriteSize > 0 {
 		g.rtmpMergeWriter = base.NewMergeWriter(g.writev2RtmpSubSessions, config.RtmpConfig.MergeWriteSize)
 	}
-	nazalog.Infof("[%s] lifecycle new group. group=%p, appName=%s, streamName=%s", uk, g, appName, streamName)
+	Log.Infof("[%s] lifecycle new group. group=%p, appName=%s, streamName=%s", uk, g, appName, streamName)
 
 	return g
 }
@@ -158,7 +157,7 @@ func (group *Group) RunLoop() {
 	<-group.exitChan
 }
 
-// TODO chef: 传入时间
+// Tick TODO chef: 传入时间
 // 目前每秒触发一次
 func (group *Group) Tick() {
 	group.mutex.Lock()
@@ -176,14 +175,14 @@ func (group *Group) Tick() {
 	if group.tickCount%checkSessionAliveIntervalSec == 0 {
 		if group.rtmpPubSession != nil {
 			if readAlive, _ := group.rtmpPubSession.IsAlive(); !readAlive {
-				nazalog.Warnf("[%s] session timeout. session=%s", group.UniqueKey, group.rtmpPubSession.UniqueKey())
+				Log.Warnf("[%s] session timeout. session=%s", group.UniqueKey, group.rtmpPubSession.UniqueKey())
 				group.rtmpPubSession.Dispose()
 				group.rtmp2RtspRemuxer = nil
 			}
 		}
 		if group.rtspPubSession != nil {
 			if readAlive, _ := group.rtspPubSession.IsAlive(); !readAlive {
-				nazalog.Warnf("[%s] session timeout. session=%s", group.UniqueKey, group.rtspPubSession.UniqueKey())
+				Log.Warnf("[%s] session timeout. session=%s", group.UniqueKey, group.rtspPubSession.UniqueKey())
 				group.rtspPubSession.Dispose()
 				group.rtspPubSession = nil
 				group.rtsp2RtmpRemuxer = nil
@@ -191,35 +190,35 @@ func (group *Group) Tick() {
 		}
 		if group.pullProxy.pullSession != nil {
 			if readAlive, _ := group.pullProxy.pullSession.IsAlive(); !readAlive {
-				nazalog.Warnf("[%s] session timeout. session=%s", group.UniqueKey, group.pullProxy.pullSession.UniqueKey())
+				Log.Warnf("[%s] session timeout. session=%s", group.UniqueKey, group.pullProxy.pullSession.UniqueKey())
 				group.pullProxy.pullSession.Dispose()
 				group.delRtmpPullSession(group.pullProxy.pullSession)
 			}
 		}
 		for session := range group.rtmpSubSessionSet {
 			if _, writeAlive := session.IsAlive(); !writeAlive {
-				nazalog.Warnf("[%s] session timeout. session=%s", group.UniqueKey, session.UniqueKey())
+				Log.Warnf("[%s] session timeout. session=%s", group.UniqueKey, session.UniqueKey())
 				session.Dispose()
 				group.delRtmpSubSession(session)
 			}
 		}
 		for session := range group.httpflvSubSessionSet {
 			if _, writeAlive := session.IsAlive(); !writeAlive {
-				nazalog.Warnf("[%s] session timeout. session=%s", group.UniqueKey, session.UniqueKey())
+				Log.Warnf("[%s] session timeout. session=%s", group.UniqueKey, session.UniqueKey())
 				session.Dispose()
 				group.delHttpflvSubSession(session)
 			}
 		}
 		for session := range group.httptsSubSessionSet {
 			if _, writeAlive := session.IsAlive(); !writeAlive {
-				nazalog.Warnf("[%s] session timeout. session=%s", group.UniqueKey, session.UniqueKey())
+				Log.Warnf("[%s] session timeout. session=%s", group.UniqueKey, session.UniqueKey())
 				session.Dispose()
 				group.delHttptsSubSession(session)
 			}
 		}
 		for session := range group.rtspSubSessionSet {
 			if _, writeAlive := session.IsAlive(); !writeAlive {
-				nazalog.Warnf("[%s] session timeout. session=%s", group.UniqueKey, session.UniqueKey())
+				Log.Warnf("[%s] session timeout. session=%s", group.UniqueKey, session.UniqueKey())
 				session.Dispose()
 				group.delRtspSubSession(session)
 			}
@@ -254,12 +253,12 @@ func (group *Group) Tick() {
 	group.tickCount++
 }
 
-// 主动释放所有资源。保证所有资源的生命周期逻辑上都在我们的控制中。降低出bug的几率，降低心智负担。
+// Dispose 主动释放所有资源。保证所有资源的生命周期逻辑上都在我们的控制中。降低出bug的几率，降低心智负担。
 // 注意，Dispose后，不应再使用这个对象。
 // 值得一提，如果是从其他协程回调回来的消息，在使用Group中的资源前，要判断资源是否存在以及可用。
 //
 func (group *Group) Dispose() {
-	nazalog.Infof("[%s] lifecycle dispose group.", group.UniqueKey)
+	Log.Infof("[%s] lifecycle dispose group.", group.UniqueKey)
 	group.exitChan <- struct{}{}
 
 	group.mutex.Lock()
@@ -306,14 +305,14 @@ func (group *Group) Dispose() {
 // ---------------------------------------------------------------------------------------------------------------------
 
 func (group *Group) AddRtmpPubSession(session *rtmp.ServerSession) error {
-	nazalog.Debugf("[%s] [%s] add PubSession into group.", group.UniqueKey, session.UniqueKey())
+	Log.Debugf("[%s] [%s] add PubSession into group.", group.UniqueKey, session.UniqueKey())
 
 	group.mutex.Lock()
 	defer group.mutex.Unlock()
 
 	if group.hasInSession() {
 		// TODO(chef): [refactor] 打印in session
-		nazalog.Errorf("[%s] in stream already exist at group. add=%s", group.UniqueKey, session.UniqueKey())
+		Log.Errorf("[%s] in stream already exist at group. add=%s", group.UniqueKey, session.UniqueKey())
 		return base.ErrDupInStream
 	}
 
@@ -341,15 +340,15 @@ func (group *Group) AddRtmpPubSession(session *rtmp.ServerSession) error {
 	return nil
 }
 
-// TODO chef: rtsp package中，增加回调返回值判断，如果是false，将连接关掉
+// AddRtspPubSession TODO chef: rtsp package中，增加回调返回值判断，如果是false，将连接关掉
 func (group *Group) AddRtspPubSession(session *rtsp.PubSession) error {
-	nazalog.Debugf("[%s] [%s] add RTSP PubSession into group.", group.UniqueKey, session.UniqueKey())
+	Log.Debugf("[%s] [%s] add RTSP PubSession into group.", group.UniqueKey, session.UniqueKey())
 
 	group.mutex.Lock()
 	defer group.mutex.Unlock()
 
 	if group.hasInSession() {
-		nazalog.Errorf("[%s] in stream already exist at group. wanna add=%s", group.UniqueKey, session.UniqueKey())
+		Log.Errorf("[%s] in stream already exist at group. wanna add=%s", group.UniqueKey, session.UniqueKey())
 		return base.ErrDupInStream
 	}
 
@@ -365,13 +364,13 @@ func (group *Group) AddRtspPubSession(session *rtsp.PubSession) error {
 }
 
 func (group *Group) AddRtmpPullSession(session *rtmp.PullSession) bool {
-	nazalog.Debugf("[%s] [%s] add PullSession into group.", group.UniqueKey, session.UniqueKey())
+	Log.Debugf("[%s] [%s] add PullSession into group.", group.UniqueKey, session.UniqueKey())
 
 	group.mutex.Lock()
 	defer group.mutex.Unlock()
 
 	if group.hasInSession() {
-		nazalog.Errorf("[%s] in stream already exist. wanna add=%s", group.UniqueKey, session.UniqueKey())
+		Log.Errorf("[%s] in stream already exist. wanna add=%s", group.UniqueKey, session.UniqueKey())
 		return false
 	}
 
@@ -404,7 +403,7 @@ func (group *Group) DelRtmpPullSession(session *rtmp.PullSession) {
 // ---------------------------------------------------------------------------------------------------------------------
 
 func (group *Group) AddRtmpSubSession(session *rtmp.ServerSession) {
-	nazalog.Debugf("[%s] [%s] add SubSession into group.", group.UniqueKey, session.UniqueKey())
+	Log.Debugf("[%s] [%s] add SubSession into group.", group.UniqueKey, session.UniqueKey())
 	group.mutex.Lock()
 	defer group.mutex.Unlock()
 	group.rtmpSubSessionSet[session] = struct{}{}
@@ -421,7 +420,7 @@ func (group *Group) AddRtmpSubSession(session *rtmp.ServerSession) {
 }
 
 func (group *Group) AddHttpflvSubSession(session *httpflv.SubSession) {
-	nazalog.Debugf("[%s] [%s] add httpflv SubSession into group.", group.UniqueKey, session.UniqueKey())
+	Log.Debugf("[%s] [%s] add httpflv SubSession into group.", group.UniqueKey, session.UniqueKey())
 	session.WriteHttpResponseHeader()
 	session.WriteFlvHeader()
 
@@ -436,11 +435,11 @@ func (group *Group) AddHttpflvSubSession(session *httpflv.SubSession) {
 	group.pullIfNeeded()
 }
 
-// TODO chef:
+// AddHttptsSubSession TODO chef:
 //   这里应该也要考虑触发hls muxer开启
 //   也即HTTPTS sub需要使用hls muxer，hls muxer开启和关闭都要考虑HTTPTS sub
 func (group *Group) AddHttptsSubSession(session *httpts.SubSession) {
-	nazalog.Debugf("[%s] [%s] add httpts SubSession into group.", group.UniqueKey, session.UniqueKey())
+	Log.Debugf("[%s] [%s] add httpts SubSession into group.", group.UniqueKey, session.UniqueKey())
 	session.WriteHttpResponseHeader()
 
 	group.mutex.Lock()
@@ -455,7 +454,7 @@ func (group *Group) HandleNewRtspSubSessionDescribe(session *rtsp.SubSession) (o
 	defer group.mutex.Unlock()
 	// TODO(chef): 应该有等待机制，而不是直接关闭
 	if group.sdpCtx == nil {
-		nazalog.Warnf("[%s] close rtsp subSession while describe but sdp not exist. [%s]",
+		Log.Warnf("[%s] close rtsp subSession while describe but sdp not exist. [%s]",
 			group.UniqueKey, session.UniqueKey())
 		return false, nil
 	}
@@ -464,7 +463,7 @@ func (group *Group) HandleNewRtspSubSessionDescribe(session *rtsp.SubSession) (o
 }
 
 func (group *Group) HandleNewRtspSubSessionPlay(session *rtsp.SubSession) {
-	nazalog.Debugf("[%s] [%s] add rtsp SubSession into group.", group.UniqueKey, session.UniqueKey())
+	Log.Debugf("[%s] [%s] add rtsp SubSession into group.", group.UniqueKey, session.UniqueKey())
 
 	group.mutex.Lock()
 	defer group.mutex.Unlock()
@@ -477,7 +476,7 @@ func (group *Group) HandleNewRtspSubSessionPlay(session *rtsp.SubSession) {
 }
 
 func (group *Group) AddRtmpPushSession(url string, session *rtmp.PushSession) {
-	nazalog.Debugf("[%s] [%s] add rtmp PushSession into group.", group.UniqueKey, session.UniqueKey())
+	Log.Debugf("[%s] [%s] add rtmp PushSession into group.", group.UniqueKey, session.UniqueKey())
 	group.mutex.Lock()
 	defer group.mutex.Unlock()
 	if group.url2PushProxy != nil {
@@ -504,14 +503,14 @@ func (group *Group) DelHttptsSubSession(session *httpts.SubSession) {
 }
 
 func (group *Group) DelRtspSubSession(session *rtsp.SubSession) {
-	nazalog.Debugf("[%s] [%s] del rtsp SubSession from group.", group.UniqueKey, session.UniqueKey())
+	Log.Debugf("[%s] [%s] del rtsp SubSession from group.", group.UniqueKey, session.UniqueKey())
 	group.mutex.Lock()
 	defer group.mutex.Unlock()
 	delete(group.rtspSubSessionSet, session)
 }
 
 func (group *Group) DelRtmpPushSession(url string, session *rtmp.PushSession) {
-	nazalog.Debugf("[%s] [%s] del rtmp PushSession into group.", group.UniqueKey, session.UniqueKey())
+	Log.Debugf("[%s] [%s] del rtmp PushSession into group.", group.UniqueKey, session.UniqueKey())
 	group.mutex.Lock()
 	defer group.mutex.Unlock()
 	if group.url2PushProxy != nil {
@@ -607,7 +606,7 @@ func (group *Group) KickOutSession(sessionId string) bool {
 	group.mutex.Lock()
 	defer group.mutex.Unlock()
 
-	nazalog.Infof("[%s] kick out session. session id=%s", group.UniqueKey, sessionId)
+	Log.Infof("[%s] kick out session. session id=%s", group.UniqueKey, sessionId)
 
 	if strings.HasPrefix(sessionId, base.UkPreRtmpServerSession) {
 		if group.rtmpPubSession != nil {
@@ -639,13 +638,13 @@ func (group *Group) KickOutSession(sessionId string) bool {
 	} else if strings.HasPrefix(sessionId, base.UkPreRtspSubSession) {
 		// TODO chef: impl me
 	} else {
-		nazalog.Errorf("[%s] kick out session while session id format invalid. %s", group.UniqueKey, sessionId)
+		Log.Errorf("[%s] kick out session while session id format invalid. %s", group.UniqueKey, sessionId)
 	}
 
 	return false
 }
 
-// 外部命令主动触发pull拉流
+// StartPull 外部命令主动触发pull拉流
 //
 // 当前调用时机：
 // 1. 比如http api
@@ -661,10 +660,10 @@ func (group *Group) StartPull(url string) {
 // ---------------------------------------------------------------------------------------------------------------------
 
 func (group *Group) delRtmpPubSession(session *rtmp.ServerSession) {
-	nazalog.Debugf("[%s] [%s] del rtmp PubSession from group.", group.UniqueKey, session.UniqueKey())
+	Log.Debugf("[%s] [%s] del rtmp PubSession from group.", group.UniqueKey, session.UniqueKey())
 
 	if session != group.rtmpPubSession {
-		nazalog.Warnf("[%s] del rtmp pub session but not match. del session=%s, group session=%p", group.UniqueKey, session.UniqueKey(), group.rtmpPubSession)
+		Log.Warnf("[%s] del rtmp pub session but not match. del session=%s, group session=%p", group.UniqueKey, session.UniqueKey(), group.rtmpPubSession)
 		return
 	}
 
@@ -675,10 +674,10 @@ func (group *Group) delRtmpPubSession(session *rtmp.ServerSession) {
 }
 
 func (group *Group) delRtspPubSession(session *rtsp.PubSession) {
-	nazalog.Debugf("[%s] [%s] del rtsp PubSession from group.", group.UniqueKey, session.UniqueKey())
+	Log.Debugf("[%s] [%s] del rtsp PubSession from group.", group.UniqueKey, session.UniqueKey())
 
 	if session != group.rtspPubSession {
-		nazalog.Warnf("[%s] del rtmp pub session but not match. del session=%s, group session=%p", group.UniqueKey, session.UniqueKey(), group.rtmpPubSession)
+		Log.Warnf("[%s] del rtmp pub session but not match. del session=%s, group session=%p", group.UniqueKey, session.UniqueKey(), group.rtmpPubSession)
 		return
 	}
 
@@ -689,7 +688,7 @@ func (group *Group) delRtspPubSession(session *rtsp.PubSession) {
 }
 
 func (group *Group) delRtmpPullSession(session *rtmp.PullSession) {
-	nazalog.Debugf("[%s] [%s] del rtmp PullSession from group.", group.UniqueKey, session.UniqueKey())
+	Log.Debugf("[%s] [%s] del rtmp PullSession from group.", group.UniqueKey, session.UniqueKey())
 
 	group.pullProxy.pullSession = nil
 	group.setPullingFlag(false)
@@ -697,22 +696,22 @@ func (group *Group) delRtmpPullSession(session *rtmp.PullSession) {
 }
 
 func (group *Group) delRtmpSubSession(session *rtmp.ServerSession) {
-	nazalog.Debugf("[%s] [%s] del rtmp SubSession from group.", group.UniqueKey, session.UniqueKey())
+	Log.Debugf("[%s] [%s] del rtmp SubSession from group.", group.UniqueKey, session.UniqueKey())
 	delete(group.rtmpSubSessionSet, session)
 }
 
 func (group *Group) delHttpflvSubSession(session *httpflv.SubSession) {
-	nazalog.Debugf("[%s] [%s] del httpflv SubSession from group.", group.UniqueKey, session.UniqueKey())
+	Log.Debugf("[%s] [%s] del httpflv SubSession from group.", group.UniqueKey, session.UniqueKey())
 	delete(group.httpflvSubSessionSet, session)
 }
 
 func (group *Group) delHttptsSubSession(session *httpts.SubSession) {
-	nazalog.Debugf("[%s] [%s] del httpts SubSession from group.", group.UniqueKey, session.UniqueKey())
+	Log.Debugf("[%s] [%s] del httpts SubSession from group.", group.UniqueKey, session.UniqueKey())
 	delete(group.httptsSubSessionSet, session)
 }
 
 func (group *Group) delRtspSubSession(session *rtsp.SubSession) {
-	nazalog.Debugf("[%s] [%s] del rtsp SubSession from group.", group.UniqueKey, session.UniqueKey())
+	Log.Debugf("[%s] [%s] del rtsp SubSession from group.", group.UniqueKey, session.UniqueKey())
 	delete(group.rtspSubSessionSet, session)
 }
 
@@ -744,7 +743,7 @@ func (group *Group) pushIfNeeded() {
 		if urlParam != "" {
 			urlWithParam += "?" + urlParam
 		}
-		nazalog.Infof("[%s] start relay push. url=%s", group.UniqueKey, urlWithParam)
+		Log.Infof("[%s] start relay push. url=%s", group.UniqueKey, urlWithParam)
 
 		go func(u, u2 string) {
 			pushSession := rtmp.NewPushSession(func(option *rtmp.PushSessionOption) {
@@ -753,13 +752,13 @@ func (group *Group) pushIfNeeded() {
 			})
 			err := pushSession.Push(u2)
 			if err != nil {
-				nazalog.Errorf("[%s] relay push done. err=%v", pushSession.UniqueKey(), err)
+				Log.Errorf("[%s] relay push done. err=%v", pushSession.UniqueKey(), err)
 				group.DelRtmpPushSession(u, pushSession)
 				return
 			}
 			group.AddRtmpPushSession(u, pushSession)
 			err = <-pushSession.WaitChan()
-			nazalog.Infof("[%s] relay push done. err=%v", pushSession.UniqueKey(), err)
+			Log.Infof("[%s] relay push done. err=%v", pushSession.UniqueKey(), err)
 			group.DelRtmpPushSession(u, pushSession)
 		}(url, urlWithParam)
 	}
@@ -805,7 +804,7 @@ func (group *Group) addIn() {
 	// 是否启动hls
 	if group.config.HlsConfig.Enable {
 		if group.hlsMuxer != nil {
-			nazalog.Errorf("[%s] hls muxer exist while addIn. muxer=%+v", group.UniqueKey, group.hlsMuxer)
+			Log.Errorf("[%s] hls muxer exist while addIn. muxer=%+v", group.UniqueKey, group.hlsMuxer)
 		}
 		enable := group.config.HlsConfig.Enable || group.config.HlsConfig.EnableHttps
 		group.hlsMuxer = hls.NewMuxer(group.streamName, enable, &group.config.HlsConfig.MuxerConfig, group)
@@ -824,20 +823,20 @@ func (group *Group) addIn() {
 		filename := fmt.Sprintf("%s-%d.flv", group.streamName, now)
 		filenameWithPath := filepath.Join(group.config.RecordConfig.FlvOutPath, filename)
 		if group.recordFlv != nil {
-			nazalog.Errorf("[%s] record flv but already exist. new filename=%s, old filename=%s",
+			Log.Errorf("[%s] record flv but already exist. new filename=%s, old filename=%s",
 				group.UniqueKey, filenameWithPath, group.recordFlv.Name())
 			if err := group.recordFlv.Dispose(); err != nil {
-				nazalog.Errorf("[%s] record flv dispose error. err=%+v", group.UniqueKey, err)
+				Log.Errorf("[%s] record flv dispose error. err=%+v", group.UniqueKey, err)
 			}
 		}
 		group.recordFlv = &httpflv.FlvFileWriter{}
 		if err := group.recordFlv.Open(filenameWithPath); err != nil {
-			nazalog.Errorf("[%s] record flv open file failed. filename=%s, err=%+v",
+			Log.Errorf("[%s] record flv open file failed. filename=%s, err=%+v",
 				group.UniqueKey, filenameWithPath, err)
 			group.recordFlv = nil
 		}
 		if err := group.recordFlv.WriteFlvHeader(); err != nil {
-			nazalog.Errorf("[%s] record flv write flv header failed. filename=%s, err=%+v",
+			Log.Errorf("[%s] record flv write flv header failed. filename=%s, err=%+v",
 				group.UniqueKey, filenameWithPath, err)
 			group.recordFlv = nil
 		}
@@ -848,15 +847,15 @@ func (group *Group) addIn() {
 		filename := fmt.Sprintf("%s-%d.ts", group.streamName, now)
 		filenameWithPath := filepath.Join(group.config.RecordConfig.MpegtsOutPath, filename)
 		if group.recordMpegts != nil {
-			nazalog.Errorf("[%s] record mpegts but already exist. new filename=%s, old filename=%s",
+			Log.Errorf("[%s] record mpegts but already exist. new filename=%s, old filename=%s",
 				group.UniqueKey, filenameWithPath, group.recordMpegts.Name())
 			if err := group.recordMpegts.Dispose(); err != nil {
-				nazalog.Errorf("[%s] record mpegts dispose error. err=%+v", group.UniqueKey, err)
+				Log.Errorf("[%s] record mpegts dispose error. err=%+v", group.UniqueKey, err)
 			}
 		}
 		group.recordMpegts = &mpegts.FileWriter{}
 		if err := group.recordMpegts.Create(filenameWithPath); err != nil {
-			nazalog.Errorf("[%s] record mpegts open file failed. filename=%s, err=%+v",
+			Log.Errorf("[%s] record mpegts open file failed. filename=%s, err=%+v",
 				group.UniqueKey, filenameWithPath, err)
 			group.recordFlv = nil
 		}
@@ -885,7 +884,7 @@ func (group *Group) delIn() {
 	if group.config.RecordConfig.EnableFlv {
 		if group.recordFlv != nil {
 			if err := group.recordFlv.Dispose(); err != nil {
-				nazalog.Errorf("[%s] record flv dispose error. err=%+v", group.UniqueKey, err)
+				Log.Errorf("[%s] record flv dispose error. err=%+v", group.UniqueKey, err)
 			}
 			group.recordFlv = nil
 		}
@@ -895,7 +894,7 @@ func (group *Group) delIn() {
 	if group.config.RecordConfig.EnableMpegts {
 		if group.recordMpegts != nil {
 			if err := group.recordMpegts.Dispose(); err != nil {
-				nazalog.Errorf("[%s] record mpegts dispose error. err=%+v", group.UniqueKey, err)
+				Log.Errorf("[%s] record mpegts dispose error. err=%+v", group.UniqueKey, err)
 			}
 			group.recordMpegts = nil
 		}
@@ -923,14 +922,14 @@ func (group *Group) disposeHlsMuxer() {
 // 音视频数据转发、转封装的逻辑
 // ---------------------------------------------------------------------------------------------------------------------
 
-// rtmp.PubSession or rtmp.PullSession
+// OnReadRtmpAvMsg rtmp.PubSession or rtmp.PullSession
 func (group *Group) OnReadRtmpAvMsg(msg base.RtmpMsg) {
 	group.mutex.Lock()
 	defer group.mutex.Unlock()
 	group.broadcastByRtmpMsg(msg)
 }
 
-// rtsp.PubSession
+// OnRtpPacket rtsp.PubSession
 func (group *Group) OnRtpPacket(pkt rtprtcp.RtpPacket) {
 	group.mutex.Lock()
 	defer group.mutex.Unlock()
@@ -938,7 +937,7 @@ func (group *Group) OnRtpPacket(pkt rtprtcp.RtpPacket) {
 	group.onRtpPacket(pkt)
 }
 
-// rtsp.PubSession
+// OnSdp rtsp.PubSession
 func (group *Group) OnSdp(sdpCtx sdp.LogicContext) {
 	group.mutex.Lock()
 	defer group.mutex.Unlock()
@@ -947,27 +946,29 @@ func (group *Group) OnSdp(sdpCtx sdp.LogicContext) {
 	group.rtsp2RtmpRemuxer.OnSdp(sdpCtx)
 }
 
-// rtsp.PubSession
+// OnAvPacket rtsp.PubSession
 func (group *Group) OnAvPacket(pkt base.AvPacket) {
 	group.mutex.Lock()
 	defer group.mutex.Unlock()
-	//nazalog.Debugf("[%s] > Group::OnAvPacket. type=%s, ts=%d, len=%d", group.UniqueKey, pkt.PayloadType.ReadableString(), pkt.Timestamp, len(pkt.Payload))
+	//Log.Debugf("[%s] > Group::OnAvPacket. type=%s, ts=%d, len=%d", group.UniqueKey, pkt.PayloadType.ReadableString(), pkt.Timestamp, len(pkt.Payload))
 
 	group.rtsp2RtmpRemuxer.OnAvPacket(pkt)
 }
 
-// hls.Muxer
+// ----- implement hls.MuxerObserver of hls.Muxer ----------------------------------------------------------------------
+
+// OnPatPmt hls.Muxer
 func (group *Group) OnPatPmt(b []byte) {
 	group.patpmt = b
 
 	if group.recordMpegts != nil {
 		if err := group.recordMpegts.Write(b); err != nil {
-			nazalog.Errorf("[%s] record mpegts write fragment header error. err=%+v", group.UniqueKey, err)
+			Log.Errorf("[%s] record mpegts write fragment header error. err=%+v", group.UniqueKey, err)
 		}
 	}
 }
 
-// hls.Muxer
+// OnTsPackets hls.Muxer
 func (group *Group) OnTsPackets(rawFrame []byte, boundary bool) {
 	// 因为最前面Feed时已经加锁了，所以这里回调上来就不用加锁了
 
@@ -985,10 +986,12 @@ func (group *Group) OnTsPackets(rawFrame []byte, boundary bool) {
 
 	if group.recordMpegts != nil {
 		if err := group.recordMpegts.Write(rawFrame); err != nil {
-			nazalog.Errorf("[%s] record mpegts write error. err=%+v", group.UniqueKey, err)
+			Log.Errorf("[%s] record mpegts write error. err=%+v", group.UniqueKey, err)
 		}
 	}
 }
+
+// ---------------------------------------------------------------------------------------------------------------------
 
 // TODO chef: 目前相当于其他类型往rtmp.AVMsg转了，考虑统一往一个通用类型转
 //
@@ -1003,7 +1006,7 @@ func (group *Group) broadcastByRtmpMsg(msg base.RtmpMsg) {
 	)
 
 	if len(msg.Payload) == 0 {
-		nazalog.Warnf("[%s] msg payload length is 0. %+v", group.UniqueKey, msg.Header)
+		Log.Warnf("[%s] msg payload length is 0. %+v", group.UniqueKey, msg.Header)
 		return
 	}
 
@@ -1020,7 +1023,7 @@ func (group *Group) broadcastByRtmpMsg(msg base.RtmpMsg) {
 	// # 设置好用于发送的 rtmp 头部信息
 	currHeader := remux.MakeDefaultRtmpHeader(msg.Header)
 	if currHeader.MsgLen != uint32(len(msg.Payload)) {
-		nazalog.Errorf("[%s] diff. msgLen=%d, payload len=%d, %+v", group.UniqueKey, currHeader.MsgLen, len(msg.Payload), msg.Header)
+		Log.Errorf("[%s] diff. msgLen=%d, payload len=%d, %+v", group.UniqueKey, currHeader.MsgLen, len(msg.Payload), msg.Header)
 	}
 
 	// # 懒初始化rtmp chunk切片，以及httpflv转换
@@ -1033,15 +1036,15 @@ func (group *Group) broadcastByRtmpMsg(msg base.RtmpMsg) {
 		if session.IsFresh {
 			// TODO chef: 头信息和full gop也可以在SubSession刚加入时发送
 			if group.rtmpGopCache.Metadata != nil {
-				nazalog.Debugf("[%s] [%s] write metadata", group.UniqueKey, session.UniqueKey())
+				Log.Debugf("[%s] [%s] write metadata", group.UniqueKey, session.UniqueKey())
 				_ = session.Write(group.rtmpGopCache.Metadata)
 			}
 			if group.rtmpGopCache.VideoSeqHeader != nil {
-				nazalog.Debugf("[%s] [%s] write vsh", group.UniqueKey, session.UniqueKey())
+				Log.Debugf("[%s] [%s] write vsh", group.UniqueKey, session.UniqueKey())
 				_ = session.Write(group.rtmpGopCache.VideoSeqHeader)
 			}
 			if group.rtmpGopCache.AacSeqHeader != nil {
-				nazalog.Debugf("[%s] [%s] write ash", group.UniqueKey, session.UniqueKey())
+				Log.Debugf("[%s] [%s] write ash", group.UniqueKey, session.UniqueKey())
 				_ = session.Write(group.rtmpGopCache.AacSeqHeader)
 			}
 			gopCount := group.rtmpGopCache.GetGopCount()
@@ -1049,7 +1052,7 @@ func (group *Group) broadcastByRtmpMsg(msg base.RtmpMsg) {
 				// GOP缓存中肯定包含了关键帧
 				session.ShouldWaitVideoKeyFrame = false
 
-				nazalog.Debugf("[%s] [%s] write gop cache. gop num=%d", group.UniqueKey, session.UniqueKey(), gopCount)
+				Log.Debugf("[%s] [%s] write gop cache. gop num=%d", group.UniqueKey, session.UniqueKey(), gopCount)
 			}
 			for i := 0; i < gopCount; i++ {
 				for _, item := range group.rtmpGopCache.GetGopDataAt(i) {
@@ -1157,7 +1160,7 @@ func (group *Group) broadcastByRtmpMsg(msg base.RtmpMsg) {
 	// # 录制flv文件
 	if group.recordFlv != nil {
 		if err := group.recordFlv.WriteRaw(lrm2ft.Get()); err != nil {
-			nazalog.Errorf("[%s] record flv write error. err=%+v", group.UniqueKey, err)
+			Log.Errorf("[%s] record flv write error. err=%+v", group.UniqueKey, err)
 		}
 	}
 
@@ -1317,7 +1320,7 @@ func (group *Group) pullIfNeeded() {
 	}
 	group.setPullingFlag(true)
 
-	nazalog.Infof("[%s] start relay pull. url=%s", group.UniqueKey, group.getPullUrl())
+	Log.Infof("[%s] start relay pull. url=%s", group.UniqueKey, group.getPullUrl())
 
 	go func() {
 		pullSession := rtmp.NewPullSession(func(option *rtmp.PullSessionOption) {
@@ -1327,14 +1330,14 @@ func (group *Group) pullIfNeeded() {
 		// TODO(chef): 处理数据回调，是否应该等待Add成功之后。避免竞态条件中途加入了其他in session
 		err := pullSession.Pull(group.getPullUrl(), group.OnReadRtmpAvMsg)
 		if err != nil {
-			nazalog.Errorf("[%s] relay pull fail. err=%v", pullSession.UniqueKey(), err)
+			Log.Errorf("[%s] relay pull fail. err=%v", pullSession.UniqueKey(), err)
 			group.DelRtmpPullSession(pullSession)
 			return
 		}
 		res := group.AddRtmpPullSession(pullSession)
 		if res {
 			err = <-pullSession.WaitChan()
-			nazalog.Infof("[%s] relay pull done. err=%v", pullSession.UniqueKey(), err)
+			Log.Infof("[%s] relay pull done. err=%v", pullSession.UniqueKey(), err)
 			group.DelRtmpPullSession(pullSession)
 		} else {
 			pullSession.Dispose()
@@ -1350,7 +1353,7 @@ func (group *Group) pullIfNeeded() {
 func (group *Group) stopPullIfNeeded() {
 	// 没有输出型的流了
 	if group.pullProxy.pullSession != nil && !group.hasOutSession() {
-		nazalog.Infof("[%s] stop pull since no sub session.", group.UniqueKey)
+		Log.Infof("[%s] stop pull since no sub session.", group.UniqueKey)
 		group.pullProxy.pullSession.Dispose()
 	}
 }

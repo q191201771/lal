@@ -12,15 +12,13 @@ import (
 	"os"
 	"testing"
 
-	"github.com/q191201771/naza/pkg/nazalog"
-
 	"github.com/q191201771/naza/pkg/assert"
 )
 
 func BenchmarkFlvFileReader(b *testing.B) {
 	const flvFile = "testdata/test.flv"
 	if _, err := os.Lstat(flvFile); err != nil {
-		nazalog.Warnf("lstat %s error. err=%+v", flvFile, err)
+		Log.Warnf("lstat %s error. err=%+v", flvFile, err)
 		return
 	}
 
@@ -38,13 +36,13 @@ func BenchmarkFlvFileReader(b *testing.B) {
 		}
 		r.Dispose()
 	}
-	//nazalog.Debug(tmp)
+	//Log.Debug(tmp)
 }
 
 func BenchmarkCloneTag(b *testing.B) {
 	const flvFile = "testdata/test.flv"
 	if _, err := os.Lstat(flvFile); err != nil {
-		nazalog.Warnf("lstat %s error. err=%+v", flvFile, err)
+		Log.Warnf("lstat %s error. err=%+v", flvFile, err)
 		return
 	}
 

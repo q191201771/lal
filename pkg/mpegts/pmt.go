@@ -10,10 +10,9 @@ package mpegts
 
 import (
 	"github.com/q191201771/naza/pkg/nazabits"
-	"github.com/q191201771/naza/pkg/nazalog"
 )
 
-// ----------------------------------------
+// Pmt ----------------------------------------
 // Program Map Table
 // <iso13818-1.pdf> <2.4.4.8> <page 64/174>
 // table_id                 [8b]  *
@@ -79,7 +78,7 @@ func ParsePmt(b []byte) (pmt Pmt) {
 	_, _ = br.ReadBits8(4)
 	pmt.pil, _ = br.ReadBits16(12)
 	if pmt.pil != 0 {
-		nazalog.Warn(pmt.pil)
+		Log.Warn(pmt.pil)
 		_, _ = br.ReadBytes(uint(pmt.pil))
 	}
 
@@ -91,7 +90,7 @@ func ParsePmt(b []byte) (pmt Pmt) {
 		_, _ = br.ReadBits8(4)
 		ppe.Length, _ = br.ReadBits16(12)
 		if ppe.Length != 0 {
-			nazalog.Warn(ppe.Length)
+			Log.Warn(ppe.Length)
 			_, _ = br.ReadBits32(uint(ppe.Length))
 		}
 		pmt.ProgramElements = append(pmt.ProgramElements, ppe)

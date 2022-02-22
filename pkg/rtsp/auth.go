@@ -12,7 +12,6 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/q191201771/naza/pkg/nazalog"
 	"github.com/q191201771/naza/pkg/nazamd5"
 )
 
@@ -51,7 +50,7 @@ func (a *Auth) FeedWwwAuthenticate(auths []string, username, password string) {
 		return
 	}
 	if !strings.HasPrefix(s, AuthTypeDigest) {
-		nazalog.Warnf("FeedWwwAuthenticate type invalid. v=%s", s)
+		Log.Warnf("FeedWwwAuthenticate type invalid. v=%s", s)
 		return
 	}
 
@@ -61,21 +60,21 @@ func (a *Auth) FeedWwwAuthenticate(auths []string, username, password string) {
 	a.Algorithm = a.getV(s, `algorithm="`)
 
 	if a.Realm == "" {
-		nazalog.Warnf("FeedWwwAuthenticate realm invalid. v=%s", s)
+		Log.Warnf("FeedWwwAuthenticate realm invalid. v=%s", s)
 	}
 	if a.Nonce == "" {
-		nazalog.Warnf("FeedWwwAuthenticate realm invalid. v=%s", s)
+		Log.Warnf("FeedWwwAuthenticate realm invalid. v=%s", s)
 	}
 	if a.Algorithm == "" {
 		a.Algorithm = AuthAlgorithm
-		nazalog.Warnf("FeedWwwAuthenticate algorithm not found fallback to %s. v=%s", AuthAlgorithm, s)
+		Log.Warnf("FeedWwwAuthenticate algorithm not found fallback to %s. v=%s", AuthAlgorithm, s)
 	}
 	if a.Algorithm != AuthAlgorithm {
-		nazalog.Warnf("FeedWwwAuthenticate algorithm invalid, only support MD5. v=%s", s)
+		Log.Warnf("FeedWwwAuthenticate algorithm invalid, only support MD5. v=%s", s)
 	}
 }
 
-// 如果没有调用`FeedWwwAuthenticate`初始化过，则直接返回空字符串
+// MakeAuthorization 如果没有调用`FeedWwwAuthenticate`初始化过，则直接返回空字符串
 func (a *Auth) MakeAuthorization(method, uri string) string {
 	if a.Username == "" {
 		return ""

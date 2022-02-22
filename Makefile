@@ -20,7 +20,7 @@ image:
 
 .PHONY: clean
 clean:
-	rm -rf ./bin ./release ./logs ./lal_record
+	rm -rf ./bin ./lal_record ./logs coverage.txt
 
 .PHONY: all
 all: build test

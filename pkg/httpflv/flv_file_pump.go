@@ -12,8 +12,6 @@ import (
 	"time"
 
 	"github.com/q191201771/naza/pkg/mock"
-
-	"github.com/q191201771/naza/pkg/nazalog"
 )
 
 var Clock = mock.NewStdClock()
@@ -61,7 +59,7 @@ func (f *FlvFilePump) Pump(filename string, onFlvTag OnPumpFlvTag) error {
 	return f.PumpWithTags(tags, onFlvTag)
 }
 
-// @return error 暂时只做预留，目前只会返回nil
+// PumpWithTags @return error 暂时只做预留，目前只会返回nil
 //
 func (f *FlvFilePump) PumpWithTags(tags []Tag, onFlvTag OnPumpFlvTag) error {
 	var totalBaseTs uint32 // 整体的基础时间戳。每轮最后更新
@@ -79,7 +77,7 @@ func (f *FlvFilePump) PumpWithTags(tags []Tag, onFlvTag OnPumpFlvTag) error {
 
 	// 循环一次，代表遍历文件一次
 	for roundIndex := 0; ; roundIndex++ {
-		nazalog.Debugf("new round. index=%d", roundIndex)
+		Log.Debugf("new round. index=%d", roundIndex)
 
 		hasReadThisBaseTs = false
 

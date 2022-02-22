@@ -18,8 +18,6 @@ import (
 	"github.com/q191201771/naza/pkg/nazabits"
 	"github.com/q191201771/naza/pkg/nazaerrors"
 
-	"github.com/q191201771/naza/pkg/nazalog"
-
 	"github.com/q191201771/lal/pkg/avc"
 
 	"github.com/q191201771/naza/pkg/assert"
@@ -36,7 +34,7 @@ func TestParseNaluType(t *testing.T) {
 		assert.Equal(t, out, actual)
 
 		b := avc.ParseNaluTypeReadable(in)
-		nazalog.Debug(b)
+		avc.Log.Debug(b)
 	}
 }
 
@@ -60,7 +58,7 @@ func TestParseSliceType(t *testing.T) {
 
 		b, err := avc.ParseSliceTypeReadable(item.in)
 		assert.Equal(t, nil, err)
-		nazalog.Debug(b)
+		avc.Log.Debug(b)
 	}
 }
 
@@ -138,7 +136,7 @@ func TestParseSps(t *testing.T) {
 	err = avc.ParseSps(nil, &ctx)
 	assert.Equal(t, true, nazaerrors.Is(err, nazabits.ErrNazaBits))
 	assert.IsNotNil(t, err)
-	nazalog.Debugf("error expected not nil, actual=%+v", err)
+	avc.Log.Debugf("error expected not nil, actual=%+v", err)
 
 	err = avc.ParseSps(goldenSps2, &ctx)
 	assert.Equal(t, nil, err)
