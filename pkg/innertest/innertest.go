@@ -9,7 +9,6 @@
 package innertest
 
 import (
-	"bytes"
 	"fmt"
 	"io/ioutil"
 	"net/http"
@@ -53,16 +52,18 @@ import (
 // - 加上relay pull
 
 var (
-	tt *testing.T
+	t *testing.T
 
-	confFile              = "../../testdata/lalserver.conf.json"
-	rFlvFileName          = "../../testdata/test.flv"
+	mode         int // 0 正常 1 输入只有音频 2 输入只有视频
+	confFile     = "../../testdata/lalserver.conf.json"
+	rFlvFileName = "../../testdata/test.flv"
+
 	wRtmpPullFileName     = "../../testdata/rtmppull.flv"
 	wFlvPullFileName      = "../../testdata/flvpull.flv"
+	wTsPullFileName       = "../../testdata/tspull.flv"
 	wPlaylistM3u8FileName string
 	wRecordM3u8FileName   string
 	wHlsTsFilePath        string
-	//wRtspPullFileName = "../../testdata/rtsppull.flv"
 
 	pushUrl        string
 	httpflvPullUrl string
@@ -99,7 +100,14 @@ func (r RtspPullObserver) OnAvPacket(pkt base.AvPacket) {
 	rtspPullAvPacketCount.Increment()
 }
 
-func Entry(t *testing.T) {
+func Entry(tt *testing.T) {
+	t = tt
+
+	mode = 0
+	entry()
+}
+
+func entry() {
 	if _, err := os.Lstat(confFile); err != nil {
 		Log.Warnf("lstat %s error. err=%+v", confFile, err)
 		return
@@ -112,8 +120,6 @@ func Entry(t *testing.T) {
 	hls.Clock = mock.NewFakeClock()
 	hls.Clock.Set(time.Date(2022, 1, 16, 23, 24, 25, 0, time.Local))
 	httpts.SubSessionWriteChanSize = 0
-
-	tt = t
 
 	var err error
 
@@ -136,8 +142,24 @@ func Entry(t *testing.T) {
 	wRecordM3u8FileName = fmt.Sprintf("%sinnertest/record.m3u8", config.HlsConfig.OutPath)
 	wHlsTsFilePath = fmt.Sprintf("%sinnertest/", config.HlsConfig.OutPath)
 
-	tags, err := httpflv.ReadAllTagsFromFlvFile(rFlvFileName)
+	var tags []httpflv.Tag
+	originTags, err := httpflv.ReadAllTagsFromFlvFile(rFlvFileName)
 	assert.Equal(t, nil, err)
+	if mode == 0 {
+		tags = originTags
+	} else if mode == 1 {
+		for _, tag := range originTags {
+			if tag.Header.Type == base.RtmpTypeIdMetadata || tag.Header.Type == base.RtmpTypeIdAudio {
+				tags = append(tags, tag)
+			}
+		}
+	} else if mode == 2 {
+		for _, tag := range originTags {
+			if tag.Header.Type == base.RtmpTypeIdMetadata || tag.Header.Type == base.RtmpTypeIdVideo {
+				tags = append(tags, tag)
+			}
+		}
+	}
 	fileTagCount = len(tags)
 
 	err = httpFlvWriter.Open(wFlvPullFileName)
@@ -160,7 +182,7 @@ func Entry(t *testing.T) {
 			func(msg base.RtmpMsg) {
 				tag := remux.RtmpMsg2FlvTag(msg)
 				err := rtmpWriter.WriteTag(*tag)
-				assert.Equal(tt, nil, err)
+				assert.Equal(t, nil, err)
 				rtmpPullTagCount.Increment()
 			})
 		Log.Assert(nil, err)
@@ -185,8 +207,9 @@ func Entry(t *testing.T) {
 	go func() {
 		//nazalog.Info("CHEFGREPME >")
 		b, err := httpGet(httptsPullUrl)
-		assert.Equal(t, 2216332, len(b))
-		assert.Equal(t, "03f8eac7d2c3d5d85056c410f5fcc756", nazamd5.Md5(b))
+		//_ = ioutil.WriteFile(wTsPullFileName, b, 0666)
+		assert.Equal(t, goldenHttptsLenList[mode], len(b))
+		assert.Equal(t, goldenHttptsMd5List[mode], nazamd5.Md5(b))
 		Log.Infof("CHEFGREPME %+v", err)
 	}()
 
@@ -260,34 +283,28 @@ func Entry(t *testing.T) {
 
 func compareFile() {
 	r, err := ioutil.ReadFile(rFlvFileName)
-	assert.Equal(tt, nil, err)
+	assert.Equal(t, nil, err)
 	Log.Debugf("%s filesize:%d", rFlvFileName, len(r))
 
 	// 检查httpflv
 	w, err := ioutil.ReadFile(wFlvPullFileName)
-	assert.Equal(tt, nil, err)
-	Log.Debugf("%s filesize:%d", wFlvPullFileName, len(w))
-	res := bytes.Compare(r, w)
-	assert.Equal(tt, 0, res)
-	//err = os.Remove(wFlvPullFileName)
-	assert.Equal(tt, nil, err)
+	assert.Equal(t, nil, err)
+	assert.Equal(t, goldenHttpflvLenList[mode], len(w))
+	assert.Equal(t, goldenHttpflvMd5List[mode], nazamd5.Md5(w))
 
 	// 检查rtmp
-	w2, err := ioutil.ReadFile(wRtmpPullFileName)
-	assert.Equal(tt, nil, err)
-	Log.Debugf("%s filesize:%d", wRtmpPullFileName, len(w2))
-	res = bytes.Compare(r, w2)
-	assert.Equal(tt, 0, res)
-	//err = os.Remove(wRtmpPullFileName)
-	assert.Equal(tt, nil, err)
+	w, err = ioutil.ReadFile(wRtmpPullFileName)
+	assert.Equal(t, nil, err)
+	assert.Equal(t, goldenRtmpLenList[mode], len(w))
+	assert.Equal(t, goldenRtmpMd5List[mode], nazamd5.Md5(w))
 
 	// 检查hls的m3u8文件
 	playListM3u8, err := ioutil.ReadFile(wPlaylistM3u8FileName)
-	assert.Equal(tt, nil, err)
-	assert.Equal(tt, goldenPlaylistM3u8, string(playListM3u8))
+	assert.Equal(t, nil, err)
+	assert.Equal(t, goldenPlaylistM3u8List[mode], string(playListM3u8))
 	recordM3u8, err := ioutil.ReadFile(wRecordM3u8FileName)
-	assert.Equal(tt, nil, err)
-	assert.Equal(tt, []byte(goldenRecordM3u8), recordM3u8)
+	assert.Equal(t, nil, err)
+	assert.Equal(t, goldenRecordM3u8List[mode], string(recordM3u8))
 
 	// 检查hls的ts文件
 	var allContent []byte
@@ -301,11 +318,11 @@ func compareFile() {
 			fileNum++
 			return nil
 		})
-	assert.Equal(tt, nil, err)
+	assert.Equal(t, nil, err)
 	allContentMd5 := nazamd5.Md5(allContent)
-	assert.Equal(tt, 8, fileNum)
-	assert.Equal(tt, 2219152, len(allContent))
-	assert.Equal(tt, "48db6251d40c271fd11b05650f074e0f", allContentMd5)
+	assert.Equal(t, goldenHlsTsNumList[mode], fileNum)
+	assert.Equal(t, goldenHlsTsLenList[mode], len(allContent))
+	assert.Equal(t, goldenHlsTsMd5List[mode], allContentMd5)
 }
 
 func getAllHttpApi(addr string) {
@@ -363,7 +380,39 @@ func httpPost(url string, info interface{}) ([]byte, error) {
 
 // ---------------------------------------------------------------------------------------------------------------------
 
-var goldenPlaylistM3u8 = `#EXTM3U
+var (
+	goldenRtmpLenList = []int{2120047, 504722, 1615715}
+	goldenRtmpMd5List = []string{
+		"7d68f0e2ab85c1992f70740479c8d3db",
+		"b889f690e07399c8c8353a3b1dba7efb",
+		"b5a9759455039761b6d4dd3ed8e97634",
+	}
+
+	goldenHttpflvLenList = []int{2120047, 504722, 1615715}
+	goldenHttpflvMd5List = []string{
+		"7d68f0e2ab85c1992f70740479c8d3db",
+		"b889f690e07399c8c8353a3b1dba7efb",
+		"b5a9759455039761b6d4dd3ed8e97634",
+	}
+
+	goldenHlsTsNumList = []int{8, 10, 8}
+	goldenHlsTsLenList = []int{2219152, 553848, 1696512}
+	goldenHlsTsMd5List = []string{
+		"48db6251d40c271fd11b05650f074e0f",
+		"4914801b64545742aef8d18c9470b01a",
+		"2d1e5c1a3ca385e0b55b2cff2f52b710",
+	}
+
+	goldenHttptsLenList = []int{2216332, 550464, 1693880}
+	goldenHttptsMd5List = []string{
+		"03f8eac7d2c3d5d85056c410f5fcc756",
+		"46008af23409e41ac1f26aa11218ad0a",
+		"651a2b5c93370738d81995f8fd49af4d",
+	}
+)
+
+var goldenPlaylistM3u8List = []string{
+	`#EXTM3U
 #EXT-X-VERSION:3
 #EXT-X-ALLOW-CACHE:NO
 #EXT-X-TARGETDURATION:5
@@ -382,9 +431,51 @@ innertest-1642346665000-6.ts
 #EXTINF:2.621,
 innertest-1642346665000-7.ts
 #EXT-X-ENDLIST
-`
+`,
+	`#EXTM3U
+#EXT-X-VERSION:3
+#EXT-X-ALLOW-CACHE:NO
+#EXT-X-TARGETDURATION:3
+#EXT-X-MEDIA-SEQUENCE:4
 
-var goldenRecordM3u8 = `#EXTM3U
+#EXTINF:3.088,
+innertest-1642346665000-4.ts
+#EXTINF:3.088,
+innertest-1642346665000-5.ts
+#EXTINF:3.089,
+innertest-1642346665000-6.ts
+#EXTINF:3.088,
+innertest-1642346665000-7.ts
+#EXTINF:3.088,
+innertest-1642346665000-8.ts
+#EXTINF:2.113,
+innertest-1642346665000-9.ts
+#EXT-X-ENDLIST
+`,
+	`#EXTM3U
+#EXT-X-VERSION:3
+#EXT-X-ALLOW-CACHE:NO
+#EXT-X-TARGETDURATION:5
+#EXT-X-MEDIA-SEQUENCE:2
+
+#EXTINF:3.333,
+innertest-1642346665000-2.ts
+#EXTINF:4.000,
+innertest-1642346665000-3.ts
+#EXTINF:4.867,
+innertest-1642346665000-4.ts
+#EXTINF:3.133,
+innertest-1642346665000-5.ts
+#EXTINF:4.000,
+innertest-1642346665000-6.ts
+#EXTINF:2.600,
+innertest-1642346665000-7.ts
+#EXT-X-ENDLIST
+`,
+}
+
+var goldenRecordM3u8List = []string{
+	`#EXTM3U
 #EXT-X-VERSION:3
 #EXT-X-TARGETDURATION:5
 #EXT-X-MEDIA-SEQUENCE:0
@@ -407,4 +498,57 @@ innertest-1642346665000-6.ts
 #EXTINF:2.621,
 innertest-1642346665000-7.ts
 #EXT-X-ENDLIST
-`
+`,
+	`#EXTM3U
+#EXT-X-VERSION:3
+#EXT-X-TARGETDURATION:3
+#EXT-X-MEDIA-SEQUENCE:0
+
+#EXT-X-DISCONTINUITY
+#EXTINF:3.088,
+innertest-1642346665000-0.ts
+#EXTINF:3.088,
+innertest-1642346665000-1.ts
+#EXTINF:3.089,
+innertest-1642346665000-2.ts
+#EXTINF:3.088,
+innertest-1642346665000-3.ts
+#EXTINF:3.088,
+innertest-1642346665000-4.ts
+#EXTINF:3.088,
+innertest-1642346665000-5.ts
+#EXTINF:3.089,
+innertest-1642346665000-6.ts
+#EXTINF:3.088,
+innertest-1642346665000-7.ts
+#EXTINF:3.088,
+innertest-1642346665000-8.ts
+#EXTINF:2.113,
+innertest-1642346665000-9.ts
+#EXT-X-ENDLIST
+`,
+	`#EXTM3U
+#EXT-X-VERSION:3
+#EXT-X-TARGETDURATION:5
+#EXT-X-MEDIA-SEQUENCE:0
+
+#EXT-X-DISCONTINUITY
+#EXTINF:4.000,
+innertest-1642346665000-0.ts
+#EXTINF:4.000,
+innertest-1642346665000-1.ts
+#EXTINF:3.333,
+innertest-1642346665000-2.ts
+#EXTINF:4.000,
+innertest-1642346665000-3.ts
+#EXTINF:4.867,
+innertest-1642346665000-4.ts
+#EXTINF:3.133,
+innertest-1642346665000-5.ts
+#EXTINF:4.000,
+innertest-1642346665000-6.ts
+#EXTINF:2.600,
+innertest-1642346665000-7.ts
+#EXT-X-ENDLIST
+`,
+}

@@ -29,8 +29,13 @@ type Queue struct {
 }
 
 type IQueueObserver interface {
-	// OnPatPmt 该回调一定发生在数据回调之前
+	// OnPatPmt
+	//
+	// 该回调一定发生在数据回调之前
+	// 只会返回两种格式，h264和h265
+	// TODO(chef): [opt] 当没有视频时，不应该返回h264的格式
 	// TODO(chef) 这里可以考虑换成只通知drain，由上层完成FragmentHeader的组装逻辑
+	//
 	OnPatPmt(b []byte)
 
 	OnPop(msg base.RtmpMsg)

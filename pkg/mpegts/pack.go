@@ -38,22 +38,26 @@ type Frame struct {
 //
 type OnTsPacket func(packet []byte)
 
-// PackTsPacket Annexb格式的流转换为mpegts packet
+func PackTsPacket(frame *Frame, onTsPacket OnTsPacket) {
+	packet := make([]byte, 188)
+	PackToTsPacket(frame, packet, onTsPacket)
+}
+
+// PackToTsPacket Annexb格式的流转换为mpegts packet
 //
 // @param frame: 各字段含义见mpegts.Frame结构体定义
 //               frame.CC  注意，内部会修改frame.CC的值，外部在调用结束后，可保存CC的值，供下次调用时使用
 //               frame.Raw 函数调用结束后，内部不会持有该内存块
 //
+// @param packet: 打包ts packet时的写入内存
+//
 // @param onTsPacket: 注意，一次函数调用，可能对应多次回调
 //
-func PackTsPacket(frame *Frame, onTsPacket OnTsPacket) {
+func PackToTsPacket(frame *Frame, packet []byte, onTsPacket OnTsPacket) {
 	wpos := 0              // 当前packet的写入位置
 	lpos := 0              // 当前帧的处理位置
 	rpos := len(frame.Raw) // 当前帧大小
 	first := true          // 是否为帧的首个packet的标准
-
-	// TODO(chef): [perf] 由于上层并不需要区分单个packet，所以可以考虑预分配内存，存储整个packet流
-	packet := make([]byte, 188)
 
 	for lpos != rpos {
 		wpos = 0
@@ -228,6 +232,8 @@ func PackTsPacket(frame *Frame, onTsPacket OnTsPacket) {
 		onTsPacket(packet)
 	}
 }
+
+// ----- private -------------------------------------------------------------------------------------------------------
 
 func packPcr(out []byte, pcr uint64) {
 	out[0] = uint8(pcr >> 25)

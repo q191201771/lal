@@ -21,7 +21,10 @@ import (
 )
 
 type StreamerObserver interface {
-	// OnPatPmt @param b const只读内存块，上层可以持有，但是不允许修改
+	// OnPatPmt
+	//
+	// @param b const只读内存块，上层可以持有，但是不允许修改
+	//
 	OnPatPmt(b []byte)
 
 	// OnFrame
@@ -92,7 +95,7 @@ func (s *Streamer) OnPop(msg base.RtmpMsg) {
 // FlushAudio
 //
 // 吐出音频数据的三种情况：
-// 1. 收到音频或视频时，音频缓存队列已达到一定长度
+// 1. 收到音频或视频时，音频缓存队列已达到一定长度（内部判断）
 // 2. 打开一个新的TS文件切片时
 // 3. 输入流关闭时
 //
