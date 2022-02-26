@@ -46,6 +46,7 @@ type ServerManager struct {
 	rtmpServer    *rtmp.Server
 	rtspServer    *rtsp.Server
 	httpApiServer *HttpApiServer
+	pprofServer   *http.Server
 	exitChan      chan struct{}
 
 	mutex        sync.Mutex
@@ -105,6 +106,10 @@ func NewServerManager(confFile string, modOption ...ModOption) *ServerManager {
 		sm.httpApiServer = NewHttpApiServer(sm.config.HttpApiConfig.Addr, sm)
 	}
 
+	if sm.config.PprofConfig.Enable {
+		sm.pprofServer = &http.Server{Addr: sm.config.PprofConfig.Addr, Handler: nil}
+	}
+
 	sm.simpleAuthCtx = NewSimpleAuthCtx(sm.config.SimpleAuthConfig)
 
 	return sm
@@ -115,8 +120,15 @@ func NewServerManager(confFile string, modOption ...ModOption) *ServerManager {
 func (sm *ServerManager) RunLoop() error {
 	sm.option.NotifyHandler.OnServerStart(sm.StatLalInfo())
 
-	if sm.config.PprofConfig.Enable {
-		go runWebPprof(sm.config.PprofConfig.Addr)
+	if sm.pprofServer != nil {
+		go func() {
+			//Log.Warn("start fgprof.")
+			//http.DefaultServeMux.Handle("/debug/fgprof", fgprof.Handler())
+			Log.Infof("start web pprof listen. addr=%s", sm.config.PprofConfig.Addr)
+			if err := sm.pprofServer.ListenAndServe(); err != nil {
+				Log.Error(err)
+			}
+		}()
 	}
 
 	go base.RunSignalHandler(func() {
@@ -266,11 +278,18 @@ func (sm *ServerManager) RunLoop() error {
 func (sm *ServerManager) Dispose() {
 	Log.Debug("dispose server manager.")
 
-	// TODO(chef) add httpServer
-
 	if sm.rtmpServer != nil {
 		sm.rtmpServer.Dispose()
 	}
+
+	if sm.httpServerManager != nil {
+		sm.httpServerManager.Dispose()
+	}
+
+	if sm.pprofServer != nil {
+		sm.pprofServer.Close()
+	}
+
 	//if sm.hlsServer != nil {
 	//	sm.hlsServer.Dispose()
 	//}
@@ -797,14 +816,6 @@ func (sm *ServerManager) serveHls(writer http.ResponseWriter, req *http.Request)
 	sm.hlsServerHandler.ServeHTTP(writer, req)
 }
 
-func runWebPprof(addr string) {
-	Log.Infof("start web pprof listen. addr=%s", addr)
+func (sm *ServerManager) runWebPprof(addr string) {
 
-	//Log.Warn("start fgprof.")
-	//http.DefaultServeMux.Handle("/debug/fgprof", fgprof.Handler())
-
-	if err := http.ListenAndServe(addr, nil); err != nil {
-		Log.Error(err)
-		return
-	}
 }
