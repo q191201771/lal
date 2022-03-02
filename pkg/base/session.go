@@ -13,6 +13,21 @@ import (
 	"strings"
 )
 
+// group中，session Dispose表现记录
+//
+// Dispose结束后回调OnDel:
+// rtmp.ServerSession(包含pub和sub)  1
+// rtsp.PubSession和rtsp.SubSession 1
+// rtmp.PullSession 2
+// httpflv.SubSession 3
+// httpts.SubSession 3
+//
+//
+// 情况1: 协议正常走完回调OnAdd，在自身server的RunLoop结束后，回调OnDel
+// 情况2: 在group中pull阻塞结束后，手动回调OnDel
+// 情况3: 在logic中sub RunLoop结束后，手动回调OnDel
+//
+
 // IsUseClosedConnectionError 当connection处于这些情况时，就不需要再Close了
 // TODO(chef): 临时放这
 // TODO(chef): 目前暂时没有使用，因为connection支持多次调用Close
@@ -81,7 +96,9 @@ type IClientSessionLifecycle interface {
 type IServerSessionLifecycle interface {
 	// RunLoop 开启session的事件循环，阻塞直到session结束
 	//
-	RunLoop() error
+	// 注意，rtsp的 pub和sub没有RunLoop，RunLoop是在cmd session上，所以暂时把这个函数从接口去除
+	//
+	//RunLoop() error
 
 	// Dispose 主动关闭session时调用
 	//

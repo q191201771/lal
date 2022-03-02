@@ -96,8 +96,7 @@ func NewServerManager(confFile string, modOption ...ModOption) *ServerManager {
 	}
 
 	if sm.config.RtmpConfig.Enable {
-		// TODO(chef): refactor 参数顺序统一。Observer都放最后好一些。比如rtmp和rtsp的NewServer
-		sm.rtmpServer = rtmp.NewServer(sm, sm.config.RtmpConfig.Addr)
+		sm.rtmpServer = rtmp.NewServer(sm.config.RtmpConfig.Addr, sm)
 	}
 	if sm.config.RtspConfig.Enable {
 		sm.rtspServer = rtsp.NewServer(sm.config.RtspConfig.Addr, sm)
@@ -222,13 +221,13 @@ func (sm *ServerManager) RunLoop() error {
 
 	t := time.NewTicker(1 * time.Second)
 	defer t.Stop()
-	var count uint32
+	var tickCount uint32
 	for {
 		select {
 		case <-sm.exitChan:
 			return nil
 		case <-t.C:
-			count++
+			tickCount++
 
 			sm.mutex.Lock()
 
@@ -240,13 +239,13 @@ func (sm *ServerManager) RunLoop() error {
 					return false
 				}
 
-				group.Tick()
+				group.Tick(tickCount)
 				return true
 			})
 
 			// 定时打印一些group相关的debug日志
 			if sm.config.DebugConfig.LogGroupIntervalSec > 0 &&
-				count%uint32(sm.config.DebugConfig.LogGroupIntervalSec) == 0 {
+				tickCount%uint32(sm.config.DebugConfig.LogGroupIntervalSec) == 0 {
 				groupNum := sm.groupManager.Len()
 				Log.Debugf("DEBUG_GROUP_LOG: group size=%d", groupNum)
 				if sm.config.DebugConfig.LogGroupMaxGroupNum > 0 {
@@ -264,7 +263,7 @@ func (sm *ServerManager) RunLoop() error {
 			sm.mutex.Unlock()
 
 			// 定时通过http notify发送group相关的信息
-			if uis != 0 && (count%uis) == 0 {
+			if uis != 0 && (tickCount%uis) == 0 {
 				updateInfo.ServerId = sm.config.ServerId
 				updateInfo.Groups = sm.StatAllGroup()
 				sm.option.NotifyHandler.OnUpdate(updateInfo)
@@ -653,7 +652,6 @@ func (sm *ServerManager) OnNewRtspPubSession(session *rtsp.PubSession) error {
 }
 
 func (sm *ServerManager) OnDelRtspPubSession(session *rtsp.PubSession) {
-	// TODO chef: impl me
 	sm.mutex.Lock()
 	defer sm.mutex.Unlock()
 	group := sm.getGroup(session.AppName(), session.StreamName())
@@ -814,8 +812,4 @@ func (sm *ServerManager) serveHls(writer http.ResponseWriter, req *http.Request)
 	}
 
 	sm.hlsServerHandler.ServeHTTP(writer, req)
-}
-
-func (sm *ServerManager) runWebPprof(addr string) {
-
 }

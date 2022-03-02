@@ -10,13 +10,14 @@ package innertest
 
 import (
 	"fmt"
-	"github.com/q191201771/naza/pkg/nazabytes"
-	"github.com/q191201771/naza/pkg/nazalog"
 	"io/ioutil"
 	"net/http"
 	"os"
 	"testing"
 	"time"
+
+	"github.com/q191201771/naza/pkg/nazabytes"
+	"github.com/q191201771/naza/pkg/nazalog"
 
 	"github.com/q191201771/lal/pkg/httpts"
 	"github.com/q191201771/naza/pkg/filebatch"
@@ -109,11 +110,11 @@ func Entry(tt *testing.T) {
 	mode = 0
 	entry()
 
-	//mode = 1
-	//entry()
-	//
-	//mode = 2
-	//entry()
+	mode = 1
+	entry()
+
+	mode = 2
+	entry()
 }
 
 func entry() {
@@ -130,7 +131,7 @@ func entry() {
 	rtmpPullTagCount.Store(0)
 	httptsSize.Store(0)
 	hls.Clock = mock.NewFakeClock()
-	hls.Clock.Set(time.Date(2022, 1, 16, 23, 24, 25, 0, time.Local))
+	hls.Clock.Set(time.Date(2022, 1, 16, 23, 24, 25, 0, time.UTC))
 	httpts.SubSessionWriteChanSize = 0
 
 	var err error
@@ -388,8 +389,8 @@ func getHttpts() ([]byte, error) {
 	defer resp.Body.Close()
 
 	var buf nazabytes.Buffer
+	buf.ReserveBytes(goldenHttptsLenList[mode])
 	for {
-		buf.ReserveBytes(10000)
 		n, err := resp.Body.Read(buf.WritableBytes())
 		if n > 0 {
 			buf.Flush(n)
@@ -464,17 +465,17 @@ var goldenPlaylistM3u8List = []string{
 #EXT-X-MEDIA-SEQUENCE:2
 
 #EXTINF:3.333,
-innertest-1642346665000-2.ts
+innertest-1642375465000-2.ts
 #EXTINF:4.000,
-innertest-1642346665000-3.ts
+innertest-1642375465000-3.ts
 #EXTINF:4.867,
-innertest-1642346665000-4.ts
+innertest-1642375465000-4.ts
 #EXTINF:3.133,
-innertest-1642346665000-5.ts
+innertest-1642375465000-5.ts
 #EXTINF:4.000,
-innertest-1642346665000-6.ts
+innertest-1642375465000-6.ts
 #EXTINF:2.621,
-innertest-1642346665000-7.ts
+innertest-1642375465000-7.ts
 #EXT-X-ENDLIST
 `,
 	`#EXTM3U
@@ -484,17 +485,17 @@ innertest-1642346665000-7.ts
 #EXT-X-MEDIA-SEQUENCE:4
 
 #EXTINF:3.088,
-innertest-1642346665000-4.ts
+innertest-1642375465000-4.ts
 #EXTINF:3.088,
-innertest-1642346665000-5.ts
+innertest-1642375465000-5.ts
 #EXTINF:3.089,
-innertest-1642346665000-6.ts
+innertest-1642375465000-6.ts
 #EXTINF:3.088,
-innertest-1642346665000-7.ts
+innertest-1642375465000-7.ts
 #EXTINF:3.088,
-innertest-1642346665000-8.ts
+innertest-1642375465000-8.ts
 #EXTINF:2.113,
-innertest-1642346665000-9.ts
+innertest-1642375465000-9.ts
 #EXT-X-ENDLIST
 `,
 	`#EXTM3U
@@ -504,17 +505,17 @@ innertest-1642346665000-9.ts
 #EXT-X-MEDIA-SEQUENCE:2
 
 #EXTINF:3.333,
-innertest-1642346665000-2.ts
+innertest-1642375465000-2.ts
 #EXTINF:4.000,
-innertest-1642346665000-3.ts
+innertest-1642375465000-3.ts
 #EXTINF:4.867,
-innertest-1642346665000-4.ts
+innertest-1642375465000-4.ts
 #EXTINF:3.133,
-innertest-1642346665000-5.ts
+innertest-1642375465000-5.ts
 #EXTINF:4.000,
-innertest-1642346665000-6.ts
+innertest-1642375465000-6.ts
 #EXTINF:2.600,
-innertest-1642346665000-7.ts
+innertest-1642375465000-7.ts
 #EXT-X-ENDLIST
 `,
 }
@@ -527,21 +528,21 @@ var goldenRecordM3u8List = []string{
 
 #EXT-X-DISCONTINUITY
 #EXTINF:4.000,
-innertest-1642346665000-0.ts
+innertest-1642375465000-0.ts
 #EXTINF:4.000,
-innertest-1642346665000-1.ts
+innertest-1642375465000-1.ts
 #EXTINF:3.333,
-innertest-1642346665000-2.ts
+innertest-1642375465000-2.ts
 #EXTINF:4.000,
-innertest-1642346665000-3.ts
+innertest-1642375465000-3.ts
 #EXTINF:4.867,
-innertest-1642346665000-4.ts
+innertest-1642375465000-4.ts
 #EXTINF:3.133,
-innertest-1642346665000-5.ts
+innertest-1642375465000-5.ts
 #EXTINF:4.000,
-innertest-1642346665000-6.ts
+innertest-1642375465000-6.ts
 #EXTINF:2.621,
-innertest-1642346665000-7.ts
+innertest-1642375465000-7.ts
 #EXT-X-ENDLIST
 `,
 	`#EXTM3U
@@ -551,25 +552,25 @@ innertest-1642346665000-7.ts
 
 #EXT-X-DISCONTINUITY
 #EXTINF:3.088,
-innertest-1642346665000-0.ts
+innertest-1642375465000-0.ts
 #EXTINF:3.088,
-innertest-1642346665000-1.ts
+innertest-1642375465000-1.ts
 #EXTINF:3.089,
-innertest-1642346665000-2.ts
+innertest-1642375465000-2.ts
 #EXTINF:3.088,
-innertest-1642346665000-3.ts
+innertest-1642375465000-3.ts
 #EXTINF:3.088,
-innertest-1642346665000-4.ts
+innertest-1642375465000-4.ts
 #EXTINF:3.088,
-innertest-1642346665000-5.ts
+innertest-1642375465000-5.ts
 #EXTINF:3.089,
-innertest-1642346665000-6.ts
+innertest-1642375465000-6.ts
 #EXTINF:3.088,
-innertest-1642346665000-7.ts
+innertest-1642375465000-7.ts
 #EXTINF:3.088,
-innertest-1642346665000-8.ts
+innertest-1642375465000-8.ts
 #EXTINF:2.113,
-innertest-1642346665000-9.ts
+innertest-1642375465000-9.ts
 #EXT-X-ENDLIST
 `,
 	`#EXTM3U
@@ -579,21 +580,21 @@ innertest-1642346665000-9.ts
 
 #EXT-X-DISCONTINUITY
 #EXTINF:4.000,
-innertest-1642346665000-0.ts
+innertest-1642375465000-0.ts
 #EXTINF:4.000,
-innertest-1642346665000-1.ts
+innertest-1642375465000-1.ts
 #EXTINF:3.333,
-innertest-1642346665000-2.ts
+innertest-1642375465000-2.ts
 #EXTINF:4.000,
-innertest-1642346665000-3.ts
+innertest-1642375465000-3.ts
 #EXTINF:4.867,
-innertest-1642346665000-4.ts
+innertest-1642375465000-4.ts
 #EXTINF:3.133,
-innertest-1642346665000-5.ts
+innertest-1642375465000-5.ts
 #EXTINF:4.000,
-innertest-1642346665000-6.ts
+innertest-1642375465000-6.ts
 #EXTINF:2.600,
-innertest-1642346665000-7.ts
+innertest-1642375465000-7.ts
 #EXT-X-ENDLIST
 `,
 }

@@ -34,15 +34,15 @@ type ServerObserver interface {
 }
 
 type Server struct {
-	observer ServerObserver
 	addr     string
+	observer ServerObserver
 	ln       net.Listener
 }
 
-func NewServer(observer ServerObserver, addr string) *Server {
+func NewServer(addr string, observer ServerObserver) *Server {
 	return &Server{
-		observer: observer,
 		addr:     addr,
+		observer: observer,
 	}
 }
 

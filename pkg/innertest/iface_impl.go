@@ -65,12 +65,10 @@ var (
 // IServerSession
 var (
 	_ base.IServerSession = &rtmp.ServerSession{}
+	_ base.IServerSession = &rtsp.PubSession{}
+	_ base.IServerSession = &rtsp.SubSession{}
 	_ base.IServerSession = &httpflv.SubSession{}
 	_ base.IServerSession = &httpts.SubSession{}
-
-	// 这两个比较特殊，它们没有RunLoop函数，RunLoop在rtsp.ServerCommandSession上
-	//_ base.IServerSession = &rtsp.PubSession{}
-	//_ base.IServerSession = &rtsp.SubSession{}
 )
 
 // IClientSessionLifecycle: 所有Client Session都满足
@@ -91,12 +89,11 @@ var (
 var (
 	// server session
 	_ base.IServerSessionLifecycle = &rtmp.ServerSession{}
+	_ base.IServerSessionLifecycle = &rtsp.PubSession{}
+	_ base.IServerSessionLifecycle = &rtsp.SubSession{}
 	_ base.IServerSessionLifecycle = &httpflv.SubSession{}
 	_ base.IServerSessionLifecycle = &httpts.SubSession{}
 
-	// 这两个比较特殊，它们没有RunLoop函数，RunLoop在rtsp.ServerCommandSession上
-	//_ base.IServerSessionLifecycle = &rtsp.PubSession{}
-	//_ base.IServerSessionLifecycle = &rtsp.SubSession{}
 	// other
 	_ base.IServerSessionLifecycle = &base.HttpSubSession{}
 	_ base.IServerSessionLifecycle = &rtsp.ServerCommandSession{}
