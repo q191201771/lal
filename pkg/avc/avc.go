@@ -441,7 +441,6 @@ func SplitNaluAvcc(nals []byte) (nalList [][]byte, err error) {
 		nalList = append(nalList, nal)
 	})
 	return
-
 }
 
 func IterateNaluAnnexb(nals []byte, handler func(nal []byte)) error {
@@ -515,6 +514,16 @@ func IterateNaluAvcc(nals []byte, handler func(nal []byte)) error {
 			return nazaerrors.Wrap(base.ErrShortBuffer)
 		}
 	}
+}
+
+func Avcc2Annexb(nals []byte) ([]byte, error) {
+	ret := make([]byte, len(nals))
+	ret = ret[0:0]
+	err := IterateNaluAvcc(nals, func(nal []byte) {
+		ret = append(ret, NaluStartCode4...)
+		ret = append(ret, nal...)
+	})
+	return ret, err
 }
 
 // TODO(chef): 是否需要 func NaluAvcc2Annexb, func NaluAnnexb2Avcc
