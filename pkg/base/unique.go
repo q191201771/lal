@@ -23,9 +23,9 @@ const (
 	UkPreTsSubSession             = "TSSUB"
 	UkPreFlvPullSession           = "FLVPULL"
 
-	UkPreGroup    = "GROUP"
-	UkPreHlsMuxer = "HLSMUXER"
-	UkPreStreamer = "STREAMER"
+	UkPreGroup              = "GROUP"
+	UkPreHlsMuxer           = "HLSMUXER"
+	UkPreRtmp2MpegtsRemuxer = "RTMP2MPEGTS"
 )
 
 //func GenUk(prefix string) string {
@@ -84,8 +84,8 @@ func GenUkHlsMuxer() string {
 	return siUkHlsMuxer.GenUniqueKey()
 }
 
-func GenUkStreamer() string {
-	return siUkStreamer.GenUniqueKey()
+func GenUkRtmp2MpegtsRemuxer() string {
+	return siUkRtmp2MpegtsRemuxer.GenUniqueKey()
 }
 
 var (
@@ -101,9 +101,9 @@ var (
 	siUkTsSubSession             *unique.SingleGenerator
 	siUkFlvPullSession           *unique.SingleGenerator
 
-	siUkGroup    *unique.SingleGenerator
-	siUkHlsMuxer *unique.SingleGenerator
-	siUkStreamer *unique.SingleGenerator
+	siUkGroup              *unique.SingleGenerator
+	siUkHlsMuxer           *unique.SingleGenerator
+	siUkRtmp2MpegtsRemuxer *unique.SingleGenerator
 )
 
 func init() {
@@ -121,5 +121,5 @@ func init() {
 
 	siUkGroup = unique.NewSingleGenerator(UkPreGroup)
 	siUkHlsMuxer = unique.NewSingleGenerator(UkPreHlsMuxer)
-	siUkStreamer = unique.NewSingleGenerator(UkPreStreamer)
+	siUkRtmp2MpegtsRemuxer = unique.NewSingleGenerator(UkPreRtmp2MpegtsRemuxer)
 }

@@ -192,7 +192,7 @@ func (r *Rtmp2RtspRemuxer) getAudioPacker() *rtprtcp.RtpPacker {
 		}
 		clockRate, err := ascCtx.GetSamplingFrequency()
 		if err != nil {
-			Log.Errorf("get sampling frequency failed. err=%+v", err)
+			Log.Errorf("get sampling frequency failed. err=%+v, asc=%s", err, hex.Dump(r.asc))
 		}
 
 		pp := rtprtcp.NewRtpPackerPayloadAac()

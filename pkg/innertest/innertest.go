@@ -230,7 +230,6 @@ func entry() {
 		_ = ioutil.WriteFile(wTsPullFileName, b, 0666)
 		assert.Equal(t, goldenHttptsLenList[mode], len(b))
 		assert.Equal(t, goldenHttptsMd5List[mode], nazamd5.Md5(b))
-		Log.Debugf("CHEFGREPME < get. %d %d", len(b), httptsSize.Load())
 	}()
 	time.Sleep(100 * time.Millisecond)
 
@@ -279,11 +278,11 @@ func entry() {
 	for {
 		if httpflvPullTagCount.Load() == uint32(fileTagCount) &&
 			rtmpPullTagCount.Load() == uint32(fileTagCount) &&
-			rtmpPullTagCount.Load() == uint32(fileTagCount) &&
 			httptsSize.Load() == uint32(goldenHttptsLenList[mode]) {
 			break
 		}
-		nazalog.Debugf("%d %d %d", httpflvPullTagCount.Load(), rtmpPullTagCount.Load(), httptsSize.Load())
+		nazalog.Debugf("%d(%d, %d) %d(%d)",
+			fileTagCount, httpflvPullTagCount.Load(), rtmpPullTagCount.Load(), goldenHttptsLenList[mode], httptsSize.Load())
 		time.Sleep(100 * time.Millisecond)
 	}
 
@@ -399,6 +398,9 @@ func getHttpts() ([]byte, error) {
 		if err != nil {
 			return buf.Bytes(), err
 		}
+		if buf.Len() == goldenHttptsLenList[mode] {
+			return buf.Bytes(), nil
+		}
 	}
 }
 
@@ -442,17 +444,17 @@ var (
 	}
 
 	goldenHlsTsNumList = []int{8, 10, 8}
-	goldenHlsTsLenList = []int{2219152, 553848, 1696512}
+	goldenHlsTsLenList = []int{2219152, 525648, 1696512}
 	goldenHlsTsMd5List = []string{
 		"48db6251d40c271fd11b05650f074e0f",
-		"4914801b64545742aef8d18c9470b01a",
+		"2eb19ad498688dadf950b3e749985922",
 		"2d1e5c1a3ca385e0b55b2cff2f52b710",
 	}
 
-	goldenHttptsLenList = []int{2216332, 550464, 1693880}
+	goldenHttptsLenList = []int{2216332, 522264, 1693880}
 	goldenHttptsMd5List = []string{
 		"03f8eac7d2c3d5d85056c410f5fcc756",
-		"46008af23409e41ac1f26aa11218ad0a",
+		"0d102b6fb7fc3134e56a07f00292e888",
 		"651a2b5c93370738d81995f8fd49af4d",
 	}
 )

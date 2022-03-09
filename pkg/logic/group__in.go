@@ -152,6 +152,10 @@ func (group *Group) delRtmpPullSession(session *rtmp.PullSession) {
 func (group *Group) addIn() {
 	now := time.Now().Unix()
 
+	if group.config.HlsConfig.Enable || group.config.HttptsConfig.Enable {
+		group.rtmp2MpegtsRemuxer = remux.NewRtmp2MpegtsRemuxer(group)
+	}
+
 	group.startPushIfNeeded()
 	group.startHlsIfNeeded()
 	group.startRecordFlvIfNeeded(now)
@@ -170,6 +174,10 @@ func (group *Group) delIn() {
 	group.rtspPubSession = nil
 	group.rtsp2RtmpRemuxer = nil
 	group.rtmp2RtspRemuxer = nil
+	if group.rtmp2MpegtsRemuxer != nil {
+		group.rtmp2MpegtsRemuxer.FlushAudio() // TODO(chef): [refactor]
+		group.rtmp2MpegtsRemuxer = nil
+	}
 	group.dummyAudioFilter = nil
 	group.rtmpGopCache.Clear()
 	group.httpflvGopCache.Clear()

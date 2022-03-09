@@ -185,6 +185,7 @@ var _ rtsp.PubSessionObserver = &remux.AvPacket2RtmpRemuxer{}
 var _ hls.MuxerObserver = &logic.Group{}
 var _ rtsp.BaseInSessionObserver = &logic.Group{} //
 var _ rtsp.BaseInSessionObserver = &remux.AvPacket2RtmpRemuxer{}
+var _ remux.Rtmp2MpegtsRemuxerObserver = &hls.Muxer{}
 
 var _ rtmp.ServerSessionObserver = &rtmp.Server{}
 var _ rtmp.IHandshakeClient = &rtmp.HandshakeClientSimple{}
@@ -199,5 +200,3 @@ var _ rtsp.IInterleavedPacketWriter = &rtsp.PubSession{}
 var _ rtsp.IInterleavedPacketWriter = &rtsp.SubSession{}
 var _ rtsp.IInterleavedPacketWriter = &rtsp.ClientCommandSession{}
 var _ rtsp.IInterleavedPacketWriter = &rtsp.ServerCommandSession{}
-
-var _ hls.StreamerObserver = &hls.Muxer{}

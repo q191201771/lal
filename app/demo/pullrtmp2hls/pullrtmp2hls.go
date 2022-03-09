@@ -14,6 +14,8 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/q191201771/lal/pkg/remux"
+
 	"github.com/q191201771/lal/pkg/base"
 	"github.com/q191201771/lal/pkg/hls"
 	"github.com/q191201771/lal/pkg/rtmp"
@@ -46,13 +48,13 @@ func main() {
 	hlsMuexer := hls.NewMuxer(streamName, true, &hlsMuxerConfig, nil)
 	hlsMuexer.Start()
 
+	rtmp2Mpegts := remux.NewRtmp2MpegtsRemuxer(hlsMuexer)
+
 	pullSession := rtmp.NewPullSession(func(option *rtmp.PullSessionOption) {
 		option.PullTimeoutMs = 10000
 		option.ReadAvTimeoutMs = 10000
 	})
-	err = pullSession.Pull(url, func(msg base.RtmpMsg) {
-		hlsMuexer.FeedRtmpMessage(msg)
-	})
+	err = pullSession.Pull(url, rtmp2Mpegts.FeedRtmpMessage)
 
 	if err != nil {
 		nazalog.Fatalf("pull rtmp failed. err=%+v", err)

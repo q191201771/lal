@@ -11,6 +11,8 @@ package logic
 import (
 	"net"
 
+	"github.com/q191201771/lal/pkg/mpegts"
+
 	"github.com/q191201771/lal/pkg/avc"
 	"github.com/q191201771/lal/pkg/base"
 	"github.com/q191201771/lal/pkg/hevc"
@@ -87,13 +89,15 @@ func (group *Group) OnAvPacket(pkt base.AvPacket) {
 // ---------------------------------------------------------------------------------------------------------------------
 // mpegts类型的数据
 //
-// OnPatPmt, OnTsPackets 来自 hls.Muxer 的回调
+// OnPatPmt, OnTsPackets 来自 Rtmp2MpegtsRemuxerObserver 的回调
 //
 // ---------------------------------------------------------------------------------------------------------------------
 
 // OnPatPmt ...
 func (group *Group) OnPatPmt(b []byte) {
 	group.patpmt = b
+
+	group.hlsMuxer.FeedPatPmt(b)
 
 	if group.recordMpegts != nil {
 		if err := group.recordMpegts.Write(b); err != nil {
@@ -103,24 +107,13 @@ func (group *Group) OnPatPmt(b []byte) {
 }
 
 // OnTsPackets ...
-func (group *Group) OnTsPackets(rawFrame []byte, boundary bool) {
-	for session := range group.httptsSubSessionSet {
-		if session.IsFresh {
-			if boundary {
-				session.Write(group.patpmt)
-				session.Write(rawFrame)
-				session.IsFresh = false
-			}
-		} else {
-			session.Write(rawFrame)
-		}
-	}
+func (group *Group) OnTsPackets(tsPackets []byte, frame *mpegts.Frame, boundary bool) {
+	group.feedTsPackets(tsPackets, frame, boundary)
+}
 
-	if group.recordMpegts != nil {
-		if err := group.recordMpegts.Write(rawFrame); err != nil {
-			Log.Errorf("[%s] record mpegts write error. err=%+v", group.UniqueKey, err)
-		}
-	}
+func (group *Group) FlushAudio() {
+	//to be continued
+	group.rtmp2MpegtsRemuxer.FlushAudio()
 }
 
 // ---------------------------------------------------------------------------------------------------------------------
@@ -142,9 +135,9 @@ func (group *Group) broadcastByRtmpMsg(msg base.RtmpMsg) {
 		return
 	}
 
-	// # hls
-	if group.config.HlsConfig.Enable && group.hlsMuxer != nil {
-		group.hlsMuxer.FeedRtmpMessage(msg)
+	// # mpegts remuxer
+	if group.config.HlsConfig.Enable || group.config.HttptsConfig.Enable {
+		group.rtmp2MpegtsRemuxer.FeedRtmpMessage(msg)
 	}
 
 	// # rtsp
@@ -382,6 +375,33 @@ func (group *Group) feedRtpPacket(pkt rtprtcp.RtpPacket) {
 		if boundary {
 			s.WriteRtpPacket(pkt)
 			s.ShouldWaitVideoKeyFrame = false
+		}
+	}
+}
+
+// ---------------------------------------------------------------------------------------------------------------------
+
+func (group *Group) feedTsPackets(tsPackets []byte, frame *mpegts.Frame, boundary bool) {
+	// TODO(chef): [opt] 重构remux 2 ts后，hls的输入必须放在http ts的输入之前，保证hls重新切片时可以先flush audio
+	if group.hlsMuxer != nil {
+		group.hlsMuxer.FeedMpegts(tsPackets, frame, boundary)
+	}
+
+	for session := range group.httptsSubSessionSet {
+		if session.IsFresh {
+			if boundary {
+				session.Write(group.patpmt)
+				session.Write(tsPackets)
+				session.IsFresh = false
+			}
+		} else {
+			session.Write(tsPackets)
+		}
+	}
+
+	if group.recordMpegts != nil {
+		if err := group.recordMpegts.Write(tsPackets); err != nil {
+			Log.Errorf("[%s] record mpegts write error. err=%+v", group.UniqueKey, err)
 		}
 	}
 }

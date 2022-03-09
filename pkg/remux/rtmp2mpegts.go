@@ -6,11 +6,10 @@
 //
 // Author: Chef (191201771@qq.com)
 
-package hls
+package remux
 
 import (
 	"encoding/hex"
-
 	"github.com/q191201771/lal/pkg/aac"
 	"github.com/q191201771/lal/pkg/avc"
 	"github.com/q191201771/lal/pkg/base"
@@ -20,30 +19,33 @@ import (
 	"github.com/q191201771/naza/pkg/nazabytes"
 )
 
-type StreamerObserver interface {
+var calcFragmentHeaderQueueSize = 16
+var maxAudioCacheDelayByAudio uint64 = 150 * 90 // 单位（毫秒*90）
+var maxAudioCacheDelayByVideo uint64 = 300 * 90 // 单位（毫秒*90）
+
+type Rtmp2MpegtsRemuxerObserver interface {
 	// OnPatPmt
 	//
 	// @param b const只读内存块，上层可以持有，但是不允许修改
 	//
 	OnPatPmt(b []byte)
 
-	// OnFrame
+	// OnTsPackets
 	//
-	// @param streamer: 供上层获取streamer内部的一些状态，比如spspps是否已缓存，音频缓存队列是否有数据等
+	// @param tsPackets: mpegts数据，有一个或多个188字节的ts数据组成
 	//
-	// @param frame:    各字段含义见 mpegts.Frame 结构体定义
-	//                  frame.CC  注意，回调结束后，Streamer会保存frame.CC，上层在TS打包完成后，可通过frame.CC将cc值传递给Streamer
-	//                  frame.Raw 回调结束后，这块内存可能会被内部重复使用
+	// @param frame: 各字段含义见 mpegts.Frame 结构体定义
 	//
-	OnFrame(streamer *Streamer, frame *mpegts.Frame, boundary bool)
+	OnTsPackets(tsPackets []byte, frame *mpegts.Frame, boundary bool)
 }
 
-// Streamer 输入rtmp流，回调转封装成Annexb格式的流
-type Streamer struct {
+// Rtmp2MpegtsRemuxer 输入rtmp流，输出mpegts流
+//
+type Rtmp2MpegtsRemuxer struct {
 	UniqueKey string
 
-	observer                StreamerObserver
-	calcFragmentHeaderQueue *Queue
+	observer                Rtmp2MpegtsRemuxerObserver
+	filter                  *rtmp2MpegtsFilter
 	videoOut                []byte // Annexb TODO chef: 优化这块buff
 	spspps                  []byte // Annexb 也可能是vps+sps+pps
 	ascCtx                  *aac.AscContext
@@ -55,39 +57,25 @@ type Streamer struct {
 	opened bool
 }
 
-func NewStreamer(observer StreamerObserver) *Streamer {
-	uk := base.GenUkStreamer()
+func NewRtmp2MpegtsRemuxer(observer Rtmp2MpegtsRemuxerObserver) *Rtmp2MpegtsRemuxer {
+	uk := base.GenUkRtmp2MpegtsRemuxer()
 	videoOut := make([]byte, 1024*1024)
 	videoOut = videoOut[0:0]
-	streamer := &Streamer{
+	r := &Rtmp2MpegtsRemuxer{
 		UniqueKey: uk,
 		observer:  observer,
 		videoOut:  videoOut,
 	}
-	streamer.calcFragmentHeaderQueue = NewQueue(calcFragmentHeaderQueueSize, streamer)
-	return streamer
+	r.filter = newRtmp2MpegtsFilter(calcFragmentHeaderQueueSize, r)
+	return r
 }
 
-// FeedRtmpMessage @param msg msg.Payload 调用结束后，函数内部不会持有这块内存
+// FeedRtmpMessage
 //
-// TODO chef: 可以考虑数据有问题时，返回给上层，直接主动关闭输入流的连接
-func (s *Streamer) FeedRtmpMessage(msg base.RtmpMsg) {
-	s.calcFragmentHeaderQueue.Push(msg)
-}
-
-// ----- implement IQueueObserver of Queue -----------------------------------------------------------------------------
-
-func (s *Streamer) OnPatPmt(b []byte) {
-	s.observer.OnPatPmt(b)
-}
-
-func (s *Streamer) OnPop(msg base.RtmpMsg) {
-	switch msg.Header.MsgTypeId {
-	case base.RtmpTypeIdAudio:
-		s.feedAudio(msg)
-	case base.RtmpTypeIdVideo:
-		s.feedVideo(msg)
-	}
+// @param msg: msg.Payload 调用结束后，函数内部不会持有这块内存
+//
+func (s *Rtmp2MpegtsRemuxer) FeedRtmpMessage(msg base.RtmpMsg) {
+	s.filter.Push(msg)
 }
 
 // ---------------------------------------------------------------------------------------------------------------------
@@ -99,7 +87,7 @@ func (s *Streamer) OnPop(msg base.RtmpMsg) {
 // 2. 打开一个新的TS文件切片时
 // 3. 输入流关闭时
 //
-func (s *Streamer) FlushAudio() {
+func (s *Rtmp2MpegtsRemuxer) FlushAudio() {
 	if s.audioCacheFrames == nil {
 		return
 	}
@@ -112,27 +100,49 @@ func (s *Streamer) FlushAudio() {
 	frame.Raw = s.audioCacheFrames
 	frame.Pid = mpegts.PidAudio
 	frame.Sid = mpegts.StreamIdAudio
-	s.onFrame(&frame)
-	s.audioCc = frame.Cc
 
+	// 注意，在回调前设置为nil，因为回调中有可能再次调用FlushAudio
 	s.audioCacheFrames = nil
+
+	s.onFrame(&frame)
+	// 回调结束后更新cc
+	s.audioCc = frame.Cc
 }
 
-func (s *Streamer) AudioSeqHeaderCached() bool {
+func (s *Rtmp2MpegtsRemuxer) AudioSeqHeaderCached() bool {
 	return s.ascCtx != nil
 }
 
-func (s *Streamer) VideoSeqHeaderCached() bool {
+func (s *Rtmp2MpegtsRemuxer) VideoSeqHeaderCached() bool {
 	return s.spspps != nil
 }
 
-func (s *Streamer) AudioCacheEmpty() bool {
+func (s *Rtmp2MpegtsRemuxer) AudioCacheEmpty() bool {
 	return s.audioCacheFrames == nil
+}
+
+// ---------------------------------------------------------------------------------------------------------------------
+
+// onPatPmt onPop
+//
+// 实现 rtmp2MpegtsFilterObserver
+//
+func (s *Rtmp2MpegtsRemuxer) onPatPmt(b []byte) {
+	s.observer.OnPatPmt(b)
+}
+
+func (s *Rtmp2MpegtsRemuxer) onPop(msg base.RtmpMsg) {
+	switch msg.Header.MsgTypeId {
+	case base.RtmpTypeIdAudio:
+		s.feedAudio(msg)
+	case base.RtmpTypeIdVideo:
+		s.feedVideo(msg)
+	}
 }
 
 // ----- private -------------------------------------------------------------------------------------------------------
 
-func (s *Streamer) feedVideo(msg base.RtmpMsg) {
+func (s *Rtmp2MpegtsRemuxer) feedVideo(msg base.RtmpMsg) {
 	// 注意，有一种情况是msg.Payload为 27 02 00 00 00
 	// 此时打印错误并返回也不影响
 	//
@@ -269,7 +279,7 @@ func (s *Streamer) feedVideo(msg base.RtmpMsg) {
 	s.videoCc = frame.Cc
 }
 
-func (s *Streamer) feedAudio(msg base.RtmpMsg) {
+func (s *Rtmp2MpegtsRemuxer) feedAudio(msg base.RtmpMsg) {
 	if len(msg.Payload) < 3 {
 		Log.Errorf("[%s] invalid audio message length. len=%d", s.UniqueKey, len(msg.Payload))
 		return
@@ -307,13 +317,13 @@ func (s *Streamer) feedAudio(msg base.RtmpMsg) {
 	s.audioCacheFrames = append(s.audioCacheFrames, msg.Payload[2:]...)
 }
 
-func (s *Streamer) cacheAacSeqHeader(msg base.RtmpMsg) error {
+func (s *Rtmp2MpegtsRemuxer) cacheAacSeqHeader(msg base.RtmpMsg) error {
 	var err error
 	s.ascCtx, err = aac.NewAscContext(msg.Payload[2:])
 	return err
 }
 
-func (s *Streamer) appendSpsPps(out []byte) ([]byte, error) {
+func (s *Rtmp2MpegtsRemuxer) appendSpsPps(out []byte) ([]byte, error) {
 	if s.spspps == nil {
 		return out, base.ErrHls
 	}
@@ -322,7 +332,7 @@ func (s *Streamer) appendSpsPps(out []byte) ([]byte, error) {
 	return out, nil
 }
 
-func (s *Streamer) onFrame(frame *mpegts.Frame) {
+func (s *Rtmp2MpegtsRemuxer) onFrame(frame *mpegts.Frame) {
 	var boundary bool
 
 	if frame.Sid == mpegts.StreamIdAudio {
@@ -343,5 +353,10 @@ func (s *Streamer) onFrame(frame *mpegts.Frame) {
 		s.opened = true
 	}
 
-	s.observer.OnFrame(s, frame, boundary)
+	var packets []byte // TODO(chef): [refactor]
+	mpegts.PackTsPacket(frame, func(packet []byte) {
+		packets = append(packets, packet...)
+	})
+
+	s.observer.OnTsPackets(packets, frame, boundary)
 }

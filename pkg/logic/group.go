@@ -39,10 +39,11 @@ type Group struct {
 
 	mutex sync.Mutex
 	// pub
-	rtmpPubSession   *rtmp.ServerSession
-	rtspPubSession   *rtsp.PubSession
-	rtsp2RtmpRemuxer *remux.AvPacket2RtmpRemuxer
-	rtmp2RtspRemuxer *remux.Rtmp2RtspRemuxer
+	rtmpPubSession     *rtmp.ServerSession
+	rtspPubSession     *rtsp.PubSession
+	rtsp2RtmpRemuxer   *remux.AvPacket2RtmpRemuxer
+	rtmp2RtspRemuxer   *remux.Rtmp2RtspRemuxer
+	rtmp2MpegtsRemuxer *remux.Rtmp2MpegtsRemuxer
 	// pull
 	pullEnable bool
 	pullUrl    string
