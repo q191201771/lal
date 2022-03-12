@@ -21,6 +21,8 @@ image:
 .PHONY: clean
 clean:
 	rm -rf ./bin ./lal_record ./logs coverage.txt
+	find ./pkg -name 'lal_record' | xargs rm -rf
+	find ./pkg -name 'logs' | xargs rm -rf
 
 .PHONY: all
 all: build test

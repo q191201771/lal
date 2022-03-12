@@ -22,38 +22,30 @@ import (
 )
 
 // group__streaming.go
+//
 // 包含group中音视频数据转发、转封装协议的逻辑
+//
 
 // ---------------------------------------------------------------------------------------------------------------------
-// 输入rtmp类型的数据
-//
-// OnReadRtmpAvMsg 来自 rtmp.ServerSession(Pub), rtmp.PullSession, remux.DummyAudioFilter 的回调
-//
-// onRtmpMsgFromRemux 来自内部协议转换
-//
-// ---------------------------------------------------------------------------------------------------------------------
 
-// OnReadRtmpAvMsg ...
+// OnReadRtmpAvMsg
+//
+// 输入rtmp数据.
+// 来自 rtmp.ServerSession(Pub), rtmp.PullSession, (remux.DummyAudioFilter) 的回调.
+//
 func (group *Group) OnReadRtmpAvMsg(msg base.RtmpMsg) {
 	group.mutex.Lock()
 	defer group.mutex.Unlock()
 	group.broadcastByRtmpMsg(msg)
 }
 
-func (group *Group) onRtmpMsgFromRemux(msg base.RtmpMsg) {
-	group.broadcastByRtmpMsg(msg)
-}
-
-// ---------------------------------------------------------------------------------------------------------------------
-// rtp类型以及rtp组成帧之后的数据
-//
-// OnSdp, OnRtpPacket, OnAvPacket 来自 rtsp.PubSession 的回调
-//
-// onSdpFromRemux, onRtpPacketFromRemux 来自内部协议转换
-//
 // ---------------------------------------------------------------------------------------------------------------------
 
-// OnSdp ...
+// OnSdp OnRtpPacket OnAvPacket
+//
+// 输入rtsp(rtp)和rtp合帧之后的数据.
+// 来自 rtsp.PubSession 的回调.
+//
 func (group *Group) OnSdp(sdpCtx sdp.LogicContext) {
 	group.mutex.Lock()
 	defer group.mutex.Unlock()
@@ -62,20 +54,10 @@ func (group *Group) OnSdp(sdpCtx sdp.LogicContext) {
 	group.rtsp2RtmpRemuxer.OnSdp(sdpCtx)
 }
 
-// onSdpFromRemux ...
-func (group *Group) onSdpFromRemux(sdpCtx sdp.LogicContext) {
-	group.sdpCtx = &sdpCtx
-}
-
 // OnRtpPacket ...
 func (group *Group) OnRtpPacket(pkt rtprtcp.RtpPacket) {
 	group.mutex.Lock()
 	defer group.mutex.Unlock()
-	group.feedRtpPacket(pkt)
-}
-
-// onRtpPacketFromRemux ...
-func (group *Group) onRtpPacketFromRemux(pkt rtprtcp.RtpPacket) {
 	group.feedRtpPacket(pkt)
 }
 
@@ -87,13 +69,12 @@ func (group *Group) OnAvPacket(pkt base.AvPacket) {
 }
 
 // ---------------------------------------------------------------------------------------------------------------------
-// mpegts类型的数据
-//
-// OnPatPmt, OnTsPackets 来自 Rtmp2MpegtsRemuxerObserver 的回调
-//
-// ---------------------------------------------------------------------------------------------------------------------
 
-// OnPatPmt ...
+// OnPatPmt OnTsPackets
+//
+// 输入mpegts数据.
+// 来自 remux.Rtmp2MpegtsRemuxer 的回调.
+//
 func (group *Group) OnPatPmt(b []byte) {
 	group.patpmt = b
 
@@ -111,8 +92,40 @@ func (group *Group) OnTsPackets(tsPackets []byte, frame *mpegts.Frame, boundary 
 	group.feedTsPackets(tsPackets, frame, boundary)
 }
 
-func (group *Group) FlushAudio() {
-	//to be continued
+// ---------------------------------------------------------------------------------------------------------------------
+
+// onRtmpMsgFromRemux
+//
+// 输入rtmp数据.
+// 来自 remux.AvPacket2RtmpRemuxer 的回调.
+//
+func (group *Group) onRtmpMsgFromRemux(msg base.RtmpMsg) {
+	group.broadcastByRtmpMsg(msg)
+}
+
+// ---------------------------------------------------------------------------------------------------------------------
+
+// onSdpFromRemux onRtpPacketFromRemux
+//
+// 输入rtsp(rtp)数据.
+// 来自 remux.Rtmp2RtspRemuxer 的回调.
+//
+func (group *Group) onSdpFromRemux(sdpCtx sdp.LogicContext) {
+	group.sdpCtx = &sdpCtx
+}
+
+// onRtpPacketFromRemux ...
+func (group *Group) onRtpPacketFromRemux(pkt rtprtcp.RtpPacket) {
+	group.feedRtpPacket(pkt)
+}
+
+// ---------------------------------------------------------------------------------------------------------------------
+
+// OnFragmentOpen
+//
+// 来自 hls.Muxer 的回调
+//
+func (group *Group) OnFragmentOpen() {
 	group.rtmp2MpegtsRemuxer.FlushAudio()
 }
 
@@ -382,7 +395,7 @@ func (group *Group) feedRtpPacket(pkt rtprtcp.RtpPacket) {
 // ---------------------------------------------------------------------------------------------------------------------
 
 func (group *Group) feedTsPackets(tsPackets []byte, frame *mpegts.Frame, boundary bool) {
-	// TODO(chef): [opt] 重构remux 2 ts后，hls的输入必须放在http ts的输入之前，保证hls重新切片时可以先flush audio
+	// 注意，hls的处理放在前面，让hls先判断是否打开新的fragment并flush audio
 	if group.hlsMuxer != nil {
 		group.hlsMuxer.FeedMpegts(tsPackets, frame, boundary)
 	}

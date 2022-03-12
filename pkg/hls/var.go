@@ -20,7 +20,3 @@ var (
 
 	Log = nazalog.GetGlobalLogger()
 )
-
-var (
-	calcFragmentHeaderQueueSize = 16
-)

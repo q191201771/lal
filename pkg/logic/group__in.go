@@ -165,6 +165,12 @@ func (group *Group) addIn() {
 // delIn 有pub或pull的输入型session离开时，需要调用该函数
 //
 func (group *Group) delIn() {
+	// 注意，remuxer放前面，使得有机会将内部缓存的数据吐出来
+	if group.rtmp2MpegtsRemuxer != nil {
+		group.rtmp2MpegtsRemuxer.Dispose()
+		group.rtmp2MpegtsRemuxer = nil
+	}
+
 	group.stopPushIfNeeded()
 	group.stopHlsIfNeeded()
 	group.stopRecordFlvIfNeeded()
@@ -174,10 +180,6 @@ func (group *Group) delIn() {
 	group.rtspPubSession = nil
 	group.rtsp2RtmpRemuxer = nil
 	group.rtmp2RtspRemuxer = nil
-	if group.rtmp2MpegtsRemuxer != nil {
-		group.rtmp2MpegtsRemuxer.FlushAudio() // TODO(chef): [refactor]
-		group.rtmp2MpegtsRemuxer = nil
-	}
 	group.dummyAudioFilter = nil
 	group.rtmpGopCache.Clear()
 	group.httpflvGopCache.Clear()

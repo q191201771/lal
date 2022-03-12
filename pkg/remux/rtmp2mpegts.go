@@ -10,6 +10,7 @@ package remux
 
 import (
 	"encoding/hex"
+
 	"github.com/q191201771/lal/pkg/aac"
 	"github.com/q191201771/lal/pkg/avc"
 	"github.com/q191201771/lal/pkg/base"
@@ -19,20 +20,25 @@ import (
 	"github.com/q191201771/naza/pkg/nazabytes"
 )
 
-var calcFragmentHeaderQueueSize = 16
-var maxAudioCacheDelayByAudio uint64 = 150 * 90 // 单位（毫秒*90）
-var maxAudioCacheDelayByVideo uint64 = 300 * 90 // 单位（毫秒*90）
+const (
+	initialVideoOutBufferSize          = 1024 * 1024
+	calcFragmentHeaderQueueSize        = 16
+	maxAudioCacheDelayByAudio   uint64 = 150 * 90 // 单位（毫秒*90）
+	maxAudioCacheDelayByVideo   uint64 = 300 * 90 // 单位（毫秒*90）
+)
 
 type Rtmp2MpegtsRemuxerObserver interface {
 	// OnPatPmt
 	//
-	// @param b const只读内存块，上层可以持有，但是不允许修改
+	// @param b: const只读内存块，上层可以持有，但是不允许修改
 	//
 	OnPatPmt(b []byte)
 
 	// OnTsPackets
 	//
-	// @param tsPackets: mpegts数据，有一个或多个188字节的ts数据组成
+	// @param tsPackets:
+	//  - mpegts数据，有一个或多个188字节的ts数据组成.
+	//  - 回调结束后，remux.Rtmp2MpegtsRemuxer 不再使用这块内存块.
 	//
 	// @param frame: 各字段含义见 mpegts.Frame 结构体定义
 	//
@@ -46,10 +52,10 @@ type Rtmp2MpegtsRemuxer struct {
 
 	observer                Rtmp2MpegtsRemuxerObserver
 	filter                  *rtmp2MpegtsFilter
-	videoOut                []byte // Annexb TODO chef: 优化这块buff
+	videoOut                []byte // Annexb
 	spspps                  []byte // Annexb 也可能是vps+sps+pps
 	ascCtx                  *aac.AscContext
-	audioCacheFrames        []byte // 缓存音频帧数据，注意，可能包含多个音频帧 TODO chef: 优化这块buff
+	audioCacheFrames        []byte // 缓存音频帧数据，注意，可能包含多个音频帧
 	audioCacheFirstFramePts uint64 // audioCacheFrames中第一个音频帧的时间戳 TODO chef: rename to DTS
 	audioCc                 uint8
 	videoCc                 uint8
@@ -59,13 +65,13 @@ type Rtmp2MpegtsRemuxer struct {
 
 func NewRtmp2MpegtsRemuxer(observer Rtmp2MpegtsRemuxerObserver) *Rtmp2MpegtsRemuxer {
 	uk := base.GenUkRtmp2MpegtsRemuxer()
-	videoOut := make([]byte, 1024*1024)
-	videoOut = videoOut[0:0]
 	r := &Rtmp2MpegtsRemuxer{
 		UniqueKey: uk,
 		observer:  observer,
-		videoOut:  videoOut,
 	}
+	r.audioCacheFrames = nil
+	r.videoOut = make([]byte, initialVideoOutBufferSize)
+	r.videoOut = r.videoOut[0:0]
 	r.filter = newRtmp2MpegtsFilter(calcFragmentHeaderQueueSize, r)
 	return r
 }
@@ -78,6 +84,10 @@ func (s *Rtmp2MpegtsRemuxer) FeedRtmpMessage(msg base.RtmpMsg) {
 	s.filter.Push(msg)
 }
 
+func (s *Rtmp2MpegtsRemuxer) Dispose() {
+	s.FlushAudio()
+}
+
 // ---------------------------------------------------------------------------------------------------------------------
 
 // FlushAudio
@@ -88,7 +98,7 @@ func (s *Rtmp2MpegtsRemuxer) FeedRtmpMessage(msg base.RtmpMsg) {
 // 3. 输入流关闭时
 //
 func (s *Rtmp2MpegtsRemuxer) FlushAudio() {
-	if s.audioCacheFrames == nil {
+	if s.audioCacheEmpty() {
 		return
 	}
 
@@ -101,24 +111,12 @@ func (s *Rtmp2MpegtsRemuxer) FlushAudio() {
 	frame.Pid = mpegts.PidAudio
 	frame.Sid = mpegts.StreamIdAudio
 
-	// 注意，在回调前设置为nil，因为回调中有可能再次调用FlushAudio
-	s.audioCacheFrames = nil
+	// 注意，在回调前设置为空，因为回调中有可能再次调用FlushAudio
+	s.resetAudioCache()
 
 	s.onFrame(&frame)
 	// 回调结束后更新cc
 	s.audioCc = frame.Cc
-}
-
-func (s *Rtmp2MpegtsRemuxer) AudioSeqHeaderCached() bool {
-	return s.ascCtx != nil
-}
-
-func (s *Rtmp2MpegtsRemuxer) VideoSeqHeaderCached() bool {
-	return s.spspps != nil
-}
-
-func (s *Rtmp2MpegtsRemuxer) AudioCacheEmpty() bool {
-	return s.audioCacheFrames == nil
 }
 
 // ---------------------------------------------------------------------------------------------------------------------
@@ -140,7 +138,7 @@ func (s *Rtmp2MpegtsRemuxer) onPop(msg base.RtmpMsg) {
 	}
 }
 
-// ----- private -------------------------------------------------------------------------------------------------------
+// ---------------------------------------------------------------------------------------------------------------------
 
 func (s *Rtmp2MpegtsRemuxer) feedVideo(msg base.RtmpMsg) {
 	// 注意，有一种情况是msg.Payload为 27 02 00 00 00
@@ -176,8 +174,7 @@ func (s *Rtmp2MpegtsRemuxer) feedVideo(msg base.RtmpMsg) {
 
 	audSent := false
 	spsppsSent := false
-	// 优化这块buffer
-	out := s.videoOut[0:0]
+	s.resetVideoOutBuffer()
 
 	// msg中可能有多个NALU，逐个获取
 	nals, err := avc.SplitNaluAvcc(msg.Payload[5:])
@@ -210,9 +207,9 @@ func (s *Rtmp2MpegtsRemuxer) feedVideo(msg base.RtmpMsg) {
 			//if codecId == base.RtmpCodecIdAvc && (nalType == avc.NaluTypeSei || nalType == avc.NaluTypeIdrSlice || nalType == avc.NaluTypeSlice) {
 			switch codecId {
 			case base.RtmpCodecIdAvc:
-				out = append(out, avc.AudNalu...)
+				s.videoOut = append(s.videoOut, avc.AudNalu...)
 			case base.RtmpCodecIdHevc:
-				out = append(out, hevc.AudNalu...)
+				s.videoOut = append(s.videoOut, hevc.AudNalu...)
 			}
 			audSent = true
 		}
@@ -223,7 +220,7 @@ func (s *Rtmp2MpegtsRemuxer) feedVideo(msg base.RtmpMsg) {
 			switch nalType {
 			case avc.NaluTypeIdrSlice:
 				if !spsppsSent {
-					if out, err = s.appendSpsPps(out); err != nil {
+					if s.videoOut, err = s.appendSpsPps(s.videoOut); err != nil {
 						Log.Warnf("[%s] append spspps by not exist.", s.UniqueKey)
 						return
 					}
@@ -237,7 +234,7 @@ func (s *Rtmp2MpegtsRemuxer) feedVideo(msg base.RtmpMsg) {
 			switch nalType {
 			case hevc.NaluTypeSliceIdr, hevc.NaluTypeSliceIdrNlp, hevc.NaluTypeSliceCranut:
 				if !spsppsSent {
-					if out, err = s.appendSpsPps(out); err != nil {
+					if s.videoOut, err = s.appendSpsPps(s.videoOut); err != nil {
 						Log.Warnf("[%s] append spspps by not exist.", s.UniqueKey)
 						return
 					}
@@ -251,18 +248,18 @@ func (s *Rtmp2MpegtsRemuxer) feedVideo(msg base.RtmpMsg) {
 
 		// 如果写入了aud或spspps，则用start code3，否则start code4。为什么要这样处理
 		// 这里不知为什么要区分写入两种类型的start code
-		if len(out) == 0 {
-			out = append(out, avc.NaluStartCode4...)
+		if len(s.videoOut) == 0 {
+			s.videoOut = append(s.videoOut, avc.NaluStartCode4...)
 		} else {
-			out = append(out, avc.NaluStartCode3...)
+			s.videoOut = append(s.videoOut, avc.NaluStartCode3...)
 		}
 
-		out = append(out, nal...)
+		s.videoOut = append(s.videoOut, nal...)
 	}
 
 	dts := uint64(msg.Header.TimestampAbs) * 90
 
-	if s.audioCacheFrames != nil && s.audioCacheFirstFramePts+maxAudioCacheDelayByVideo < dts {
+	if !s.audioCacheEmpty() && s.audioCacheFirstFramePts+maxAudioCacheDelayByVideo < dts {
 		s.FlushAudio()
 	}
 
@@ -271,7 +268,7 @@ func (s *Rtmp2MpegtsRemuxer) feedVideo(msg base.RtmpMsg) {
 	frame.Dts = dts
 	frame.Pts = frame.Dts + uint64(cts)*90
 	frame.Key = msg.IsVideoKeyNalu()
-	frame.Raw = out
+	frame.Raw = s.videoOut
 	frame.Pid = mpegts.PidVideo
 	frame.Sid = mpegts.StreamIdVideo
 
@@ -297,18 +294,18 @@ func (s *Rtmp2MpegtsRemuxer) feedAudio(msg base.RtmpMsg) {
 		return
 	}
 
-	if !s.AudioSeqHeaderCached() {
+	if !s.audioSeqHeaderCached() {
 		Log.Warnf("[%s] feed audio message but aac seq header not exist.", s.UniqueKey)
 		return
 	}
 
 	pts := uint64(msg.Header.TimestampAbs) * 90
 
-	if s.audioCacheFrames != nil && s.audioCacheFirstFramePts+maxAudioCacheDelayByAudio < pts {
+	if !s.audioCacheEmpty() && s.audioCacheFirstFramePts+maxAudioCacheDelayByAudio < pts {
 		s.FlushAudio()
 	}
 
-	if s.audioCacheFrames == nil {
+	if s.audioCacheEmpty() {
 		s.audioCacheFirstFramePts = pts
 	}
 
@@ -323,6 +320,10 @@ func (s *Rtmp2MpegtsRemuxer) cacheAacSeqHeader(msg base.RtmpMsg) error {
 	return err
 }
 
+func (s *Rtmp2MpegtsRemuxer) audioSeqHeaderCached() bool {
+	return s.ascCtx != nil
+}
+
 func (s *Rtmp2MpegtsRemuxer) appendSpsPps(out []byte) ([]byte, error) {
 	if s.spspps == nil {
 		return out, base.ErrHls
@@ -332,12 +333,28 @@ func (s *Rtmp2MpegtsRemuxer) appendSpsPps(out []byte) ([]byte, error) {
 	return out, nil
 }
 
+func (s *Rtmp2MpegtsRemuxer) videoSeqHeaderCached() bool {
+	return s.spspps != nil
+}
+
+func (s *Rtmp2MpegtsRemuxer) audioCacheEmpty() bool {
+	return len(s.audioCacheFrames) == 0
+}
+
+func (s *Rtmp2MpegtsRemuxer) resetAudioCache() {
+	s.audioCacheFrames = s.audioCacheFrames[0:0]
+}
+
+func (s *Rtmp2MpegtsRemuxer) resetVideoOutBuffer() {
+	s.videoOut = s.videoOut[0:0]
+}
+
 func (s *Rtmp2MpegtsRemuxer) onFrame(frame *mpegts.Frame) {
 	var boundary bool
 
 	if frame.Sid == mpegts.StreamIdAudio {
 		// 为了考虑没有视频的情况也能切片，所以这里判断spspps为空时，也建议生成fragment
-		boundary = !s.VideoSeqHeaderCached()
+		boundary = !s.videoSeqHeaderCached()
 	} else {
 		// 收到视频，可能触发建立fragment的条件是：
 		// 关键帧数据 &&
@@ -346,17 +363,14 @@ func (s *Rtmp2MpegtsRemuxer) onFrame(frame *mpegts.Frame) {
 		//  (收到过音频seq header && fragment没有打开) || 说明 音视频都有，且都已ready
 		//  (收到过音频seq header && fragment已经打开 && 音频缓存数据不为空) 说明 为什么音频缓存需不为空？
 		// )
-		boundary = frame.Key && (!s.AudioSeqHeaderCached() || !s.opened || !s.AudioCacheEmpty())
+		boundary = frame.Key && (!s.audioSeqHeaderCached() || !s.opened || !s.audioCacheEmpty())
 	}
 
 	if boundary {
 		s.opened = true
 	}
 
-	var packets []byte // TODO(chef): [refactor]
-	mpegts.PackTsPacket(frame, func(packet []byte) {
-		packets = append(packets, packet...)
-	})
+	packets := frame.Pack()
 
 	s.observer.OnTsPackets(packets, frame, boundary)
 }

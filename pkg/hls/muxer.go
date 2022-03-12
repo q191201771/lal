@@ -20,7 +20,7 @@ import (
 )
 
 type MuxerObserver interface {
-	FlushAudio()
+	OnFragmentOpen()
 }
 
 // MuxerConfig
@@ -43,7 +43,7 @@ const (
 
 // Muxer
 //
-// 输入rtmp流，转出hls(m3u8+ts)至文件中，并回调给上层转出ts流
+// 输入mpegts流，转出hls(m3u8+ts)至文件中
 //
 type Muxer struct {
 	UniqueKey string
@@ -122,7 +122,6 @@ func (m *Muxer) Start() {
 
 func (m *Muxer) Dispose() {
 	Log.Infof("[%s] lifecycle dispose hls muxer.", m.UniqueKey)
-	m.observer.FlushAudio()
 	if err := m.closeFragment(true); err != nil {
 		Log.Errorf("[%s] close fragment error. err=%+v", m.UniqueKey, err)
 	}
@@ -132,7 +131,7 @@ func (m *Muxer) Dispose() {
 
 // OnPatPmt OnTsPackets
 //
-// 实现 remux.Rtmp2MpegtsRemuxerObserver，方便直接挂载 remux.Rtmp2MpegtsRemuxer 接收rtmp转Mpegts的数据
+// 实现 remux.Rtmp2MpegtsRemuxerObserver，方便直接将 remux.Rtmp2MpegtsRemuxer 的数据喂入 hls.Muxer
 //
 func (m *Muxer) OnPatPmt(b []byte) {
 	m.FeedPatPmt(b)
@@ -293,7 +292,7 @@ func (m *Muxer) openFragment(ts uint64, discont bool) error {
 	m.fragTs = ts
 
 	// nrm said: start fragment with audio to make iPhone happy
-	m.observer.FlushAudio()
+	m.observer.OnFragmentOpen()
 
 	return nil
 }

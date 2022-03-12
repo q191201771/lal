@@ -174,7 +174,7 @@ func (ascCtx *AscContext) GetSamplingFrequency() (int, error) {
 	case AscSamplingFrequencyIndex44100:
 		return 44100, nil
 	}
-	return -1, fmt.Errorf("%w. index=%d", base.ErrSamplingFrequencyIndex, ascCtx.SamplingFrequencyIndex)
+	return -1, fmt.Errorf("%w. asCtx=%+v", base.ErrSamplingFrequencyIndex, ascCtx)
 }
 
 type AdtsHeaderContext struct {
