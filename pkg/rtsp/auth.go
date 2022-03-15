@@ -9,6 +9,7 @@
 package rtsp
 
 import (
+	"encoding/base64"
 	"fmt"
 	"strings"
 
@@ -81,8 +82,8 @@ func (a *Auth) MakeAuthorization(method, uri string) string {
 	}
 	switch a.Typ {
 	case AuthTypeBasic:
-		ha1 := nazamd5.Md5([]byte(fmt.Sprintf(`%s:%s`, a.Username, a.Password)))
-		return fmt.Sprintf(`%s %s`, a.Typ, ha1)
+		base1 := base64.StdEncoding.EncodeToString([]byte(fmt.Sprintf(`%s:%s`, a.Username, a.Password)))
+		return fmt.Sprintf(`%s %s`, a.Typ, base1)
 	case AuthTypeDigest:
 		ha1 := nazamd5.Md5([]byte(fmt.Sprintf("%s:%s:%s", a.Username, a.Realm, a.Password)))
 		ha2 := nazamd5.Md5([]byte(fmt.Sprintf("%s:%s", method, uri)))
