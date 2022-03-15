@@ -322,6 +322,9 @@ func LoadConfAndInitLog(confFile string) *Config {
 
 	return config
 }
+
+// ---------------------------------------------------------------------------------------------------------------------
+
 func mergeCommonHttpAddrConfig(dst, src *CommonHttpAddrConfig) {
 	if dst.HttpListenAddr == "" && src.HttpListenAddr != "" {
 		dst.HttpListenAddr = src.HttpListenAddr

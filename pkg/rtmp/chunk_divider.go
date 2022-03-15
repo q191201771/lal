@@ -108,7 +108,6 @@ func calcHeader(header *base.RtmpHeader, prevHeader *base.RtmpHeader, out []byte
 
 	// 设置扩展时间戳
 	if timestamp > maxTimestampInMessageHeader {
-		//log.Debugf("CHEFERASEME %+v %+v %d %d", header, prevHeader, timestamp, index)
 		bele.BePutUint32(out[index:], timestamp)
 		index += 4
 	}

@@ -19,19 +19,8 @@ import (
 	"github.com/q191201771/lal/pkg/base"
 )
 
-// TODO chef: 转换TS流的功能（通过回调供httpts使用）也放在了Muxer中，好处是hls和httpts可以共用一份TS流。
-//            后续从架构上考虑，packet hls,mpegts,logic的分工
-
 type MuxerObserver interface {
-	OnPatPmt(b []byte)
-
-	// OnTsPackets
-	//
-	// @param rawFrame: TS流，回调结束后，内部不再使用该内存块
-	//
-	// @param boundary: 新的TS流接收者，应该从该标志为true时开始发送数据
-	//
-	OnTsPackets(rawFrame []byte, boundary bool)
+	OnFragmentOpen()
 }
 
 // MuxerConfig
@@ -54,7 +43,7 @@ const (
 
 // Muxer
 //
-// 输入rtmp流，转出hls(m3u8+ts)至文件中，并回调给上层转出ts流
+// 输入mpegts流，转出hls(m3u8+ts)至文件中
 //
 type Muxer struct {
 	UniqueKey string
@@ -86,8 +75,7 @@ type Muxer struct {
 	frag   int            // frag 写入m3u8的EXT-X-MEDIA-SEQUENCE字段
 	frags  []fragmentInfo // frags TS文件的固定大小环形队列，记录TS的信息
 
-	streamer *Streamer
-	patpmt   []byte
+	patpmt []byte
 }
 
 // 记录fragment的一些信息，注意，写m3u8文件时可能还需要用到历史fragment的信息
@@ -123,8 +111,6 @@ func NewMuxer(streamName string, enable bool, config *MuxerConfig, observer Muxe
 		observer:                  observer,
 	}
 	m.makeFrags()
-	streamer := NewStreamer(m)
-	m.streamer = streamer
 	Log.Infof("[%s] lifecycle new hls muxer. muxer=%p, streamName=%s", uk, m, streamName)
 	return m
 }
@@ -136,30 +122,32 @@ func (m *Muxer) Start() {
 
 func (m *Muxer) Dispose() {
 	Log.Infof("[%s] lifecycle dispose hls muxer.", m.UniqueKey)
-	m.streamer.FlushAudio()
 	if err := m.closeFragment(true); err != nil {
 		Log.Errorf("[%s] close fragment error. err=%+v", m.UniqueKey, err)
 	}
 }
 
-// FeedRtmpMessage @param msg 函数调用结束后，内部不持有msg中的内存块
+// ---------------------------------------------------------------------------------------------------------------------
+
+// OnPatPmt OnTsPackets
 //
-func (m *Muxer) FeedRtmpMessage(msg base.RtmpMsg) {
-	m.streamer.FeedRtmpMessage(msg)
-}
-
-// ----- implement StreamerObserver of Streamer ------------------------------------------------------------------------
-
+// 实现 remux.Rtmp2MpegtsRemuxerObserver，方便直接将 remux.Rtmp2MpegtsRemuxer 的数据喂入 hls.Muxer
+//
 func (m *Muxer) OnPatPmt(b []byte) {
-	m.patpmt = b
-	if m.observer != nil {
-		m.observer.OnPatPmt(b)
-	}
+	m.FeedPatPmt(b)
 }
 
-func (m *Muxer) OnFrame(streamer *Streamer, frame *mpegts.Frame, boundary bool) {
-	var packets []byte
+func (m *Muxer) OnTsPackets(tsPackets []byte, frame *mpegts.Frame, boundary bool) {
+	m.FeedMpegts(tsPackets, frame, boundary)
+}
 
+// ---------------------------------------------------------------------------------------------------------------------
+
+func (m *Muxer) FeedPatPmt(b []byte) {
+	m.patpmt = b
+}
+
+func (m *Muxer) FeedMpegts(tsPackets []byte, frame *mpegts.Frame, boundary bool) {
 	if frame.Sid == mpegts.StreamIdAudio {
 		// TODO(chef): 为什么音频用pts，视频用dts
 		if err := m.updateFragment(frame.Pts, boundary); err != nil {
@@ -168,7 +156,7 @@ func (m *Muxer) OnFrame(streamer *Streamer, frame *mpegts.Frame, boundary bool) 
 		}
 		// TODO(chef): 有updateFragment的返回值判断，这里的判断可以考虑删除
 		if !m.opened {
-			Log.Warnf("[%s] OnFrame A not opened. boundary=%t", m.UniqueKey, boundary)
+			Log.Warnf("[%s] FeedMpegts A not opened. boundary=%t", m.UniqueKey, boundary)
 			return
 		}
 		//Log.Debugf("[%s] WriteFrame A. dts=%d, len=%d", m.UniqueKey, frame.DTS, len(frame.Raw))
@@ -179,25 +167,15 @@ func (m *Muxer) OnFrame(streamer *Streamer, frame *mpegts.Frame, boundary bool) 
 		}
 		// TODO(chef): 有updateFragment的返回值判断，这里的判断可以考虑删除
 		if !m.opened {
-			Log.Warnf("[%s] OnFrame V not opened. boundary=%t, key=%t", m.UniqueKey, boundary, frame.Key)
+			Log.Warnf("[%s] FeedMpegts V not opened. boundary=%t, key=%t", m.UniqueKey, boundary, frame.Key)
 			return
 		}
 		//Log.Debugf("[%s] WriteFrame V. dts=%d, len=%d", m.UniqueKey, frame.Dts, len(frame.Raw))
 	}
 
-	mpegts.PackTsPacket(frame, func(packet []byte) {
-		if m.enable {
-			if err := m.fragment.WriteFile(packet); err != nil {
-				Log.Errorf("[%s] fragment write error. err=%+v", m.UniqueKey, err)
-				return
-			}
-		}
-		if m.observer != nil {
-			packets = append(packets, packet...)
-		}
-	})
-	if m.observer != nil {
-		m.observer.OnTsPackets(packets, boundary)
+	if err := m.fragment.WriteFile(tsPackets); err != nil {
+		Log.Errorf("[%s] fragment write error. err=%+v", m.UniqueKey, err)
+		return
 	}
 }
 
@@ -314,7 +292,7 @@ func (m *Muxer) openFragment(ts uint64, discont bool) error {
 	m.fragTs = ts
 
 	// nrm said: start fragment with audio to make iPhone happy
-	m.streamer.FlushAudio()
+	m.observer.OnFragmentOpen()
 
 	return nil
 }

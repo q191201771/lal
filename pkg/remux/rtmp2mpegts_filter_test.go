@@ -6,7 +6,7 @@
 //
 // Author: Chef (191201771@qq.com)
 
-package hls
+package remux
 
 import (
 	"testing"
@@ -24,15 +24,15 @@ var (
 type qo struct {
 }
 
-func (q *qo) OnPatPmt(b []byte) {
+func (q *qo) onPatPmt(b []byte) {
 	fh = b
 }
 
-func (q *qo) OnPop(msg base.RtmpMsg) {
+func (q *qo) onPop(msg base.RtmpMsg) {
 	poped = append(poped, msg)
 }
 
-func TestQueue(t *testing.T) {
+func TestRtmp2MpegtsFilter(t *testing.T) {
 	goldenRtmpMsg := []base.RtmpMsg{
 		{
 			Header: base.RtmpHeader{
@@ -49,9 +49,9 @@ func TestQueue(t *testing.T) {
 	}
 
 	q := &qo{}
-	queue := NewQueue(8, q)
+	f := newRtmp2MpegtsFilter(8, q)
 	for i := range goldenRtmpMsg {
-		queue.Push(goldenRtmpMsg[i])
+		f.Push(goldenRtmpMsg[i])
 	}
 	assert.Equal(t, mpegts.FixedFragmentHeader, fh)
 	assert.Equal(t, goldenRtmpMsg, poped)
