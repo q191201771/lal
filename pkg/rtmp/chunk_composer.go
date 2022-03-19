@@ -189,8 +189,13 @@ func (c *ChunkComposer) RunLoop(reader io.Reader, cb OnCompleteMessage) error {
 			}
 			absTsFlag = false
 			if Log.GetOption().Level == nazalog.LevelTrace {
+				tmpMsg := stream.toAvMsg()
+				maxLength := 32
+				if tmpMsg.IsVideoKeySeqHeader() || tmpMsg.IsAacSeqHeader() {
+					maxLength = 128
+				}
 				Log.Tracef("[%p] RTMP_READ cb. fmt=%d, csid=%d, header=%+v, timestamp=%d, hex=%s",
-					c, fmt, csid, stream.header, stream.timestamp, hex.Dump(nazabytes.Prefix(stream.msg.buff.Bytes(), 32)))
+					c, fmt, csid, stream.header, stream.timestamp, hex.Dump(nazabytes.Prefix(stream.msg.buff.Bytes(), maxLength)))
 			}
 
 			if stream.header.MsgTypeId == base.RtmpTypeIdAggregateMessage {

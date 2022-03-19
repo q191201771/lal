@@ -9,6 +9,7 @@
 package remux
 
 import (
+	"bytes"
 	"encoding/hex"
 
 	"github.com/q191201771/lal/pkg/aac"
@@ -37,10 +38,14 @@ type Rtmp2MpegtsRemuxerObserver interface {
 	// OnTsPackets
 	//
 	// @param tsPackets:
-	//  - mpegts数据，有一个或多个188字节的ts数据组成.
-	//  - 回调结束后，remux.Rtmp2MpegtsRemuxer 不再使用这块内存块.
+	//  - mpegts数据，有一个或多个188字节的ts数据组成
+	//  - 回调结束后，remux.Rtmp2MpegtsRemuxer 不再使用这块内存块
 	//
 	// @param frame: 各字段含义见 mpegts.Frame 结构体定义
+	//
+	// @param boundary: 是否到达边界处，根据该字段，上层可判断诸如：
+	//  - hls是否允许开启新的ts文件切片
+	//  - 新的ts播放流从该位置开始播放
 	//
 	OnTsPackets(tsPackets []byte, frame *mpegts.Frame, boundary bool)
 }
@@ -141,11 +146,16 @@ func (s *Rtmp2MpegtsRemuxer) onPop(msg base.RtmpMsg) {
 // ---------------------------------------------------------------------------------------------------------------------
 
 func (s *Rtmp2MpegtsRemuxer) feedVideo(msg base.RtmpMsg) {
-	// 注意，有一种情况是msg.Payload为 27 02 00 00 00
 	// 此时打印错误并返回也不影响
 	//
 	if len(msg.Payload) <= 5 {
-		Log.Errorf("[%s] invalid video message length. header=%+v, payload=%s", s.UniqueKey, msg.Header, hex.Dump(msg.Payload))
+		// 注意，ffmpeg有时会发送msg.Payload为 27 02 00 00 00，这种情况我们直接返回，不打印日志
+		if bytes.Equal(msg.Payload, []byte{0x27, 0x02, 0x0, 0x0, 0x0}) {
+			// noop
+			return
+		}
+		Log.Errorf("[%s] invalid video message length. header=%+v, payload=%s",
+			s.UniqueKey, msg.Header, hex.Dump(msg.Payload))
 		return
 	}
 
@@ -278,7 +288,8 @@ func (s *Rtmp2MpegtsRemuxer) feedVideo(msg base.RtmpMsg) {
 
 func (s *Rtmp2MpegtsRemuxer) feedAudio(msg base.RtmpMsg) {
 	if len(msg.Payload) < 3 {
-		Log.Errorf("[%s] invalid audio message length. len=%d", s.UniqueKey, len(msg.Payload))
+		Log.Errorf("[%s] invalid audio message length. header=%+v, payload=%s",
+			s.UniqueKey, msg.Header, hex.Dump(msg.Payload))
 		return
 	}
 	if msg.Payload[0]>>4 != base.RtmpSoundFormatAac {
