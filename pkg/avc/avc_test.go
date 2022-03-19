@@ -10,8 +10,11 @@ package avc_test
 
 import (
 	"bytes"
+	"encoding/hex"
 	"errors"
 	"testing"
+
+	"github.com/q191201771/naza/pkg/nazalog"
 
 	"github.com/q191201771/lal/pkg/base"
 
@@ -160,7 +163,7 @@ func TestCorner(t *testing.T) {
 	b := &bytes.Buffer{}
 	err = avc.CaptureAvcc2Annexb(b, []byte{0x17, 0x0, 0x1})
 	assert.Equal(t, nil, b.Bytes())
-	assert.Equal(t, true, errors.Is(err, base.ErrAvc))
+	assert.Equal(t, true, errors.Is(err, base.ErrShortBuffer))
 }
 
 func TestParsePps_Case2(t *testing.T) {
@@ -314,4 +317,31 @@ func TestIterateNaluAvcc(t *testing.T) {
 		assert.Equal(t, v.nalList, nalList)
 		assert.Equal(t, true, errors.Is(err, v.err))
 	}
+}
+
+func TestIssue135(t *testing.T) {
+	//
+	// https://github.com/q191201771/lal/issues/135
+	//
+	// TRACE [0xc0000ff0b0] RTMP_READ cb. fmt=0, csid=6, header={Csid:6 MsgLen:77 MsgTypeId:9 MsgStreamId:1 TimestampAbs:0}, timestamp=0,
+	// hex=00000000  17 00 00 00 00 01 4d 40  1f ff e2 00 18 67 4d 40  |......M@.....gM@|
+	//     00000010  1f ec a0 28 02 dd 08 00  00 03 00 08 00 00 03 01  |...(............|
+	// - chunk_composer.go:192
+	//
+	// configurationVersion 1
+	// AVCProfileIndication 4d
+	// profile_compatibility 40
+	// AVCLevelIndication 1f
+	// lengthSizeMinusOne ff & 2 = 2
+	// numOfSequenceParameterSets e2 & 5 = 2
+	// sequenceParameterSetLength 00 18 = 18
+	//
+	// 注意，因为抓的数据不全，所以会返回错误
+	// 只是用来调试看numOfSps是否为2, 第一个spsLength是否为24
+	encStr := "1700000000014d401fffe20018674d401feca02802dd08000003000800000301"
+	dst := make([]byte, 32)
+	n, err := hex.Decode(dst, []byte(encStr))
+	nazalog.Debugf("%d, %+v", n, err)
+	b, err := avc.SpsPpsSeqHeader2Annexb(dst)
+	nazalog.Debugf("%s, %+v", hex.Dump(b), err)
 }

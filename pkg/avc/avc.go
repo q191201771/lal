@@ -9,6 +9,7 @@
 package avc
 
 import (
+	"bytes"
 	"io"
 
 	"github.com/q191201771/lal/pkg/base"
@@ -221,21 +222,32 @@ func ParseSliceTypeReadable(nalu []byte) (string, error) {
 //
 // AVCC Seq Header -> Annexb
 //
-// @param payload: rtmp message的payload部分或者flv tag的payload部分
-//                 注意，包含了头部2字节类型以及3字节的cts
+// @param payload:
+//  rtmp message的payload部分或者flv tag的payload部分。
+//  注意，包含了头部2字节类型以及3字节的cts。
 //
-// @return 返回的内存块为内部独立新申请
+// @return 返回的内存块为内部独立新申请。
 //
 func SpsPpsSeqHeader2Annexb(payload []byte) ([]byte, error) {
-	sps, pps, err := ParseSpsPpsFromSeqHeaderWithoutMalloc(payload)
+	// TODO(chef): [refactor] 这里没有使用 ParseSpsPpsFromSeqHeaderWithoutMalloc
+	// 因为遇到了sps>1个的情况
+	// 需要重构相关的代码
+
+	spsList, ppsList, err := parseSpsPpsListFromSeqHeaderWithoutMalloc(payload)
 	if err != nil {
-		return nil, nazaerrors.Wrap(base.ErrAvc)
+		return nil, err
 	}
-	var ret []byte
-	ret = append(ret, NaluStartCode4...)
-	ret = append(ret, sps...)
-	ret = append(ret, NaluStartCode4...)
-	ret = append(ret, pps...)
+	ret := make([]byte, len(payload))
+	ret = ret[0:0]
+
+	for _, item := range spsList {
+		ret = append(ret, NaluStartCode4...)
+		ret = append(ret, item...)
+	}
+	for _, item := range ppsList {
+		ret = append(ret, NaluStartCode4...)
+		ret = append(ret, item...)
+	}
 	return ret, nil
 }
 
@@ -527,3 +539,76 @@ func Avcc2Annexb(nals []byte) ([]byte, error) {
 }
 
 // TODO(chef): 是否需要 func NaluAvcc2Annexb, func NaluAnnexb2Avcc
+
+// ---------------------------------------------------------------------------------------------------------------------
+
+// parseSpsPpsListFromSeqHeaderWithoutMalloc
+//
+// 从AVCC格式的Seq Header中得到SPS和PPS内存块
+//
+// @param payload:
+//  rtmp message的payload部分或者flv tag的payload部分。
+//  注意，包含了头部2字节类型以及3字节的cts。
+//
+// @return spsList, ppsList:
+//  复用传入参数`payload`的内存块
+//
+func parseSpsPpsListFromSeqHeaderWithoutMalloc(payload []byte) (spsList, ppsList [][]byte, err error) {
+	if len(payload) < 5 {
+		return nil, nil, nazaerrors.Wrap(base.ErrShortBuffer)
+	}
+	expected := []byte{0x17, 0, 0, 0, 0}
+	if !bytes.Equal(payload[:5], expected) {
+		return nil, nil, nazaerrors.Wrap(base.ErrAvc)
+	}
+
+	b := nazabits.NewBitReader(payload)
+	// skip 10
+	if _, err = b.ReadBytes(10); err != nil {
+		return nil, nil, err
+	}
+
+	// pps和sps的逻辑一样，再一套一层循环处理
+	var v8 uint8
+	var vbs []byte
+
+	if v8, err = b.ReadBits8(8); err != nil {
+		return nil, nil, err
+	}
+	numOfSps := int(v8 & 0x1F)
+	spsList = make([][]byte, numOfSps)
+
+	for j := 0; j < numOfSps; j++ {
+		// TODO(chef): 考虑nazabits中支持网络序操作
+		if vbs, err = b.ReadBytes(2); err != nil {
+			return nil, nil, err
+		}
+
+		spsLength := uint(bele.BeUint16(vbs))
+		if vbs, err = b.ReadBytes(spsLength); err != nil {
+			return nil, nil, err
+		}
+		spsList[j] = vbs
+	}
+
+	// pps和sps的读取逻辑一样
+	if v8, err = b.ReadBits8(8); err != nil {
+		return nil, nil, err
+	}
+	numOfPps := int(v8 & 0x1F)
+	ppsList = make([][]byte, numOfPps)
+
+	for j := 0; j < numOfPps; j++ {
+		if vbs, err = b.ReadBytes(2); err != nil {
+			return nil, nil, err
+		}
+
+		ppsLength := uint(bele.BeUint16(vbs))
+		if vbs, err = b.ReadBytes(ppsLength); err != nil {
+			return nil, nil, err
+		}
+		ppsList[j] = vbs
+	}
+
+	return
+}
