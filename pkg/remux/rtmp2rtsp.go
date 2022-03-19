@@ -159,20 +159,27 @@ func (r *Rtmp2RtspRemuxer) isAnalyzeEnough() bool {
 }
 
 func (r *Rtmp2RtspRemuxer) remux(msg base.RtmpMsg) {
+	var packer *rtprtcp.RtpPacker
 	var rtppkts []rtprtcp.RtpPacket
 	switch msg.Header.MsgTypeId {
 	case base.RtmpTypeIdAudio:
-		rtppkts = r.getAudioPacker().Pack(base.AvPacket{
-			Timestamp:   msg.Header.TimestampAbs,
-			PayloadType: r.audioPt,
-			Payload:     msg.Payload[2:],
-		})
+		packer = r.getAudioPacker()
+		if packer != nil {
+			rtppkts = packer.Pack(base.AvPacket{
+				Timestamp:   msg.Header.TimestampAbs,
+				PayloadType: r.audioPt,
+				Payload:     msg.Payload[2:],
+			})
+		}
 	case base.RtmpTypeIdVideo:
-		rtppkts = r.getVideoPacker().Pack(base.AvPacket{
-			Timestamp:   msg.Header.TimestampAbs,
-			PayloadType: r.videoPt,
-			Payload:     msg.Payload[5:],
-		})
+		packer = r.getVideoPacker()
+		if packer != nil {
+			rtppkts = r.getVideoPacker().Pack(base.AvPacket{
+				Timestamp:   msg.Header.TimestampAbs,
+				PayloadType: r.videoPt,
+				Payload:     msg.Payload[5:],
+			})
+		}
 	}
 
 	for i := range rtppkts {
@@ -181,14 +188,18 @@ func (r *Rtmp2RtspRemuxer) remux(msg base.RtmpMsg) {
 }
 
 func (r *Rtmp2RtspRemuxer) getAudioPacker() *rtprtcp.RtpPacker {
+	if r.asc == nil {
+		return nil
+	}
+
 	if r.audioPacker == nil {
 		// TODO(chef): ssrc随机产生，并且整个lal没有在setup信令中传递ssrc
 		r.audioSsrc = rand.Uint32()
 
-		// TODO(chef): 如果rtmp不是以音视频头开始，也可能收到了帧数据，但是头不存在，目前该remux没有做过多容错判断，后续要加上，或者在输入层保证
 		ascCtx, err := aac.NewAscContext(r.asc)
 		if err != nil {
 			Log.Errorf("parse asc failed. err=%+v", err)
+			return nil
 		}
 		clockRate, err := ascCtx.GetSamplingFrequency()
 		if err != nil {
@@ -202,6 +213,9 @@ func (r *Rtmp2RtspRemuxer) getAudioPacker() *rtprtcp.RtpPacker {
 }
 
 func (r *Rtmp2RtspRemuxer) getVideoPacker() *rtprtcp.RtpPacker {
+	if r.sps == nil {
+		return nil
+	}
 	if r.videoPacker == nil {
 		r.videoSsrc = rand.Uint32()
 		pp := rtprtcp.NewRtpPackerPayloadAvcHevc(r.videoPt, func(option *rtprtcp.RtpPackerPayloadAvcHevcOption) {
