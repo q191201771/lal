@@ -112,7 +112,16 @@ func (r *AvPacket2RtmpRemuxer) InitWithAvConfig(asc, vps, sps, pps []byte) {
 	}
 }
 
-// FeedAvPacket @param pkt: 内部不持有该内存块
+// FeedAvPacket
+//
+// 输入 base.AvPacket 数据
+//
+// @param pkt:
+//
+//  - 如果是aac，格式是裸数据，不需要adts头
+//  - 如果是h264，格式是avcc
+//
+//  内部不持有该内存块
 //
 func (r *AvPacket2RtmpRemuxer) FeedAvPacket(pkt base.AvPacket) {
 	switch pkt.PayloadType {

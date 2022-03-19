@@ -50,9 +50,12 @@ type Group struct {
 	pullProxy  *pullProxy
 	// rtmp pub使用
 	dummyAudioFilter *remux.DummyAudioFilter
-	// rtmp pub/pull使用
-	rtmpGopCache    *remux.GopCache
+	// rtmp使用
+	rtmpGopCache *remux.GopCache
+	// httpflv使用
 	httpflvGopCache *remux.GopCache
+	// httpts使用
+	httptsGopCache *remux.GopCacheMpegts
 	// rtsp使用
 	sdpCtx *sdp.LogicContext
 	// mpegts使用
@@ -95,6 +98,7 @@ func NewGroup(appName string, streamName string, config *Config, observer GroupO
 		rtspSubSessionSet:    make(map[*rtsp.SubSession]struct{}),
 		rtmpGopCache:         remux.NewGopCache("rtmp", uk, config.RtmpConfig.GopNum),
 		httpflvGopCache:      remux.NewGopCache("httpflv", uk, config.HttpflvConfig.GopNum),
+		httptsGopCache:       remux.NewGopCacheMpegts(uk, config.HttptsConfig.GopNum),
 		pullProxy:            &pullProxy{},
 	}
 

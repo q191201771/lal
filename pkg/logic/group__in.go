@@ -181,8 +181,10 @@ func (group *Group) delIn() {
 	group.rtsp2RtmpRemuxer = nil
 	group.rtmp2RtspRemuxer = nil
 	group.dummyAudioFilter = nil
+
 	group.rtmpGopCache.Clear()
 	group.httpflvGopCache.Clear()
-	group.patpmt = nil
+	group.httptsGopCache.Clear()
 	group.sdpCtx = nil
+	group.patpmt = nil
 }

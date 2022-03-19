@@ -3,7 +3,7 @@
 ```
 {
   "# doc of config": "https://pengrl.com/lal/#/ConfigBrief", //. 配置文件对应的文档说明链接，在程序中没实际用途
-  "conf_version": "0.2.8",                                   //. 配置文件版本号，业务方不应该手动修改，程序中会检查该版本
+  "conf_version": "0.2.9",                                   //. 配置文件版本号，业务方不应该手动修改，程序中会检查该版本
                                                              //  号是否与代码中声明的一致
   "rtmp": {
     "enable": true,                      //. 是否开启rtmp服务的监听
@@ -85,8 +85,9 @@
   "httpts": {
     "enable": true,         //. 是否开启HTTP-TS服务的监听。注意，这并不是HLS中的TS，而是在一条HTTP长连接上持续性传输TS流
     "enable_https": true,   //. 是否开启HTTPS-TS监听
-    "url_pattern": "/"      //. 拉流url路由路径地址。默认值为`/`，表示不受限制，路由地址可以为任意路径地址。
+    "url_pattern": "/",     //. 拉流url路由路径地址。默认值为`/`，表示不受限制，路由地址可以为任意路径地址。
                             //  如果设置为`/live/`，则只能从`/live/`路径下拉流，比如`/live/test110.ts`
+    "gop_num": 0            //. 见rtmp.gop_num
   },
   "rtsp": {
     "enable": true, //. 是否开启rtsp服务的监听，目前只支持rtsp推流

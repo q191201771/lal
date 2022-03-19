@@ -118,6 +118,8 @@ func Entry(tt *testing.T) {
 }
 
 func entry() {
+	Log.Debugf("> innertest")
+
 	if _, err := os.Lstat(confFile); err != nil {
 		Log.Warnf("lstat %s error. err=%+v", confFile, err)
 		return

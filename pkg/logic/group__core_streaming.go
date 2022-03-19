@@ -218,7 +218,8 @@ func (group *Group) broadcastByRtmpMsg(msg base.RtmpMsg) {
 			}
 			session.ShouldWaitVideoKeyFrame = false
 		}
-	}
+	} // for loop iterate rtmpSubSessionSet
+
 	// ## 转发本次数据
 	if len(group.rtmpSubSessionSet) > 0 {
 		if group.rtmpMergeWriter == nil {
@@ -400,23 +401,51 @@ func (group *Group) feedTsPackets(tsPackets []byte, frame *mpegts.Frame, boundar
 		group.hlsMuxer.FeedMpegts(tsPackets, frame, boundary)
 	}
 
+	// # 遍历 httpts sub session
 	for session := range group.httptsSubSessionSet {
 		if session.IsFresh {
+			// ## 如果是新加入者
+
+			// 发送头
+			session.Write(group.patpmt)
+
+			// 如果有缓存，发送缓存
+			// 并且设置标志，后续都实时转发就行了
+			gopCount := group.httptsGopCache.GetGopCount()
+			for i := 0; i < gopCount; i++ {
+				for _, item := range group.httptsGopCache.GetGopDataAt(i) {
+					session.Write(item)
+				}
+			}
+			if gopCount > 0 {
+				session.ShouldWaitBoundary = false
+			}
+
+			// 新加入逻辑只用走一次
+			session.IsFresh = false
+		}
+
+		// ## 转发本次数据
+		if session.ShouldWaitBoundary {
 			if boundary {
-				session.Write(group.patpmt)
 				session.Write(tsPackets)
-				session.IsFresh = false
+
+				session.ShouldWaitBoundary = false
+			} else {
+				// 需要继续等
 			}
 		} else {
 			session.Write(tsPackets)
 		}
-	}
+	} // for loop iterate httptsSubSessionSet
 
 	if group.recordMpegts != nil {
 		if err := group.recordMpegts.Write(tsPackets); err != nil {
 			Log.Errorf("[%s] record mpegts write error. err=%+v", group.UniqueKey, err)
 		}
 	}
+
+	group.httptsGopCache.Feed(tsPackets, boundary)
 }
 
 // ---------------------------------------------------------------------------------------------------------------------

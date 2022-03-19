@@ -18,14 +18,15 @@ import (
 var tsHttpResponseHeader []byte
 
 type SubSession struct {
-	core    *base.HttpSubSession
-	IsFresh bool
+	core               *base.HttpSubSession
+	IsFresh            bool
+	ShouldWaitBoundary bool
 }
 
 func NewSubSession(conn net.Conn, urlCtx base.UrlContext, isWebSocket bool, websocketKey string) *SubSession {
 	uk := base.GenUkTsSubSession()
 	s := &SubSession{
-		base.NewHttpSubSession(base.HttpSubSessionOption{
+		core: base.NewHttpSubSession(base.HttpSubSessionOption{
 			Conn: conn,
 			ConnModOption: func(option *connection.Option) {
 				option.WriteChanSize = SubSessionWriteChanSize
@@ -37,7 +38,8 @@ func NewSubSession(conn net.Conn, urlCtx base.UrlContext, isWebSocket bool, webs
 			IsWebSocket:  isWebSocket,
 			WebSocketKey: websocketKey,
 		}),
-		true,
+		IsFresh:            true,
+		ShouldWaitBoundary: true,
 	}
 	Log.Infof("[%s] lifecycle new httpts SubSession. session=%p, remote addr=%s", uk, s, conn.RemoteAddr().String())
 	return s

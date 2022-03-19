@@ -21,7 +21,7 @@ import (
 	"github.com/q191201771/naza/pkg/nazalog"
 )
 
-const ConfVersion = "v0.2.8"
+const ConfVersion = "v0.2.9"
 
 const (
 	defaultHlsCleanupMode    = hls.CleanupModeInTheEnd
@@ -72,6 +72,8 @@ type HttpflvConfig struct {
 
 type HttptsConfig struct {
 	CommonHttpServerConfig
+
+	GopNum int `json:"gop_num"`
 }
 
 type HlsConfig struct {

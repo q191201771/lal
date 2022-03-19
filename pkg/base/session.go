@@ -13,6 +13,8 @@ import (
 	"strings"
 )
 
+// TODO(chef): [refactor] 整理 subsession 接口部分 IsFresh 和 ShouldWaitVideoKeyFrame
+
 // group中，session Dispose表现记录
 //
 // Dispose结束后回调OnDel:

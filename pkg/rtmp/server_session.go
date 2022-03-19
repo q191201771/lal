@@ -78,7 +78,17 @@ type ServerSession struct {
 	// only for PubSession
 	avObserver PubSessionObserver
 
-	// only for SubSession
+	// IsFresh ShouldWaitVideoKeyFrame
+	//
+	// 只有sub类型需要
+	//
+	// IsFresh
+	//  表示是新加入的session，需要新发送meta，vsh，ash以及gop等数据，再转发实时数据。
+	//
+	// ShouldWaitVideoKeyFrame
+	//  表示是新加入的session，正在等待视频关键帧。
+	//  注意，需要考虑没有纯音频流的场景。
+	//
 	IsFresh                 bool
 	ShouldWaitVideoKeyFrame bool
 
