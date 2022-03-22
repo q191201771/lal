@@ -33,6 +33,7 @@ const (
 
 	AscSamplingFrequencyIndex48000 = 3
 	AscSamplingFrequencyIndex44100 = 4
+	AscSamplingFrequencyIndex22050 = 7
 )
 
 const (
@@ -48,7 +49,7 @@ const (
 // <1.6.3.4 channelConfiguration>
 // --------------------------------------------------------
 // audio object type      [5b] 1=AAC MAIN  2=AAC LC
-// samplingFrequencyIndex [4b] 3=48000  4=44100  6=24000  5=32000  11=11025
+// samplingFrequencyIndex [4b] 3=48000, 4=44100, 5=32000, 6=24000, 7=22050, 11=11025
 // channelConfiguration   [4b] 1=center front speaker  2=left, right front speakers
 //
 type AscContext struct {
@@ -173,6 +174,8 @@ func (ascCtx *AscContext) GetSamplingFrequency() (int, error) {
 		return 48000, nil
 	case AscSamplingFrequencyIndex44100:
 		return 44100, nil
+	case AscSamplingFrequencyIndex22050:
+		return 22050, nil
 	}
 	return -1, fmt.Errorf("%w. asCtx=%+v", base.ErrSamplingFrequencyIndex, ascCtx)
 }

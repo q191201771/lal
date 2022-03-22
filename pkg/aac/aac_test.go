@@ -63,6 +63,10 @@ func TestAscContext(t *testing.T) {
 	// error case
 	_, err = aac.MakeAscWithAdtsHeader(nil)
 	assert.Equal(t, true, errors.Is(err, base.ErrShortBuffer))
+
+	// case
+	ascCtx, err = aac.NewAscContext([]byte{0x13, 0x90, 0x56, 0xe5, 0xa0})
+	assert.Equal(t, nil, err)
 }
 
 func TestMakeAudioDataSeqHeader(t *testing.T) {
