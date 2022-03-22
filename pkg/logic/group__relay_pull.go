@@ -81,7 +81,7 @@ func (group *Group) pullIfNeeded() {
 		return
 	}
 	// 如果没有从本地拉流的，就不需要pull了
-	if !group.hasOutSession() {
+	if !group.hasSubSession() {
 		return
 	}
 	// 如果本地已经有输入型的流，就不需要pull了
@@ -126,7 +126,7 @@ func (group *Group) pullIfNeeded() {
 //
 func (group *Group) stopPullIfNeeded() {
 	// 没有输出型的流了
-	if group.pullProxy.pullSession != nil && !group.hasOutSession() {
+	if group.pullProxy.pullSession != nil && !group.hasSubSession() {
 		Log.Infof("[%s] stop pull since no sub session.", group.UniqueKey)
 		group.pullProxy.pullSession.Dispose()
 	}

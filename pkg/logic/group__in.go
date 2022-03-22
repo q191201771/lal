@@ -32,7 +32,7 @@ func (group *Group) AddRtmpPubSession(session *rtmp.ServerSession) error {
 	group.rtmpPubSession = session
 	group.addIn()
 
-	if group.config.RtspConfig.Enable {
+	if group.shouldStartRtspRemuxer() {
 		group.rtmp2RtspRemuxer = remux.NewRtmp2RtspRemuxer(
 			group.onSdpFromRemux,
 			group.onRtpPacketFromRemux,
@@ -152,7 +152,7 @@ func (group *Group) delRtmpPullSession(session *rtmp.PullSession) {
 func (group *Group) addIn() {
 	now := time.Now().Unix()
 
-	if group.config.HlsConfig.Enable || group.config.HttptsConfig.Enable {
+	if group.shouldStartMpegtsRemuxer() {
 		group.rtmp2MpegtsRemuxer = remux.NewRtmp2MpegtsRemuxer(group)
 	}
 

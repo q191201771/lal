@@ -31,6 +31,7 @@ func TestGetRtspFirstAuth(t *testing.T) {
 	assert.Equal(t, "admin", rtspAuth.Username)
 	assert.Equal(t, "admin123", rtspAuth.Password)
 }
+
 /*
 OPTIONS rtsp://35.13.202.5:554/cam/realmonitor?channel=1&subtype=0 RTSP/1.0
 CSeq: 1
@@ -58,7 +59,7 @@ func TestRtspBasicAuth(t *testing.T) {
 	username := "admin"
 	password := "admin"
 	rtspAuth.FeedWwwAuthenticate(auths, username, password)
-	basicAuthStr:=rtspAuth.MakeAuthorization("OPTIONS","rtsp://35.13.202.5:554/cam/realmonitor?channel=1&subtype=0")
+	basicAuthStr := rtspAuth.MakeAuthorization("OPTIONS", "rtsp://35.13.202.5:554/cam/realmonitor?channel=1&subtype=0")
 
 	assert.Equal(t, rtsp.AuthTypeBasic, rtspAuth.Typ)
 	assert.Equal(t, "Basic YWRtaW46YWRtaW4=", basicAuthStr)

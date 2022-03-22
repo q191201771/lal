@@ -23,9 +23,7 @@ func (group *Group) startHlsIfNeeded() {
 	if !group.config.HlsConfig.Enable {
 		return
 	}
-	if group.hlsMuxer != nil {
-		Log.Errorf("[%s] hls muxer exist while addIn. muxer=%+v", group.UniqueKey, group.hlsMuxer)
-	}
+
 	enable := group.config.HlsConfig.Enable || group.config.HlsConfig.EnableHttps
 	group.hlsMuxer = hls.NewMuxer(group.streamName, enable, &group.config.HlsConfig.MuxerConfig, group)
 	group.hlsMuxer.Start()

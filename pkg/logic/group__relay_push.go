@@ -33,6 +33,8 @@ func (group *Group) DelRtmpPushSession(url string, session *rtmp.PushSession) {
 	}
 }
 
+// ---------------------------------------------------------------------------------------------------------------------
+
 type pushProxy struct {
 	isPushing   bool
 	pushSession *rtmp.PushSession

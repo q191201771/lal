@@ -8,6 +8,8 @@
 
 package base
 
+import "github.com/q191201771/naza/pkg/bele"
+
 const (
 	// RtmpTypeIdAudio spec-rtmp_specification_1.0.pdf
 	// 7.1. Types of Messages
@@ -83,7 +85,7 @@ type RtmpHeader struct {
 	MsgLen       uint32 // 不包含header的大小
 	MsgTypeId    uint8  // 8 audio 9 video 18 metadata
 	MsgStreamId  int
-	TimestampAbs uint32 // 经过计算得到的流上的绝对时间戳，单位毫秒
+	TimestampAbs uint32 // dts, 经过计算得到的流上的绝对时间戳，单位毫秒
 }
 
 type RtmpMsg struct {
@@ -124,4 +126,12 @@ func (msg RtmpMsg) Clone() (ret RtmpMsg) {
 	ret.Payload = make([]byte, len(msg.Payload))
 	copy(ret.Payload, msg.Payload)
 	return
+}
+
+func (msg RtmpMsg) Dts() uint32 {
+	return msg.Header.TimestampAbs
+}
+
+func (msg RtmpMsg) Pts() uint32 {
+	return msg.Header.TimestampAbs + bele.BeUint24(msg.Payload[2:])
 }

@@ -50,9 +50,9 @@ type Group struct {
 	pullProxy  *pullProxy
 	// rtmp pub使用
 	dummyAudioFilter *remux.DummyAudioFilter
-	// rtmp使用
+	// rtmp sub使用
 	rtmpGopCache *remux.GopCache
-	// httpflv使用
+	// httpflv sub使用
 	httpflvGopCache *remux.GopCache
 	// httpts使用
 	httptsGopCache *remux.GopCacheMpegts
@@ -159,6 +159,11 @@ func (group *Group) Dispose() {
 		session.Dispose()
 	}
 	group.rtmpSubSessionSet = nil
+
+	for session := range group.rtspSubSessionSet {
+		session.Dispose()
+	}
+	group.rtspSubSessionSet = nil
 
 	for session := range group.httpflvSubSessionSet {
 		session.Dispose()
@@ -375,6 +380,21 @@ func (group *Group) updateAllSessionStat() {
 	}
 }
 
+func (group *Group) hasPubSession() bool {
+	return group.rtmpPubSession != nil || group.rtspPubSession != nil
+}
+
+func (group *Group) hasSubSession() bool {
+	return len(group.rtmpSubSessionSet) != 0 ||
+		len(group.httpflvSubSessionSet) != 0 ||
+		len(group.httptsSubSessionSet) != 0 ||
+		len(group.rtspSubSessionSet) != 0
+}
+
+func (group *Group) hasPullSession() bool {
+	return group.pullProxy.pullSession != nil
+}
+
 func (group *Group) hasPushSession() bool {
 	for _, item := range group.url2PushProxy {
 		if item.isPushing || item.pushSession != nil {
@@ -385,28 +405,19 @@ func (group *Group) hasPushSession() bool {
 }
 
 func (group *Group) hasInSession() bool {
-	return group.rtmpPubSession != nil ||
-		group.rtspPubSession != nil ||
-		group.pullProxy.pullSession != nil
+	return group.hasPubSession() || group.hasPullSession()
 }
 
-// 是否还有out往外发送音视频数据的session，目前判断所有协议类型的sub session
+// hasOutSession 是否还有out往外发送音视频数据的session
 //
 func (group *Group) hasOutSession() bool {
-	return len(group.rtmpSubSessionSet) != 0 ||
-		len(group.httpflvSubSessionSet) != 0 ||
-		len(group.httptsSubSessionSet) != 0 ||
-		len(group.rtspSubSessionSet) != 0
+	return group.hasSubSession() || group.hasPushSession()
 }
 
-// 当前group是否完全没有流了
+// isTotalEmpty 当前group是否完全没有流了
 //
 func (group *Group) isTotalEmpty() bool {
-	// TODO(chef): 是否应该只判断pub、sub、pull还是所有包括录制在内的都判断
-	return !group.hasInSession() &&
-		!group.hasOutSession() &&
-		group.hlsMuxer == nil &&
-		!group.hasPushSession()
+	return !group.hasInSession() && !group.hasOutSession()
 }
 
 func (group *Group) inSessionUniqueKey() string {
@@ -416,5 +427,18 @@ func (group *Group) inSessionUniqueKey() string {
 	if group.rtspPubSession != nil {
 		return group.rtspPubSession.UniqueKey()
 	}
+	if group.pullProxy.pullSession != nil {
+		return group.pullProxy.pullSession.UniqueKey()
+	}
 	return ""
+}
+
+func (group *Group) shouldStartRtspRemuxer() bool {
+	return group.config.RtspConfig.Enable
+}
+
+func (group *Group) shouldStartMpegtsRemuxer() bool {
+	return (group.config.HlsConfig.Enable || group.config.HlsConfig.EnableHttps) ||
+		(group.config.HttptsConfig.Enable || group.config.HttptsConfig.EnableHttps) ||
+		group.config.RecordConfig.EnableMpegts
 }

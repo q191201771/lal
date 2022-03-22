@@ -25,13 +25,7 @@ func (group *Group) startRecordFlvIfNeeded(nowUnix int64) {
 	// 构造文件名
 	filename := fmt.Sprintf("%s-%d.flv", group.streamName, nowUnix)
 	filenameWithPath := filepath.Join(group.config.RecordConfig.FlvOutPath, filename)
-	// 如果已经在录制，则先关闭
-	// TODO(chef): 正常的逻辑是否会走到这？
-	if group.recordFlv != nil {
-		Log.Errorf("[%s] record flv but already exist. new filename=%s, old filename=%s",
-			group.UniqueKey, filenameWithPath, group.recordFlv.Name())
-		_ = group.recordFlv.Dispose()
-	}
+
 	// 初始化录制
 	group.recordFlv = &httpflv.FlvFileWriter{}
 	if err := group.recordFlv.Open(filenameWithPath); err != nil {

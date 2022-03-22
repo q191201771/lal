@@ -146,8 +146,6 @@ func (s *Rtmp2MpegtsRemuxer) onPop(msg base.RtmpMsg) {
 // ---------------------------------------------------------------------------------------------------------------------
 
 func (s *Rtmp2MpegtsRemuxer) feedVideo(msg base.RtmpMsg) {
-	// 此时打印错误并返回也不影响
-	//
 	if len(msg.Payload) <= 5 {
 		// 注意，ffmpeg有时会发送msg.Payload为 27 02 00 00 00，这种情况我们直接返回，不打印日志
 		if bytes.Equal(msg.Payload, []byte{0x27, 0x02, 0x0, 0x0, 0x0}) {
@@ -288,6 +286,10 @@ func (s *Rtmp2MpegtsRemuxer) feedVideo(msg base.RtmpMsg) {
 
 func (s *Rtmp2MpegtsRemuxer) feedAudio(msg base.RtmpMsg) {
 	if len(msg.Payload) < 3 {
+		// 注意，ffmpeg有时会发送msg.Payload为 af 00，这种情况我们直接返回，不打印日志
+		if bytes.Equal(msg.Payload, []byte{0xaf, 0x0}) {
+			return
+		}
 		Log.Errorf("[%s] invalid audio message length. header=%+v, payload=%s",
 			s.UniqueKey, msg.Header, hex.Dump(msg.Payload))
 		return

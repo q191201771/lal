@@ -149,12 +149,12 @@ func (group *Group) broadcastByRtmpMsg(msg base.RtmpMsg) {
 	}
 
 	// # mpegts remuxer
-	if group.config.HlsConfig.Enable || group.config.HttptsConfig.Enable {
+	if group.rtmp2MpegtsRemuxer != nil {
 		group.rtmp2MpegtsRemuxer.FeedRtmpMessage(msg)
 	}
 
 	// # rtsp
-	if group.config.RtspConfig.Enable && group.rtmp2RtspRemuxer != nil {
+	if group.rtmp2RtspRemuxer != nil {
 		group.rtmp2RtspRemuxer.FeedRtmpMsg(msg)
 	}
 

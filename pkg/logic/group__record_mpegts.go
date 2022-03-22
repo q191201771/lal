@@ -25,12 +25,7 @@ func (group *Group) startRecordMpegtsIfNeeded(nowUnix int64) {
 	// 构造文件名
 	filename := fmt.Sprintf("%s-%d.ts", group.streamName, nowUnix)
 	filenameWithPath := filepath.Join(group.config.RecordConfig.MpegtsOutPath, filename)
-	// 如果已经在录制，则先关闭
-	if group.recordMpegts != nil {
-		Log.Errorf("[%s] record mpegts but already exist. new filename=%s, old filename=%s",
-			group.UniqueKey, filenameWithPath, group.recordMpegts.Name())
-		_ = group.recordMpegts.Dispose()
-	}
+
 	group.recordMpegts = &mpegts.FileWriter{}
 	if err := group.recordMpegts.Create(filenameWithPath); err != nil {
 		Log.Errorf("[%s] record mpegts open file failed. filename=%s, err=%+v",
