@@ -1,3 +1,25 @@
+#### v0.28.0 (2022-03-27)
+
+- [feat] httpts: 支持gop缓冲，提高秒开 #129
+- [opt] hls: 增加delete_threshold配置，用于配置过期TS文件的保存时间 #120
+- [opt] rtsp sub 改为异步发送
+- [opt] lalserver: relay push增加超时检查，增加带宽统计
+- [opt] lalserver: relay pull的rtmp流也转换为rtsp
+- [opt] lalserver: rtsp sub也支持触发relay pull
+- [fix] aac: 支持22050采样频率，修复该频率下转rtsp失败的问题
+- [fix] avc: 增强兼容性，处理单个seq header中存在多个sps的情况 #135
+- [fix] mpegts: 修复单音频场景，有一帧音频重复的问题
+- [fix] rtsp: Basic auth的base64编码
+- [fix] rtsp: 增强容错性，修复rtmp输入流没有seq header时，rtmp转rtsp内崩溃的问题
+- [fix] lalserver: 优雅关闭pprof和http server
+- [perf] mpegts: 优化转换mpegts的性能
+- [refactor] 将转换mpegts的代码从package hls独立出来，移动到package remux中
+- [refactor] 大幅重构logic.Group，为lalserver支持插件化做准备
+- [log] 支持独立设置单个pkg的日志配置 #62
+- [log] rtmp和rtsp收包时添加trace级别日志 #63
+- [log] rtmp: 优化定位问题的日志 #135
+- [test] innertest增加单音频，单视频，httpts sub的测试
+
 #### v0.27.1 (2022-01-23)
 
 - [feat] 新增simple auth鉴权功能，见文档： https://pengrl.com/lal/#/auth
