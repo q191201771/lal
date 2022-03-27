@@ -53,10 +53,10 @@ func (group *Group) AddRtmpPubSession(session *rtmp.ServerSession) error {
 
 // AddRtspPubSession TODO chef: rtsp package中，增加回调返回值判断，如果是false，将连接关掉
 func (group *Group) AddRtspPubSession(session *rtsp.PubSession) error {
-	Log.Debugf("[%s] [%s] add RTSP PubSession into group.", group.UniqueKey, session.UniqueKey())
-
 	group.mutex.Lock()
 	defer group.mutex.Unlock()
+
+	Log.Debugf("[%s] [%s] add RTSP PubSession into group.", group.UniqueKey, session.UniqueKey())
 
 	if group.hasInSession() {
 		Log.Errorf("[%s] in stream already exist at group. wanna add=%s", group.UniqueKey, session.UniqueKey())
@@ -73,10 +73,10 @@ func (group *Group) AddRtspPubSession(session *rtsp.PubSession) error {
 }
 
 func (group *Group) AddRtmpPullSession(session *rtmp.PullSession) bool {
-	Log.Debugf("[%s] [%s] add PullSession into group.", group.UniqueKey, session.UniqueKey())
-
 	group.mutex.Lock()
 	defer group.mutex.Unlock()
+
+	Log.Debugf("[%s] [%s] add PullSession into group.", group.UniqueKey, session.UniqueKey())
 
 	if group.hasInSession() {
 		Log.Errorf("[%s] in stream already exist. wanna add=%s", group.UniqueKey, session.UniqueKey())
@@ -86,7 +86,12 @@ func (group *Group) AddRtmpPullSession(session *rtmp.PullSession) bool {
 	group.pullProxy.pullSession = session
 	group.addIn()
 
-	// TODO(chef): 这里也应该启动rtmp2RtspRemuxer
+	if group.shouldStartRtspRemuxer() {
+		group.rtmp2RtspRemuxer = remux.NewRtmp2RtspRemuxer(
+			group.onSdpFromRemux,
+			group.onRtpPacketFromRemux,
+		)
+	}
 
 	return true
 }
