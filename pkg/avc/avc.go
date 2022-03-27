@@ -538,7 +538,16 @@ func Avcc2Annexb(nals []byte) ([]byte, error) {
 	return ret, err
 }
 
-// TODO(chef): 是否需要 func NaluAvcc2Annexb, func NaluAnnexb2Avcc
+func Annexb2Avcc(nals []byte) ([]byte, error) {
+	var buf nazabytes.Buffer
+	buf.Grow(len(nals))
+	err := IterateNaluAnnexb(nals, func(nal []byte) {
+		bele.BePutUint32(buf.ReserveBytes(4), uint32(len(nal)))
+		buf.Flush(4)
+		_, _ = buf.Write(nal)
+	})
+	return buf.Bytes(), err
+}
 
 // ---------------------------------------------------------------------------------------------------------------------
 
