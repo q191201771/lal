@@ -78,7 +78,9 @@ func (group *Group) OnAvPacket(pkt base.AvPacket) {
 func (group *Group) OnPatPmt(b []byte) {
 	group.patpmt = b
 
-	group.hlsMuxer.FeedPatPmt(b)
+	if group.hlsMuxer != nil {
+		group.hlsMuxer.FeedPatPmt(b)
+	}
 
 	if group.recordMpegts != nil {
 		if err := group.recordMpegts.Write(b); err != nil {
