@@ -374,7 +374,7 @@ func (sm *ServerManager) CtrlKickOutSession(info base.ApiCtrlKickOutSession) bas
 	}
 }
 
-// ----- implement rtmp.ServerObserver interface -----------------------------------------------------------------------
+// ----- implement rtmp.IServerObserver interface -----------------------------------------------------------------------
 
 func (sm *ServerManager) OnRtmpConnect(session *rtmp.ServerSession, opa rtmp.ObjectPairArray) {
 	sm.mutex.Lock()
@@ -503,7 +503,7 @@ func (sm *ServerManager) OnDelRtmpSubSession(session *rtmp.ServerSession) {
 	sm.option.NotifyHandler.OnSubStop(info)
 }
 
-// ----- implement HttpServerHandlerObserver interface -----------------------------------------------------------------
+// ----- implement IHttpServerHandlerObserver interface -----------------------------------------------------------------
 
 func (sm *ServerManager) OnNewHttpflvSubSession(session *httpflv.SubSession) error {
 	sm.mutex.Lock()
@@ -611,7 +611,7 @@ func (sm *ServerManager) OnDelHttptsSubSession(session *httpts.SubSession) {
 	sm.option.NotifyHandler.OnSubStop(info)
 }
 
-// ----- implement rtsp.ServerObserver interface -----------------------------------------------------------------------
+// ----- implement rtsp.IServerObserver interface -----------------------------------------------------------------------
 
 func (sm *ServerManager) OnNewRtspSessionConnect(session *rtsp.ServerCommandSession) {
 	// TODO chef: impl me
@@ -740,7 +740,7 @@ func (sm *ServerManager) CreateGroup(appName string, streamName string) *Group {
 	return NewGroup(appName, streamName, sm.config, sm)
 }
 
-// ----- implement GroupObserver interface -----------------------------------------------------------------------------
+// ----- implement IGroupObserver interface -----------------------------------------------------------------------------
 
 func (sm *ServerManager) CleanupHlsIfNeeded(appName string, streamName string, path string) {
 	if sm.config.HlsConfig.Enable &&

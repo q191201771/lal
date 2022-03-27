@@ -27,13 +27,13 @@ import (
 
 // 聚合PubSession和PullSession，也即流数据是输入类型的session
 
-// BaseInSessionObserver
+// IBaseInSessionObserver
 //
 // BaseInSession会向上层回调两种格式的数据(本质上是一份数据，业务方可自由选择使用)：
 // 1. 原始的rtp packet
 // 2. rtp合并后的av packet
 //
-type BaseInSessionObserver interface {
+type IBaseInSessionObserver interface {
 	OnSdp(sdpCtx sdp.LogicContext)
 
 	// OnRtpPacket 回调收到的RTP包
@@ -51,7 +51,7 @@ type BaseInSession struct {
 	uniqueKey  string // 使用上层Session的值
 	cmdSession IInterleavedPacketWriter
 
-	observer BaseInSessionObserver
+	observer IBaseInSessionObserver
 
 	audioRtpConn     *nazanet.UdpConnection
 	videoRtpConn     *nazanet.UdpConnection
@@ -106,7 +106,7 @@ func NewBaseInSession(uniqueKey string, cmdSession IInterleavedPacketWriter) *Ba
 	return s
 }
 
-func NewBaseInSessionWithObserver(uniqueKey string, cmdSession IInterleavedPacketWriter, observer BaseInSessionObserver) *BaseInSession {
+func NewBaseInSessionWithObserver(uniqueKey string, cmdSession IInterleavedPacketWriter, observer IBaseInSessionObserver) *BaseInSession {
 	s := NewBaseInSession(uniqueKey, cmdSession)
 	s.observer = observer
 	return s
@@ -144,7 +144,7 @@ func (session *BaseInSession) InitWithSdp(sdpCtx sdp.LogicContext) {
 
 // SetObserver 如果没有设置回调监听对象，可以通过该函数设置，调用方保证调用该函数发生在调用InitWithSdp之后
 //
-func (session *BaseInSession) SetObserver(observer BaseInSessionObserver) {
+func (session *BaseInSession) SetObserver(observer IBaseInSessionObserver) {
 	session.observer = observer
 
 	// 避免在当前协程回调，降低业务方使用负担，不必担心设置监听对象和回调函数中锁重入 TODO(chef): 更好的方式

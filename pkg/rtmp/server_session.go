@@ -24,7 +24,7 @@ import (
 
 // TODO chef: 没有进化成Pub Sub时的超时释放
 
-type ServerSessionObserver interface {
+type IServerSessionObserver interface {
 	OnRtmpConnect(session *ServerSession, opa ObjectPairArray)
 
 	// OnNewRtmpPubSession
@@ -38,12 +38,12 @@ type ServerSessionObserver interface {
 	OnNewRtmpSubSession(session *ServerSession) error
 }
 
-type PubSessionObserver interface {
+type IPubSessionObserver interface {
 	// OnReadRtmpAvMsg 注意，回调结束后，内部会复用Payload内存块
 	OnReadRtmpAvMsg(msg base.RtmpMsg)
 }
 
-func (s *ServerSession) SetPubSessionObserver(observer PubSessionObserver) {
+func (s *ServerSession) SetPubSessionObserver(observer IPubSessionObserver) {
 	s.avObserver = observer
 }
 
@@ -64,7 +64,7 @@ type ServerSession struct {
 	streamName             string // const after set
 	rawQuery               string //const after set
 
-	observer      ServerSessionObserver
+	observer      IServerSessionObserver
 	t             ServerSessionType
 	hs            HandshakeServer
 	chunkComposer *ChunkComposer
@@ -76,7 +76,7 @@ type ServerSession struct {
 	stat         base.StatSession
 
 	// only for PubSession
-	avObserver PubSessionObserver
+	avObserver IPubSessionObserver
 
 	// IsFresh ShouldWaitVideoKeyFrame
 	//
@@ -97,7 +97,7 @@ type ServerSession struct {
 	DisposeByObserverFlag bool
 }
 
-func NewServerSession(observer ServerSessionObserver, conn net.Conn) *ServerSession {
+func NewServerSession(observer IServerSessionObserver, conn net.Conn) *ServerSession {
 	uk := base.GenUkRtmpServerSession()
 	s := &ServerSession{
 		conn: connection.New(conn, func(option *connection.Option) {

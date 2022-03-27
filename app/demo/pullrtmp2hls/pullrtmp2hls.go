@@ -45,7 +45,7 @@ func main() {
 	}
 	streamName := ctx.LastItemOfPath
 
-	hlsMuexer := hls.NewMuxer(streamName, true, &hlsMuxerConfig, nil)
+	hlsMuexer := hls.NewMuxer(streamName, &hlsMuxerConfig, nil)
 	hlsMuexer.Start()
 
 	rtmp2Mpegts := remux.NewRtmp2MpegtsRemuxer(hlsMuexer)

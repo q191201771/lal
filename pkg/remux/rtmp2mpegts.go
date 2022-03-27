@@ -28,7 +28,7 @@ const (
 	maxAudioCacheDelayByVideo   uint64 = 300 * 90 // 单位（毫秒*90）
 )
 
-type Rtmp2MpegtsRemuxerObserver interface {
+type IRtmp2MpegtsRemuxerObserver interface {
 	// OnPatPmt
 	//
 	// @param b: const只读内存块，上层可以持有，但是不允许修改
@@ -55,7 +55,7 @@ type Rtmp2MpegtsRemuxerObserver interface {
 type Rtmp2MpegtsRemuxer struct {
 	UniqueKey string
 
-	observer                Rtmp2MpegtsRemuxerObserver
+	observer                IRtmp2MpegtsRemuxerObserver
 	filter                  *rtmp2MpegtsFilter
 	videoOut                []byte // Annexb
 	spspps                  []byte // Annexb 也可能是vps+sps+pps
@@ -68,7 +68,7 @@ type Rtmp2MpegtsRemuxer struct {
 	opened bool
 }
 
-func NewRtmp2MpegtsRemuxer(observer Rtmp2MpegtsRemuxerObserver) *Rtmp2MpegtsRemuxer {
+func NewRtmp2MpegtsRemuxer(observer IRtmp2MpegtsRemuxerObserver) *Rtmp2MpegtsRemuxer {
 	uk := base.GenUkRtmp2MpegtsRemuxer()
 	r := &Rtmp2MpegtsRemuxer{
 		UniqueKey: uk,
@@ -124,11 +124,11 @@ func (s *Rtmp2MpegtsRemuxer) FlushAudio() {
 	s.audioCc = frame.Cc
 }
 
-// ---------------------------------------------------------------------------------------------------------------------
+// ----- implement of iRtmp2MpegtsFilterObserver ----------------------------------------------------------------------------------------------------------------
 
 // onPatPmt onPop
 //
-// 实现 rtmp2MpegtsFilterObserver
+// 实现 iRtmp2MpegtsFilterObserver
 //
 func (s *Rtmp2MpegtsRemuxer) onPatPmt(b []byte) {
 	s.observer.OnPatPmt(b)

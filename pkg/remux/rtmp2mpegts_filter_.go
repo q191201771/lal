@@ -22,14 +22,14 @@ import (
 type rtmp2MpegtsFilter struct {
 	maxMsgSize int
 	data       []base.RtmpMsg
-	observer   rtmp2MpegtsFilterObserver
+	observer   iRtmp2MpegtsFilterObserver
 
 	audioCodecId int
 	videoCodecId int
 	done         bool
 }
 
-type rtmp2MpegtsFilterObserver interface {
+type iRtmp2MpegtsFilterObserver interface {
 	// OnPatPmt
 	//
 	// 该回调一定发生在数据回调之前
@@ -47,7 +47,7 @@ type rtmp2MpegtsFilterObserver interface {
 //
 // @param maxMsgSize: 最大缓存多少个包
 //
-func newRtmp2MpegtsFilter(maxMsgSize int, observer rtmp2MpegtsFilterObserver) *rtmp2MpegtsFilter {
+func newRtmp2MpegtsFilter(maxMsgSize int, observer iRtmp2MpegtsFilterObserver) *rtmp2MpegtsFilter {
 	return &rtmp2MpegtsFilter{
 		maxMsgSize:   maxMsgSize,
 		data:         make([]base.RtmpMsg, maxMsgSize)[0:0],

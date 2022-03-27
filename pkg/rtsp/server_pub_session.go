@@ -16,8 +16,8 @@ import (
 	"github.com/q191201771/lal/pkg/sdp"
 )
 
-type PubSessionObserver interface {
-	BaseInSessionObserver
+type IPubSessionObserver interface {
+	IBaseInSessionObserver
 }
 
 type PubSession struct {
@@ -26,7 +26,7 @@ type PubSession struct {
 	cmdSession    *ServerCommandSession
 	baseInSession *BaseInSession
 
-	observer PubSessionObserver
+	observer IPubSessionObserver
 }
 
 func NewPubSession(urlCtx base.UrlContext, cmdSession *ServerCommandSession) *PubSession {
@@ -46,7 +46,7 @@ func (session *PubSession) InitWithSdp(sdpCtx sdp.LogicContext) {
 	session.baseInSession.InitWithSdp(sdpCtx)
 }
 
-func (session *PubSession) SetObserver(observer PubSessionObserver) {
+func (session *PubSession) SetObserver(observer IPubSessionObserver) {
 	session.baseInSession.SetObserver(observer)
 }
 

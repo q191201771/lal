@@ -19,7 +19,11 @@ import (
 	"github.com/q191201771/lal/pkg/base"
 )
 
-type MuxerObserver interface {
+type IMuxerObserver interface {
+	// OnFragmentOpen
+	//
+	// 内部决定开启新的fragment切片，将该事件通知给上层
+	//
 	OnFragmentOpen()
 }
 
@@ -43,7 +47,7 @@ const (
 
 // Muxer
 //
-// 输入mpegts流，转出hls(m3u8+ts)至文件中
+// 输入mpegts流，输出hls(m3u8+ts)至文件中
 //
 type Muxer struct {
 	UniqueKey string
@@ -56,8 +60,7 @@ type Muxer struct {
 	recordPlayListFilenameBak string // const after init
 
 	config   *MuxerConfig
-	enable   bool
-	observer MuxerObserver
+	observer IMuxerObserver
 
 	fragment Fragment
 	videoCc  uint8
@@ -88,10 +91,9 @@ type fragmentInfo struct {
 
 // NewMuxer
 //
-// @param enable   如果false，说明hls功能没开，也即不写文件，但是MuxerObserver依然会回调
 // @param observer 可以为nil，如果不为nil，TS流将回调给上层
 //
-func NewMuxer(streamName string, enable bool, config *MuxerConfig, observer MuxerObserver) *Muxer {
+func NewMuxer(streamName string, config *MuxerConfig, observer IMuxerObserver) *Muxer {
 	uk := base.GenUkHlsMuxer()
 	op := PathStrategy.GetMuxerOutPath(config.OutPath, streamName)
 	playlistFilename := PathStrategy.GetLiveM3u8FileName(op, streamName)
@@ -106,7 +108,6 @@ func NewMuxer(streamName string, enable bool, config *MuxerConfig, observer Muxe
 		playlistFilenameBak:       playlistFilenameBak,
 		recordPlayListFilename:    recordPlaylistFilename,
 		recordPlayListFilenameBak: recordPlaylistFilenameBak,
-		enable:                    enable,
 		config:                    config,
 		observer:                  observer,
 	}
@@ -131,7 +132,7 @@ func (m *Muxer) Dispose() {
 
 // OnPatPmt OnTsPackets
 //
-// 实现 remux.Rtmp2MpegtsRemuxerObserver，方便直接将 remux.Rtmp2MpegtsRemuxer 的数据喂入 hls.Muxer
+// 实现 remux.IRtmp2MpegtsRemuxerObserver，方便直接将 remux.Rtmp2MpegtsRemuxer 的数据喂入 hls.Muxer
 //
 func (m *Muxer) OnPatPmt(b []byte) {
 	m.FeedPatPmt(b)
@@ -273,14 +274,15 @@ func (m *Muxer) openFragment(ts uint64, discont bool) error {
 
 	filename := PathStrategy.GetTsFileName(m.streamName, id, int(Clock.Now().UnixNano()/1e6))
 	filenameWithPath := PathStrategy.GetTsFileNameWithPath(m.outPath, filename)
-	if m.enable {
-		if err := m.fragment.OpenFile(filenameWithPath); err != nil {
-			return err
-		}
-		if err := m.fragment.WriteFile(m.patpmt); err != nil {
-			return err
-		}
+
+	if err := m.fragment.OpenFile(filenameWithPath); err != nil {
+		return err
 	}
+
+	if err := m.fragment.WriteFile(m.patpmt); err != nil {
+		return err
+	}
+
 	m.opened = true
 
 	frag := m.getCurrFrag()
@@ -307,10 +309,8 @@ func (m *Muxer) closeFragment(isLast bool) error {
 		return nil
 	}
 
-	if m.enable {
-		if err := m.fragment.CloseFile(); err != nil {
-			return err
-		}
+	if err := m.fragment.CloseFile(); err != nil {
+		return err
 	}
 
 	m.opened = false
@@ -339,10 +339,6 @@ func (m *Muxer) closeFragment(isLast bool) error {
 }
 
 func (m *Muxer) writeRecordPlaylist() {
-	if !m.enable {
-		return
-	}
-
 	// 找出整个直播流从开始到结束最大的分片时长
 	currFrag := m.getClosedFrag()
 	if currFrag.duration > m.recordMaxFragDuration {
@@ -392,10 +388,6 @@ func (m *Muxer) writeRecordPlaylist() {
 }
 
 func (m *Muxer) writePlaylist(isLast bool) {
-	if !m.enable {
-		return
-	}
-
 	// 找出时长最长的fragment
 	maxFrag := float64(m.config.FragmentDurationMs) / 1000
 	m.iterateFragsInPlaylist(func(frag *fragmentInfo) {
@@ -430,9 +422,6 @@ func (m *Muxer) writePlaylist(isLast bool) {
 }
 
 func (m *Muxer) ensureDir() {
-	if !m.enable {
-		return
-	}
 	//err := fslCtx.RemoveAll(m.outPath)
 	//Log.Assert(nil, err)
 	err := fslCtx.MkdirAll(m.outPath, 0777)

@@ -38,6 +38,7 @@ func (group *Group) stopRecordMpegtsIfNeeded() {
 	if !group.config.RecordConfig.EnableMpegts {
 		return
 	}
+
 	if group.recordMpegts != nil {
 		_ = group.recordMpegts.Dispose()
 		group.recordMpegts = nil

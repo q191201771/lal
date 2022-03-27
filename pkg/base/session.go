@@ -28,7 +28,36 @@ import (
 // 情况1: 协议正常走完回调OnAdd，在自身server的RunLoop结束后，回调OnDel
 // 情况2: 在group中pull阻塞结束后，手动回调OnDel
 // 情况3: 在logic中sub RunLoop结束后，手动回调OnDel
+
+// TODO(chef): 整理所有Server类型Session的生命周期管理
+//   -
+//   - rtmp没有独立的Pub、Sub Session结构体类型，而是直接使用ServerSession
+//   - write失败，需要反应到loop来
+//   - rtsp是否也应该上层使用Command作为代理，避免生命周期管理混乱
 //
+// server.pub:  rtmp(), rtsp
+// server.sub:  rtmp(), rtsp, flv, ts, 还有一个比较特殊的hls
+//
+// client.push: rtmp, rtsp
+// client.pull: rtmp, rtsp, flv
+//
+// other:       rtmp.ClientSession, rtmp.ServerSession
+//              rtsp.BaseInSession, rtsp.BaseOutSession, rtsp.ClientCommandSession, rtsp.ServerCommandSessionS
+//              base.HttpSubSession
+
+// ISessionUrlContext 实际测试
+//
+// |                | 实际url                                               | Url()    | AppName, StreamName, RawQuery  |
+// | -              | -                                                    | -        | -                              |
+// | rtmp pub推流    | rtmp://127.0.0.1:1935/live/test110                   | 同实际url | live, test110,                 |
+// |                | rtmp://127.0.0.1:1935/a/b/c/d/test110?p1=1&p2=2      | 同实际url | a/b, c/d/test110, p1=1&p2=2    |
+// | rtsp pub推流    | rtsp://localhost:5544/live/test110                   | 同实际url | live, test110,                 |
+// | rtsp pub推流    | rtsp://localhost:5544/a/b/c/d/test110?p1=1&p2=2      | 同实际url | a/b/c/d, test110, p1=1&p2=2    |
+// | httpflv sub拉流  | http://127.0.0.1:8080/live/test110.flv              | 同实际url | live, test110,                 |
+// |                 | http://127.0.0.1:8080/a/b/c/d/test110.flv?p1=1&p2=2 | 同实际url | a/b/c/d, test110, p1=1&p2=2    |
+// | rtmp sub拉流    | 同rtmp pub                                           | .        | .                              |
+// | rtsp sub拉流    | 同rtsp pub                                           | .        | .                              |
+// | httpts sub拉流 | 同httpflv sub，只是末尾的.flv换成.ts，不再赘述             | .       | .                              |
 
 // IsUseClosedConnectionError 当connection处于这些情况时，就不需要再Close了
 // TODO(chef): 临时放这

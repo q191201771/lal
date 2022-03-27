@@ -24,7 +24,7 @@ import (
 	"github.com/q191201771/lal/pkg/sdp"
 )
 
-type GroupObserver interface {
+type IGroupObserver interface {
 	CleanupHlsIfNeeded(appName string, streamName string, path string)
 }
 
@@ -33,7 +33,7 @@ type Group struct {
 	appName    string // const after init
 	streamName string // const after init TODO chef: 和stat里的字段重复，可以删除掉
 	config     *Config
-	observer   GroupObserver
+	observer   IGroupObserver
 
 	exitChan chan struct{}
 
@@ -79,7 +79,7 @@ type Group struct {
 	stat base.StatGroup
 }
 
-func NewGroup(appName string, streamName string, config *Config, observer GroupObserver) *Group {
+func NewGroup(appName string, streamName string, config *Config, observer IGroupObserver) *Group {
 	uk := base.GenUkGroup()
 
 	g := &Group{
@@ -304,7 +304,6 @@ func (group *Group) HasOutSession() bool {
 
 // disposeInactiveSessions 关闭不活跃的session
 //
-// TODO(chef): [fix] Push是否需要检查
 // TODO chef: [refactor] 梳理和naza.Connection超时重复部分
 //
 func (group *Group) disposeInactiveSessions() {
@@ -350,11 +349,18 @@ func (group *Group) disposeInactiveSessions() {
 			session.Dispose()
 		}
 	}
+	for _, item := range group.url2PushProxy {
+		session := item.pushSession
+		if item.isPushing || session != nil {
+			if _, writeAlive := session.IsAlive(); !writeAlive {
+				Log.Warnf("[%s] session timeout. session=%s", group.UniqueKey, session.UniqueKey())
+				session.Dispose()
+			}
+		}
+	}
 }
 
 // updateAllSessionStat 更新所有session的状态
-//
-// TODO(chef): [fix] Push是否需要更新
 //
 func (group *Group) updateAllSessionStat() {
 	if group.rtmpPubSession != nil {
@@ -377,6 +383,12 @@ func (group *Group) updateAllSessionStat() {
 	}
 	for session := range group.rtspSubSessionSet {
 		session.UpdateStat(calcSessionStatIntervalSec)
+	}
+	for _, item := range group.url2PushProxy {
+		session := item.pushSession
+		if item.isPushing || session != nil {
+			session.UpdateStat(calcSessionStatIntervalSec)
+		}
 	}
 }
 

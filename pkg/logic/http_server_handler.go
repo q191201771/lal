@@ -17,7 +17,7 @@ import (
 	"github.com/q191201771/lal/pkg/httpts"
 )
 
-type HttpServerHandlerObserver interface {
+type IHttpServerHandlerObserver interface {
 	// OnNewHttpflvSubSession
 	//
 	// 通知上层有新的拉流者
@@ -32,10 +32,10 @@ type HttpServerHandlerObserver interface {
 }
 
 type HttpServerHandler struct {
-	observer HttpServerHandlerObserver
+	observer IHttpServerHandlerObserver
 }
 
-func NewHttpServerHandler(observer HttpServerHandlerObserver) *HttpServerHandler {
+func NewHttpServerHandler(observer IHttpServerHandlerObserver) *HttpServerHandler {
 	return &HttpServerHandler{
 		observer: observer,
 	}

@@ -23,7 +23,7 @@ import (
 	"github.com/q191201771/naza/pkg/nazahttp"
 )
 
-type ServerCommandSessionObserver interface {
+type IServerCommandSessionObserver interface {
 	// OnNewRtspPubSession
 	//
 	// @brief  Announce阶段回调
@@ -48,8 +48,8 @@ type ServerCommandSessionObserver interface {
 }
 
 type ServerCommandSession struct {
-	uniqueKey    string                       // const after ctor
-	observer     ServerCommandSessionObserver // const after ctor
+	uniqueKey    string                        // const after ctor
+	observer     IServerCommandSessionObserver // const after ctor
 	conn         connection.Connection
 	prevConnStat connection.Stat
 	staleStat    *connection.Stat
@@ -59,7 +59,7 @@ type ServerCommandSession struct {
 	subSession *SubSession
 }
 
-func NewServerCommandSession(observer ServerCommandSessionObserver, conn net.Conn) *ServerCommandSession {
+func NewServerCommandSession(observer IServerCommandSessionObserver, conn net.Conn) *ServerCommandSession {
 	uk := base.GenUkRtspServerCommandSession()
 	s := &ServerCommandSession{
 		uniqueKey: uk,

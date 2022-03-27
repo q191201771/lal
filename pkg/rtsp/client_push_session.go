@@ -178,32 +178,32 @@ func (session *PushSession) IsAlive() (readAlive, writeAlive bool) {
 	return session.baseOutSession.IsAlive()
 }
 
-// OnConnectResult ClientCommandSessionObserver, callback by ClientCommandSession
+// OnConnectResult IClientCommandSessionObserver, callback by ClientCommandSession
 func (session *PushSession) OnConnectResult() {
 	// noop
 }
 
-// OnDescribeResponse ClientCommandSessionObserver, callback by ClientCommandSession
+// OnDescribeResponse IClientCommandSessionObserver, callback by ClientCommandSession
 func (session *PushSession) OnDescribeResponse(sdpCtx sdp.LogicContext) {
 	// noop
 }
 
-// OnSetupWithConn ClientCommandSessionObserver, callback by ClientCommandSession
+// OnSetupWithConn IClientCommandSessionObserver, callback by ClientCommandSession
 func (session *PushSession) OnSetupWithConn(uri string, rtpConn, rtcpConn *nazanet.UdpConnection) {
 	_ = session.baseOutSession.SetupWithConn(uri, rtpConn, rtcpConn)
 }
 
-// OnSetupWithChannel ClientCommandSessionObserver, callback by ClientCommandSession
+// OnSetupWithChannel IClientCommandSessionObserver, callback by ClientCommandSession
 func (session *PushSession) OnSetupWithChannel(uri string, rtpChannel, rtcpChannel int) {
 	_ = session.baseOutSession.SetupWithChannel(uri, rtpChannel, rtcpChannel)
 }
 
-// OnSetupResult ClientCommandSessionObserver, callback by ClientCommandSession
+// OnSetupResult IClientCommandSessionObserver, callback by ClientCommandSession
 func (session *PushSession) OnSetupResult() {
 	// noop
 }
 
-// OnInterleavedPacket ClientCommandSessionObserver, callback by ClientCommandSession
+// OnInterleavedPacket IClientCommandSessionObserver, callback by ClientCommandSession
 func (session *PushSession) OnInterleavedPacket(packet []byte, channel int) {
 	session.baseOutSession.HandleInterleavedPacket(packet, channel)
 }

@@ -17,8 +17,8 @@ import (
 	"github.com/q191201771/naza/pkg/nazanet"
 )
 
-type PullSessionObserver interface {
-	BaseInSessionObserver
+type IPullSessionObserver interface {
+	IBaseInSessionObserver
 }
 
 type PullSessionOption struct {
@@ -45,7 +45,7 @@ type PullSession struct {
 
 type ModPullSessionOption func(option *PullSessionOption)
 
-func NewPullSession(observer PullSessionObserver, modOptions ...ModPullSessionOption) *PullSession {
+func NewPullSession(observer IPullSessionObserver, modOptions ...ModPullSessionOption) *PullSession {
 	option := defaultPullSessionOption
 	for _, fn := range modOptions {
 		fn(&option)
@@ -185,32 +185,32 @@ func (session *PullSession) IsAlive() (readAlive, writeAlive bool) {
 	return session.baseInSession.IsAlive()
 }
 
-// OnConnectResult ClientCommandSessionObserver, callback by ClientCommandSession
+// OnConnectResult IClientCommandSessionObserver, callback by ClientCommandSession
 func (session *PullSession) OnConnectResult() {
 	// noop
 }
 
-// OnDescribeResponse ClientCommandSessionObserver, callback by ClientCommandSession
+// OnDescribeResponse IClientCommandSessionObserver, callback by ClientCommandSession
 func (session *PullSession) OnDescribeResponse(sdpCtx sdp.LogicContext) {
 	session.baseInSession.InitWithSdp(sdpCtx)
 }
 
-// OnSetupWithConn ClientCommandSessionObserver, callback by ClientCommandSession
+// OnSetupWithConn IClientCommandSessionObserver, callback by ClientCommandSession
 func (session *PullSession) OnSetupWithConn(uri string, rtpConn, rtcpConn *nazanet.UdpConnection) {
 	_ = session.baseInSession.SetupWithConn(uri, rtpConn, rtcpConn)
 }
 
-// OnSetupWithChannel ClientCommandSessionObserver, callback by ClientCommandSession
+// OnSetupWithChannel IClientCommandSessionObserver, callback by ClientCommandSession
 func (session *PullSession) OnSetupWithChannel(uri string, rtpChannel, rtcpChannel int) {
 	_ = session.baseInSession.SetupWithChannel(uri, rtpChannel, rtcpChannel)
 }
 
-// OnSetupResult ClientCommandSessionObserver, callback by ClientCommandSession
+// OnSetupResult IClientCommandSessionObserver, callback by ClientCommandSession
 func (session *PullSession) OnSetupResult() {
 	session.baseInSession.WriteRtpRtcpDummy()
 }
 
-// OnInterleavedPacket ClientCommandSessionObserver, callback by ClientCommandSession
+// OnInterleavedPacket IClientCommandSessionObserver, callback by ClientCommandSession
 func (session *PullSession) OnInterleavedPacket(packet []byte, channel int) {
 	session.baseInSession.HandleInterleavedPacket(packet, channel)
 }

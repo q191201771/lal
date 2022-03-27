@@ -12,7 +12,7 @@ import (
 	"net"
 )
 
-type ServerObserver interface {
+type IServerObserver interface {
 	// OnNewRtspSessionConnect @brief 使得上层有能力管理未进化到Pub、Sub阶段的Session
 	OnNewRtspSessionConnect(session *ServerCommandSession)
 
@@ -51,12 +51,12 @@ type ServerObserver interface {
 
 type Server struct {
 	addr     string
-	observer ServerObserver
+	observer IServerObserver
 
 	ln net.Listener
 }
 
-func NewServer(addr string, observer ServerObserver) *Server {
+func NewServer(addr string, observer IServerObserver) *Server {
 	return &Server{
 		addr:     addr,
 		observer: observer,

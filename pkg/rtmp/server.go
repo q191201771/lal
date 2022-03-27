@@ -12,7 +12,7 @@ import (
 	"net"
 )
 
-type ServerObserver interface {
+type IServerObserver interface {
 	OnRtmpConnect(session *ServerSession, opa ObjectPairArray)
 
 	// OnNewRtmpPubSession
@@ -35,11 +35,11 @@ type ServerObserver interface {
 
 type Server struct {
 	addr     string
-	observer ServerObserver
+	observer IServerObserver
 	ln       net.Listener
 }
 
-func NewServer(addr string, observer ServerObserver) *Server {
+func NewServer(addr string, observer IServerObserver) *Server {
 	return &Server{
 		addr:     addr,
 		observer: observer,
@@ -91,7 +91,7 @@ func (server *Server) handleTcpConnect(conn net.Conn) {
 	}
 }
 
-// ----- ServerSessionObserver ------------------------------------------------------------------------------------
+// ----- IServerSessionObserver ------------------------------------------------------------------------------------
 
 func (server *Server) OnRtmpConnect(session *ServerSession, opa ObjectPairArray) {
 	server.observer.OnRtmpConnect(session, opa)

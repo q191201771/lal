@@ -44,6 +44,7 @@ func (group *Group) stopRecordFlvIfNeeded() {
 	if !group.config.RecordConfig.EnableFlv {
 		return
 	}
+
 	if group.recordFlv != nil {
 		_ = group.recordFlv.Dispose()
 		group.recordFlv = nil

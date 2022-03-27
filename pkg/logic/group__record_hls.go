@@ -19,20 +19,19 @@ func (group *Group) IsHlsMuxerAlive() bool {
 // startHlsIfNeeded 必要时启动hls
 //
 func (group *Group) startHlsIfNeeded() {
-	// TODO(chef): [refactor] ts依赖hls
-	if !group.config.HlsConfig.Enable {
+	if !group.config.HlsConfig.Enable && !group.config.HlsConfig.EnableHttps {
 		return
 	}
 
-	enable := group.config.HlsConfig.Enable || group.config.HlsConfig.EnableHttps
-	group.hlsMuxer = hls.NewMuxer(group.streamName, enable, &group.config.HlsConfig.MuxerConfig, group)
+	group.hlsMuxer = hls.NewMuxer(group.streamName, &group.config.HlsConfig.MuxerConfig, group)
 	group.hlsMuxer.Start()
 }
 
 func (group *Group) stopHlsIfNeeded() {
-	if !group.config.HlsConfig.Enable {
+	if !group.config.HlsConfig.Enable && !group.config.HlsConfig.EnableHttps {
 		return
 	}
+
 	if group.hlsMuxer != nil {
 		group.hlsMuxer.Dispose()
 		group.observer.CleanupHlsIfNeeded(group.appName, group.streamName, group.hlsMuxer.OutPath())

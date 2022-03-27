@@ -49,7 +49,7 @@ var defaultClientCommandSessionOption = ClientCommandSessionOption{
 	OverTcp:     false,
 }
 
-type ClientCommandSessionObserver interface {
+type IClientCommandSessionObserver interface {
 	OnConnectResult()
 
 	// OnDescribeResponse only for PullSession
@@ -67,7 +67,7 @@ type ClientCommandSessionObserver interface {
 type ClientCommandSession struct {
 	uniqueKey string
 	t         ClientCommandSessionType
-	observer  ClientCommandSessionObserver
+	observer  IClientCommandSessionObserver
 	option    ClientCommandSessionOption
 
 	rawUrl string
@@ -88,7 +88,7 @@ type ClientCommandSession struct {
 
 type ModClientCommandSessionOption func(option *ClientCommandSessionOption)
 
-func NewClientCommandSession(t ClientCommandSessionType, uniqueKey string, observer ClientCommandSessionObserver, modOptions ...ModClientCommandSessionOption) *ClientCommandSession {
+func NewClientCommandSession(t ClientCommandSessionType, uniqueKey string, observer IClientCommandSessionObserver, modOptions ...ModClientCommandSessionOption) *ClientCommandSession {
 	option := defaultClientCommandSessionOption
 	for _, fn := range modOptions {
 		fn(&option)
