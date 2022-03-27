@@ -29,7 +29,7 @@ func (group *Group) AddRtmpSubSession(session *rtmp.ServerSession) {
 		session.ShouldWaitVideoKeyFrame = false
 	}
 
-	group.pullIfNeeded()
+	group.addSub()
 }
 
 func (group *Group) AddHttpflvSubSession(session *httpflv.SubSession) {
@@ -45,12 +45,10 @@ func (group *Group) AddHttpflvSubSession(session *httpflv.SubSession) {
 		session.ShouldWaitVideoKeyFrame = false
 	}
 
-	group.pullIfNeeded()
+	group.addSub()
 }
 
-// AddHttptsSubSession TODO chef:
-//   这里应该也要考虑触发hls muxer开启
-//   也即HTTPTS sub需要使用hls muxer，hls muxer开启和关闭都要考虑HTTPTS sub
+// AddHttptsSubSession ...
 func (group *Group) AddHttptsSubSession(session *httpts.SubSession) {
 	Log.Debugf("[%s] [%s] add httpts SubSession into group.", group.UniqueKey, session.UniqueKey())
 	session.WriteHttpResponseHeader()
@@ -59,7 +57,7 @@ func (group *Group) AddHttptsSubSession(session *httpts.SubSession) {
 	defer group.mutex.Unlock()
 	group.httptsSubSessionSet[session] = struct{}{}
 
-	group.pullIfNeeded()
+	group.addSub()
 }
 
 func (group *Group) HandleNewRtspSubSessionDescribe(session *rtsp.SubSession) (ok bool, sdp []byte) {
@@ -85,7 +83,7 @@ func (group *Group) HandleNewRtspSubSessionPlay(session *rtsp.SubSession) {
 		session.ShouldWaitVideoKeyFrame = false
 	}
 
-	// TODO(chef): rtsp sub也应该判断是否需要静态pull回源
+	group.addSub()
 }
 
 func (group *Group) DelRtmpSubSession(session *rtmp.ServerSession) {
@@ -132,4 +130,10 @@ func (group *Group) delHttptsSubSession(session *httpts.SubSession) {
 func (group *Group) delRtspSubSession(session *rtsp.SubSession) {
 	Log.Debugf("[%s] [%s] del rtsp SubSession from group.", group.UniqueKey, session.UniqueKey())
 	delete(group.rtspSubSessionSet, session)
+}
+
+// ---------------------------------------------------------------------------------------------------------------------
+
+func (group *Group) addSub() {
+	group.pullIfNeeded()
 }
