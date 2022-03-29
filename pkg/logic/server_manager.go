@@ -74,6 +74,9 @@ func NewServerManager(confFile string, modOption ...ModOption) *ServerManager {
 		if err := os.MkdirAll(sm.config.RecordConfig.FlvOutPath, 0777); err != nil {
 			Log.Errorf("record flv mkdir error. path=%s, err=%+v", sm.config.RecordConfig.FlvOutPath, err)
 		}
+	}
+
+	if sm.config.RecordConfig.EnableMpegts {
 		if err := os.MkdirAll(sm.config.RecordConfig.MpegtsOutPath, 0777); err != nil {
 			Log.Errorf("record mpegts mkdir error. path=%s, err=%+v", sm.config.RecordConfig.MpegtsOutPath, err)
 		}
