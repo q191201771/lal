@@ -9,7 +9,6 @@
 package remux
 
 import (
-	"bytes"
 	"encoding/hex"
 
 	"github.com/q191201771/lal/pkg/aac"
@@ -147,13 +146,7 @@ func (s *Rtmp2MpegtsRemuxer) onPop(msg base.RtmpMsg) {
 
 func (s *Rtmp2MpegtsRemuxer) feedVideo(msg base.RtmpMsg) {
 	if len(msg.Payload) <= 5 {
-		// 注意，ffmpeg有时会发送msg.Payload为 27 02 00 00 00，这种情况我们直接返回，不打印日志
-		if bytes.Equal(msg.Payload, []byte{0x27, 0x02, 0x0, 0x0, 0x0}) {
-			// noop
-			return
-		}
-		Log.Errorf("[%s] invalid video message length. header=%+v, payload=%s",
-			s.UniqueKey, msg.Header, hex.Dump(msg.Payload))
+		Log.Warnf("[%s] rtmp msg too short, ignore. header=%+v, payload=%s", s.UniqueKey, msg.Header, hex.Dump(msg.Payload))
 		return
 	}
 
@@ -285,13 +278,8 @@ func (s *Rtmp2MpegtsRemuxer) feedVideo(msg base.RtmpMsg) {
 }
 
 func (s *Rtmp2MpegtsRemuxer) feedAudio(msg base.RtmpMsg) {
-	if len(msg.Payload) < 3 {
-		// 注意，ffmpeg有时会发送msg.Payload为 af 00，这种情况我们直接返回，不打印日志
-		if bytes.Equal(msg.Payload, []byte{0xaf, 0x0}) {
-			return
-		}
-		Log.Errorf("[%s] invalid audio message length. header=%+v, payload=%s",
-			s.UniqueKey, msg.Header, hex.Dump(msg.Payload))
+	if len(msg.Payload) <= 2 {
+		Log.Warnf("[%s] rtmp msg too short, ignore. header=%+v, payload=%s", s.UniqueKey, msg.Header, hex.Dump(msg.Payload))
 		return
 	}
 	if msg.Payload[0]>>4 != base.RtmpSoundFormatAac {

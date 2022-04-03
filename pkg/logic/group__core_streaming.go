@@ -145,10 +145,35 @@ func (group *Group) broadcastByRtmpMsg(msg base.RtmpMsg) {
 		lrm2ft remux.LazyRtmpMsg2FlvTag
 	)
 
+	// # 数据有效性检查
 	if len(msg.Payload) == 0 {
 		Log.Warnf("[%s] msg payload length is 0. %+v", group.UniqueKey, msg.Header)
 		return
 	}
+	// TODO(chef): 暂时不打开，因为过滤掉了innertest中rtmp和flv的输出和输入就不完全相同了
+	//if msg.Header.MsgTypeId == base.RtmpTypeIdAudio {
+	//	if len(msg.Payload) <= 2 {
+	//		// 注意，ffmpeg有时会发送这几种空数据，这种情况我们直接返回，不打印日志
+	//		if bytes.Equal(msg.Payload, []byte{0xaf, 0x0}) {
+	//			// noop
+	//			return
+	//		}
+	//		Log.Errorf("[%s] invalid rtmp audio message. header=%+v, payload=%s",
+	//			group.UniqueKey, msg.Header, hex.Dump(msg.Payload))
+	//		return
+	//	}
+	//} else if msg.Header.MsgTypeId == base.RtmpTypeIdVideo {
+	//	if len(msg.Payload) <= 5 {
+	//		if bytes.Equal(msg.Payload, []byte{0x27, 0x02, 0x0, 0x0, 0x0}) ||
+	//			bytes.Equal(msg.Payload, []byte{0x17, 0x02, 0x0, 0x0, 0x0}) {
+	//			// noop
+	//			return
+	//		}
+	//		Log.Errorf("[%s] invalid rtmp video message. header=%+v, payload=%s",
+	//			group.UniqueKey, msg.Header, hex.Dump(msg.Payload))
+	//		return
+	//	}
+	//}
 
 	// # mpegts remuxer
 	if group.rtmp2MpegtsRemuxer != nil {

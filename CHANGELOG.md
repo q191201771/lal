@@ -14,7 +14,7 @@
 - [fix] lalserver: 优雅关闭pprof和http server
 - [perf] mpegts: 优化转换mpegts的性能
 - [refactor] 将转换mpegts的代码从package hls独立出来，移动到package remux中
-- [refactor] 大幅重构logic.Group，为lalserver支持插件化做准备
+- [refactor] lalserver: 大幅重构logic.Group，为支持插件化做准备
 - [log] 支持独立设置单个pkg的日志配置 #62
 - [log] rtmp和rtsp收包时添加trace级别日志 #63
 - [log] rtmp: 优化定位问题的日志 #135

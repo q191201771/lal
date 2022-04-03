@@ -66,6 +66,21 @@ func NewRtmp2RtspRemuxer(onSdp OnSdp, onRtpPacket OnRtpPacket) *Rtmp2RtspRemuxer
 func (r *Rtmp2RtspRemuxer) FeedRtmpMsg(msg base.RtmpMsg) {
 	var err error
 
+	switch msg.Header.MsgTypeId {
+	case base.RtmpTypeIdMetadata:
+		return
+	case base.RtmpTypeIdAudio:
+		if len(msg.Payload) <= 5 {
+			Log.Warnf("rtmp msg too short, ignore. header=%+v, payload=%s", msg.Header, hex.Dump(msg.Payload))
+			return
+		}
+	case base.RtmpTypeIdVideo:
+		if len(msg.Payload) <= 2 {
+			Log.Warnf("rtmp msg too short, ignore. header=%+v, payload=%s", msg.Header, hex.Dump(msg.Payload))
+			return
+		}
+	}
+
 	if msg.Header.MsgTypeId == base.RtmpTypeIdMetadata {
 		// noop
 		return
@@ -163,7 +178,7 @@ func (r *Rtmp2RtspRemuxer) remux(msg base.RtmpMsg) {
 	var rtppkts []rtprtcp.RtpPacket
 	switch msg.Header.MsgTypeId {
 	case base.RtmpTypeIdAudio:
-		if len(msg.Payload)<3{
+		if len(msg.Payload) < 3 {
 			Log.Warnf("aac seq header payload too short. len=%d, payload=%s", len(msg.Payload), hex.Dump(msg.Payload))
 			return
 		}
@@ -176,7 +191,7 @@ func (r *Rtmp2RtspRemuxer) remux(msg base.RtmpMsg) {
 			})
 		}
 	case base.RtmpTypeIdVideo:
-		if len(msg.Payload)<6{
+		if len(msg.Payload) < 6 {
 			Log.Warnf("Video seq header payload too short. len=%d, payload=%s", len(msg.Payload), hex.Dump(msg.Payload))
 			return
 		}

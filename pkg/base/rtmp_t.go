@@ -132,6 +132,10 @@ func (msg RtmpMsg) Dts() uint32 {
 	return msg.Header.TimestampAbs
 }
 
+// Pts
+//
+// 注意，只有视频才能调用该函数获取pts，音频的dts和pts都直接使用 RtmpMsg.Header.TimestampAbs
+//
 func (msg RtmpMsg) Pts() uint32 {
 	return msg.Header.TimestampAbs + bele.BeUint24(msg.Payload[2:])
 }
