@@ -10,6 +10,7 @@ package sdp
 
 import (
 	"encoding/hex"
+	"github.com/q191201771/lal/pkg/avc"
 	"strings"
 	"testing"
 
@@ -573,6 +574,26 @@ a=control:rtsp://127.0.0.1:8066/demo/trackID=0
 `
 	golden = strings.ReplaceAll(golden, "\n", "\r\n")
 	ctx, err := ParseSdp2LogicContext([]byte(golden))
+	assert.Equal(t, nil, err)
+	_ = ctx
+}
+
+func TestCase14(t *testing.T) {
+	golden := `a=tool:lal 0.27.1
+m=video 0 RTP/AVP 96
+a=rtpmap:96 H264/90000
+a=fmtp:96 packetization-mode=1; sprop-parameter-sets=Z2QAH6zZQFAEX5P/AycDJmoCAgKAAAADAIAAABkHjBjL,aOk5csA=; profile-level-id=640016
+a=control:streamid=0
+m=audio 0 RTP/AVP 97
+b=AS:128
+a=rtpmap:97 MPEG4-GENERIC/44100/2
+a=fmtp:97 profile-level-id=1;mode=AAC-hbr;sizelength=13;indexlength=3;indexdeltalength=3; config=1210
+a=control:streamid=1
+`
+	golden = strings.ReplaceAll(golden, "\n", "\r\n")
+	ctx, err := ParseSdp2LogicContext([]byte(golden))
+	var avcCtx avc.Context
+	avc.ParseSps(ctx.Sps, &avcCtx)
 	assert.Equal(t, nil, err)
 	_ = ctx
 }
