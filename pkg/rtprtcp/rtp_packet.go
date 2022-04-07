@@ -179,12 +179,17 @@ func IsAvcBoundary(pkt RtpPacket) bool {
 
 func IsHevcBoundary(pkt RtpPacket) bool {
 	boundaryNaluTypes := map[uint8]struct{}{
-		hevc.NaluTypeVps:         {},
-		hevc.NaluTypeSps:         {},
-		hevc.NaluTypePps:         {},
-		hevc.NaluTypeSliceIdr:    {},
-		hevc.NaluTypeSliceIdrNlp: {},
-		hevc.NaluTypeSliceCranut: {},
+		hevc.NaluTypeVps:               {},
+		hevc.NaluTypeSps:               {},
+		hevc.NaluTypePps:               {},
+		hevc.NaluTypeSliceBlaWlp:       {},
+		hevc.NaluTypeSliceBlaWradl:     {},
+		hevc.NaluTypeSliceBlaNlp:       {},
+		hevc.NaluTypeSliceIdr:          {},
+		hevc.NaluTypeSliceIdrNlp:       {},
+		hevc.NaluTypeSliceCranut:       {},
+		hevc.NaluTypeSliceRsvIrapVcl22: {},
+		hevc.NaluTypeSliceRsvIrapVcl23: {},
 	}
 
 	b := pkt.Body()
