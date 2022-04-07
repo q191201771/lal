@@ -232,10 +232,8 @@ func (s *Rtmp2MpegtsRemuxer) feedVideo(msg base.RtmpMsg) {
 				spsppsSent = false
 			}
 		} else {
-			switch nalType {
-			case hevc.NaluTypeSliceBlaWlp, hevc.NaluTypeSliceBlaWradl, hevc.NaluTypeSliceBlaNlp,
-				hevc.NaluTypeSliceIdr, hevc.NaluTypeSliceIdrNlp, hevc.NaluTypeSliceCranut,
-				hevc.NaluTypeSliceRsvIrapVcl22, hevc.NaluTypeSliceRsvIrapVcl23:
+			// TODO(chef): [refactor] avc和hevc可以考虑再抽象一层高层的包，使得更上层代码简洁一些
+			if hevc.IsIrapNalu(nalType) {
 				if !spsppsSent {
 					if s.videoOut, err = s.appendSpsPps(s.videoOut); err != nil {
 						Log.Warnf("[%s] append spspps by not exist.", s.UniqueKey)
@@ -243,7 +241,7 @@ func (s *Rtmp2MpegtsRemuxer) feedVideo(msg base.RtmpMsg) {
 					}
 				}
 				spsppsSent = true
-			default:
+			} else {
 				// 这里简化了，只要不是关键帧，就刷新标志
 				spsppsSent = false
 			}

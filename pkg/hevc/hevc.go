@@ -42,15 +42,14 @@ var (
 var NaluTypeMapping = map[uint8]string{
 	NaluTypeSliceTrailN: "TrailN",
 	NaluTypeSliceTrailR: "TrailR",
-
-	NaluTypeSliceTsaN:  "TsaN",
-	NaluTypeSliceTsaR:  "TsaR",
-	NaluTypeSliceStsaN: "StsaN",
-	NaluTypeSliceStsaR: "StsaR",
-	NaluTypeSliceRadlN: "RadlN",
-	NaluTypeSliceRadlR: "RadlR",
-	NaluTypeSliceRaslN: "RaslN",
-	NaluTypeSliceRaslR: "RaslR",
+	NaluTypeSliceTsaN:   "TsaN",
+	NaluTypeSliceTsaR:   "TsaR",
+	NaluTypeSliceStsaN:  "StsaN",
+	NaluTypeSliceStsaR:  "StsaR",
+	NaluTypeSliceRadlN:  "RadlN",
+	NaluTypeSliceRadlR:  "RadlR",
+	NaluTypeSliceRaslN:  "RaslN",
+	NaluTypeSliceRaslR:  "RaslR",
 
 	NaluTypeSliceBlaWlp:       "BlaWlp",
 	NaluTypeSliceBlaWradl:     "BlaWradl",
@@ -58,8 +57,8 @@ var NaluTypeMapping = map[uint8]string{
 	NaluTypeSliceIdr:          "IDR",
 	NaluTypeSliceIdrNlp:       "IDRNLP",
 	NaluTypeSliceCranut:       "CRANUT",
-	NaluTypeSliceRsvIrapVcl22: "IDR",
-	NaluTypeSliceRsvIrapVcl23: "IDR",
+	NaluTypeSliceRsvIrapVcl22: "IrapVcl22",
+	NaluTypeSliceRsvIrapVcl23: "IrapVcl23",
 
 	NaluTypeVps:       "VPS",
 	NaluTypeSps:       "SPS",
@@ -83,11 +82,6 @@ const (
 	NaluTypeSliceRaslN  uint8 = 8 // 0x06
 	NaluTypeSliceRaslR  uint8 = 9 // 0x09
 
-	// NaluTypeSliceIdr ...
-	//
-	// 19, 20, 21都是关键帧
-	// TODO(chef): 16，17，18也是关键帧吗？
-	//
 	NaluTypeSliceBlaWlp       uint8 = 16 // 0x10
 	NaluTypeSliceBlaWradl     uint8 = 17 // 0x11
 	NaluTypeSliceBlaNlp       uint8 = 18 // 0x12
@@ -145,6 +139,16 @@ func ParseNaluType(v uint8) uint8 {
 	// 0*** ***0
 	// or return (nalu[0] >> 1) & 0x3F
 	return (v & 0x7E) >> 1
+}
+
+// IsIrapNalu 是否是关键帧
+//
+// @param typ 帧类型。注意，是经过 ParseNaluType 解析后的帧类型
+//
+func IsIrapNalu(typ uint8) bool {
+	// [16, 23] irap nal
+	// [19, 20] idr nal
+	return typ >= NaluTypeSliceBlaWlp && typ <= NaluTypeSliceRsvIrapVcl23
 }
 
 // VpsSpsPpsSeqHeader2Annexb
@@ -214,6 +218,7 @@ func ParseVpsSpsPpsFromSeqHeaderWithoutMalloc(payload []byte) (vps, sps, pps []b
 	}
 	index++
 
+	// 注意，seq header中，是最后6个字节而不是中间6个字节
 	if payload[index]&0x3f != NaluTypeVps {
 		return nil, nil, nil, nazaerrors.Wrap(base.ErrHevc)
 	}

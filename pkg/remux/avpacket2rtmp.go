@@ -197,7 +197,7 @@ func (r *AvPacket2RtmpRemuxer) FeedAvPacket(pkt base.AvPacket) {
 						r.clearVideoSeqHeader()
 					}
 				} else {
-					if t >= hevc.NaluTypeSliceBlaWlp && t <= hevc.NaluTypeSliceRsvIrapVcl23 {
+					if hevc.IsIrapNalu(t) {
 						payload[0] = base.RtmpHevcKeyFrame
 					} else {
 						payload[0] = base.RtmpHevcInterFrame

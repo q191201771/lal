@@ -279,52 +279,53 @@ func calcPositionIfNeededHevc(pkt *RtpPacket) {
 	outerNaluType := hevc.ParseNaluType(b[0])
 	if _, ok := hevc.NaluTypeMapping[outerNaluType]; ok {
 		pkt.positionType = PositionTypeSingle
-	} else {
-		if outerNaluType == NaluTypeHevcFua {
-			// Figure 1: The Structure of the HEVC NAL Unit Header
-
-			// 0                   1                   2                   3
-			// 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
-			// +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-			// |    PayloadHdr (Type=49)       |   FU header   | DONL (cond)   |
-			// +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-|
-			// | DONL (cond)   |                                               |
-			// |-+-+-+-+-+-+-+-+                                               |
-			// |                         FU payload                            |
-			// |                                                               |
-			// |                               +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-			// |                               :...OPTIONAL RTP padding        |
-			// +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-
-			// Figure 9: The Structure of an FU
-
-			// +---------------+
-			// |0|1|2|3|4|5|6|7|
-			// +-+-+-+-+-+-+-+-+
-			// |S|E|  FuType   |
-			// +---------------+
-
-			// Figure 10: The Structure of FU Header
-
-			startCode := (b[2] & 0x80) != 0
-			endCode := (b[2] & 0x40) != 0
-
-			if startCode {
-				pkt.positionType = PositionTypeFuaStart
-				return
-			}
-
-			if endCode {
-				pkt.positionType = PositionTypeFuaEnd
-				return
-			}
-
-			pkt.positionType = PositionTypeFuaMiddle
-			return
-		} else {
-			Log.Errorf("unknown nalu type. outerNaluType=%d(%d), header=%+v, len=%d",
-				b[0], outerNaluType, pkt.Header, len(pkt.Raw))
-		}
+		return
 	}
 
+	if outerNaluType == NaluTypeHevcFua {
+		// Figure 1: The Structure of the HEVC NAL Unit Header
+
+		// 0                   1                   2                   3
+		// 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
+		// +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+		// |    PayloadHdr (Type=49)       |   FU header   | DONL (cond)   |
+		// +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-|
+		// | DONL (cond)   |                                               |
+		// |-+-+-+-+-+-+-+-+                                               |
+		// |                         FU payload                            |
+		// |                                                               |
+		// |                               +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+		// |                               :...OPTIONAL RTP padding        |
+		// +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+
+		// Figure 9: The Structure of an FU
+
+		// +---------------+
+		// |0|1|2|3|4|5|6|7|
+		// +-+-+-+-+-+-+-+-+
+		// |S|E|  FuType   |
+		// +---------------+
+
+		// Figure 10: The Structure of FU Header
+
+		startCode := (b[2] & 0x80) != 0
+		endCode := (b[2] & 0x40) != 0
+
+		if startCode {
+			pkt.positionType = PositionTypeFuaStart
+			return
+		}
+
+		if endCode {
+			pkt.positionType = PositionTypeFuaEnd
+			return
+		}
+
+		pkt.positionType = PositionTypeFuaMiddle
+		return
+	}
+
+	// TODO chef: 没有实现 AP 48
+	Log.Errorf("unknown nalu type. outerNaluType=%d(%d), header=%+v, len=%d",
+		b[0], outerNaluType, pkt.Header, len(pkt.Raw))
 }
