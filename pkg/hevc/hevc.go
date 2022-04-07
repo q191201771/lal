@@ -42,15 +42,31 @@ var (
 var NaluTypeMapping = map[uint8]string{
 	NaluTypeSliceTrailN: "TrailN",
 	NaluTypeSliceTrailR: "TrailR",
-	NaluTypeSliceIdr:    "IDR",
-	NaluTypeSliceIdrNlp: "IDRNLP",
-	NaluTypeSliceCranut: "CRANUT",
-	NaluTypeVps:         "VPS",
-	NaluTypeSps:         "SPS",
-	NaluTypePps:         "PPS",
-	NaluTypeAud:         "AUD",
-	NaluTypeSei:         "SEI",
-	NaluTypeSeiSuffix:   "SEISuffix",
+
+	NaluTypeSliceTsaN:  "TsaN",
+	NaluTypeSliceTsaR:  "TsaR",
+	NaluTypeSliceStsaN: "StsaN",
+	NaluTypeSliceStsaR: "StsaR",
+	NaluTypeSliceRadlN: "RadlN",
+	NaluTypeSliceRadlR: "RadlR",
+	NaluTypeSliceRaslN: "RaslN",
+	NaluTypeSliceRaslR: "RaslR",
+
+	NaluTypeSliceBlaWlp:       "BlaWlp",
+	NaluTypeSliceBlaWradl:     "BlaWradl",
+	NaluTypeSliceBlaNlp:       "BlaNlp",
+	NaluTypeSliceIdr:          "IDR",
+	NaluTypeSliceIdrNlp:       "IDRNLP",
+	NaluTypeSliceCranut:       "CRANUT",
+	NaluTypeSliceRsvIrapVcl22: "IDR",
+	NaluTypeSliceRsvIrapVcl23: "IDR",
+
+	NaluTypeVps:       "VPS",
+	NaluTypeSps:       "SPS",
+	NaluTypePps:       "PPS",
+	NaluTypeAud:       "AUD",
+	NaluTypeSei:       "SEI",
+	NaluTypeSeiSuffix: "SEISuffix",
 }
 
 // ISO_IEC_23008-2_2013.pdf
@@ -58,15 +74,28 @@ var NaluTypeMapping = map[uint8]string{
 const (
 	NaluTypeSliceTrailN uint8 = 0 // 0x0
 	NaluTypeSliceTrailR uint8 = 1 // 0x01
+	NaluTypeSliceTsaN   uint8 = 2 // 0x02
+	NaluTypeSliceTsaR   uint8 = 3 // 0x03
+	NaluTypeSliceStsaN  uint8 = 4 // 0x04
+	NaluTypeSliceStsaR  uint8 = 5 // 0x05
+	NaluTypeSliceRadlN  uint8 = 6 // 0x06
+	NaluTypeSliceRadlR  uint8 = 7 // 0x07
+	NaluTypeSliceRaslN  uint8 = 8 // 0x06
+	NaluTypeSliceRaslR  uint8 = 9 // 0x09
 
 	// NaluTypeSliceIdr ...
 	//
 	// 19, 20, 21都是关键帧
 	// TODO(chef): 16，17，18也是关键帧吗？
 	//
-	NaluTypeSliceIdr    uint8 = 19 // 0x13
-	NaluTypeSliceIdrNlp uint8 = 20 // 0x14
-	NaluTypeSliceCranut uint8 = 21 // 0x15
+	NaluTypeSliceBlaWlp       uint8 = 16 // 0x10
+	NaluTypeSliceBlaWradl     uint8 = 17 // 0x11
+	NaluTypeSliceBlaNlp       uint8 = 18 // 0x12
+	NaluTypeSliceIdr          uint8 = 19 // 0x13
+	NaluTypeSliceIdrNlp       uint8 = 20 // 0x14
+	NaluTypeSliceCranut       uint8 = 21 // 0x15
+	NaluTypeSliceRsvIrapVcl22 uint8 = 22 // 0x16
+	NaluTypeSliceRsvIrapVcl23 uint8 = 23 // 0x17
 
 	NaluTypeVps       uint8 = 32 // 0x20
 	NaluTypeSps       uint8 = 33 // 0x21
@@ -185,7 +214,7 @@ func ParseVpsSpsPpsFromSeqHeaderWithoutMalloc(payload []byte) (vps, sps, pps []b
 	}
 	index++
 
-	if payload[index] != NaluTypeVps&0x3f {
+	if payload[index]&0x3f != NaluTypeVps {
 		return nil, nil, nil, nazaerrors.Wrap(base.ErrHevc)
 	}
 	if numNalus := int(bele.BeUint16(payload[index+1:])); numNalus != 1 {
@@ -203,7 +232,7 @@ func ParseVpsSpsPpsFromSeqHeaderWithoutMalloc(payload []byte) (vps, sps, pps []b
 	if len(payload) < 38+vpsLen {
 		return nil, nil, nil, nazaerrors.Wrap(base.ErrHevc)
 	}
-	if payload[index] != NaluTypeSps&0x3f {
+	if payload[index]&0x3f != NaluTypeSps {
 		return nil, nil, nil, nazaerrors.Wrap(base.ErrHevc)
 	}
 	if numNalus := int(bele.BeUint16(payload[index+1:])); numNalus != 1 {
@@ -219,7 +248,7 @@ func ParseVpsSpsPpsFromSeqHeaderWithoutMalloc(payload []byte) (vps, sps, pps []b
 	if len(payload) < 43+vpsLen+spsLen {
 		return nil, nil, nil, nazaerrors.Wrap(base.ErrHevc)
 	}
-	if payload[index] != NaluTypePps&0x3f {
+	if payload[index]&0x3f != NaluTypePps {
 		return nil, nil, nil, nazaerrors.Wrap(base.ErrHevc)
 	}
 	if numNalus := int(bele.BeUint16(payload[index+1:])); numNalus != 1 {

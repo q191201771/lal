@@ -233,7 +233,9 @@ func (s *Rtmp2MpegtsRemuxer) feedVideo(msg base.RtmpMsg) {
 			}
 		} else {
 			switch nalType {
-			case hevc.NaluTypeSliceIdr, hevc.NaluTypeSliceIdrNlp, hevc.NaluTypeSliceCranut:
+			case hevc.NaluTypeSliceBlaWlp, hevc.NaluTypeSliceBlaWradl, hevc.NaluTypeSliceBlaNlp,
+				hevc.NaluTypeSliceIdr, hevc.NaluTypeSliceIdrNlp, hevc.NaluTypeSliceCranut,
+				hevc.NaluTypeSliceRsvIrapVcl22, hevc.NaluTypeSliceRsvIrapVcl23:
 				if !spsppsSent {
 					if s.videoOut, err = s.appendSpsPps(s.videoOut); err != nil {
 						Log.Warnf("[%s] append spspps by not exist.", s.UniqueKey)
