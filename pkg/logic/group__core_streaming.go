@@ -381,8 +381,8 @@ func (group *Group) broadcastByRtmpMsg(msg base.RtmpMsg) {
 // ---------------------------------------------------------------------------------------------------------------------
 
 func (group *Group) feedRtpPacket(pkt rtprtcp.RtpPacket) {
-	// 音频直接发送
-	if group.sdpCtx.IsAudioPayloadTypeOrigin(int(pkt.Header.PacketType)) {
+	// 出包时不等待视频关键帧
+	if !group.config.RtspConfig.OutWaitKeyFrameFlag {
 		for s := range group.rtspSubSessionSet {
 			s.WriteRtpPacket(pkt)
 		}
