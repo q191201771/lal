@@ -381,7 +381,7 @@ func (group *Group) broadcastByRtmpMsg(msg base.RtmpMsg) {
 // ---------------------------------------------------------------------------------------------------------------------
 
 func (group *Group) feedRtpPacket(pkt rtprtcp.RtpPacket) {
-	// 出包时不等待视频关键帧
+	// 如果配置项 OutWaitKeyFrameFlag 为false，则音频和视频都直接发送。（音频和视频都不等待视频关键帧，都不等待任何数据）
 	if !group.config.RtspConfig.OutWaitKeyFrameFlag {
 		for s := range group.rtspSubSessionSet {
 			s.WriteRtpPacket(pkt)
@@ -390,11 +390,16 @@ func (group *Group) feedRtpPacket(pkt rtprtcp.RtpPacket) {
 	}
 
 	var (
-		boundary        bool
-		boundaryChecked bool // 保证只检查0次或1次，减少性能开销
+		boundary        bool // 是否是视频GOP起始位置
+		boundaryChecked bool // 保证遍历sub session时，只在必要时检查0次或1次，减少性能开销
 	)
 
 	for s := range group.rtspSubSessionSet {
+		// session的 ShouldWaitVideoKeyFrame 为false，那么可能有两种情况：
+		// 1. 对输入流做智能检测时，判定为流内没有视频
+		// 2. 该输出流已经发送过了GOP起始数据
+		//
+		// 这两种情况下，音频或视频数据都直接发送，不需要等了
 		if !s.ShouldWaitVideoKeyFrame {
 			s.WriteRtpPacket(pkt)
 			continue
