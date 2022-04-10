@@ -40,7 +40,8 @@
   },
   "rtsp": {
     "enable": true,
-    "addr": ":5544"
+    "addr": ":5544",
+    "out_wait_key_frame_flag": true
   },
   "record": {
     "enable_flv": false,
