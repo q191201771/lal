@@ -462,7 +462,7 @@ func (sm *ServerManager) OnNewRtmpSubSession(session *rtmp.ServerSession) error 
 	var info base.SubStartInfo
 	info.ServerId = sm.config.ServerId
 	info.Protocol = base.ProtocolRtmp
-	info.Protocol = session.Url()
+	info.Url = session.Url()
 	info.AppName = session.AppName()
 	info.StreamName = session.StreamName()
 	info.UrlParam = session.RawQuery()
