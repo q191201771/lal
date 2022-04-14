@@ -345,3 +345,12 @@ func TestIssue135(t *testing.T) {
 	b, err := avc.SpsPpsSeqHeader2Annexb(dst)
 	nazalog.Debugf("%s, %+v", hex.Dump(b), err)
 }
+
+func TestTryParseSeqHeader(t *testing.T) {
+	// https://github.com/q191201771/lal/issues/143
+	payload, err := hex.DecodeString("17000000000142000affe1000a6742000af80f0044be0801000568ce388000")
+	// "6742000af80f0044be08 68ce388000"
+	assert.Equal(t, nil, err)
+	err = avc.TryParseSeqHeader(payload)
+	assert.Equal(t, nil, err)
+}

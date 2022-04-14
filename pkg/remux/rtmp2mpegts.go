@@ -10,7 +10,6 @@ package remux
 
 import (
 	"encoding/hex"
-
 	"github.com/q191201771/lal/pkg/aac"
 	"github.com/q191201771/lal/pkg/avc"
 	"github.com/q191201771/lal/pkg/base"
@@ -183,6 +182,8 @@ func (s *Rtmp2MpegtsRemuxer) feedVideo(msg base.RtmpMsg) {
 		Log.Errorf("[%s] iterate nalu failed. err=%+v, header=%+v, payload=%s", err, s.UniqueKey, msg.Header, hex.Dump(nazabytes.Prefix(msg.Payload, 32)))
 		return
 	}
+
+	var vps, sps, pps []byte
 	for _, nal := range nals {
 		var nalType uint8
 		switch codecId {
@@ -194,12 +195,55 @@ func (s *Rtmp2MpegtsRemuxer) feedVideo(msg base.RtmpMsg) {
 
 		//Log.Debugf("[%s] naltype=%d, len=%d(%d), cts=%d, key=%t.", s.UniqueKey, nalType, nalBytes, len(msg.Payload), cts, msg.IsVideoKeyNalu())
 
-		// 过滤掉原流中的sps pps aud
-		// sps pps前面已经缓存过了，后面有自己的写入逻辑
-		// aud有自己的写入逻辑
-		if (codecId == base.RtmpCodecIdAvc && (nalType == avc.NaluTypeSps || nalType == avc.NaluTypePps || nalType == avc.NaluTypeAud)) ||
-			(codecId == base.RtmpCodecIdHevc && (nalType == hevc.NaluTypeVps || nalType == hevc.NaluTypeSps || nalType == hevc.NaluTypePps || nalType == hevc.NaluTypeAud)) {
-			continue
+		// 处理 sps pps aud
+		//
+		// aud 过滤掉，我们有自己的添加aud的逻辑
+		//
+		// sps pps
+		// 注意，有的流，seq header中的sps和pps是错误的，需要从nals里获取sps pps并更新
+		// 见 https://github.com/q191201771/lal/issues/143
+		//
+		// TODO(chef): rtmp转其他类型的模块也存在这个问题，应该抽象出一个统一处理的地方
+		//
+		if codecId == base.RtmpCodecIdAvc {
+			if nalType == avc.NaluTypeAud {
+				continue
+			} else if nalType == avc.NaluTypeSps {
+				sps = nal
+				continue
+			} else if nalType == avc.NaluTypePps {
+				pps = nal
+				if len(sps) != 0 && len(pps) != 0 {
+					s.spspps = s.spspps[0:0]
+					s.spspps = append(s.spspps, avc.NaluStartCode4...)
+					s.spspps = append(s.spspps, sps...)
+					s.spspps = append(s.spspps, avc.NaluStartCode4...)
+					s.spspps = append(s.spspps, pps...)
+				}
+				continue
+			}
+		} else if codecId == base.RtmpCodecIdHevc {
+			if nalType == hevc.NaluTypeAud {
+				continue
+			} else if nalType == hevc.NaluTypeVps {
+				vps = nal
+				continue
+			} else if nalType == avc.NaluTypeSps {
+				sps = nal
+				continue
+			} else if nalType == avc.NaluTypePps {
+				pps = nal
+				if len(vps) != 0 && len(sps) != 0 && len(pps) != 0 {
+					s.spspps = s.spspps[0:0]
+					s.spspps = append(s.spspps, avc.NaluStartCode4...)
+					s.spspps = append(s.spspps, vps...)
+					s.spspps = append(s.spspps, avc.NaluStartCode4...)
+					s.spspps = append(s.spspps, sps...)
+					s.spspps = append(s.spspps, avc.NaluStartCode4...)
+					s.spspps = append(s.spspps, pps...)
+				}
+				continue
+			}
 		}
 
 		// tag中的首个nalu前面写入aud
@@ -335,7 +379,7 @@ func (s *Rtmp2MpegtsRemuxer) appendSpsPps(out []byte) ([]byte, error) {
 }
 
 func (s *Rtmp2MpegtsRemuxer) videoSeqHeaderCached() bool {
-	return s.spspps != nil
+	return len(s.spspps) != 0
 }
 
 func (s *Rtmp2MpegtsRemuxer) audioCacheEmpty() bool {

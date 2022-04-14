@@ -1,19 +1,15 @@
+/app/demo/push_rtmp_hook
+/windows
+
 /.idea
 /.vscode
-
-lal_record
-logs
-testdata
+/.trash
 /bin
 /release
 /tmp
 /playground
-profile.out
-coverage.html
-/coverage.txt
-delay.txt
+/windows/bin
 
-/.trash
 /SECRET.md
 /TODO.md
 /pre-commit.sh
@@ -21,6 +17,15 @@ delay.txt
 /conf/self.center.conf.json
 /conf/self.edge.conf.json
 /conf/https.conf.json
+
+lal_record
+logs
+testdata
+
+profile.out
+coverage.html
+coverage.txt
+delay.txt
 
 *.aac
 *.h264
