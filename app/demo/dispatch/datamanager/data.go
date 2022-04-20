@@ -40,7 +40,7 @@ func NewDataManagerMemory(serverTimeoutSec int) *DataManagerMemory {
 			d.mutex.Lock()
 			// 清除长时间没有update报活的节点
 			for serverId, ts := range d.serverId2AliveTs {
-				if now > ts && now-ts > int64(d.serverTimeoutSec)*1000 {
+				if now > ts && now-ts > int64(d.serverTimeoutSec) {
 					nazalog.Warnf("server timeout. serverId=%s", serverId)
 					delete(d.serverId2pubStreams, serverId)
 				}
