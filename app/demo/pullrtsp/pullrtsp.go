@@ -37,7 +37,7 @@ func main() {
 	err = fileWriter.WriteRaw(httpflv.FlvHeader)
 	nazalog.Assert(nil, err)
 
-	remuxer := remux.NewAvPacket2RtmpRemuxer(func(msg base.RtmpMsg) {
+	remuxer := remux.NewAvPacket2RtmpRemuxer().WithOnRtmpMsg(func(msg base.RtmpMsg) {
 		err = fileWriter.WriteTag(*remux.RtmpMsg2FlvTag(msg))
 		nazalog.Assert(nil, err)
 	})

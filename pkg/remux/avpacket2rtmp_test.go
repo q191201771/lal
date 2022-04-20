@@ -37,7 +37,7 @@ func TestCase1(t *testing.T) {
 		golden[i].Payload = p
 	}
 
-	remuxer := remux.NewAvPacket2RtmpRemuxer(func(msg base.RtmpMsg) {
+	remuxer := remux.NewAvPacket2RtmpRemuxer().WithOnRtmpMsg(func(msg base.RtmpMsg) {
 		remux.Log.Debugf("%+v", msg)
 	})
 	for _, p := range golden {
@@ -76,7 +76,7 @@ func TestCase2(t *testing.T) {
 		golden[i].Payload = p
 	}
 
-	remuxer := remux.NewAvPacket2RtmpRemuxer(func(msg base.RtmpMsg) {
+	remuxer := remux.NewAvPacket2RtmpRemuxer().WithOnRtmpMsg(func(msg base.RtmpMsg) {
 		remux.Log.Debugf("%+v", msg)
 	})
 	for _, p := range golden {

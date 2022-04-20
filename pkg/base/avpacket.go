@@ -23,8 +23,8 @@ const (
 // 使用AvPacket的地方，应注明各字段的含义。
 //
 type AvPacket struct {
-	Timestamp   uint32
 	PayloadType AvPacketPt
+	Timestamp   uint32 // TODO(chef): 改成int64
 	Payload     []byte
 }
 

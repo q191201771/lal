@@ -20,10 +20,14 @@ import (
 )
 
 // AvPacket2RtmpRemuxer AvPacket转换为RTMP
-// 目前AvPacket来自RTSP的sdp以及rtp的合帧包。理论上也支持webrtc，后续接入webrtc时再验证
+// 目前AvPacket来自
+// - RTSP的sdp以及rtp的合帧包
+// - 业务方通过接口向lalserver输入的流
+// - 理论上也支持webrtc，后续接入webrtc时再验证
 //
 type AvPacket2RtmpRemuxer struct {
-	onRtmpAvMsg rtmp.OnReadRtmpAvMsg
+	option    AvPacketStreamOption
+	onRtmpMsg rtmp.OnReadRtmpAvMsg
 
 	hasEmittedMetadata bool
 	audioType          base.AvPacketPt
@@ -34,15 +38,30 @@ type AvPacket2RtmpRemuxer struct {
 	pps []byte
 }
 
-func NewAvPacket2RtmpRemuxer(onRtmpAvMsg rtmp.OnReadRtmpAvMsg) *AvPacket2RtmpRemuxer {
+func NewAvPacket2RtmpRemuxer() *AvPacket2RtmpRemuxer {
 	return &AvPacket2RtmpRemuxer{
-		onRtmpAvMsg: onRtmpAvMsg,
-		audioType:   base.AvPacketPtUnknown,
-		videoType:   base.AvPacketPtUnknown,
+		option:    DefaultApsOption,
+		audioType: base.AvPacketPtUnknown,
+		videoType: base.AvPacketPtUnknown,
 	}
 }
 
-// OnRtpPacket 实现RTSP回调数据的三个接口，使得接入时方便些
+func (r *AvPacket2RtmpRemuxer) WithOption(modOption func(option *AvPacketStreamOption)) *AvPacket2RtmpRemuxer {
+	modOption(&r.option)
+	return r
+}
+
+func (r *AvPacket2RtmpRemuxer) WithOnRtmpMsg(onRtmpMsg rtmp.OnReadRtmpAvMsg) *AvPacket2RtmpRemuxer {
+	r.onRtmpMsg = onRtmpMsg
+	return r
+}
+
+// ---------------------------------------------------------------------------------------------------------------------
+
+// OnRtpPacket OnSdp OnAvPacket
+//
+// 实现RTSP回调数据的接口 rtsp.IBaseInSessionObserver ，使得接入时方便些
+//
 func (r *AvPacket2RtmpRemuxer) OnRtpPacket(pkt rtprtcp.RtpPacket) {
 	// noop
 }
@@ -52,6 +71,8 @@ func (r *AvPacket2RtmpRemuxer) OnSdp(sdpCtx sdp.LogicContext) {
 func (r *AvPacket2RtmpRemuxer) OnAvPacket(pkt base.AvPacket) {
 	r.FeedAvPacket(pkt)
 }
+
+// ---------------------------------------------------------------------------------------------------------------------
 
 // InitWithAvConfig rtsp场景下，有时sps、pps等信息只包含在sdp中，有时包含在rtp包中，
 // 这里提供输入sdp的sps、pps等信息的机会，如果没有，可以不调用
@@ -119,7 +140,7 @@ func (r *AvPacket2RtmpRemuxer) InitWithAvConfig(asc, vps, sps, pps []byte) {
 // @param pkt:
 //
 //  - 如果是aac，格式是裸数据，不需要adts头
-//  - 如果是h264，格式是avcc
+//  - 如果是h264，格式是avcc或Annexb，具体取决于前面的配置
 //
 //  内部不持有该内存块
 //
@@ -128,7 +149,13 @@ func (r *AvPacket2RtmpRemuxer) FeedAvPacket(pkt base.AvPacket) {
 	case base.AvPacketPtAvc:
 		fallthrough
 	case base.AvPacketPtHevc:
-		nals, err := avc.SplitNaluAvcc(pkt.Payload)
+		var nals [][]byte
+		var err error
+		if r.option.VideoFormat == AvPacketStreamVideoFormatAvcc {
+			nals, err = avc.SplitNaluAvcc(pkt.Payload)
+		} else {
+			nals, err = avc.SplitNaluAnnexb(pkt.Payload)
+		}
 		if err != nil {
 			Log.Errorf("iterate nalu failed. err=%+v", err)
 			return
@@ -229,6 +256,8 @@ func (r *AvPacket2RtmpRemuxer) FeedAvPacket(pkt base.AvPacket) {
 	}
 }
 
+// ---------------------------------------------------------------------------------------------------------------------
+
 func (r *AvPacket2RtmpRemuxer) emitRtmpAvMsg(isAudio bool, payload []byte, timestamp uint32) {
 	if !r.hasEmittedMetadata {
 		// TODO(chef): 此处简化了从sps中获取宽高写入metadata的逻辑
@@ -248,7 +277,7 @@ func (r *AvPacket2RtmpRemuxer) emitRtmpAvMsg(isAudio bool, payload []byte, times
 			Log.Errorf("build metadata failed. err=%+v", err)
 			return
 		}
-		r.onRtmpAvMsg(base.RtmpMsg{
+		r.onRtmpMsg(base.RtmpMsg{
 			Header: base.RtmpHeader{
 				Csid:         rtmp.CsidAmf,
 				MsgLen:       uint32(len(bMetadata)),
@@ -276,7 +305,7 @@ func (r *AvPacket2RtmpRemuxer) emitRtmpAvMsg(isAudio bool, payload []byte, times
 	msg.Header.TimestampAbs = timestamp
 	msg.Payload = payload
 
-	r.onRtmpAvMsg(msg)
+	r.onRtmpMsg(msg)
 }
 
 func (r *AvPacket2RtmpRemuxer) setVps(b []byte) {

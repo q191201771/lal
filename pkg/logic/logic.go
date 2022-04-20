@@ -8,11 +8,24 @@
 
 package logic
 
-import "github.com/q191201771/lal/pkg/base"
+import (
+	"github.com/q191201771/lal/pkg/base"
+	"github.com/q191201771/lal/pkg/remux"
+	"path/filepath"
+)
+
+// ---------------------------------------------------------------------------------------------------------------------
 
 type ILalServer interface {
 	RunLoop() error
 	Dispose()
+
+	// AddCustomizePubSession DelCustomizePubSession
+	//
+	// 业务方可以将自己的流输入到 ILalServer 中
+	//
+	AddCustomizePubSession(streamName string) (ICustomizePubSessionContext, error)
+	DelCustomizePubSession(ICustomizePubSessionContext)
 
 	// StatLalInfo StatXxx... CtrlXxx...
 	//
@@ -28,19 +41,25 @@ type ILalServer interface {
 
 // NewLalServer 创建一个lal server
 //
-// @param confFile  配置文件地址
-//
 // @param modOption
-//   可变参数，如果不关心，可以不填
-//   目的是方便业务方在不修改logic包内代码的前提下，在外层实现一些特定逻辑的定制化开发
-//   Option struct中可修改的参数说明：
-//     - notifyHandler 事件监听
-//                     业务方可实现 INotifyHandler 接口并传入从而获取到对应的事件通知
-//                     如果不填写保持默认值nil，内部默认走http notify的逻辑（当然，还需要在配置文件中开启http notify功能）
-//                     注意，如果业务方实现了自己的事件监听，则lal server内部不再走http notify的逻辑（也即二选一）
+//   - 可变参数，如果不关心，可以不填，具体字段见 Option
+//   - 目的是方便业务方在不修改logic包内代码的前提下，在外层实现一些特定逻辑的定制化开发
 //
-func NewLalServer(confFile string, modOption ...ModOption) ILalServer {
-	return NewServerManager(confFile, modOption...)
+func NewLalServer(modOption ...ModOption) ILalServer {
+	return NewServerManager(modOption...)
+}
+
+// ---------------------------------------------------------------------------------------------------------------------
+
+type ICustomizePubSessionContext interface {
+	// WithOption FeedAvPacket
+	//
+	// 见 remux.IAvPacketStream
+	//
+	WithOption(modOption func(option *remux.AvPacketStreamOption))
+	FeedAvPacket(packet base.AvPacket)
+
+	StreamName() string
 }
 
 // ---------------------------------------------------------------------------------------------------------------------
@@ -58,6 +77,19 @@ type INotifyHandler interface {
 }
 
 type Option struct {
+	// ConfFilename
+	//
+	// 配置文件，注意，如果为空，内部会尝试从 DefaultConfFilenameList 读取默认配置文件
+	//
+	ConfFilename string
+
+	// NotifyHandler
+	//
+	// 事件监听
+	// 业务方可实现 INotifyHandler 接口并传入从而获取到对应的事件通知
+	// 如果不填写保持默认值nil，内部默认走http notify的逻辑（当然，还需要在配置文件中开启http notify功能）
+	// 注意，如果业务方实现了自己的事件监听，则lal server内部不再走http notify的逻辑（也即二选一）
+	//
 	NotifyHandler INotifyHandler
 }
 
@@ -66,3 +98,19 @@ var defaultOption = Option{
 }
 
 type ModOption func(option *Option)
+
+// DefaultConfFilenameList
+//
+// 没有指定配置文件时，按顺序作为优先级，找到第一个存在的并使用
+//
+var DefaultConfFilenameList = []string{
+	filepath.FromSlash("lalserver.conf.json"),
+	filepath.FromSlash("./conf/lalserver.conf.json"),
+	filepath.FromSlash("../lalserver.conf.json"),
+	filepath.FromSlash("../conf/lalserver.conf.json"),
+	filepath.FromSlash("../../lalserver.conf.json"),
+	filepath.FromSlash("../../conf/lalserver.conf.json"),
+	filepath.FromSlash("../../../lalserver.conf.json"),
+	filepath.FromSlash("../../../conf/lalserver.conf.json"),
+	filepath.FromSlash("lal/conf/lalserver.conf.json"),
+}

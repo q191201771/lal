@@ -31,7 +31,7 @@ import (
 // OnReadRtmpAvMsg
 //
 // 输入rtmp数据.
-// 来自 rtmp.ServerSession(Pub), rtmp.PullSession, (remux.DummyAudioFilter) 的回调.
+// 来自 rtmp.ServerSession(Pub), rtmp.PullSession, CustomizePubSessionContext, (remux.DummyAudioFilter) 的回调.
 //
 func (group *Group) OnReadRtmpAvMsg(msg base.RtmpMsg) {
 	group.mutex.Lock()
@@ -49,7 +49,6 @@ func (group *Group) OnReadRtmpAvMsg(msg base.RtmpMsg) {
 func (group *Group) OnSdp(sdpCtx sdp.LogicContext) {
 	group.mutex.Lock()
 	defer group.mutex.Unlock()
-
 	group.sdpCtx = &sdpCtx
 	group.rtsp2RtmpRemuxer.OnSdp(sdpCtx)
 }

@@ -435,6 +435,8 @@ func IterateNaluStartCode(nalu []byte, start int) (pos, length int) {
 //
 // 具体见单元测试
 //
+// @return nalList: 内存块元素引用输入参数`nals`的内存
+//
 func SplitNaluAnnexb(nals []byte) (nalList [][]byte, err error) {
 	err = IterateNaluAnnexb(nals, func(nal []byte) {
 		nalList = append(nalList, nal)
@@ -455,6 +457,10 @@ func SplitNaluAvcc(nals []byte) (nalList [][]byte, err error) {
 	return
 }
 
+// IterateNaluAnnexb
+//
+// @param handler: 回调函数中的`nal`参数引用`nals`中的内存
+//
 func IterateNaluAnnexb(nals []byte, handler func(nal []byte)) error {
 	if nals == nil {
 		return nazaerrors.Wrap(base.ErrShortBuffer)

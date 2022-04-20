@@ -22,6 +22,7 @@ import (
 )
 
 // TODO(chef): refactor 将analyze部分独立出来作为一个filter
+// TODO(chef): fix 如果前面来的音频和视频数据没有seq header，都是gop中间的数据，那么analyze分析的结果可能是音频和视频都没有
 
 var (
 	// config

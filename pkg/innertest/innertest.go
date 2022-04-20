@@ -58,7 +58,7 @@ var (
 	t *testing.T
 
 	mode         int // 0 正常 1 输入只有音频 2 输入只有视频
-	confFile     = "../../testdata/lalserver.conf.json"
+	confFilename = "../../testdata/lalserver.conf.json"
 	rFlvFileName = "../../testdata/test.flv"
 
 	pushUrl        string
@@ -120,8 +120,8 @@ func Entry(tt *testing.T) {
 func entry() {
 	Log.Debugf("> innertest")
 
-	if _, err := os.Lstat(confFile); err != nil {
-		Log.Warnf("lstat %s error. err=%+v", confFile, err)
+	if _, err := os.Lstat(confFilename); err != nil {
+		Log.Warnf("lstat %s error. err=%+v", confFilename, err)
 		return
 	}
 	if _, err := os.Lstat(rFlvFileName); err != nil {
@@ -138,7 +138,9 @@ func entry() {
 
 	var err error
 
-	sm := logic.NewServerManager(confFile)
+	sm := logic.NewServerManager(func(option *logic.Option) {
+		option.ConfFilename = confFilename
+	})
 	config := sm.Config()
 
 	//Log.Init(func(option *nazalog.Option) {

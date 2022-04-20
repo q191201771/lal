@@ -9,10 +9,13 @@
 package logic
 
 import (
+	"flag"
 	"fmt"
+	"github.com/q191201771/naza/pkg/nazalog"
 	"math"
 	"net/http"
 	"os"
+	"path/filepath"
 	"sync"
 	"time"
 
@@ -55,13 +58,39 @@ type ServerManager struct {
 	simpleAuthCtx *SimpleAuthCtx
 }
 
-func NewServerManager(confFile string, modOption ...ModOption) *ServerManager {
+func NewServerManager(modOption ...ModOption) *ServerManager {
 	sm := &ServerManager{
 		serverStartTime: base.ReadableNowTime(),
 		exitChan:        make(chan struct{}, 1),
 	}
 	sm.groupManager = NewSimpleGroupManager(sm)
 
+	sm.option = defaultOption
+	for _, fn := range modOption {
+		fn(&sm.option)
+	}
+
+	confFile := sm.option.ConfFilename
+	// 运行参数中没有配置文件，尝试从几个默认位置读取
+	if confFile == "" {
+		nazalog.Warnf("config file did not specify in the command line, try to load it in the usual path.")
+		confFile = firstExistDefaultConfFilename()
+
+		// 所有默认位置都找不到配置文件，退出程序
+		if confFile == "" {
+			// TODO(chef): refactor ILalserver既然已经作为package提供了，那么内部就不应该包含flag和os exit的操作，应该返回给上层
+			// TODO(chef): refactor new中逻辑是否该往后移
+			flag.Usage()
+			_, _ = fmt.Fprintf(os.Stderr, `
+Example:
+  %s -c %s
+
+Github: %s
+Doc: %s
+`, os.Args[0], filepath.FromSlash("./conf/lalserver.conf.json"), base.LalGithubSite, base.LalDocSite)
+			base.OsExitAndWaitPressIfWindows(1)
+		}
+	}
 	sm.config = LoadConfAndInitLog(confFile)
 	base.LogoutStartInfo()
 
@@ -82,10 +111,6 @@ func NewServerManager(confFile string, modOption ...ModOption) *ServerManager {
 		}
 	}
 
-	sm.option = defaultOption
-	for _, fn := range modOption {
-		fn(&sm.option)
-	}
 	if sm.option.NotifyHandler == nil {
 		sm.option.NotifyHandler = NewHttpNotify(sm.config.HttpNotifyConfig)
 	}
@@ -120,6 +145,8 @@ func NewServerManager(confFile string, modOption ...ModOption) *ServerManager {
 // ----- implement ILalServer interface --------------------------------------------------------------------------------
 
 func (sm *ServerManager) RunLoop() error {
+	// TODO(chef): 作为阻塞函数，外部只能获取失败或结束的信息，没法获取到启动成功的信息
+
 	sm.option.NotifyHandler.OnServerStart(sm.StatLalInfo())
 
 	if sm.pprofServer != nil {
@@ -375,6 +402,23 @@ func (sm *ServerManager) CtrlKickOutSession(info base.ApiCtrlKickOutSession) bas
 		ErrorCode: base.ErrorCodeSucc,
 		Desp:      base.DespSucc,
 	}
+}
+
+func (sm *ServerManager) AddCustomizePubSession(streamName string) (ICustomizePubSessionContext, error) {
+	sm.mutex.Lock()
+	defer sm.mutex.Unlock()
+	group := sm.getOrCreateGroup("", streamName)
+	return group.AddCustomizePubSession(streamName)
+}
+
+func (sm *ServerManager) DelCustomizePubSession(sessionCtx ICustomizePubSessionContext) {
+	sm.mutex.Lock()
+	defer sm.mutex.Unlock()
+	group := sm.getGroup("", sessionCtx.StreamName())
+	if group == nil {
+		return
+	}
+	group.DelCustomizePubSession(sessionCtx)
 }
 
 // ----- implement rtmp.IServerObserver interface -----------------------------------------------------------------------
@@ -815,4 +859,19 @@ func (sm *ServerManager) serveHls(writer http.ResponseWriter, req *http.Request)
 	}
 
 	sm.hlsServerHandler.ServeHTTP(writer, req)
+}
+
+// ---------------------------------------------------------------------------------------------------------------------
+
+func firstExistDefaultConfFilename() string {
+	for _, dcf := range DefaultConfFilenameList {
+		fi, err := os.Stat(dcf)
+		if err == nil && fi.Size() > 0 && !fi.IsDir() {
+			nazalog.Warnf("%s exist. using it as config file.", dcf)
+			return dcf
+		} else {
+			nazalog.Warnf("%s not exist.", dcf)
+		}
+	}
+	return ""
 }

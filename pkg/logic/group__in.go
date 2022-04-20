@@ -17,17 +17,41 @@ import (
 	"github.com/q191201771/lal/pkg/rtsp"
 )
 
-func (group *Group) AddRtmpPubSession(session *rtmp.ServerSession) error {
+func (group *Group) AddCustomizePubSession(streamName string) (ICustomizePubSessionContext, error) {
 	group.mutex.Lock()
 	defer group.mutex.Unlock()
 
-	Log.Debugf("[%s] [%s] add rtmp pub session into group.", group.UniqueKey, session.UniqueKey())
+	if group.hasInSession() {
+		Log.Errorf("[%s] in stream already exist at group. add customize pub session, exist=%s",
+			group.UniqueKey, group.inSessionUniqueKey())
+		return nil, base.ErrDupInStream
+	}
+
+	group.customizePubSession = NewCustomizePubSessionContext(streamName)
+	group.addIn()
+
+	if group.shouldStartRtspRemuxer() {
+		group.rtmp2RtspRemuxer = remux.NewRtmp2RtspRemuxer(
+			group.onSdpFromRemux,
+			group.onRtpPacketFromRemux,
+		)
+	}
+
+	group.customizePubSession.WithOnRtmpMsg(group.OnReadRtmpAvMsg)
+	return group.customizePubSession, nil
+}
+
+func (group *Group) AddRtmpPubSession(session *rtmp.ServerSession) error {
+	group.mutex.Lock()
+	defer group.mutex.Unlock()
 
 	if group.hasInSession() {
 		Log.Errorf("[%s] in stream already exist at group. add=%s, exist=%s",
 			group.UniqueKey, session.UniqueKey(), group.inSessionUniqueKey())
 		return base.ErrDupInStream
 	}
+
+	Log.Debugf("[%s] [%s] add rtmp pub session into group.", group.UniqueKey, session.UniqueKey())
 
 	group.rtmpPubSession = session
 	group.addIn()
@@ -42,6 +66,7 @@ func (group *Group) AddRtmpPubSession(session *rtmp.ServerSession) error {
 	// TODO(chef): 为rtmp pull以及rtsp也添加叠加静音音频的功能
 	if group.config.RtmpConfig.AddDummyAudioEnable {
 		// TODO(chef): 从整体控制和锁关系来说，应该让pub的数据回调到group中进锁后再让数据流入filter
+		// TODO(chef): 这里用OnReadRtmpAvMsg正确吗，是否会重复进锁
 		group.dummyAudioFilter = remux.NewDummyAudioFilter(group.UniqueKey, group.config.RtmpConfig.AddDummyAudioWaitAudioMs, group.OnReadRtmpAvMsg)
 		session.SetPubSessionObserver(group.dummyAudioFilter)
 	} else {
@@ -56,17 +81,17 @@ func (group *Group) AddRtspPubSession(session *rtsp.PubSession) error {
 	group.mutex.Lock()
 	defer group.mutex.Unlock()
 
-	Log.Debugf("[%s] [%s] add RTSP PubSession into group.", group.UniqueKey, session.UniqueKey())
-
 	if group.hasInSession() {
 		Log.Errorf("[%s] in stream already exist at group. wanna add=%s", group.UniqueKey, session.UniqueKey())
 		return base.ErrDupInStream
 	}
 
+	Log.Debugf("[%s] [%s] add RTSP PubSession into group.", group.UniqueKey, session.UniqueKey())
+
 	group.rtspPubSession = session
 	group.addIn()
 
-	group.rtsp2RtmpRemuxer = remux.NewAvPacket2RtmpRemuxer(group.onRtmpMsgFromRemux)
+	group.rtsp2RtmpRemuxer = remux.NewAvPacket2RtmpRemuxer().WithOnRtmpMsg(group.onRtmpMsgFromRemux)
 	session.SetObserver(group)
 
 	return nil
@@ -76,12 +101,12 @@ func (group *Group) AddRtmpPullSession(session *rtmp.PullSession) bool {
 	group.mutex.Lock()
 	defer group.mutex.Unlock()
 
-	Log.Debugf("[%s] [%s] add PullSession into group.", group.UniqueKey, session.UniqueKey())
-
 	if group.hasInSession() {
 		Log.Errorf("[%s] in stream already exist. wanna add=%s", group.UniqueKey, session.UniqueKey())
 		return false
 	}
+
+	Log.Debugf("[%s] [%s] add PullSession into group.", group.UniqueKey, session.UniqueKey())
 
 	group.pullProxy.pullSession = session
 	group.addIn()
@@ -97,6 +122,10 @@ func (group *Group) AddRtmpPullSession(session *rtmp.PullSession) bool {
 }
 
 // ---------------------------------------------------------------------------------------------------------------------
+
+func (sm *Group) DelCustomizePubSession(sessionCtx ICustomizePubSessionContext) {
+
+}
 
 func (group *Group) DelRtmpPubSession(session *rtmp.ServerSession) {
 	group.mutex.Lock()
