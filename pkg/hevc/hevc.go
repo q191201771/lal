@@ -469,7 +469,7 @@ func ParseSps(sps []byte, ctx *Context) error {
 	if bdlm8, err = br.ReadGolomb(); err != nil {
 		return err
 	}
-	ctx.bitDepthChromaMinus8 = uint8(bdlm8)
+	ctx.bitDepthLumaMinus8 = uint8(bdlm8)
 	var bdcm8 uint32
 	if bdcm8, err = br.ReadGolomb(); err != nil {
 		return err
