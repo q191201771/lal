@@ -42,9 +42,10 @@ type Frame struct {
 //
 func (frame *Frame) Pack() []byte {
 	bufLen := len(frame.Raw) * 2 // 预分配一块足够大的内存
-	if bufLen < 188 {
-		bufLen = 188
+	if bufLen < 1024 {
+		bufLen = 1024
 	}
+	// TODO(chef): perf 复用这块buffer
 	buf := make([]byte, bufLen)
 
 	lpos := 0              // 当前输入帧的处理位置
