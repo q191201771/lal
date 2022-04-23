@@ -138,7 +138,8 @@ var (
 
 var _ logic.ICustomizePubSessionContext = &logic.CustomizePubSessionContext{}
 var _ remux.IAvPacketStream = &logic.CustomizePubSessionContext{}
-var _ remux.IAvPacketStream = &remux.AvPacket2RtmpRemuxer{}
+
+//var _ remux.IAvPacketStream = &remux.AvPacket2RtmpRemuxer{}
 
 // ---------------------------------------------------------------------------------------------------------------------
 
