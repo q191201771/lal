@@ -123,8 +123,10 @@ func (group *Group) AddRtmpPullSession(session *rtmp.PullSession) bool {
 
 // ---------------------------------------------------------------------------------------------------------------------
 
-func (sm *Group) DelCustomizePubSession(sessionCtx ICustomizePubSessionContext) {
-
+func (group *Group) DelCustomizePubSession(sessionCtx ICustomizePubSessionContext) {
+	group.mutex.Lock()
+	defer group.mutex.Unlock()
+	group.delCustomizePubSession(sessionCtx)
 }
 
 func (group *Group) DelRtmpPubSession(session *rtmp.ServerSession) {
@@ -146,6 +148,18 @@ func (group *Group) DelRtmpPullSession(session *rtmp.PullSession) {
 }
 
 // ---------------------------------------------------------------------------------------------------------------------
+
+func (group *Group) delCustomizePubSession(sessionCtx ICustomizePubSessionContext) {
+	Log.Debugf("[%s] [%s] del rtmp PubSession from group.", group.UniqueKey, sessionCtx.UniqueKey())
+
+	if sessionCtx != group.customizePubSession {
+		Log.Warnf("[%s] del rtmp pub session but not match. del session=%s, group session=%p",
+			group.UniqueKey, sessionCtx.UniqueKey(), group.rtmpPubSession)
+		return
+	}
+
+	group.delIn()
+}
 
 func (group *Group) delRtmpPubSession(session *rtmp.ServerSession) {
 	Log.Debugf("[%s] [%s] del rtmp PubSession from group.", group.UniqueKey, session.UniqueKey())
@@ -212,6 +226,7 @@ func (group *Group) delIn() {
 
 	group.rtmpPubSession = nil
 	group.rtspPubSession = nil
+	group.customizePubSession = nil
 	group.rtsp2RtmpRemuxer = nil
 	group.rtmp2RtspRemuxer = nil
 	group.dummyAudioFilter = nil

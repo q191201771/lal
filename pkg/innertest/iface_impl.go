@@ -136,6 +136,12 @@ var (
 
 // ---------------------------------------------------------------------------------------------------------------------
 
+var _ logic.ICustomizePubSessionContext = &logic.CustomizePubSessionContext{}
+var _ remux.IAvPacketStream = &logic.CustomizePubSessionContext{}
+var _ remux.IAvPacketStream = &remux.AvPacket2RtmpRemuxer{}
+
+// ---------------------------------------------------------------------------------------------------------------------
+
 var _ logic.ILalServer = &logic.ServerManager{}
 var _ rtmp.IServerObserver = &logic.ServerManager{}
 var _ logic.IHttpServerHandlerObserver = &logic.ServerManager{}

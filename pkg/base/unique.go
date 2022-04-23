@@ -11,17 +11,18 @@ package base
 import "github.com/q191201771/naza/pkg/unique"
 
 const (
-	UkPreRtmpServerSession        = "RTMPPUBSUB"
-	UkPreRtmpPushSession          = "RTMPPUSH"
-	UkPreRtmpPullSession          = "RTMPPULL"
-	UkPreRtspServerCommandSession = "RTSPSRVCMD"
-	UkPreRtspPubSession           = "RTSPPUB"
-	UkPreRtspSubSession           = "RTSPSUB"
-	UkPreRtspPushSession          = "RTSPPUSH"
-	UkPreRtspPullSession          = "RTSPPULL"
-	UkPreFlvSubSession            = "FLVSUB"
-	UkPreTsSubSession             = "TSSUB"
-	UkPreFlvPullSession           = "FLVPULL"
+	UkPreCustomizePubSessionContext = "CUSTOMIZEPUB"
+	UkPreRtmpServerSession          = "RTMPPUBSUB"
+	UkPreRtmpPushSession            = "RTMPPUSH"
+	UkPreRtmpPullSession            = "RTMPPULL"
+	UkPreRtspServerCommandSession   = "RTSPSRVCMD"
+	UkPreRtspPubSession             = "RTSPPUB"
+	UkPreRtspSubSession             = "RTSPSUB"
+	UkPreRtspPushSession            = "RTSPPUSH"
+	UkPreRtspPullSession            = "RTSPPULL"
+	UkPreFlvSubSession              = "FLVSUB"
+	UkPreTsSubSession               = "TSSUB"
+	UkPreFlvPullSession             = "FLVPULL"
 
 	UkPreGroup              = "GROUP"
 	UkPreHlsMuxer           = "HLSMUXER"
@@ -31,6 +32,10 @@ const (
 //func GenUk(prefix string) string {
 //	return unique.GenUniqueKey(prefix)
 //}
+
+func GenUkCustomizePubSession() string {
+	return siUkCustomizePubSession.GenUniqueKey()
+}
 
 func GenUkRtmpServerSession() string {
 	return siUkRtmpServerSession.GenUniqueKey()
@@ -89,6 +94,7 @@ func GenUkRtmp2MpegtsRemuxer() string {
 }
 
 var (
+	siUkCustomizePubSession      *unique.SingleGenerator
 	siUkRtmpServerSession        *unique.SingleGenerator
 	siUkRtmpPushSession          *unique.SingleGenerator
 	siUkRtmpPullSession          *unique.SingleGenerator
@@ -107,6 +113,7 @@ var (
 )
 
 func init() {
+	siUkCustomizePubSession = unique.NewSingleGenerator(UkPreCustomizePubSessionContext)
 	siUkRtmpServerSession = unique.NewSingleGenerator(UkPreRtmpServerSession)
 	siUkRtmpPushSession = unique.NewSingleGenerator(UkPreRtmpPushSession)
 	siUkRtmpPullSession = unique.NewSingleGenerator(UkPreRtmpPullSession)

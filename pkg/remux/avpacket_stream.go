@@ -28,5 +28,29 @@ var DefaultApsOption = AvPacketStreamOption{
 
 type IAvPacketStream interface {
 	WithOption(modOption func(option *AvPacketStreamOption))
+
+	// FeedAudioSpecificConfig 传入音频AAC的初始化数据
+	//
+	// @param asc: AudioSpecificConfig。含义可参考 aac.AscContext, aac.MakeAscWithAdtsHeader 等内容
+	//
+	FeedAudioSpecificConfig(asc []byte)
+
+	// FeedAvPacket
+	//
+	// @param packet:
+	//
+	// PayloadType: 类型，支持avc(h264)，hevc(h265)，aac
+	//
+	// Timestamp: 时间戳，单位毫秒
+	//
+	// Payload: 音视频数据，格式如下
+	//
+	// 如果是音频AAC，格式是裸数据，不需要adts头。
+	// 注意，调用 FeedAvPacket 传入音频数据前，需要先调用 FeedAudioSpecificConfig
+	//
+	// 如果是视频，支持Avcc和Annexb两种格式。
+	// Avcc也即[<4字节长度 + nal>...]，Annexb也即[<4字节start code 00 00 00 01 + nal>...]。
+	// 注意，sps和pps也通过 FeedAvPacket 传入。sps和pps可以单独调用 FeedAvPacket，也可以sps+pps+I帧组合在一起调用一次 FeedAvPacket
+	//
 	FeedAvPacket(packet base.AvPacket)
 }

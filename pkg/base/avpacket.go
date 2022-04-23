@@ -12,9 +12,9 @@ type AvPacketPt int
 
 const (
 	AvPacketPtUnknown AvPacketPt = -1
-	AvPacketPtAvc     AvPacketPt = RtpPacketTypeAvcOrHevc
-	AvPacketPtHevc    AvPacketPt = RtpPacketTypeHevc
-	AvPacketPtAac     AvPacketPt = RtpPacketTypeAac
+	AvPacketPtAvc     AvPacketPt = 96 // h264
+	AvPacketPtHevc    AvPacketPt = 98 // h265
+	AvPacketPtAac     AvPacketPt = 97
 )
 
 // AvPacket
@@ -40,4 +40,12 @@ func (a AvPacketPt) ReadableString() string {
 		return "aac"
 	}
 	return ""
+}
+
+func (packet AvPacket) IsAudio() bool {
+	return packet.PayloadType == AvPacketPtAac
+}
+
+func (packet AvPacket) IsVideo() bool {
+	return packet.PayloadType == AvPacketPtAvc || packet.PayloadType == AvPacketPtHevc
 }

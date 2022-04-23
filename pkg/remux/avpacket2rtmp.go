@@ -46,9 +46,8 @@ func NewAvPacket2RtmpRemuxer() *AvPacket2RtmpRemuxer {
 	}
 }
 
-func (r *AvPacket2RtmpRemuxer) WithOption(modOption func(option *AvPacketStreamOption)) *AvPacket2RtmpRemuxer {
+func (r *AvPacket2RtmpRemuxer) WithOption(modOption func(option *AvPacketStreamOption)) {
 	modOption(&r.option)
-	return r
 }
 
 func (r *AvPacket2RtmpRemuxer) WithOnRtmpMsg(onRtmpMsg rtmp.OnReadRtmpAvMsg) *AvPacket2RtmpRemuxer {
