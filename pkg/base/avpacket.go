@@ -8,6 +8,12 @@
 
 package base
 
+import (
+	"encoding/hex"
+	"fmt"
+	"github.com/q191201771/naza/pkg/nazabytes"
+)
+
 type AvPacketPt int
 
 const (
@@ -16,6 +22,20 @@ const (
 	AvPacketPtHevc    AvPacketPt = 98 // h265
 	AvPacketPtAac     AvPacketPt = 97
 )
+
+func (a AvPacketPt) ReadableString() string {
+	switch a {
+	case AvPacketPtUnknown:
+		return "unknown"
+	case AvPacketPtAvc:
+		return "h264"
+	case AvPacketPtHevc:
+		return "h265"
+	case AvPacketPtAac:
+		return "aac"
+	}
+	return ""
+}
 
 // AvPacket
 //
@@ -28,24 +48,15 @@ type AvPacket struct {
 	Payload     []byte
 }
 
-func (a AvPacketPt) ReadableString() string {
-	switch a {
-	case AvPacketPtUnknown:
-		return "unknown"
-	case AvPacketPtAvc:
-		return "avc"
-	case AvPacketPtHevc:
-		return "hevc"
-	case AvPacketPtAac:
-		return "aac"
-	}
-	return ""
-}
-
-func (packet AvPacket) IsAudio() bool {
+func (packet *AvPacket) IsAudio() bool {
 	return packet.PayloadType == AvPacketPtAac
 }
 
-func (packet AvPacket) IsVideo() bool {
+func (packet *AvPacket) IsVideo() bool {
 	return packet.PayloadType == AvPacketPtAvc || packet.PayloadType == AvPacketPtHevc
+}
+
+func (packet *AvPacket) DebugString() string {
+	return fmt.Sprintf("[%p] type=%s, timestamp=%d, len=%d, payload=%s",
+		packet, packet.PayloadType.ReadableString(), packet.Timestamp, len(packet.Payload), hex.Dump(nazabytes.Prefix(packet.Payload, 32)))
 }

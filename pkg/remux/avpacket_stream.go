@@ -41,7 +41,7 @@ type IAvPacketStream interface {
 	//
 	// PayloadType: 类型，支持avc(h264)，hevc(h265)，aac
 	//
-	// Timestamp: 时间戳，单位毫秒
+	// Timestamp: 时间戳，单位毫秒。注意，是累计递增值，不是单个包的duration时长。
 	//
 	// Payload: 音视频数据，格式如下
 	//
