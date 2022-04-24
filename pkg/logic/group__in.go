@@ -37,7 +37,13 @@ func (group *Group) AddCustomizePubSession(streamName string) (ICustomizePubSess
 		)
 	}
 
-	group.customizePubSession.WithOnRtmpMsg(group.OnReadRtmpAvMsg)
+	if group.config.RtmpConfig.AddDummyAudioEnable {
+		group.dummyAudioFilter = remux.NewDummyAudioFilter(group.UniqueKey, group.config.RtmpConfig.AddDummyAudioWaitAudioMs, group.OnReadRtmpAvMsg)
+		group.customizePubSession.WithOnRtmpMsg(group.dummyAudioFilter.OnReadRtmpAvMsg)
+	} else {
+		group.customizePubSession.WithOnRtmpMsg(group.OnReadRtmpAvMsg)
+	}
+
 	return group.customizePubSession, nil
 }
 
@@ -63,7 +69,9 @@ func (group *Group) AddRtmpPubSession(session *rtmp.ServerSession) error {
 		)
 	}
 
-	// TODO(chef): 为rtmp pull以及rtsp也添加叠加静音音频的功能
+	// TODO(chef): feat 为其他输入流也添加假音频。比如rtmp pull以及rtsp
+	// TODO(chef): refactor 可考虑抽象出一个输入流的配置块
+	// TODO(chef): refactor 考虑放入addIn中
 	if group.config.RtmpConfig.AddDummyAudioEnable {
 		// TODO(chef): 从整体控制和锁关系来说，应该让pub的数据回调到group中进锁后再让数据流入filter
 		// TODO(chef): 这里用OnReadRtmpAvMsg正确吗，是否会重复进锁
