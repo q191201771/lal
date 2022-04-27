@@ -13,7 +13,6 @@ import (
 	"fmt"
 	"github.com/q191201771/lal/pkg/aac"
 	"github.com/q191201771/lal/pkg/avc"
-	"github.com/q191201771/lal/pkg/remux"
 	"github.com/q191201771/naza/pkg/nazalog"
 	"io/ioutil"
 	"os"
@@ -25,24 +24,8 @@ import (
 	"github.com/q191201771/naza/pkg/bininfo"
 )
 
-// lal/app/demo/customize_lalserver
-//
-// [what]
-// 演示业务方如何通过lalserver的插件功能，将自身的流输入到lalserver中
-//
-// [why]
-// 业务方的流输入到lalserver后，就可以使用lalserver的功能了，比如录制功能，（使用lalserver所支持的协议）从lalserver拉流等等
-//
-// 提示，插件功能是基于代码层面的，和与lalserver建立连接将流发送到lalserver是两种不同的方式，但是流进入lalserver后，效果是一样的
-//
-// 提示，这个demo，可以看成是业务方基于lal实现的一个定制化（功能增强版）的lalserver应用
-// 换句话说，它并不强制要求在lal的github repo下
-//
-// [how]
-// demo的具体功能是，分别读取一个h264 es流文件和一个aac es流文件，并将音视频流输入到lalserver中
-//
-// 注意，其实lalserver并不关心业务方的流的来源（比如网络or文件or其他），也不关心流的原始格式
-// 业务方只要将流转换成lalserver所要求的格式，调用相应的接口传入数据即可
+// 文档见 <lalserver二次开发 - pub接入自定义流>
+// https://pengrl.com/lal/#/customize_pub
 //
 
 func main() {
@@ -94,8 +77,8 @@ func showHowToCustomizePub(lals logic.ILalServer) {
 	session, err := lals.AddCustomizePubSession(customizePubStreamName)
 	nazalog.Assert(nil, err)
 	// 2. 配置session
-	session.WithOption(func(option *remux.AvPacketStreamOption) {
-		option.VideoFormat = remux.AvPacketStreamVideoFormatAnnexb
+	session.WithOption(func(option *base.AvPacketStreamOption) {
+		option.VideoFormat = base.AvPacketStreamVideoFormatAnnexb
 	})
 
 	asc, err := aac.MakeAscWithAdtsHeader(audioContent[:aac.AdtsHeaderLength])
@@ -105,13 +88,13 @@ func showHowToCustomizePub(lals logic.ILalServer) {
 
 	// 4. 按时间戳间隔匀速发送音频和视频
 	startRealTime := time.Now()
-	startTs := uint32(0)
+	startTs := int64(0)
 	for i := range packets {
-		diffTs := time.Duration(packets[i].Timestamp - startTs)
-		diffReal := time.Duration(time.Now().Sub(startRealTime).Milliseconds())
+		diffTs := packets[i].Timestamp - startTs
+		diffReal := time.Now().Sub(startRealTime).Milliseconds()
 		//nazalog.Debugf("%d: %s, %d, %d", i, packets[i].DebugString(), diffTs, diffReal)
 		if diffReal < diffTs {
-			time.Sleep((diffTs - diffReal) * time.Millisecond)
+			time.Sleep(time.Duration(diffTs-diffReal) * time.Millisecond)
 		}
 		session.FeedAvPacket(packets[i])
 	}
@@ -135,7 +118,7 @@ func readAudioPacketsFromFile(filename string) (audioContent []byte, audioPacket
 
 		packet := base.AvPacket{
 			PayloadType: base.AvPacketPtAac,
-			Timestamp:   uint32(timestamp),
+			Timestamp:   int64(timestamp),
 			Payload:     audioContent[pos+aac.AdtsHeaderLength : pos+int(ctx.AdtsLength)],
 		}
 
@@ -164,7 +147,7 @@ func readVideoPacketsFromFile(filename string) (videoContent []byte, videoPacket
 		// 将nal数据转换为lalserver要求的格式输入
 		packet := base.AvPacket{
 			PayloadType: base.AvPacketPtAvc,
-			Timestamp:   uint32(timestamp),
+			Timestamp:   int64(timestamp),
 			Payload:     append(avc.NaluStartCode4, nal...),
 		}
 

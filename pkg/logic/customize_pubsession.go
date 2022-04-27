@@ -44,7 +44,7 @@ func (ctx *CustomizePubSessionContext) StreamName() string {
 
 // ---------------------------------------------------------------------------------------------------------------------
 
-func (ctx *CustomizePubSessionContext) WithOption(modOption func(option *remux.AvPacketStreamOption)) {
+func (ctx *CustomizePubSessionContext) WithOption(modOption func(option *base.AvPacketStreamOption)) {
 	ctx.remuxer.WithOption(modOption)
 }
 

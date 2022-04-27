@@ -49,7 +49,7 @@ func (a *AvPacketQueue) Feed(pkt base.AvPacket) {
 		fallthrough
 	case base.AvPacketPtHevc:
 		// 时间戳回退了
-		if int64(pkt.Timestamp) < a.videoBaseTs {
+		if pkt.Timestamp < a.videoBaseTs {
 			Log.Warnf("video ts rotate. pktTS=%d, audioBaseTs=%d, videoBaseTs=%d, audioQueue=%d, videoQueue=%d",
 				pkt.Timestamp, a.audioBaseTs, a.videoBaseTs, a.audioQueue.Size(), a.videoQueue.Size())
 			a.videoBaseTs = -1
@@ -58,14 +58,14 @@ func (a *AvPacketQueue) Feed(pkt base.AvPacket) {
 		}
 		// 第一次
 		if a.videoBaseTs == -1 {
-			a.videoBaseTs = int64(pkt.Timestamp)
+			a.videoBaseTs = pkt.Timestamp
 		}
 		// 根据基准调节
-		pkt.Timestamp -= uint32(a.videoBaseTs)
+		pkt.Timestamp -= a.videoBaseTs
 
 		_ = a.videoQueue.PushBack(pkt)
 	case base.AvPacketPtAac:
-		if int64(pkt.Timestamp) < a.audioBaseTs {
+		if pkt.Timestamp < a.audioBaseTs {
 			Log.Warnf("audio ts rotate. pktTS=%d, audioBaseTs=%d, videoBaseTs=%d, audioQueue=%d, videoQueue=%d",
 				pkt.Timestamp, a.audioBaseTs, a.videoBaseTs, a.audioQueue.Size(), a.videoQueue.Size())
 			a.videoBaseTs = -1
@@ -73,9 +73,9 @@ func (a *AvPacketQueue) Feed(pkt base.AvPacket) {
 			a.PopAllByForce()
 		}
 		if a.audioBaseTs == -1 {
-			a.audioBaseTs = int64(pkt.Timestamp)
+			a.audioBaseTs = pkt.Timestamp
 		}
-		pkt.Timestamp -= uint32(a.audioBaseTs)
+		pkt.Timestamp -= a.audioBaseTs
 		_ = a.audioQueue.PushBack(pkt)
 	}
 

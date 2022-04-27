@@ -44,7 +44,7 @@ func (a AvPacketPt) ReadableString() string {
 //
 type AvPacket struct {
 	PayloadType AvPacketPt
-	Timestamp   uint32 // TODO(chef): 改成int64
+	Timestamp   int64
 	Payload     []byte
 }
 

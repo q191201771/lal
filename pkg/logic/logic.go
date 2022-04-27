@@ -10,7 +10,6 @@ package logic
 
 import (
 	"github.com/q191201771/lal/pkg/base"
-	"github.com/q191201771/lal/pkg/remux"
 	"path/filepath"
 )
 
@@ -20,9 +19,11 @@ type ILalServer interface {
 	RunLoop() error
 	Dispose()
 
-	// AddCustomizePubSession 定制化功能。业务方可以将自己的流输入到 ILalServer 中
+	// AddCustomizePubSession 定制化增强功能。业务方可以将自己的流输入到 ILalServer 中
 	//
 	// @example 示例见 lal/app/demo/customize_lalserver
+  //
+  // @doc 文档见 <lalserver二次开发 - pub接入自定义流> https://pengrl.com/lal/#/customize_pub
 	//
 	AddCustomizePubSession(streamName string) (ICustomizePubSessionContext, error)
 
@@ -53,12 +54,11 @@ func NewLalServer(modOption ...ModOption) ILalServer {
 // ---------------------------------------------------------------------------------------------------------------------
 
 type ICustomizePubSessionContext interface {
-	// IAvPacketStream 传入音视频数据相关的接口。具体见 remux.IAvPacketStream
+	// IAvPacketStream 传入音视频数据相关的接口。详细说明见 base.IAvPacketStream
 	//
-	remux.IAvPacketStream
+	base.IAvPacketStream
 
 	UniqueKey() string
-
 	StreamName() string
 }
 
