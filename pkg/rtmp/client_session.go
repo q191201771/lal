@@ -73,6 +73,8 @@ type ClientSessionOption struct {
 	WriteChanSize int // io层发送音视频数据的异步队列大小，如果为0，则同步发送
 
 	HandshakeComplexFlag bool // 握手是否使用复杂模式
+
+	PeerWinAckSize int
 }
 
 var defaultClientSessOption = ClientSessionOption{
@@ -83,6 +85,7 @@ var defaultClientSessOption = ClientSessionOption{
 	WriteBufSize:         0,
 	WriteChanSize:        0,
 	HandshakeComplexFlag: false,
+	PeerWinAckSize:0,
 }
 
 type ModClientSessionOption func(option *ClientSessionOption)
@@ -123,7 +126,6 @@ func NewClientSession(t ClientSessionType, modOptions ...ModClientSessionOption)
 		},
 		debugLogReadUserCtrlMsgMax: 5,
 		hc:                         hc,
-		peerWinAckSize:             peerBandwidth,
 	}
 	Log.Infof("[%s] lifecycle new rtmp ClientSession. session=%p", uk, s)
 	return s
