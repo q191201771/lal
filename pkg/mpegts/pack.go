@@ -8,6 +8,8 @@
 
 package mpegts
 
+// Frame 帧数据，用于打包成mpegts格式的数据
+//
 type Frame struct {
 	Pts uint64 // =(毫秒 * 90)
 	Dts uint64
@@ -32,27 +34,39 @@ type Frame struct {
 	Raw []byte
 }
 
-// @param packet: 188字节大小的TS包，注意，一次Pack对应的多个TSPacket，复用的是一块内存
+// Pack annexb格式的流转换为mpegts流
 //
-type OnTsPacket func(packet []byte)
+// 注意，内部会增加 Frame.Cc 的值.
+//
+// @return: 内存块为独立申请，调度结束后，内部不再持有
+//
+func (frame *Frame) Pack() []byte {
+	bufLen := len(frame.Raw) * 2 // 预分配一块足够大的内存
+	if bufLen < 1024 {
+		bufLen = 1024
+	}
+	// TODO(chef): perf 复用这块buffer
+	buf := make([]byte, bufLen)
 
-// Annexb格式的流转换为mpegts packet
-//
-// @param frame: 各字段含义见mpegts.Frame结构体定义
-//               frame.CC  注意，内部会修改frame.CC的值，外部在调用结束后，可保存CC的值，供下次调用时使用
-//               frame.Raw 函数调用结束后，内部不会持有该内存块
-//
-// @param onTsPacket: 注意，一次函数调用，可能对应多次回调
-//
-func PackTsPacket(frame *Frame, onTsPacket OnTsPacket) {
-	wpos := 0              // 当前packet的写入位置
-	lpos := 0              // 当前帧的处理位置
-	rpos := len(frame.Raw) // 当前帧大小
+	lpos := 0              // 当前输入帧的处理位置
+	rpos := len(frame.Raw) // 当前输入帧大小
 	first := true          // 是否为帧的首个packet的标准
-	packet := make([]byte, 188)
+	packetPosAtBuf := 0    // 当前输出packet相对于整个输出内存块的位置
 
 	for lpos != rpos {
-		wpos = 0
+
+		// TODO(chef): CHEFNOTICEME 正常来说，预分配的内存应该是足够用了，我们加个扩容逻辑保证绝对正确性，并且加个日志观察一段时间
+		if packetPosAtBuf+188 > len(buf) {
+			Log.Warnf("buffer too short. frame size=%d, buf=%d, packetPosAtBuf=%d", len(frame.Raw), len(buf), packetPosAtBuf)
+			newBuf := make([]byte, packetPosAtBuf+188)
+			copy(newBuf, buf)
+			buf = newBuf
+		}
+
+		packet := buf[packetPosAtBuf : packetPosAtBuf+188] // 当前输出packet
+		wpos := 0                                          // 当前输出packet的写入位置
+		packetPosAtBuf += 188
+
 		frame.Cc++
 
 		// 每个packet都需要添加TS Header
@@ -220,10 +234,12 @@ func PackTsPacket(frame *Frame, onTsPacket OnTsPacket) {
 			copy(packet[wpos:], frame.Raw[lpos:lpos+inSize])
 			lpos = rpos
 		}
-
-		onTsPacket(packet)
 	}
+
+	return buf[:packetPosAtBuf]
 }
+
+// ----- private -------------------------------------------------------------------------------------------------------
 
 func packPcr(out []byte, pcr uint64) {
 	out[0] = uint8(pcr >> 25)

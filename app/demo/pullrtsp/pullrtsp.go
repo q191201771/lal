@@ -26,6 +26,7 @@ func main() {
 		option.AssertBehavior = nazalog.AssertFatal
 	})
 	defer nazalog.Sync()
+	base.LogoutStartInfo()
 
 	inUrl, outFilename, overTcp := parseFlag()
 
@@ -36,7 +37,7 @@ func main() {
 	err = fileWriter.WriteRaw(httpflv.FlvHeader)
 	nazalog.Assert(nil, err)
 
-	remuxer := remux.NewAvPacket2RtmpRemuxer(func(msg base.RtmpMsg) {
+	remuxer := remux.NewAvPacket2RtmpRemuxer().WithOnRtmpMsg(func(msg base.RtmpMsg) {
 		err = fileWriter.WriteTag(*remux.RtmpMsg2FlvTag(msg))
 		nazalog.Assert(nil, err)
 	})
@@ -69,7 +70,7 @@ func main() {
 
 func parseFlag() (inUrl string, outFilename string, overTcp int) {
 	i := flag.String("i", "", "specify pull rtsp url")
-	o := flag.String("o", "", "specify ouput flv file")
+	o := flag.String("o", "", "specify output flv file")
 	t := flag.Int("t", 0, "specify interleaved mode(rtp/rtcp over tcp)")
 	flag.Parse()
 	if *i == "" || *o == "" {

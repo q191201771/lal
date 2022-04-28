@@ -1,7 +1,8 @@
 # LAL
 
+[![Platform](https://img.shields.io/badge/platform-linux%20%7C%20macos%20%7C%20windows-green.svg)](https://github.com/q191201771/lal)
 [![Release](https://img.shields.io/github/tag/q191201771/lal.svg?label=release)](https://github.com/q191201771/lal/releases)
-[![CI](https://github.com/q191201771/lal/actions/workflows/main.yml/badge.svg?branch=master)](https://github.com/q191201771/lal/actions/workflows/main.yml)
+[![CI](https://github.com/q191201771/lal/actions/workflows/ci.yml/badge.svg?branch=master)](https://github.com/q191201771/lal/actions/workflows/ci.yml)
 [![goreportcard](https://goreportcard.com/badge/github.com/q191201771/lal)](https://goreportcard.com/report/github.com/q191201771/lal)
 ![wechat](https://img.shields.io/:微信-q191201771-blue.svg)
 ![qqgroup](https://img.shields.io/:QQ群-1090510973-blue.svg)
@@ -85,9 +86,11 @@ Play multi protocol stream from lalserver via ffplay:
 
 ```shell
 $ffplay rtmp://127.0.0.1/live/test110
+$ffplay rtsp://127.0.0.1:5544/live/test110
 $ffplay http://127.0.0.1:8080/live/test110.flv
 $ffplay http://127.0.0.1:8080/hls/test110/playlist.m3u8
 $ffplay http://127.0.0.1:8080/hls/test110/record.m3u8
+$ffplay http://127.0.0.1:8080/hls/test110.m3u8
 $ffplay http://127.0.0.1:8080/live/test110.ts
 ```
 

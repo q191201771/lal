@@ -14,12 +14,10 @@ import (
 
 	"github.com/q191201771/lal/pkg/base"
 	"github.com/q191201771/lal/pkg/sdp"
-
-	"github.com/q191201771/naza/pkg/nazalog"
 )
 
-type PubSessionObserver interface {
-	BaseInSessionObserver
+type IPubSessionObserver interface {
+	IBaseInSessionObserver
 }
 
 type PubSession struct {
@@ -28,7 +26,7 @@ type PubSession struct {
 	cmdSession    *ServerCommandSession
 	baseInSession *BaseInSession
 
-	observer PubSessionObserver
+	observer IPubSessionObserver
 }
 
 func NewPubSession(urlCtx base.UrlContext, cmdSession *ServerCommandSession) *PubSession {
@@ -40,7 +38,7 @@ func NewPubSession(urlCtx base.UrlContext, cmdSession *ServerCommandSession) *Pu
 	}
 	baseInSession := NewBaseInSession(uk, s)
 	s.baseInSession = baseInSession
-	nazalog.Infof("[%s] lifecycle new rtsp PubSession. session=%p, streamName=%s", uk, s, urlCtx.LastItemOfPath)
+	Log.Infof("[%s] lifecycle new rtsp PubSession. session=%p, streamName=%s", uk, s, urlCtx.LastItemOfPath)
 	return s
 }
 
@@ -48,7 +46,7 @@ func (session *PubSession) InitWithSdp(sdpCtx sdp.LogicContext) {
 	session.baseInSession.InitWithSdp(sdpCtx)
 }
 
-func (session *PubSession) SetObserver(observer PubSessionObserver) {
+func (session *PubSession) SetObserver(observer IPubSessionObserver) {
 	session.baseInSession.SetObserver(observer)
 }
 
@@ -61,7 +59,7 @@ func (session *PubSession) SetupWithChannel(uri string, rtpChannel, rtcpChannel 
 }
 
 func (session *PubSession) Dispose() error {
-	nazalog.Infof("[%s] lifecycle dispose rtsp PubSession. session=%p", session.uniqueKey, session)
+	Log.Infof("[%s] lifecycle dispose rtsp PubSession. session=%p", session.uniqueKey, session)
 	e1 := session.cmdSession.Dispose()
 	e2 := session.baseInSession.Dispose()
 	return nazaerrors.CombineErrors(e1, e2)
@@ -109,7 +107,7 @@ func (session *PubSession) IsAlive() (readAlive, writeAlive bool) {
 	return session.baseInSession.IsAlive()
 }
 
-// IInterleavedPacketWriter, callback by BaseInSession
+// WriteInterleavedPacket IInterleavedPacketWriter, callback by BaseInSession
 func (session *PubSession) WriteInterleavedPacket(packet []byte, channel int) error {
 	return session.cmdSession.WriteInterleavedPacket(packet, channel)
 }

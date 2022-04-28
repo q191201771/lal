@@ -10,28 +10,39 @@ package rtmp
 
 import (
 	"net"
-
-	log "github.com/q191201771/naza/pkg/nazalog"
 )
 
-type ServerObserver interface {
+type IServerObserver interface {
 	OnRtmpConnect(session *ServerSession, opa ObjectPairArray)
-	OnNewRtmpPubSession(session *ServerSession) bool // 返回true则允许推流，返回false则强制关闭这个连接
+
+	// OnNewRtmpPubSession
+	//
+	// 上层代码应该在这个事件回调中注册音视频数据的监听
+	//
+	// @return 上层如果想关闭这个session，则回调中返回不为nil的error值
+	//
+	OnNewRtmpPubSession(session *ServerSession) error
+
+	// OnDelRtmpPubSession
+	//
+	// 注意，如果session是上层通过 OnNewRtmpPubSession 回调的返回值关闭的，则该session不再触发这个逻辑
+	//
 	OnDelRtmpPubSession(session *ServerSession)
-	OnNewRtmpSubSession(session *ServerSession) bool // 返回true则允许拉流，返回false则强制关闭这个连接
+
+	OnNewRtmpSubSession(session *ServerSession) error
 	OnDelRtmpSubSession(session *ServerSession)
 }
 
 type Server struct {
-	observer ServerObserver
 	addr     string
+	observer IServerObserver
 	ln       net.Listener
 }
 
-func NewServer(observer ServerObserver, addr string) *Server {
+func NewServer(addr string, observer IServerObserver) *Server {
 	return &Server{
-		observer: observer,
 		addr:     addr,
+		observer: observer,
 	}
 }
 
@@ -39,7 +50,7 @@ func (server *Server) Listen() (err error) {
 	if server.ln, err = net.Listen("tcp", server.addr); err != nil {
 		return
 	}
-	log.Infof("start rtmp server listen. addr=%s", server.addr)
+	Log.Infof("start rtmp server listen. addr=%s", server.addr)
 	return
 }
 
@@ -58,15 +69,18 @@ func (server *Server) Dispose() {
 		return
 	}
 	if err := server.ln.Close(); err != nil {
-		log.Error(err)
+		Log.Error(err)
 	}
 }
 
 func (server *Server) handleTcpConnect(conn net.Conn) {
-	log.Infof("accept a rtmp connection. remoteAddr=%s", conn.RemoteAddr().String())
+	Log.Infof("accept a rtmp connection. remoteAddr=%s", conn.RemoteAddr().String())
 	session := NewServerSession(server, conn)
-	err := session.RunLoop()
-	log.Infof("[%s] rtmp loop done. err=%v", session.uniqueKey, err)
+	_ = session.RunLoop()
+
+	if session.DisposeByObserverFlag {
+		return
+	}
 	switch session.t {
 	case ServerSessionTypeUnknown:
 	// noop
@@ -77,24 +91,16 @@ func (server *Server) handleTcpConnect(conn net.Conn) {
 	}
 }
 
-// ServerSessionObserver
+// ----- IServerSessionObserver ------------------------------------------------------------------------------------
+
 func (server *Server) OnRtmpConnect(session *ServerSession, opa ObjectPairArray) {
 	server.observer.OnRtmpConnect(session, opa)
 }
 
-// ServerSessionObserver
-func (server *Server) OnNewRtmpPubSession(session *ServerSession) {
-	if !server.observer.OnNewRtmpPubSession(session) {
-		log.Warnf("dispose PubSession since pub exist.")
-		session.Dispose()
-		return
-	}
+func (server *Server) OnNewRtmpPubSession(session *ServerSession) error {
+	return server.observer.OnNewRtmpPubSession(session)
 }
 
-// ServerSessionObserver
-func (server *Server) OnNewRtmpSubSession(session *ServerSession) {
-	if !server.observer.OnNewRtmpSubSession(session) {
-		session.Dispose()
-		return
-	}
+func (server *Server) OnNewRtmpSubSession(session *ServerSession) error {
+	return server.observer.OnNewRtmpSubSession(session)
 }

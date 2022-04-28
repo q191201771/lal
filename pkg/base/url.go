@@ -9,21 +9,17 @@
 package base
 
 import (
-	"errors"
 	"fmt"
 	"net"
+	"net/http"
 	"net/url"
 	"strconv"
 	"strings"
-
-	"github.com/q191201771/naza/pkg/nazaerrors"
 )
 
 // 见单元测试
 
 // TODO chef: 考虑部分内容移入naza中
-
-var ErrUrl = errors.New("lal.url: fxxk")
 
 const (
 	DefaultRtmpPort  = 1935
@@ -59,7 +55,32 @@ type UrlContext struct {
 	RawQuery            string
 
 	RawUrlWithoutUserInfo string
+
+	filenameWithoutType string
+	fileType            string
 }
+
+func (u *UrlContext) GetFilenameWithoutType() string {
+	u.calcFilenameAndTypeIfNeeded()
+	return u.filenameWithoutType
+}
+
+func (u *UrlContext) GetFileType() string {
+	u.calcFilenameAndTypeIfNeeded()
+	return u.fileType
+}
+
+func (u *UrlContext) calcFilenameAndTypeIfNeeded() {
+	if len(u.filenameWithoutType) == 0 || len(u.fileType) == 0 {
+		ss := strings.Split(u.LastItemOfPath, ".")
+		u.filenameWithoutType = ss[0]
+		if len(ss) > 1 {
+			u.fileType = ss[1]
+		}
+	}
+}
+
+// ---------------------------------------------------------------------------------------------------------------------
 
 // ParseUrl
 //
@@ -74,7 +95,7 @@ func ParseUrl(rawUrl string, defaultPort int) (ctx UrlContext, err error) {
 		return ctx, err
 	}
 	if stdUrl.Scheme == "" {
-		return ctx, nazaerrors.Wrap(ErrUrl)
+		return ctx, fmt.Errorf("%w. url=%s", ErrInvalidUrl, rawUrl)
 	}
 	// 如果不存在，则设置默认的
 	if defaultPort == -1 {
@@ -132,13 +153,15 @@ func ParseUrl(rawUrl string, defaultPort int) (ctx UrlContext, err error) {
 	return ctx, nil
 }
 
+// ---------------------------------------------------------------------------------------------------------------------
+
 func ParseRtmpUrl(rawUrl string) (ctx UrlContext, err error) {
 	ctx, err = ParseUrl(rawUrl, -1)
 	if err != nil {
 		return
 	}
 	if ctx.Scheme != "rtmp" || ctx.Host == "" || ctx.Path == "" {
-		return ctx, nazaerrors.Wrap(ErrUrl)
+		return ctx, fmt.Errorf("%w. url=%s", ErrInvalidUrl, rawUrl)
 	}
 
 	// 注意，使用ffmpeg推流时，会把`rtmp://127.0.0.1/test110`中的test110作为appName(streamName则为空)
@@ -152,21 +175,40 @@ func ParseRtmpUrl(rawUrl string) (ctx UrlContext, err error) {
 	return
 }
 
-func ParseHttpflvUrl(rawUrl string) (ctx UrlContext, err error) {
-	return ParseHttpUrl(rawUrl, ".flv")
-}
-
 func ParseRtspUrl(rawUrl string) (ctx UrlContext, err error) {
 	ctx, err = ParseUrl(rawUrl, -1)
 	if err != nil {
 		return
 	}
 	if ctx.Scheme != "rtsp" || ctx.Host == "" || ctx.Path == "" {
-		return ctx, nazaerrors.Wrap(ErrUrl)
+		return ctx, fmt.Errorf("%w. url=%s", ErrInvalidUrl, rawUrl)
 	}
 
 	return
 }
+
+func ParseHttpflvUrl(rawUrl string) (ctx UrlContext, err error) {
+	return parseHttpUrl(rawUrl, ".flv")
+}
+
+// ---------------------------------------------------------------------------------------------------------------------
+
+// ParseHttpRequest
+//
+// @return 完整url
+//
+func ParseHttpRequest(req *http.Request) string {
+	// TODO(chef): [refactor] scheme是否能从从req.URL.Scheme获取
+	var scheme string
+	if req.TLS == nil {
+		scheme = "http"
+	} else {
+		scheme = "https"
+	}
+	return fmt.Sprintf("%s://%s%s", scheme, req.Host, req.RequestURI)
+}
+
+// ----- private -------------------------------------------------------------------------------------------------------
 
 func parseUrlPath(stdUrl *url.URL) (ctx UrlPathContext, err error) {
 	ctx.Path = stdUrl.Path
@@ -199,13 +241,13 @@ func parseUrlPath(stdUrl *url.URL) (ctx UrlPathContext, err error) {
 	return ctx, nil
 }
 
-func ParseHttpUrl(rawUrl string, suffix string) (ctx UrlContext, err error) {
+func parseHttpUrl(rawUrl string, filetype string) (ctx UrlContext, err error) {
 	ctx, err = ParseUrl(rawUrl, -1)
 	if err != nil {
 		return
 	}
-	if (ctx.Scheme != "http" && ctx.Scheme != "https") || ctx.Host == "" || ctx.Path == "" || !strings.HasSuffix(ctx.LastItemOfPath, suffix) {
-		return ctx, nazaerrors.Wrap(ErrUrl, fmt.Sprintf("%+v", ctx))
+	if (ctx.Scheme != "http" && ctx.Scheme != "https") || ctx.Host == "" || ctx.Path == "" || !strings.HasSuffix(ctx.LastItemOfPath, filetype) {
+		return ctx, fmt.Errorf("%w. url=%s", ErrInvalidUrl, rawUrl)
 	}
 
 	return

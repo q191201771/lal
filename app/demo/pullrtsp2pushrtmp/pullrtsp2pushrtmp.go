@@ -27,6 +27,7 @@ func main() {
 		option.AssertBehavior = nazalog.AssertFatal
 	})
 	defer nazalog.Sync()
+	base.LogoutStartInfo()
 
 	inUrl, outUrl, overTcp := parseFlag()
 
@@ -39,7 +40,7 @@ func main() {
 	nazalog.Assert(nil, err)
 	defer pushSession.Dispose()
 
-	remuxer := remux.NewAvPacket2RtmpRemuxer(func(msg base.RtmpMsg) {
+	remuxer := remux.NewAvPacket2RtmpRemuxer().WithOnRtmpMsg(func(msg base.RtmpMsg) {
 		err = pushSession.Write(rtmp.Message2Chunks(msg.Payload, &msg.Header))
 		nazalog.Assert(nil, err)
 	})

@@ -11,26 +11,31 @@ package base
 import "github.com/q191201771/naza/pkg/unique"
 
 const (
-	UkPreRtmpServerSession        = "RTMPPUBSUB"
-	UkPreRtmpPushSession          = "RTMPPUSH"
-	UkPreRtmpPullSession          = "RTMPPULL"
-	UkPreRtspServerCommandSession = "RTSPSRVCMD"
-	UkPreRtspPubSession           = "RTSPPUB"
-	UkPreRtspSubSession           = "RTSPSUB"
-	UkPreRtspPushSession          = "RTSPPUSH"
-	UkPreRtspPullSession          = "RTSPPULL"
-	UkPreFlvSubSession            = "FLVSUB"
-	UkPreTsSubSession             = "TSSUB"
-	UkPreFlvPullSession           = "FLVPULL"
+	UkPreCustomizePubSessionContext = "CUSTOMIZEPUB"
+	UkPreRtmpServerSession          = "RTMPPUBSUB"
+	UkPreRtmpPushSession            = "RTMPPUSH"
+	UkPreRtmpPullSession            = "RTMPPULL"
+	UkPreRtspServerCommandSession   = "RTSPSRVCMD"
+	UkPreRtspPubSession             = "RTSPPUB"
+	UkPreRtspSubSession             = "RTSPSUB"
+	UkPreRtspPushSession            = "RTSPPUSH"
+	UkPreRtspPullSession            = "RTSPPULL"
+	UkPreFlvSubSession              = "FLVSUB"
+	UkPreTsSubSession               = "TSSUB"
+	UkPreFlvPullSession             = "FLVPULL"
 
-	UkPreGroup    = "GROUP"
-	UkPreHlsMuxer = "HLSMUXER"
-	UkPreStreamer = "STREAMER"
+	UkPreGroup              = "GROUP"
+	UkPreHlsMuxer           = "HLSMUXER"
+	UkPreRtmp2MpegtsRemuxer = "RTMP2MPEGTS"
 )
 
 //func GenUk(prefix string) string {
 //	return unique.GenUniqueKey(prefix)
 //}
+
+func GenUkCustomizePubSession() string {
+	return siUkCustomizePubSession.GenUniqueKey()
+}
 
 func GenUkRtmpServerSession() string {
 	return siUkRtmpServerSession.GenUniqueKey()
@@ -84,11 +89,12 @@ func GenUkHlsMuxer() string {
 	return siUkHlsMuxer.GenUniqueKey()
 }
 
-func GenUkStreamer() string {
-	return siUkStreamer.GenUniqueKey()
+func GenUkRtmp2MpegtsRemuxer() string {
+	return siUkRtmp2MpegtsRemuxer.GenUniqueKey()
 }
 
 var (
+	siUkCustomizePubSession      *unique.SingleGenerator
 	siUkRtmpServerSession        *unique.SingleGenerator
 	siUkRtmpPushSession          *unique.SingleGenerator
 	siUkRtmpPullSession          *unique.SingleGenerator
@@ -101,12 +107,13 @@ var (
 	siUkTsSubSession             *unique.SingleGenerator
 	siUkFlvPullSession           *unique.SingleGenerator
 
-	siUkGroup    *unique.SingleGenerator
-	siUkHlsMuxer *unique.SingleGenerator
-	siUkStreamer *unique.SingleGenerator
+	siUkGroup              *unique.SingleGenerator
+	siUkHlsMuxer           *unique.SingleGenerator
+	siUkRtmp2MpegtsRemuxer *unique.SingleGenerator
 )
 
 func init() {
+	siUkCustomizePubSession = unique.NewSingleGenerator(UkPreCustomizePubSessionContext)
 	siUkRtmpServerSession = unique.NewSingleGenerator(UkPreRtmpServerSession)
 	siUkRtmpPushSession = unique.NewSingleGenerator(UkPreRtmpPushSession)
 	siUkRtmpPullSession = unique.NewSingleGenerator(UkPreRtmpPullSession)
@@ -121,5 +128,5 @@ func init() {
 
 	siUkGroup = unique.NewSingleGenerator(UkPreGroup)
 	siUkHlsMuxer = unique.NewSingleGenerator(UkPreHlsMuxer)
-	siUkStreamer = unique.NewSingleGenerator(UkPreStreamer)
+	siUkRtmp2MpegtsRemuxer = unique.NewSingleGenerator(UkPreRtmp2MpegtsRemuxer)
 }

@@ -12,6 +12,9 @@ import (
 	"bytes"
 	"fmt"
 	"strconv"
+
+	"github.com/q191201771/lal/pkg/base"
+	"github.com/q191201771/naza/pkg/nazaerrors"
 )
 
 // @param content     需写入文件的内容
@@ -35,11 +38,11 @@ func writeM3u8File(content []byte, filename string, filenameBak string) error {
 func updateTargetDurationInM3u8(content []byte, currDuration int) ([]byte, error) {
 	l := bytes.Index(content, []byte("#EXT-X-TARGETDURATION:"))
 	if l == -1 {
-		return content, ErrHls
+		return content, nazaerrors.Wrap(base.ErrHls)
 	}
 	r := bytes.Index(content[l:], []byte{'\n'})
 	if r == -1 {
-		return content, ErrHls
+		return content, nazaerrors.Wrap(base.ErrHls)
 	}
 	oldDurationStr := bytes.TrimPrefix(content[l:l+r], []byte("#EXT-X-TARGETDURATION:"))
 	oldDuration, err := strconv.Atoi(string(oldDurationStr))
@@ -56,7 +59,7 @@ func updateTargetDurationInM3u8(content []byte, currDuration int) ([]byte, error
 	return content, nil
 }
 
-// @param content 传入m3u8文件内容
+// CalcM3u8Duration @param content 传入m3u8文件内容
 //
 // @return durationSec m3u8中所有ts的时间总和。注意，使用的是m3u8文件中描述的ts时间，而不是读取ts文件中实际音视频数据的时间。
 //

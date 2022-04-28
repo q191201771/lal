@@ -9,10 +9,13 @@
 package aac
 
 import (
-	"errors"
+	"fmt"
+
+	"github.com/q191201771/naza/pkg/nazaerrors"
+
+	"github.com/q191201771/lal/pkg/base"
 
 	"github.com/q191201771/naza/pkg/nazabits"
-	"github.com/q191201771/naza/pkg/nazalog"
 )
 
 // AudioSpecificConfig(asc)
@@ -25,19 +28,20 @@ import (
 // StreamMuxConfig
 //
 
-var ErrAac = errors.New("lal.aac: fxxk")
-
 const (
 	AdtsHeaderLength = 7
 
 	AscSamplingFrequencyIndex48000 = 3
 	AscSamplingFrequencyIndex44100 = 4
+	AscSamplingFrequencyIndex22050 = 7
 )
 
 const (
 	minAscLength = 2
 )
 
+// AscContext
+//
 // <ISO_IEC_14496-3.pdf>
 // <1.6.2.1 AudioSpecificConfig>, <page 33/110>
 // <1.5.1.1 Audio Object type definition>, <page 23/110>
@@ -45,8 +49,9 @@ const (
 // <1.6.3.4 channelConfiguration>
 // --------------------------------------------------------
 // audio object type      [5b] 1=AAC MAIN  2=AAC LC
-// samplingFrequencyIndex [4b] 3=48000  4=44100  6=24000  5=32000  11=11025
+// samplingFrequencyIndex [4b] 3=48000, 4=44100, 5=32000, 6=24000, 7=22050, 11=11025
 // channelConfiguration   [4b] 1=center front speaker  2=left, right front speakers
+//
 type AscContext struct {
 	AudioObjectType        uint8 // [5b]
 	SamplingFrequencyIndex uint8 // [4b]
@@ -61,14 +66,15 @@ func NewAscContext(asc []byte) (*AscContext, error) {
 	return &ascCtx, nil
 }
 
+// Unpack
+//
 // @param asc: 2字节的AAC Audio Specifc Config
 //             注意，如果是rtmp/flv的message/tag，应去除Seq Header头部的2个字节
 //             函数调用结束后，内部不持有该内存块
 //
 func (ascCtx *AscContext) Unpack(asc []byte) error {
 	if len(asc) < minAscLength {
-		nazalog.Warnf("aac seq header length invalid. len=%d", len(asc))
-		return ErrAac
+		return nazaerrors.Wrap(base.ErrShortBuffer)
 	}
 
 	br := nazabits.NewBitReader(asc)
@@ -78,6 +84,8 @@ func (ascCtx *AscContext) Unpack(asc []byte) error {
 	return nil
 }
 
+// Pack
+//
 // @return asc: 内存块为独立新申请；函数调用结束后，内部不持有该内存块
 //
 func (ascCtx *AscContext) Pack() (asc []byte) {
@@ -89,6 +97,8 @@ func (ascCtx *AscContext) Pack() (asc []byte) {
 	return
 }
 
+// PackAdtsHeader
+//
 // 获取ADTS头，由于ADTS头中的字段依赖包的长度，而每个包的长度可能不同，所以每个包的ADTS头都需要独立生成
 //
 // @param frameLength: raw aac frame的大小
@@ -102,11 +112,13 @@ func (ascCtx *AscContext) PackAdtsHeader(frameLength int) (out []byte) {
 	return
 }
 
+// PackToAdtsHeader
+//
 // @param out: 函数调用结束后，内部不持有该内存块
 //
 func (ascCtx *AscContext) PackToAdtsHeader(out []byte, frameLength int) error {
 	if len(out) < AdtsHeaderLength {
-		return ErrAac
+		return nazaerrors.Wrap(base.ErrShortBuffer)
 	}
 
 	// <ISO_IEC_14496-3.pdf>
@@ -162,9 +174,10 @@ func (ascCtx *AscContext) GetSamplingFrequency() (int, error) {
 		return 48000, nil
 	case AscSamplingFrequencyIndex44100:
 		return 44100, nil
+	case AscSamplingFrequencyIndex22050:
+		return 22050, nil
 	}
-	nazalog.Errorf("GetSamplingFrequency failed. ascCtx=%+v", ascCtx)
-	return -1, ErrAac
+	return -1, fmt.Errorf("%w. asCtx=%+v", base.ErrSamplingFrequencyIndex, ascCtx)
 }
 
 type AdtsHeaderContext struct {
@@ -181,11 +194,13 @@ func NewAdtsHeaderContext(adtsHeader []byte) (*AdtsHeaderContext, error) {
 	return &ctx, nil
 }
 
+// Unpack
+//
 // @param adtsHeader: 函数调用结束后，内部不持有该内存块
 //
 func (ctx *AdtsHeaderContext) Unpack(adtsHeader []byte) error {
 	if len(adtsHeader) < AdtsHeaderLength {
-		return ErrAac
+		return nazaerrors.Wrap(base.ErrShortBuffer)
 	}
 
 	br := nazabits.NewBitReader(adtsHeader)
@@ -200,6 +215,8 @@ func (ctx *AdtsHeaderContext) Unpack(adtsHeader []byte) error {
 	return nil
 }
 
+// MakeAscWithAdtsHeader
+//
 // @param adtsHeader: 函数调用结束后，内部不持有该内存块
 //
 // @return asc: 内存块为独立新申请；函数调用结束后，内部不持有该内存块

@@ -9,3 +9,5 @@
 package remux
 
 // TODO(chef): refactor 此package更名为avop，内部包含remux_xxx2xxx.go, filter_xxx.go, 协议相关(比如rtmp.go)等
+
+var _ iRtmp2MpegtsFilterObserver = &Rtmp2MpegtsRemuxer{}

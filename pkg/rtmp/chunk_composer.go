@@ -8,21 +8,22 @@
 
 package rtmp
 
-// chunk_composer.go
-// @pure
-// 读取chunk，并组织chunk，生成message返回给上层
-
 import (
+	"encoding/hex"
 	"io"
+
+	"github.com/q191201771/naza/pkg/nazalog"
 
 	"github.com/q191201771/naza/pkg/nazabytes"
 
 	"github.com/q191201771/lal/pkg/base"
-	"github.com/q191201771/naza/pkg/nazalog"
-
 	"github.com/q191201771/naza/pkg/bele"
 )
 
+// ChunkComposer
+//
+// 读取chunk，并合并chunk，生成message返回给上层
+//
 type ChunkComposer struct {
 	peerChunkSize uint32
 	csid2stream   map[int]*Stream
@@ -125,7 +126,10 @@ func (c *ChunkComposer) RunLoop(reader io.Reader, cb OnCompleteMessage) error {
 		case 3:
 			// noop
 		}
-		//nazalog.Debugf("RTMP_CHUNK_COMPOSER chunk.fmt=%d, csid=%d, header=%+v", fmt, csid, stream.header)
+		if Log.GetOption().Level == nazalog.LevelTrace {
+			Log.Tracef("[%p] RTMP_READ chunk.fmt=%d, csid=%d, header=%+v, timestamp=%d",
+				c, fmt, csid, stream.header, stream.timestamp)
+		}
 
 		// 5.3.1.3 Extended Timestamp
 		// 使用ffmpeg推流时，发现时间戳超过3字节最大值后，即使是fmt3(即包头大小为0)，依然存在ext ts字段
@@ -138,8 +142,12 @@ func (c *ChunkComposer) RunLoop(reader io.Reader, cb OnCompleteMessage) error {
 			if _, err := io.ReadAtLeast(reader, bootstrap[:4], 4); err != nil {
 				return err
 			}
-			stream.timestamp = bele.BeUint32(bootstrap)
-			//nazalog.Debugf("RTMP_CHUNK_COMPOSER ext. extTs=%d", stream.header.Timestamp)
+			newTs := bele.BeUint32(bootstrap)
+			if Log.GetOption().Level == nazalog.LevelTrace {
+				Log.Tracef("[%p] RTMP_READ ext. ts=(%d,%d,%d)",
+					c, stream.timestamp, newTs, stream.header.TimestampAbs)
+			}
+			stream.timestamp = newTs
 			switch fmt {
 			case 0:
 				stream.header.TimestampAbs = stream.timestamp
@@ -180,8 +188,15 @@ func (c *ChunkComposer) RunLoop(reader io.Reader, cb OnCompleteMessage) error {
 				stream.header.TimestampAbs += stream.timestamp
 			}
 			absTsFlag = false
-			//nazalog.Debugf("RTMP_CHUNK_COMPOSER cb. fmt=%d, csid=%d, header=%+v, ctimestamp=%d, c=%p",
-			//	fmt, csid, stream.header, stream.timestamp, c)
+			if Log.GetOption().Level == nazalog.LevelTrace {
+				tmpMsg := stream.toAvMsg()
+				maxLength := 32
+				if tmpMsg.IsVideoKeySeqHeader() || tmpMsg.IsAacSeqHeader() {
+					maxLength = 128
+				}
+				Log.Tracef("[%p] RTMP_READ cb. fmt=%d, csid=%d, header=%+v, timestamp=%d, hex=%s",
+					c, fmt, csid, stream.header, stream.timestamp, hex.Dump(nazabytes.Prefix(stream.msg.buff.Bytes(), maxLength)))
+			}
 
 			if stream.header.MsgTypeId == base.RtmpTypeIdAggregateMessage {
 				firstSubMessage := true
@@ -196,7 +211,7 @@ func (c *ChunkComposer) RunLoop(reader io.Reader, cb OnCompleteMessage) error {
 				for stream.msg.Len() != 0 {
 					// 读取sub message的头
 					if stream.msg.Len() < 11 {
-						return ErrRtmp
+						return base.NewErrRtmpShortBuffer(11, int(stream.msg.Len()), "parse rtmp aggregate sub message len")
 					}
 					aggregateStream.header.MsgTypeId = stream.msg.buff.Bytes()[0]
 					stream.msg.Skip(1)
@@ -218,7 +233,7 @@ func (c *ChunkComposer) RunLoop(reader io.Reader, cb OnCompleteMessage) error {
 
 					// message包体
 					if stream.msg.Len() < aggregateStream.header.MsgLen {
-						return ErrRtmp
+						return base.NewErrRtmpShortBuffer(int(aggregateStream.header.MsgLen), int(stream.msg.Len()), "parse rtmp aggregate sub message body")
 					}
 					aggregateStream.msg.buff = nazabytes.NewBufferRefBytes(stream.msg.buff.Peek(int(aggregateStream.header.MsgLen)))
 					stream.msg.Skip(aggregateStream.header.MsgLen)
@@ -230,7 +245,7 @@ func (c *ChunkComposer) RunLoop(reader io.Reader, cb OnCompleteMessage) error {
 
 					// 跳过prev size字段
 					if stream.msg.Len() < 4 {
-						return ErrRtmp
+						return base.NewErrRtmpShortBuffer(4, int(stream.msg.Len()), "parse rtmp aggregate prev message size")
 					}
 					stream.msg.Skip(4)
 				}
@@ -242,9 +257,10 @@ func (c *ChunkComposer) RunLoop(reader io.Reader, cb OnCompleteMessage) error {
 				stream.msg.Reset()
 			}
 		}
+
+		// TODO(chef): 这里应该永远执行不到，可以删除掉
 		if stream.msg.Len() > stream.header.MsgLen {
-			nazalog.Warnf("stream msg len should not greater than len field in header. stream.msg.len=%d, header=%+v", stream.msg.Len(), stream.header)
-			return ErrRtmp
+			return base.NewErrRtmpShortBuffer(int(aggregateStream.header.MsgLen), int(stream.msg.Len()), "len of msg bigger tthan msg len of header")
 		}
 	}
 }

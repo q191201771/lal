@@ -9,7 +9,7 @@
 package rtprtcp
 
 type IRtpPackerPayload interface {
-	// @param maxSize: rtp payload包体部分（不含包头）的最大大小
+	// Pack @param maxSize: rtp payload包体部分（不含包头）的最大大小
 	//
 	Pack(in []byte, maxSize int) (out [][]byte)
 }

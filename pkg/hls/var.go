@@ -8,10 +8,15 @@
 
 package hls
 
-var (
-	PathStrategy IPathStrategy = &DefaultPathStrategy{}
+import (
+	"github.com/q191201771/naza/pkg/mock"
+	"github.com/q191201771/naza/pkg/nazalog"
 )
 
 var (
-	calcFragmentHeaderQueueSize = 16
+	PathStrategy IPathStrategy = &DefaultPathStrategy{}
+
+	Clock = mock.NewStdClock()
+
+	Log = nazalog.GetGlobalLogger()
 )

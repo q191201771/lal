@@ -1,3 +1,52 @@
+#### v0.28.0 (2022-03-27)
+
+- [feat] httpts: 支持gop缓冲，提高秒开 #129
+- [opt] hls: 增加delete_threshold配置，用于配置过期TS文件的保存时间 #120
+- [opt] rtsp sub 改为异步发送
+- [opt] lalserver: relay push增加超时检查，增加带宽统计
+- [opt] lalserver: relay pull的rtmp流也转换为rtsp
+- [opt] lalserver: rtsp sub也支持触发relay pull
+- [fix] aac: 支持22050采样频率，修复该频率下转rtsp失败的问题
+- [fix] avc: 增强兼容性，处理单个seq header中存在多个sps的情况 #135
+- [fix] mpegts: 修复单音频场景，有一帧音频重复的问题
+- [fix] rtsp: Basic auth的base64编码
+- [fix] rtsp: 增强容错性，修复rtmp输入流没有seq header时，rtmp转rtsp内崩溃的问题
+- [fix] lalserver: 优雅关闭pprof和http server
+- [perf] mpegts: 优化转换mpegts的性能
+- [refactor] 将转换mpegts的代码从package hls独立出来，移动到package remux中
+- [refactor] lalserver: 大幅重构logic.Group，为支持插件化做准备
+- [log] 支持独立设置单个pkg的日志配置 #62
+- [log] rtmp和rtsp收包时添加trace级别日志 #63
+- [log] rtmp: 优化定位问题的日志 #135
+- [test] innertest增加单音频，单视频，httpts sub的测试
+
+#### v0.27.1 (2022-01-23)
+
+- [feat] 新增simple auth鉴权功能，见文档： https://pengrl.com/lal/#/auth
+- [feat] httpflv: PullSession支持https，支持302跳转
+- [feat] rtmp: client类型的session新增方法用于配置WriteBuf和ReadBuf大小，以及WriteChanSize
+- [opt] rtmp: 收到ping request回应ping response
+- [fix] rtmp: 增强兼容性，当收到的rtmp message中aac seq header payload长度为0时忽略，避免崩溃 #116
+- [fix] rtmp: 增强兼容性，当收到的rtmp message中的payload长度为0时忽略 #112
+- [opt] rtsp: 增强兼容性，处理rtsp信令中header存在没有转义的\r\n的情况
+- [fix] rtsp: 增强兼容性，修复读取http返回header解析失败的bug #110
+- [opt] https: 增强兼容性，服务初始化失败时打印错误日志而不是退出程序
+- [opt] avc: 增强兼容性，分隔avcc格式的nal时，如果存在长度为0的nal则忽略
+- [fix] sdp: 增强兼容性，fmtp内发生换行时做兼容性处理
+- [fix] httpflv: 修复httpflv多级路径下无法播放的问题
+- [opt] 整理完所有error返回值，error信息更友好
+- [log] 通过配置文件控制group调试日志
+- [log] rtsp: client信令增加错误日志
+- [fix] 修复logic.Option.NotifyHandler首字母小写外部无法设置的问题
+- [refactor] 将logic包中的DummyAudioFilter, GopCache, LazyRtmpChunkDivider, LazyRtmpMsg2FlvTag移入remux中
+- [refactor] rtmp: base.Buffer移入naza中
+- [chore] CI: 迁移到github action，已支持linux，macos平台，Go1.14和Go1.17，每次push代码和每周定时触发，并自动提交docker hub镜像
+- [chore] 修复go vet signal unbound channel的警告
+- [test] 提高测试覆盖，目前lal测试覆盖超过60%，文档中增加测试覆盖率徽章
+- [test] innertest增加m3u8文件检测，增加http api
+- [test] 测试各session的ISessionUrlContext接口
+- [test] 修复base/url_test.go中的测试用例
+
 #### v0.26.0 (2021-10-24)
 
 - [perf] rtmp合并发送功能使用writev实现

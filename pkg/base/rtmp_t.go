@@ -8,8 +8,10 @@
 
 package base
 
+import "github.com/q191201771/naza/pkg/bele"
+
 const (
-	// spec-rtmp_specification_1.0.pdf
+	// RtmpTypeIdAudio spec-rtmp_specification_1.0.pdf
 	// 7.1. Types of Messages
 	RtmpTypeIdAudio              uint8 = 8
 	RtmpTypeIdVideo              uint8 = 9
@@ -23,11 +25,16 @@ const (
 	RtmpTypeIdCommandMessageAmf0 uint8 = 20
 	RtmpTypeIdAggregateMessage   uint8 = 22
 
+	// RtmpUserControlStreamBegin RtmpUserControlXxx...
+	//
 	// user control message type
-	RtmpUserControlStreamBegin uint8 = 0
-	RtmpUserControlRecorded    uint8 = 4
+	//
+	RtmpUserControlStreamBegin  uint8 = 0
+	RtmpUserControlRecorded     uint8 = 4
+	RtmpUserControlPingRequest  uint8 = 6
+	RtmpUserControlPingResponse uint8 = 7
 
-	// spec-video_file_format_spec_v10.pdf
+	// RtmpFrameTypeKey spec-video_file_format_spec_v10.pdf
 	// Video tags
 	//   VIDEODATA
 	//     FrameType UB[4]
@@ -58,7 +65,7 @@ const (
 	RtmpAvcInterFrame  = RtmpFrameTypeInter<<4 | RtmpCodecIdAvc
 	RtmpHevcInterFrame = RtmpFrameTypeInter<<4 | RtmpCodecIdHevc
 
-	// spec-video_file_format_spec_v10.pdf
+	// RtmpSoundFormatAac spec-video_file_format_spec_v10.pdf
 	// Audio tags
 	//   AUDIODATA
 	//     SoundFormat UB[4]
@@ -78,7 +85,7 @@ type RtmpHeader struct {
 	MsgLen       uint32 // 不包含header的大小
 	MsgTypeId    uint8  // 8 audio 9 video 18 metadata
 	MsgStreamId  int
-	TimestampAbs uint32 // 经过计算得到的流上的绝对时间戳，单位毫秒
+	TimestampAbs uint32 // dts, 经过计算得到的流上的绝对时间戳，单位毫秒
 }
 
 type RtmpMsg struct {
@@ -119,4 +126,16 @@ func (msg RtmpMsg) Clone() (ret RtmpMsg) {
 	ret.Payload = make([]byte, len(msg.Payload))
 	copy(ret.Payload, msg.Payload)
 	return
+}
+
+func (msg RtmpMsg) Dts() uint32 {
+	return msg.Header.TimestampAbs
+}
+
+// Pts
+//
+// 注意，只有视频才能调用该函数获取pts，音频的dts和pts都直接使用 RtmpMsg.Header.TimestampAbs
+//
+func (msg RtmpMsg) Pts() uint32 {
+	return msg.Header.TimestampAbs + bele.BeUint24(msg.Payload[2:])
 }

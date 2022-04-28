@@ -13,7 +13,6 @@ import (
 	"github.com/q191201771/lal/pkg/base"
 	"github.com/q191201771/lal/pkg/hevc"
 	"github.com/q191201771/naza/pkg/bele"
-	"github.com/q191201771/naza/pkg/nazalog"
 )
 
 // -----------------------------------
@@ -96,7 +95,7 @@ func MakeRtpPacket(h RtpHeader, payload []byte) (pkt RtpPacket) {
 
 func ParseRtpHeader(b []byte) (h RtpHeader, err error) {
 	if len(b) < RtpFixedHeaderLength {
-		err = ErrRtp
+		err = base.ErrRtpRtcpShortBuffer
 		return
 	}
 
@@ -114,7 +113,7 @@ func ParseRtpHeader(b []byte) (h RtpHeader, err error) {
 	return
 }
 
-// 函数调用结束后，不持有参数<b>的内存块
+// ParseRtpPacket 函数调用结束后，不持有参数<b>的内存块
 func ParseRtpPacket(b []byte) (pkt RtpPacket, err error) {
 	pkt.Header, err = ParseRtpHeader(b)
 	if err != nil {
@@ -127,13 +126,13 @@ func ParseRtpPacket(b []byte) (pkt RtpPacket, err error) {
 
 func (p *RtpPacket) Body() []byte {
 	if p.Header.payloadOffset == 0 {
-		nazalog.Warnf("CHEFNOTICEME. payloadOffset=%d", p.Header.payloadOffset)
+		Log.Warnf("CHEFNOTICEME. payloadOffset=%d", p.Header.payloadOffset)
 		p.Header.payloadOffset = RtpFixedHeaderLength
 	}
 	return p.Raw[p.Header.payloadOffset:]
 }
 
-// @param pt: 取值范围为AvPacketPtAvc或AvPacketPtHevc，否则直接返回false
+// IsAvcHevcBoundary @param pt: 取值范围为AvPacketPtAvc或AvPacketPtHevc，否则直接返回false
 //
 func IsAvcHevcBoundary(pkt RtpPacket, pt base.AvPacketPt) bool {
 	switch pt {
@@ -180,12 +179,17 @@ func IsAvcBoundary(pkt RtpPacket) bool {
 
 func IsHevcBoundary(pkt RtpPacket) bool {
 	boundaryNaluTypes := map[uint8]struct{}{
-		hevc.NaluTypeVps:         {},
-		hevc.NaluTypeSps:         {},
-		hevc.NaluTypePps:         {},
-		hevc.NaluTypeSliceIdr:    {},
-		hevc.NaluTypeSliceIdrNlp: {},
-		hevc.NaluTypeSliceCranut: {},
+		hevc.NaluTypeVps:               {},
+		hevc.NaluTypeSps:               {},
+		hevc.NaluTypePps:               {},
+		hevc.NaluTypeSliceBlaWlp:       {},
+		hevc.NaluTypeSliceBlaWradl:     {},
+		hevc.NaluTypeSliceBlaNlp:       {},
+		hevc.NaluTypeSliceIdr:          {},
+		hevc.NaluTypeSliceIdrNlp:       {},
+		hevc.NaluTypeSliceCranut:       {},
+		hevc.NaluTypeSliceRsvIrapVcl22: {},
+		hevc.NaluTypeSliceRsvIrapVcl23: {},
 	}
 
 	b := pkt.Body()

@@ -15,7 +15,6 @@ import (
 	"github.com/q191201771/lal/pkg/rtprtcp"
 	"github.com/q191201771/lal/pkg/sdp"
 	"github.com/q191201771/naza/pkg/nazaerrors"
-	"github.com/q191201771/naza/pkg/nazalog"
 	"github.com/q191201771/naza/pkg/nazanet"
 )
 
@@ -58,14 +57,14 @@ func NewPushSession(modOptions ...ModPushSessionOption) *PushSession {
 	baseOutSession := NewBaseOutSession(uk, s)
 	s.cmdSession = cmdSession
 	s.baseOutSession = baseOutSession
-	nazalog.Infof("[%s] lifecycle new rtsp PushSession. session=%p", uk, s)
+	Log.Infof("[%s] lifecycle new rtsp PushSession. session=%p", uk, s)
 	return s
 }
 
 // Push 阻塞直到和对端完成推流前，握手部分的工作（也即收到RTSP Record response），或者发生错误
 //
 func (session *PushSession) Push(rawUrl string, sdpCtx sdp.LogicContext) error {
-	nazalog.Debugf("[%s] push. url=%s", session.uniqueKey, rawUrl)
+	Log.Debugf("[%s] push. url=%s", session.uniqueKey, rawUrl)
 	session.cmdSession.InitWithSdp(sdpCtx)
 	session.baseOutSession.InitWithSdp(sdpCtx)
 	if err := session.cmdSession.Do(rawUrl); err != nil {
@@ -85,7 +84,7 @@ func (session *PushSession) Push(rawUrl string, sdpCtx sdp.LogicContext) error {
 					_ = session.baseOutSession.Dispose()
 				}
 				if cmdSessionDisposed {
-					nazalog.Errorf("[%s] cmd session disposed already.", session.uniqueKey)
+					Log.Errorf("[%s] cmd session disposed already.", session.uniqueKey)
 				}
 				cmdSessionDisposed = true
 			case err = <-session.baseOutSession.WaitChan():
@@ -94,7 +93,7 @@ func (session *PushSession) Push(rawUrl string, sdpCtx sdp.LogicContext) error {
 					_ = session.cmdSession.Dispose()
 				}
 				if baseInSessionDisposed {
-					nazalog.Errorf("[%s] base in session disposed already.", session.uniqueKey)
+					Log.Errorf("[%s] base in session disposed already.", session.uniqueKey)
 				}
 				baseInSessionDisposed = true
 			} // select loop
@@ -137,79 +136,79 @@ func (session *PushSession) WaitChan() <-chan error {
 
 // ---------------------------------------------------------------------------------------------------------------------
 
-// 文档请参考： interface ISessionUrlContext
+// Url 文档请参考： interface ISessionUrlContext
 func (session *PushSession) Url() string {
 	return session.cmdSession.Url()
 }
 
-// 文档请参考： interface ISessionUrlContext
+// AppName 文档请参考： interface ISessionUrlContext
 func (session *PushSession) AppName() string {
 	return session.cmdSession.AppName()
 }
 
-// 文档请参考： interface ISessionUrlContext
+// StreamName 文档请参考： interface ISessionUrlContext
 func (session *PushSession) StreamName() string {
 	return session.cmdSession.StreamName()
 }
 
-// 文档请参考： interface ISessionUrlContext
+// RawQuery 文档请参考： interface ISessionUrlContext
 func (session *PushSession) RawQuery() string {
 	return session.cmdSession.RawQuery()
 }
 
-// 文档请参考： interface IObject
+// UniqueKey 文档请参考： interface IObject
 func (session *PushSession) UniqueKey() string {
 	return session.uniqueKey
 }
 
-// 文档请参考： interface ISessionStat
+// GetStat 文档请参考： interface ISessionStat
 func (session *PushSession) GetStat() base.StatSession {
 	stat := session.baseOutSession.GetStat()
 	stat.RemoteAddr = session.cmdSession.RemoteAddr()
 	return stat
 }
 
-// 文档请参考： interface ISessionStat
+// UpdateStat 文档请参考： interface ISessionStat
 func (session *PushSession) UpdateStat(intervalSec uint32) {
 	session.baseOutSession.UpdateStat(intervalSec)
 }
 
-// 文档请参考： interface ISessionStat
+// IsAlive 文档请参考： interface ISessionStat
 func (session *PushSession) IsAlive() (readAlive, writeAlive bool) {
 	return session.baseOutSession.IsAlive()
 }
 
-// ClientCommandSessionObserver, callback by ClientCommandSession
+// OnConnectResult IClientCommandSessionObserver, callback by ClientCommandSession
 func (session *PushSession) OnConnectResult() {
 	// noop
 }
 
-// ClientCommandSessionObserver, callback by ClientCommandSession
+// OnDescribeResponse IClientCommandSessionObserver, callback by ClientCommandSession
 func (session *PushSession) OnDescribeResponse(sdpCtx sdp.LogicContext) {
 	// noop
 }
 
-// ClientCommandSessionObserver, callback by ClientCommandSession
+// OnSetupWithConn IClientCommandSessionObserver, callback by ClientCommandSession
 func (session *PushSession) OnSetupWithConn(uri string, rtpConn, rtcpConn *nazanet.UdpConnection) {
 	_ = session.baseOutSession.SetupWithConn(uri, rtpConn, rtcpConn)
 }
 
-// ClientCommandSessionObserver, callback by ClientCommandSession
+// OnSetupWithChannel IClientCommandSessionObserver, callback by ClientCommandSession
 func (session *PushSession) OnSetupWithChannel(uri string, rtpChannel, rtcpChannel int) {
 	_ = session.baseOutSession.SetupWithChannel(uri, rtpChannel, rtcpChannel)
 }
 
-// ClientCommandSessionObserver, callback by ClientCommandSession
+// OnSetupResult IClientCommandSessionObserver, callback by ClientCommandSession
 func (session *PushSession) OnSetupResult() {
 	// noop
 }
 
-// ClientCommandSessionObserver, callback by ClientCommandSession
+// OnInterleavedPacket IClientCommandSessionObserver, callback by ClientCommandSession
 func (session *PushSession) OnInterleavedPacket(packet []byte, channel int) {
 	session.baseOutSession.HandleInterleavedPacket(packet, channel)
 }
 
-// IInterleavedPacketWriter, callback by BaseOutSession
+// WriteInterleavedPacket IInterleavedPacketWriter, callback by BaseOutSession
 func (session *PushSession) WriteInterleavedPacket(packet []byte, channel int) error {
 	return session.cmdSession.WriteInterleavedPacket(packet, channel)
 }
@@ -217,7 +216,7 @@ func (session *PushSession) WriteInterleavedPacket(packet []byte, channel int) e
 func (session *PushSession) dispose(err error) error {
 	var retErr error
 	session.disposeOnce.Do(func() {
-		nazalog.Infof("[%s] lifecycle dispose rtsp PushSession. session=%p", session.uniqueKey, session)
+		Log.Infof("[%s] lifecycle dispose rtsp PushSession. session=%p", session.uniqueKey, session)
 		e1 := session.cmdSession.Dispose()
 		e2 := session.baseOutSession.Dispose()
 		retErr = nazaerrors.CombineErrors(e1, e2)

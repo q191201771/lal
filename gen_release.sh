@@ -26,9 +26,9 @@ echo 'doc: https://pengrl.com/lal' >> ${ROOT_DIR}/${OUT_DIR}/${prefix}linux/READ
 echo 'doc: https://pengrl.com/lal' >> ${ROOT_DIR}/${OUT_DIR}/${prefix}macos/README.txt
 echo 'doc: https://pengrl.com/lal' >> ${ROOT_DIR}/${OUT_DIR}/${prefix}windows/README.txt
 
-cp conf/lalserver.conf.json ${ROOT_DIR}/${OUT_DIR}/${prefix}linux/conf
-cp conf/lalserver.conf.json ${ROOT_DIR}/${OUT_DIR}/${prefix}macos/conf
-cp conf/lalserver.conf.json ${ROOT_DIR}/${OUT_DIR}/${prefix}windows/conf
+cp conf/lalserver.conf.json conf/cert.pem conf/key.pem ${ROOT_DIR}/${OUT_DIR}/${prefix}linux/conf
+cp conf/lalserver.conf.json conf/cert.pem conf/key.pem ${ROOT_DIR}/${OUT_DIR}/${prefix}macos/conf
+cp conf/lalserver.conf.json conf/cert.pem conf/key.pem ${ROOT_DIR}/${OUT_DIR}/${prefix}windows/conf
 
 GitTag=`git tag --sort=version:refname | tail -n 1`
 GitCommitLog=`git log --pretty=oneline -n 1`

@@ -77,6 +77,7 @@ func main() {
 		option.AssertBehavior = nazalog.AssertFatal
 	})
 	defer nazalog.Sync()
+	base.LogoutStartInfo()
 
 	url := parseFlag()
 	session := httpflv.NewPullSession()
@@ -204,6 +205,9 @@ func analysisVideoTag(tag httpflv.Tag) {
 			}
 		}
 	} else {
+		cts := bele.BeUint24(tag.Payload()[2:])
+		buf.WriteString(fmt.Sprintf("%+v, cts=%d, pts=%d", tag.Header, cts, tag.Header.Timestamp+cts))
+
 		body := tag.Payload()[5:]
 		nals, err := avc.SplitNaluAvcc(body)
 		nazalog.Assert(nil, err)

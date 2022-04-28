@@ -6,36 +6,49 @@
 //
 // Author: Chef (191201771@qq.com)
 
-package hls
+package remux
 
 import (
 	"github.com/q191201771/lal/pkg/base"
 	"github.com/q191201771/lal/pkg/mpegts"
 )
 
-// 缓存流起始的一些数据，判断流中是否存在音频、视频，以及编码格式
+// rtmp2MpegtsFilter
+//
+// 缓存流起始的一些数据，判断流中是否存在音频、视频，以及编码格式，生成正确的mpegts PatPmt头信息
+//
 // 一旦判断结束，该队列变成直进直出，不再有实际缓存
-type Queue struct {
+//
+type rtmp2MpegtsFilter struct {
 	maxMsgSize int
 	data       []base.RtmpMsg
-	observer   IQueueObserver
+	observer   iRtmp2MpegtsFilterObserver
 
 	audioCodecId int
 	videoCodecId int
 	done         bool
 }
 
-type IQueueObserver interface {
+type iRtmp2MpegtsFilterObserver interface {
+	// OnPatPmt
+	//
 	// 该回调一定发生在数据回调之前
+	// 只会返回两种格式，h264和h265
+	//
+	// TODO(chef): [opt] 当没有视频时，不应该返回h264的格式
 	// TODO(chef) 这里可以考虑换成只通知drain，由上层完成FragmentHeader的组装逻辑
-	OnPatPmt(b []byte)
+	//
+	onPatPmt(b []byte)
 
-	OnPop(msg base.RtmpMsg)
+	onPop(msg base.RtmpMsg)
 }
 
-// @param maxMsgSize 最大缓存多少个包
-func NewQueue(maxMsgSize int, observer IQueueObserver) *Queue {
-	return &Queue{
+// NewRtmp2MpegtsFilter
+//
+// @param maxMsgSize: 最大缓存多少个包
+//
+func newRtmp2MpegtsFilter(maxMsgSize int, observer iRtmp2MpegtsFilterObserver) *rtmp2MpegtsFilter {
+	return &rtmp2MpegtsFilter{
 		maxMsgSize:   maxMsgSize,
 		data:         make([]base.RtmpMsg, maxMsgSize)[0:0],
 		observer:     observer,
@@ -45,10 +58,13 @@ func NewQueue(maxMsgSize int, observer IQueueObserver) *Queue {
 	}
 }
 
-// @param msg 函数调用结束后，内部不持有该内存块
-func (q *Queue) Push(msg base.RtmpMsg) {
+// Push
+//
+// @param msg: 函数调用结束后，内部不持有该内存块
+//
+func (q *rtmp2MpegtsFilter) Push(msg base.RtmpMsg) {
 	if q.done {
-		q.observer.OnPop(msg)
+		q.observer.onPop(msg)
 		return
 	}
 
@@ -72,18 +88,20 @@ func (q *Queue) Push(msg base.RtmpMsg) {
 	}
 }
 
-func (q *Queue) drain() {
+// ---------------------------------------------------------------------------------------------------------------------
+
+func (q *rtmp2MpegtsFilter) drain() {
 	switch q.videoCodecId {
 	case int(base.RtmpCodecIdAvc):
-		q.observer.OnPatPmt(mpegts.FixedFragmentHeader)
+		q.observer.onPatPmt(mpegts.FixedFragmentHeader)
 	case int(base.RtmpCodecIdHevc):
-		q.observer.OnPatPmt(mpegts.FixedFragmentHeaderHevc)
+		q.observer.onPatPmt(mpegts.FixedFragmentHeaderHevc)
 	default:
 		// TODO(chef) 正确处理只有音频或只有视频的情况 #56
-		q.observer.OnPatPmt(mpegts.FixedFragmentHeader)
+		q.observer.onPatPmt(mpegts.FixedFragmentHeader)
 	}
 	for i := range q.data {
-		q.observer.OnPop(q.data[i])
+		q.observer.onPop(q.data[i])
 	}
 	q.data = nil
 

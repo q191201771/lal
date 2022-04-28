@@ -11,7 +11,6 @@ package rtsp
 import (
 	"github.com/q191201771/lal/pkg/base"
 	"github.com/q191201771/naza/pkg/circularqueue"
-	"github.com/q191201771/naza/pkg/nazalog"
 )
 
 // 处理音频和视频的时间戳：
@@ -42,16 +41,16 @@ func NewAvPacketQueue(onAvPacket OnAvPacket) *AvPacketQueue {
 	}
 }
 
-// 注意，调用方保证，音频相较于音频，视频相较于视频，时间戳是线性递增的。
+// Feed 注意，调用方保证，音频相较于音频，视频相较于视频，时间戳是线性递增的。
 func (a *AvPacketQueue) Feed(pkt base.AvPacket) {
-	//nazalog.Debugf("AVQ feed. t=%d, ts=%d", pkt.PayloadType, pkt.Timestamp)
+	//Log.Debugf("AVQ feed. t=%d, ts=%d", pkt.PayloadType, pkt.Timestamp)
 	switch pkt.PayloadType {
 	case base.AvPacketPtAvc:
 		fallthrough
 	case base.AvPacketPtHevc:
 		// 时间戳回退了
-		if int64(pkt.Timestamp) < a.videoBaseTs {
-			nazalog.Warnf("video ts rotate. pktTS=%d, audioBaseTs=%d, videoBaseTs=%d, audioQueue=%d, videoQueue=%d",
+		if pkt.Timestamp < a.videoBaseTs {
+			Log.Warnf("video ts rotate. pktTS=%d, audioBaseTs=%d, videoBaseTs=%d, audioQueue=%d, videoQueue=%d",
 				pkt.Timestamp, a.audioBaseTs, a.videoBaseTs, a.audioQueue.Size(), a.videoQueue.Size())
 			a.videoBaseTs = -1
 			a.audioBaseTs = -1
@@ -59,24 +58,24 @@ func (a *AvPacketQueue) Feed(pkt base.AvPacket) {
 		}
 		// 第一次
 		if a.videoBaseTs == -1 {
-			a.videoBaseTs = int64(pkt.Timestamp)
+			a.videoBaseTs = pkt.Timestamp
 		}
 		// 根据基准调节
-		pkt.Timestamp -= uint32(a.videoBaseTs)
+		pkt.Timestamp -= a.videoBaseTs
 
 		_ = a.videoQueue.PushBack(pkt)
 	case base.AvPacketPtAac:
-		if int64(pkt.Timestamp) < a.audioBaseTs {
-			nazalog.Warnf("audio ts rotate. pktTS=%d, audioBaseTs=%d, videoBaseTs=%d, audioQueue=%d, videoQueue=%d",
+		if pkt.Timestamp < a.audioBaseTs {
+			Log.Warnf("audio ts rotate. pktTS=%d, audioBaseTs=%d, videoBaseTs=%d, audioQueue=%d, videoQueue=%d",
 				pkt.Timestamp, a.audioBaseTs, a.videoBaseTs, a.audioQueue.Size(), a.videoQueue.Size())
 			a.videoBaseTs = -1
 			a.audioBaseTs = -1
 			a.PopAllByForce()
 		}
 		if a.audioBaseTs == -1 {
-			a.audioBaseTs = int64(pkt.Timestamp)
+			a.audioBaseTs = pkt.Timestamp
 		}
-		pkt.Timestamp -= uint32(a.audioBaseTs)
+		pkt.Timestamp -= a.audioBaseTs
 		_ = a.audioQueue.PushBack(pkt)
 	}
 
@@ -97,14 +96,14 @@ func (a *AvPacketQueue) Feed(pkt base.AvPacket) {
 
 	// 如果视频满了，则全部输出
 	if a.videoQueue.Full() {
-		nazalog.Assert(true, a.audioQueue.Empty())
+		Log.Assert(true, a.audioQueue.Empty())
 		a.popAllVideo()
 		return
 	}
 
 	// 如果音频满了，则全部输出
 	if a.audioQueue.Full() {
-		nazalog.Assert(true, a.videoQueue.Empty())
+		Log.Assert(true, a.videoQueue.Empty())
 		a.popAllAudio()
 		return
 	}
@@ -120,7 +119,7 @@ func (a *AvPacketQueue) PopAllByForce() {
 	}
 
 	// never reach here
-	nazalog.Assert(false, !a.audioQueue.Empty() && !a.videoQueue.Empty())
+	Log.Assert(false, !a.audioQueue.Empty() && !a.videoQueue.Empty())
 }
 
 func (a *AvPacketQueue) popAllAudio() {

@@ -10,7 +10,10 @@ package hevc
 
 import (
 	"bytes"
-	"errors"
+
+	"github.com/q191201771/naza/pkg/nazaerrors"
+
+	"github.com/q191201771/lal/pkg/base"
 
 	"github.com/q191201771/naza/pkg/nazabits"
 
@@ -29,27 +32,40 @@ import (
 // |F|   Type    |  LayerId  | TID |
 // +-------------+-----------------+
 
-var ErrHevc = errors.New("lal.hevc: fxxk")
-
 var (
 	NaluStartCode4 = []byte{0x0, 0x0, 0x0, 0x1}
 
-	// aud nalu
+	// AudNalu aud nalu
 	AudNalu = []byte{0x00, 0x00, 0x00, 0x01, 0x46, 0x01, 0x10}
 )
 
 var NaluTypeMapping = map[uint8]string{
 	NaluTypeSliceTrailN: "TrailN",
 	NaluTypeSliceTrailR: "TrailR",
-	NaluTypeSliceIdr:    "IDR",
-	NaluTypeSliceIdrNlp: "IDRNLP",
-	NaluTypeSliceCranut: "CRANUT",
-	NaluTypeVps:         "VPS",
-	NaluTypeSps:         "SPS",
-	NaluTypePps:         "PPS",
-	NaluTypeAud:         "AUD",
-	NaluTypeSei:         "SEI",
-	NaluTypeSeiSuffix:   "SEISuffix",
+	NaluTypeSliceTsaN:   "TsaN",
+	NaluTypeSliceTsaR:   "TsaR",
+	NaluTypeSliceStsaN:  "StsaN",
+	NaluTypeSliceStsaR:  "StsaR",
+	NaluTypeSliceRadlN:  "RadlN",
+	NaluTypeSliceRadlR:  "RadlR",
+	NaluTypeSliceRaslN:  "RaslN",
+	NaluTypeSliceRaslR:  "RaslR",
+
+	NaluTypeSliceBlaWlp:       "BlaWlp",
+	NaluTypeSliceBlaWradl:     "BlaWradl",
+	NaluTypeSliceBlaNlp:       "BlaNlp",
+	NaluTypeSliceIdr:          "IDR",
+	NaluTypeSliceIdrNlp:       "IDRNLP",
+	NaluTypeSliceCranut:       "CRANUT",
+	NaluTypeSliceRsvIrapVcl22: "IrapVcl22",
+	NaluTypeSliceRsvIrapVcl23: "IrapVcl23",
+
+	NaluTypeVps:       "VPS",
+	NaluTypeSps:       "SPS",
+	NaluTypePps:       "PPS",
+	NaluTypeAud:       "AUD",
+	NaluTypeSei:       "SEI",
+	NaluTypeSeiSuffix: "SEISuffix",
 }
 
 // ISO_IEC_23008-2_2013.pdf
@@ -57,12 +73,23 @@ var NaluTypeMapping = map[uint8]string{
 const (
 	NaluTypeSliceTrailN uint8 = 0 // 0x0
 	NaluTypeSliceTrailR uint8 = 1 // 0x01
+	NaluTypeSliceTsaN   uint8 = 2 // 0x02
+	NaluTypeSliceTsaR   uint8 = 3 // 0x03
+	NaluTypeSliceStsaN  uint8 = 4 // 0x04
+	NaluTypeSliceStsaR  uint8 = 5 // 0x05
+	NaluTypeSliceRadlN  uint8 = 6 // 0x06
+	NaluTypeSliceRadlR  uint8 = 7 // 0x07
+	NaluTypeSliceRaslN  uint8 = 8 // 0x06
+	NaluTypeSliceRaslR  uint8 = 9 // 0x09
 
-	// 19, 20, 21都是关键帧
-	// TODO(chef): 16，17，18也是关键帧吗？
-	NaluTypeSliceIdr    uint8 = 19 // 0x13
-	NaluTypeSliceIdrNlp uint8 = 20 // 0x14
-	NaluTypeSliceCranut uint8 = 21 // 0x15
+	NaluTypeSliceBlaWlp       uint8 = 16 // 0x10
+	NaluTypeSliceBlaWradl     uint8 = 17 // 0x11
+	NaluTypeSliceBlaNlp       uint8 = 18 // 0x12
+	NaluTypeSliceIdr          uint8 = 19 // 0x13
+	NaluTypeSliceIdrNlp       uint8 = 20 // 0x14
+	NaluTypeSliceCranut       uint8 = 21 // 0x15
+	NaluTypeSliceRsvIrapVcl22 uint8 = 22 // 0x16
+	NaluTypeSliceRsvIrapVcl23 uint8 = 23 // 0x17
 
 	NaluTypeVps       uint8 = 32 // 0x20
 	NaluTypeSps       uint8 = 33 // 0x21
@@ -103,7 +130,10 @@ func ParseNaluTypeReadable(v uint8) string {
 	return b
 }
 
+// ParseNaluType
+//
 // @param v 第一个字节
+//
 func ParseNaluType(v uint8) uint8 {
 	// 6 bit in middle
 	// 0*** ***0
@@ -111,6 +141,18 @@ func ParseNaluType(v uint8) uint8 {
 	return (v & 0x7E) >> 1
 }
 
+// IsIrapNalu 是否是关键帧
+//
+// @param typ 帧类型。注意，是经过 ParseNaluType 解析后的帧类型
+//
+func IsIrapNalu(typ uint8) bool {
+	// [16, 23] irap nal
+	// [19, 20] idr nal
+	return typ >= NaluTypeSliceBlaWlp && typ <= NaluTypeSliceRsvIrapVcl23
+}
+
+// VpsSpsPpsSeqHeader2Annexb
+//
 // HVCC Seq Header -> Annexb
 //
 // @return 返回的内存块为内部独立新申请
@@ -118,7 +160,7 @@ func ParseNaluType(v uint8) uint8 {
 func VpsSpsPpsSeqHeader2Annexb(payload []byte) ([]byte, error) {
 	vps, sps, pps, err := ParseVpsSpsPpsFromSeqHeaderWithoutMalloc(payload)
 	if err != nil {
-		return nil, ErrHevc
+		return nil, err
 	}
 	var ret []byte
 	ret = append(ret, NaluStartCode4...)
@@ -130,6 +172,8 @@ func VpsSpsPpsSeqHeader2Annexb(payload []byte) ([]byte, error) {
 	return ret, nil
 }
 
+// ParseVpsSpsPpsFromSeqHeader
+//
 // 见func ParseVpsSpsPpsFromSeqHeaderWithoutMalloc
 //
 // @return vps, sps, pps: 内存块为内部独立新申请
@@ -145,6 +189,8 @@ func ParseVpsSpsPpsFromSeqHeader(payload []byte) (vps, sps, pps []byte, err erro
 	return
 }
 
+// ParseVpsSpsPpsFromSeqHeaderWithoutMalloc
+//
 // 从HVCC格式的Seq Header中得到VPS，SPS，PPS内存块
 //
 // @param <payload> rtmp message的payload部分或者flv tag的payload部分
@@ -154,73 +200,76 @@ func ParseVpsSpsPpsFromSeqHeader(payload []byte) (vps, sps, pps []byte, err erro
 //
 func ParseVpsSpsPpsFromSeqHeaderWithoutMalloc(payload []byte) (vps, sps, pps []byte, err error) {
 	if len(payload) < 5 {
-		return nil, nil, nil, ErrHevc
+		return nil, nil, nil, nazaerrors.Wrap(base.ErrShortBuffer)
 	}
 
 	if payload[0] != 0x1c || payload[1] != 0x00 || payload[2] != 0 || payload[3] != 0 || payload[4] != 0 {
-		return nil, nil, nil, ErrHevc
+		return nil, nil, nil, nazaerrors.Wrap(base.ErrHevc)
 	}
-	//nazalog.Debugf("%s", hex.Dump(payload))
+	//Log.Debugf("%s", hex.Dump(payload))
 
 	if len(payload) < 33 {
-		return nil, nil, nil, ErrHevc
+		return nil, nil, nil, nazaerrors.Wrap(base.ErrHevc)
 	}
 
 	index := 27
 	if numOfArrays := payload[index]; numOfArrays != 3 && numOfArrays != 4 {
-		return nil, nil, nil, ErrHevc
+		return nil, nil, nil, nazaerrors.Wrap(base.ErrHevc)
 	}
 	index++
 
-	if payload[index] != NaluTypeVps&0x3f {
-		return nil, nil, nil, ErrHevc
+	// 注意，seq header中，是最后6个字节而不是中间6个字节
+	if payload[index]&0x3f != NaluTypeVps {
+		return nil, nil, nil, nazaerrors.Wrap(base.ErrHevc)
 	}
 	if numNalus := int(bele.BeUint16(payload[index+1:])); numNalus != 1 {
-		return nil, nil, nil, ErrHevc
+		return nil, nil, nil, nazaerrors.Wrap(base.ErrHevc)
 	}
 	vpsLen := int(bele.BeUint16(payload[index+3:]))
 
 	if len(payload) < 33+vpsLen {
-		return nil, nil, nil, ErrHevc
+		return nil, nil, nil, nazaerrors.Wrap(base.ErrHevc)
 	}
 
 	vps = payload[index+5 : index+5+vpsLen]
 	index += 5 + vpsLen
 
 	if len(payload) < 38+vpsLen {
-		return nil, nil, nil, ErrHevc
+		return nil, nil, nil, nazaerrors.Wrap(base.ErrHevc)
 	}
-	if payload[index] != NaluTypeSps&0x3f {
-		return nil, nil, nil, ErrHevc
+	if payload[index]&0x3f != NaluTypeSps {
+		return nil, nil, nil, nazaerrors.Wrap(base.ErrHevc)
 	}
 	if numNalus := int(bele.BeUint16(payload[index+1:])); numNalus != 1 {
-		return nil, nil, nil, ErrHevc
+		return nil, nil, nil, nazaerrors.Wrap(base.ErrHevc)
 	}
 	spsLen := int(bele.BeUint16(payload[index+3:]))
 	if len(payload) < 38+vpsLen+spsLen {
-		return nil, nil, nil, ErrHevc
+		return nil, nil, nil, nazaerrors.Wrap(base.ErrHevc)
 	}
 	sps = payload[index+5 : index+5+spsLen]
 	index += 5 + spsLen
 
 	if len(payload) < 43+vpsLen+spsLen {
-		return nil, nil, nil, ErrHevc
+		return nil, nil, nil, nazaerrors.Wrap(base.ErrHevc)
 	}
-	if payload[index] != NaluTypePps&0x3f {
-		return nil, nil, nil, ErrHevc
+	if payload[index]&0x3f != NaluTypePps {
+		return nil, nil, nil, nazaerrors.Wrap(base.ErrHevc)
 	}
 	if numNalus := int(bele.BeUint16(payload[index+1:])); numNalus != 1 {
-		return nil, nil, nil, ErrHevc
+		return nil, nil, nil, nazaerrors.Wrap(base.ErrHevc)
 	}
 	ppsLen := int(bele.BeUint16(payload[index+3:]))
 	if len(payload) < 43+vpsLen+spsLen+ppsLen {
-		return nil, nil, nil, ErrHevc
+		return nil, nil, nil, nazaerrors.Wrap(base.ErrHevc)
 	}
 	pps = payload[index+5 : index+5+ppsLen]
 
 	return
 }
 
+// BuildSeqHeaderFromVpsSpsPps
+//
 // @return 内存块为内部独立新申请
 //
 func BuildSeqHeaderFromVpsSpsPps(vps, sps, pps []byte) ([]byte, error) {
@@ -309,7 +358,7 @@ func BuildSeqHeaderFromVpsSpsPps(vps, sps, pps []byte) ([]byte, error) {
 
 func ParseVps(vps []byte, ctx *Context) error {
 	if len(vps) < 2 {
-		return ErrHevc
+		return nazaerrors.Wrap(base.ErrHevc)
 	}
 
 	rbsp := nal2rbsp(vps[2:])
@@ -320,12 +369,12 @@ func ParseVps(vps []byte, ctx *Context) error {
 	// vps_reserved_three_2bits   u(2)
 	// vps_max_layers_minus1      u(6)
 	if _, err := br.ReadBits16(12); err != nil {
-		return ErrHevc
+		return nazaerrors.Wrap(base.ErrHevc)
 	}
 
 	vpsMaxSubLayersMinus1, err := br.ReadBits8(3)
 	if err != nil {
-		return ErrHevc
+		return nazaerrors.Wrap(base.ErrHevc)
 	}
 	if vpsMaxSubLayersMinus1+1 > ctx.numTemporalLayers {
 		ctx.numTemporalLayers = vpsMaxSubLayersMinus1 + 1
@@ -335,7 +384,7 @@ func ParseVps(vps []byte, ctx *Context) error {
 	// vps_temporal_id_nesting_flag u(1)
 	// vps_reserved_0xffff_16bits   u(16)
 	if _, err := br.ReadBits32(17); err != nil {
-		return ErrHevc
+		return nazaerrors.Wrap(base.ErrHevc)
 	}
 
 	return parsePtl(&br, ctx, vpsMaxSubLayersMinus1)
@@ -345,7 +394,7 @@ func ParseSps(sps []byte, ctx *Context) error {
 	var err error
 
 	if len(sps) < 2 {
-		return ErrHevc
+		return nazaerrors.Wrap(base.ErrHevc)
 	}
 
 	rbsp := nal2rbsp(sps[2:])
@@ -420,7 +469,7 @@ func ParseSps(sps []byte, ctx *Context) error {
 	if bdlm8, err = br.ReadGolomb(); err != nil {
 		return err
 	}
-	ctx.bitDepthChromaMinus8 = uint8(bdlm8)
+	ctx.bitDepthLumaMinus8 = uint8(bdlm8)
 	var bdcm8 uint32
 	if bdcm8, err = br.ReadGolomb(); err != nil {
 		return err

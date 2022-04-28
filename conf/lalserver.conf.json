@@ -1,6 +1,6 @@
 {
   "# doc of config": "https://pengrl.com/lal/#/ConfigBrief",
-  "conf_version": "v0.2.4",
+  "conf_version": "v0.2.9",
   "rtmp": {
     "enable": true,
     "addr": ":1935",
@@ -28,17 +28,20 @@
     "out_path": "./lal_record/hls/",
     "fragment_duration_ms": 3000,
     "fragment_num": 6,
+    "delete_threshold": 6,
     "cleanup_mode": 1,
     "use_memory_as_disk_flag": false
   },
   "httpts": {
     "enable": true,
     "enable_https": true,
-    "url_pattern": "/"
+    "url_pattern": "/",
+    "gop_num": 0
   },
   "rtsp": {
     "enable": true,
-    "addr": ":5544"
+    "addr": ":5544",
+    "out_wait_key_frame_flag": true
   },
   "record": {
     "enable_flv": false,
@@ -71,6 +74,17 @@
     "on_sub_stop": "http://127.0.0.1:10101/on_sub_stop",
     "on_rtmp_connect": "http://127.0.0.1:10101/on_rtmp_connect"
   },
+  "simple_auth": {
+    "key": "q191201771",
+    "dangerous_lal_secret": "pengrl",
+    "pub_rtmp_enable": false,
+    "sub_rtmp_enable": false,
+    "sub_httpflv_enable": false,
+    "sub_httpts_enable": false,
+    "pub_rtsp_enable": false,
+    "sub_rtsp_enable": false,
+    "hls_m3u8_enable": false
+  },
   "pprof": {
     "enable": true,
     "addr": ":8084"
@@ -85,5 +99,10 @@
     "timestamp_with_ms_flag": true,
     "level_flag": true,
     "assert_behavior": 1
+  },
+  "debug": {
+    "log_group_interval_sec": 30,
+    "log_group_max_group_num": 10,
+    "log_group_max_sub_num_per_group": 10
   }
 }

@@ -14,7 +14,6 @@ import (
 	"github.com/q191201771/naza/pkg/nazaerrors"
 
 	"github.com/q191201771/lal/pkg/base"
-	"github.com/q191201771/naza/pkg/nazalog"
 	"github.com/q191201771/naza/pkg/nazanet"
 )
 
@@ -38,7 +37,7 @@ func NewSubSession(urlCtx base.UrlContext, cmdSession *ServerCommandSession) *Su
 	}
 	baseOutSession := NewBaseOutSession(uk, s)
 	s.baseOutSession = baseOutSession
-	nazalog.Infof("[%s] lifecycle new rtsp SubSession. session=%p, streamName=%s", uk, s, urlCtx.LastItemOfPath)
+	Log.Infof("[%s] lifecycle new rtsp SubSession. session=%p, streamName=%s", uk, s, urlCtx.LastItemOfPath)
 	return s
 }
 
@@ -59,7 +58,7 @@ func (session *SubSession) WriteRtpPacket(packet rtprtcp.RtpPacket) {
 }
 
 func (session *SubSession) Dispose() error {
-	nazalog.Infof("[%s] lifecycle dispose rtsp SubSession. session=%p", session.uniqueKey, session)
+	Log.Infof("[%s] lifecycle dispose rtsp SubSession. session=%p", session.uniqueKey, session)
 	e1 := session.baseOutSession.Dispose()
 	e2 := session.cmdSession.Dispose()
 	return nazaerrors.CombineErrors(e1, e2)
@@ -103,7 +102,7 @@ func (session *SubSession) IsAlive() (readAlive, writeAlive bool) {
 	return session.baseOutSession.IsAlive()
 }
 
-// IInterleavedPacketWriter, callback by BaseOutSession
+// WriteInterleavedPacket IInterleavedPacketWriter, callback by BaseOutSession
 func (session *SubSession) WriteInterleavedPacket(packet []byte, channel int) error {
 	return session.cmdSession.WriteInterleavedPacket(packet, channel)
 }

@@ -10,7 +10,6 @@ package remux
 
 import (
 	"github.com/q191201771/lal/pkg/base"
-	"github.com/q191201771/naza/pkg/nazalog"
 )
 
 // GopCache
@@ -66,9 +65,13 @@ type GopCache struct {
 	gopSize      int
 }
 
-// @param gopNum: gop缓存大小
-//                如果为0，则不缓存音频数据，也即GOP缓存功能不生效
-//                如果>0，则缓存<gopNum>个完整GOP，另外还可能有半个最近不完整的GOP
+// NewGopCache
+//
+// @param gopNum:
+//  gop缓存大小
+//
+//  - 如果为0，则不缓存音频数据，也即GOP缓存功能不生效
+//  - 如果>0，则缓存[0, gopNum]个GOP，最多缓存 gopNum 个GOP。注意，最后一个GOP可能是不完整的
 //
 func NewGopCache(t string, uniqueKey string, gopNum int) *GopCache {
 	return &GopCache{
@@ -83,22 +86,26 @@ func NewGopCache(t string, uniqueKey string, gopNum int) *GopCache {
 
 type LazyGet func() []byte
 
+// Feed
+//
+// @param lg: 内部可能持有lg返回的内存块
+//
 func (gc *GopCache) Feed(msg base.RtmpMsg, lg LazyGet) {
 	switch msg.Header.MsgTypeId {
 	case base.RtmpTypeIdMetadata:
 		gc.Metadata = lg()
-		nazalog.Debugf("[%s] cache %s metadata. size:%d", gc.uniqueKey, gc.t, len(gc.Metadata))
+		Log.Debugf("[%s] cache %s metadata. size:%d", gc.uniqueKey, gc.t, len(gc.Metadata))
 		return
 	case base.RtmpTypeIdAudio:
 		if msg.IsAacSeqHeader() {
 			gc.AacSeqHeader = lg()
-			nazalog.Debugf("[%s] cache %s aac seq header. size:%d", gc.uniqueKey, gc.t, len(gc.AacSeqHeader))
+			Log.Debugf("[%s] cache %s aac seq header. size:%d", gc.uniqueKey, gc.t, len(gc.AacSeqHeader))
 			return
 		}
 	case base.RtmpTypeIdVideo:
 		if msg.IsVideoKeySeqHeader() {
 			gc.VideoSeqHeader = lg()
-			nazalog.Debugf("[%s] cache %s video seq header. size:%d", gc.uniqueKey, gc.t, len(gc.VideoSeqHeader))
+			Log.Debugf("[%s] cache %s video seq header. size:%d", gc.uniqueKey, gc.t, len(gc.VideoSeqHeader))
 			return
 		}
 	}
@@ -112,7 +119,8 @@ func (gc *GopCache) Feed(msg base.RtmpMsg, lg LazyGet) {
 	}
 }
 
-// 获取GOP数量，注意，最后一个可能是不完整的
+// GetGopCount 获取GOP数量，注意，最后一个可能是不完整的
+//
 func (gc *GopCache) GetGopCount() int {
 	return (gc.gopRingLast + gc.gopSize - gc.gopRingFirst) % gc.gopSize
 }
@@ -132,15 +140,23 @@ func (gc *GopCache) Clear() {
 	gc.gopRingFirst = 0
 }
 
+// ---------------------------------------------------------------------------------------------------------------------
+
+// feedLastGop
+//
 // 往最后一个GOP元素追加一个msg
 // 注意，如果GopCache为空，则不缓存msg
+//
 func (gc *GopCache) feedLastGop(msg base.RtmpMsg, b []byte) {
 	if !gc.isGopRingEmpty() {
 		gc.gopRing[(gc.gopRingLast-1+gc.gopSize)%gc.gopSize].Feed(msg, b)
 	}
 }
 
+// feedNewGop
+//
 // 生成一个最新的GOP元素，并往里追加一个msg
+//
 func (gc *GopCache) feedNewGop(msg base.RtmpMsg, b []byte) {
 	if gc.isGopRingFull() {
 		gc.gopRingFirst = (gc.gopRingFirst + 1) % gc.gopSize
@@ -158,10 +174,16 @@ func (gc *GopCache) isGopRingEmpty() bool {
 	return gc.gopRingFirst == gc.gopRingLast
 }
 
+// ---------------------------------------------------------------------------------------------------------------------
+
 type Gop struct {
 	data [][]byte
 }
 
+// Feed
+//
+// @param b: 内部持有`b`内存块
+//
 func (g *Gop) Feed(msg base.RtmpMsg, b []byte) {
 	g.data = append(g.data, b)
 }

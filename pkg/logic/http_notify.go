@@ -14,7 +14,6 @@ import (
 
 	"github.com/q191201771/lal/pkg/base"
 	"github.com/q191201771/naza/pkg/nazahttp"
-	"github.com/q191201771/naza/pkg/nazalog"
 )
 
 // TODO(chef): refactor 配置参数供外部传入
@@ -132,12 +131,12 @@ func (h *HttpNotify) asyncPost(url string, info interface{}) {
 	case h.taskQueue <- PostTask{url: url, info: info}:
 		// noop
 	default:
-		nazalog.Error("http notify queue full.")
+		Log.Error("http notify queue full.")
 	}
 }
 
 func (h *HttpNotify) post(url string, info interface{}) {
 	if _, err := nazahttp.PostJson(url, info, h.client); err != nil {
-		nazalog.Errorf("http notify post error. err=%+v", err)
+		Log.Errorf("http notify post error. err=%+v", err)
 	}
 }

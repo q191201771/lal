@@ -39,7 +39,7 @@ import (
 //   -n int
 //     	num of pull connection (default 1)
 //   -o string
-//     	specify ouput flv file
+//     	specify output flv file
 // Example:
 //   ./bin/pullrtmp -i rtmp://127.0.0.1:1935/live/test -o out.flv
 //   ./bin/pullrtmp -i rtmp://127.0.0.1:1935/live/test -n 1000
@@ -52,6 +52,7 @@ func main() {
 		option.AssertBehavior = nazalog.AssertFatal
 	})
 	defer nazalog.Sync()
+	base.LogoutStartInfo()
 
 	urlTmpl, fileNameTmpl, num := parseFlag()
 	nazalog.Infof("parse flag succ. urlTmpl=%s, fileNameTmpl=%s, num=%d", urlTmpl, fileNameTmpl, num)
@@ -95,6 +96,7 @@ func pull(url string, filename string) {
 	session := rtmp.NewPullSession(func(option *rtmp.PullSessionOption) {
 		option.PullTimeoutMs = 10000
 		option.ReadAvTimeoutMs = 10000
+		option.ReadBufSize = 0
 	})
 
 	err = session.Pull(url, func(msg base.RtmpMsg) {
@@ -133,7 +135,7 @@ func collect(urlTmpl string, fileNameTmpl string, num int) (urls []string, filen
 
 func parseFlag() (urlTmpl string, fileNameTmpl string, num int) {
 	i := flag.String("i", "", "specify pull rtmp url")
-	o := flag.String("o", "", "specify ouput flv file")
+	o := flag.String("o", "", "specify output flv file")
 	n := flag.Int("n", 1, "specify num of pull connection")
 	flag.Parse()
 	if *i == "" {

@@ -9,11 +9,10 @@
 package hls
 
 import (
-	"errors"
+	"github.com/q191201771/lal/pkg/base"
 )
 
 // TODO chef:
-// - 支持HEVC
 // - 补充单元测试
 // - 配置项
 // - Server
@@ -23,15 +22,13 @@ import (
 // https://developer.apple.com/documentation/http_live_streaming/example_playlists_for_http_live_streaming/event_playlist_construction
 // #EXTM3U                     // 固定串
 // #EXT-X-VERSION:3            // 固定串
-// #EXT-X-MEDIA-SEQUENCE       //
+// #EXT-X-MEDIA-SEQUENCE       // 列表中首个TS文件的序号（该序号指的是+1自增的序号，从首个TS文件开始，包含已经从列表中移除的TS文件）
 // #EXT-X-TARGETDURATION       // 所有TS文件，最长的时长
 // #EXT-X-PLAYLIST-TYPE: EVENT
 // #EXT-X-DISCONTINUITY        //
 // #EXTINF:                    // 时长以及TS文件名
 
 // 进来的数据称为Frame帧，188字节的封装称为TSPacket包，TS文件称为Fragment
-
-var ErrHls = errors.New("lal.hls: fxxk")
 
 const (
 	// TODO chef 这些在配置项中提供
@@ -42,7 +39,7 @@ const (
 
 func SplitFragment2TsPackets(content []byte) (ret [][]byte, err error) {
 	if len(content)%188 != 0 {
-		err = ErrHls
+		err = base.ErrHls
 		return
 	}
 	for {

@@ -8,14 +8,6 @@
 
 package rtmp
 
-import (
-	"errors"
-)
-
-var (
-	ErrRtmp = errors.New("lal.rtmp: fxxk")
-)
-
 const (
 	CsidAmf   = 5
 	CsidAudio = 6
@@ -46,6 +38,7 @@ const defaultChunkSize = 128 // 未收到对端设置chunk size时的默认值
 
 const (
 	//MSID0 = 0 // 所有除 publish、play、onStatus 之外的信令
+
 	Msid1 = 1 // publish、play、onStatus 以及 音视频数据
 )
 

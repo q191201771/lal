@@ -10,7 +10,6 @@ package rtprtcp
 
 import (
 	"github.com/q191201771/lal/pkg/base"
-	"github.com/q191201771/naza/pkg/nazalog"
 )
 
 type RtpUnpackerAac struct {
@@ -67,7 +66,7 @@ func (unpacker *RtpUnpackerAac) TryUnpackOne(list *RtpPacketList) (unpackedFlag 
 		return false, 0
 	}
 	b := p.Packet.Raw[p.Packet.Header.payloadOffset:]
-	//nazalog.Debugf("%d, %d, %s", len(pkt.Raw), pkt.Header.timestamp, hex.Dump(b))
+	//Log.Debugf("%d, %d, %s", len(pkt.Raw), pkt.Header.timestamp, hex.Dump(b))
 
 	aus := parseAu(b)
 
@@ -76,7 +75,7 @@ func (unpacker *RtpUnpackerAac) TryUnpackOne(list *RtpPacketList) (unpackedFlag 
 			// one complete access unit
 			var outPkt base.AvPacket
 			outPkt.PayloadType = unpacker.payloadType
-			outPkt.Timestamp = p.Packet.Header.Timestamp / uint32(unpacker.clockRate/1000)
+			outPkt.Timestamp = int64(p.Packet.Header.Timestamp / uint32(unpacker.clockRate/1000))
 			outPkt.Payload = b[aus[0].pos : aus[0].pos+aus[0].size]
 			unpacker.onAvPacket(outPkt)
 
@@ -107,7 +106,7 @@ func (unpacker *RtpUnpackerAac) TryUnpackOne(list *RtpPacketList) (unpackedFlag 
 				return false, 0
 			}
 			if p.Packet.Header.Timestamp != timestamp {
-				nazalog.Errorf("fragments of the same access shall have the same timestamp. first=%d, curr=%d",
+				Log.Errorf("fragments of the same access shall have the same timestamp. first=%d, curr=%d",
 					timestamp, p.Packet.Header.Timestamp)
 				return false, 0
 			}
@@ -115,11 +114,11 @@ func (unpacker *RtpUnpackerAac) TryUnpackOne(list *RtpPacketList) (unpackedFlag 
 			b = p.Packet.Raw[p.Packet.Header.payloadOffset:]
 			aus := parseAu(b)
 			if len(aus) != 1 {
-				nazalog.Errorf("shall be a single fragment. len(aus)=%d", len(aus))
+				Log.Errorf("shall be a single fragment. len(aus)=%d", len(aus))
 				return false, 0
 			}
 			if aus[0].size != totalSize {
-				nazalog.Errorf("fragments of the same access shall have the same size. first=%d, curr=%d",
+				Log.Errorf("fragments of the same access shall have the same size. first=%d, curr=%d",
 					totalSize, aus[0].size)
 				return false, 0
 			}
@@ -132,7 +131,7 @@ func (unpacker *RtpUnpackerAac) TryUnpackOne(list *RtpPacketList) (unpackedFlag 
 			} else if cacheSize == totalSize {
 				var outPkt base.AvPacket
 				outPkt.PayloadType = unpacker.payloadType
-				outPkt.Timestamp = p.Packet.Header.Timestamp / uint32(unpacker.clockRate/1000)
+				outPkt.Timestamp = int64(p.Packet.Header.Timestamp / uint32(unpacker.clockRate/1000))
 				for _, a := range as {
 					outPkt.Payload = append(outPkt.Payload, a...)
 				}
@@ -142,7 +141,7 @@ func (unpacker *RtpUnpackerAac) TryUnpackOne(list *RtpPacketList) (unpackedFlag 
 				list.Size -= packetCount
 				return true, p.Packet.Header.Seq
 			} else {
-				nazalog.Errorf("cache size bigger then total size. cacheSize=%d, totalSize=%d",
+				Log.Errorf("cache size bigger then total size. cacheSize=%d, totalSize=%d",
 					cacheSize, totalSize)
 				return false, 0
 			}
@@ -154,9 +153,9 @@ func (unpacker *RtpUnpackerAac) TryUnpackOne(list *RtpPacketList) (unpackedFlag 
 	for i := range aus {
 		var outPkt base.AvPacket
 		outPkt.PayloadType = unpacker.payloadType
-		outPkt.Timestamp = p.Packet.Header.Timestamp / uint32(unpacker.clockRate/1000)
+		outPkt.Timestamp = int64(p.Packet.Header.Timestamp / uint32(unpacker.clockRate/1000))
 		// TODO chef: 这里1024的含义
-		outPkt.Timestamp += uint32(i * (1024 * 1000) / unpacker.clockRate)
+		outPkt.Timestamp += int64(uint32(i * (1024 * 1000) / unpacker.clockRate))
 		outPkt.Payload = b[aus[i].pos : aus[i].pos+aus[i].size]
 		unpacker.onAvPacket(outPkt)
 	}
@@ -190,7 +189,7 @@ func parseAu(b []byte) (ret []au) {
 		auSize /= 8
 		// 注意，fragment时，auIndex并不可靠。见TestAacCase1
 		//auIndex := b[pauh+1] & 0x7
-		//nazalog.Debugf("~ %d %d", auSize, auIndex)
+		//Log.Debugf("~ %d %d", auSize, auIndex)
 
 		ret = append(ret, au{
 			size: auSize,
@@ -203,7 +202,7 @@ func parseAu(b []byte) (ret []au) {
 
 	if (nbAuHeaders > 1 && pau != uint32(len(b))) ||
 		(nbAuHeaders == 1 && pau < uint32(len(b))) {
-		nazalog.Warnf("rtp packet size invalid. nbAuHeaders=%d, pau=%d, len(b)=%d, auHeadersLength=%d", nbAuHeaders, pau, len(b), auHeadersLength)
+		Log.Warnf("rtp packet size invalid. nbAuHeaders=%d, pau=%d, len(b)=%d, auHeadersLength=%d", nbAuHeaders, pau, len(b), auHeadersLength)
 	}
 
 	return

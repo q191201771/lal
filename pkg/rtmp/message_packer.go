@@ -12,8 +12,6 @@ import (
 	"fmt"
 	"io"
 
-	"github.com/q191201771/naza/pkg/nazalog"
-
 	"github.com/q191201771/lal/pkg/base"
 
 	"github.com/q191201771/naza/pkg/bele"
@@ -25,7 +23,7 @@ const (
 	peerBandwidthLimitTypeDynamic = uint8(2)
 )
 
-// 打包并发送 rtmp 信令
+// MessagePacker 打包并发送 rtmp 信令
 //
 type MessagePacker struct {
 	b *Buffer
@@ -253,6 +251,26 @@ func (packer *MessagePacker) writeStreamBegin(writer io.Writer, streamid uint32)
 	return packer.ChunkAndWrite(writer, csidProtocolControl, base.RtmpTypeIdUserControl, 0)
 }
 
+func (packer *MessagePacker) writePingRequest(writer io.Writer, timestamp uint32) error {
+	packer.b.ModWritePos(12)
+
+	// 6
+	_ = bele.WriteBe(packer.b, uint16(base.RtmpUserControlPingRequest))
+	_ = bele.WriteBe(packer.b, timestamp)
+
+	return packer.ChunkAndWrite(writer, csidProtocolControl, base.RtmpTypeIdUserControl, 0)
+}
+
+func (packer *MessagePacker) writePingResponse(writer io.Writer, timestamp uint32) error {
+	packer.b.ModWritePos(12)
+
+	// 6
+	_ = bele.WriteBe(packer.b, uint16(base.RtmpUserControlPingResponse))
+	_ = bele.WriteBe(packer.b, timestamp)
+
+	return packer.ChunkAndWrite(writer, csidProtocolControl, base.RtmpTypeIdUserControl, 0)
+}
+
 // ---------------------------------------------------------------------------------------------------------------------
 
 // TODO(chef): 整理所有的buffer
@@ -303,7 +321,7 @@ func (b *Buffer) WriteTo(w io.Writer) (n int64, err error) {
 	if nBytes := b.Len(); nBytes > 0 {
 		m, e := w.Write(b.Bytes())
 		if m > nBytes {
-			nazalog.Panicf("Buffer.WriteTo: invalid Write count. expected=%d, actual=%d", nBytes, m)
+			Log.Panicf("Buffer.WriteTo: invalid Write count. expected=%d, actual=%d", nBytes, m)
 		}
 		b.readPos += m
 		n = int64(m)
@@ -336,7 +354,7 @@ func (b *Buffer) grow(n int) {
 		newLen = cap(b.core) * 2
 	}
 	buf := make([]byte, newLen)
-	nazalog.Debugf("Buffer::grow. need=%d, old len=%d, cap=%d, new len=%d", n, b.Len(), cap(b.core), newLen)
+	Log.Debugf("Buffer::grow. need=%d, old len=%d, cap=%d, new len=%d", n, b.Len(), cap(b.core), newLen)
 	copy(buf, b.core[b.readPos:b.writePos])
 	b.core = buf
 	b.readPos = 0

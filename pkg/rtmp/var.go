@@ -8,15 +8,23 @@
 
 package rtmp
 
-// TODO chef
-// 一些更专业的配置项，暂时只在该源码文件中配置，不提供外部配置接口
+import "github.com/q191201771/naza/pkg/nazalog"
+
+// TODO chef 一些更专业的配置项，暂时只在该源码文件中配置，不提供外部配置接口
+
 var (
-	readBufSize                   = 4096  // client/server session connection读缓冲的大小
-	writeBufSize                  = 4096  // client/server session connection写缓冲的大小
-	wChanSize                     = 1024  // client/server session 发送数据时，channel 的大小
+	Log = nazalog.GetGlobalLogger()
+)
+
+var (
+	readBufSize                   = 4096  // server session connection读缓冲的大小
+	wChanSize                     = 1024  // server session 发送数据时，channel 的大小
 	serverSessionReadAvTimeoutMs  = 10000 // server pub session，读音视频数据超时
 	serverSessionWriteAvTimeoutMs = 10000 // server sub session，写音视频数据超时
+	//writeBufSize                  = 4096  // 注意，因为lal server在group中使用writev做merge合并发送，这个废弃不需要了
 
+	// LocalChunkSize
+	//
 	// 本端（包括Server Session和Client Session）设置的chunk size，本端发送数据时切割chunk包时使用
 	// （对端发送数据时的chunk size由对端决定，和本变量没有关系）
 	//

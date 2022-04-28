@@ -8,12 +8,6 @@
 
 package httpflv
 
-import (
-	"errors"
-)
-
-var ErrHttpflv = errors.New("lal.httpflv: fxxk")
-
 const (
 	TagHeaderSize        int = 11
 	PrevTagSizeFieldSize int = 4

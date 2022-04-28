@@ -9,11 +9,12 @@
 package rtsp
 
 import (
-	"errors"
 	"fmt"
 	"net"
 	"strconv"
 	"strings"
+
+	"github.com/q191201771/naza/pkg/nazaerrors"
 
 	"github.com/q191201771/lal/pkg/base"
 
@@ -28,8 +29,6 @@ import (
 // - [refactor] BaseInSession和BaseOutSession有不少重复内容
 // - [refactor] PullSession和PushSession有不少重复内容
 
-var ErrRtsp = errors.New("lal.rtsp: fxxk")
-
 const (
 	MethodOptions      = "OPTIONS"
 	MethodAnnounce     = "ANNOUNCE"
@@ -42,7 +41,7 @@ const (
 )
 
 const (
-	// header key
+	// HeaderAccept header key
 	HeaderAccept          = "Accept"
 	HeaderUserAgent       = "User-Agent"
 	HeaderCSeq            = "CSeq"
@@ -54,7 +53,7 @@ const (
 	HeaderAuthorization   = "Authorization"
 	HeaderPublic          = "Public"
 
-	// header value
+	// HeaderAcceptApplicationSdp header value
 	HeaderAcceptApplicationSdp         = "application/sdp"
 	HeaderRangeDefault                 = "npt=0.000-"
 	HeaderTransportClientPlayTmpl      = "RTP/AVP/UDP;unicast;client_port=%d-%d" // localRtpPort, localRtcpPort
@@ -62,8 +61,11 @@ const (
 	HeaderTransportClientRecordTmpl    = "RTP/AVP/UDP;unicast;client_port=%d-%d;mode=record"
 	HeaderTransportClientRecordTcpTmpl = "RTP/AVP/TCP;unicast;interleaved=%d-%d;mode=record"
 	HeaderTransportServerPlayTmpl      = "RTP/AVP/UDP;unicast;client_port=%d-%d;server_port=%d-%d"
+
 	//HeaderTransportServerPlayTCPTmpl   = "RTP/AVP/TCP;unicast;interleaved=%d-%d"
+
 	HeaderTransportServerRecordTmpl = "RTP/AVP/UDP;unicast;client_port=%d-%d;server_port=%d-%d;mode=record"
+
 	//HeaderTransportServerRecordTCPTmpl = "RTP/AVP/TCP;unicast;interleaved=%d-%d;mode=record"
 )
 
@@ -86,7 +88,8 @@ var (
 
 	unpackerItemMaxSize = 1024
 
-	serverCommandSessionReadBufSize = 256
+	serverCommandSessionReadBufSize   = 256
+	serverCommandSessionWriteChanSize = 1024
 
 	dummyRtpPacket = []byte{
 		0x80, 0x00, 0x00, 0x00,
@@ -166,7 +169,7 @@ func parseTransport(setupTransport string, key string) (first, second uint16, er
 	}
 	items = strings.Split(clientPort, "-")
 	if len(items) != 2 {
-		return 0, 0, ErrRtsp
+		return 0, 0, nazaerrors.Wrap(base.ErrRtsp)
 	}
 	iFirst, err := strconv.Atoi(items[0])
 	if err != nil {

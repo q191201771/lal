@@ -8,10 +8,17 @@
 
 package aac
 
-import "github.com/q191201771/naza/pkg/nazabits"
+import (
+	"github.com/q191201771/lal/pkg/base"
+	"github.com/q191201771/naza/pkg/nazaerrors"
+
+	"github.com/q191201771/naza/pkg/nazabits"
+)
 
 // TODO(chef) 这个文件的部分内容可以考虑放到package base中
 
+// SequenceHeaderContext
+//
 // <spec-video_file_format_spec_v10.pdf>, <Audio tags, AUDIODATA>, <page 10/48>
 // ----------------------------------------------------------------------------
 // soundFormat    [4b] 10=AAC
@@ -19,6 +26,7 @@ import "github.com/q191201771/naza/pkg/nazabits"
 // soundSize      [1b] 0=snd8Bit, 1=snd16Bit
 // soundType      [1b] 0=sndMono, 1=sndStereo. AAC always 1
 // aacPackageType [8b] 0=seq header, 1=AAC raw
+//
 type SequenceHeaderContext struct {
 	SoundFormat   uint8 // [4b]
 	SoundRate     uint8 // [2b]
@@ -27,6 +35,8 @@ type SequenceHeaderContext struct {
 	AacPacketType uint8 // [8b]
 }
 
+// Unpack
+//
 // @param b: rtmp/flv的message/tag的payload的前2个字节
 //           函数调用结束后，内部不持有该内存块
 //
@@ -39,13 +49,15 @@ func (shCtx *SequenceHeaderContext) Unpack(b []byte) {
 	shCtx.AacPacketType, _ = br.ReadBits8(8)
 }
 
+// MakeAudioDataSeqHeaderWithAsc
+//
 // @param asc: 函数调用结束后，内部不持有该内存块
 //
 // @return out: 内存块为独立新申请；函数调用结束后，内部不持有该内存块
 //
 func MakeAudioDataSeqHeaderWithAsc(asc []byte) (out []byte, err error) {
 	if len(asc) < minAscLength {
-		return nil, ErrAac
+		return nil, nazaerrors.Wrap(base.ErrShortBuffer)
 	}
 
 	// 注意，前两个字节是SequenceHeaderContext，后面跟着asc
@@ -56,6 +68,8 @@ func MakeAudioDataSeqHeaderWithAsc(asc []byte) (out []byte, err error) {
 	return
 }
 
+// MakeAudioDataSeqHeaderWithAdtsHeader
+//
 // @param adtsHeader: 函数调用结束后，内部不持有该内存块
 //
 // @return out: 内存块为独立新申请；函数调用结束后，内部不持有该内存块

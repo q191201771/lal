@@ -15,7 +15,6 @@ import (
 
 	"github.com/q191201771/lal/pkg/base"
 	"github.com/q191201771/naza/pkg/assert"
-	"github.com/q191201771/naza/pkg/nazalog"
 )
 
 var (
@@ -147,11 +146,11 @@ func TestAvPacketQueue(t *testing.T) {
 	}
 	for i := 0; i < len(in); i++ {
 		out, q := oneCase(t, in[:i+1], expects[i])
-		nazalog.Infof("-----%d", i)
-		nazalog.Infof("i:%s", packetsReadable(in[:i+1]))
-		nazalog.Infof("o:%s", packetsReadable(out))
-		nazalog.Infof("e:%s", packetsReadable(expects[i]))
-		nazalog.Infof("q:%s", packetsReadable(peekQueuePackets(q)))
+		Log.Infof("-----%d", i)
+		Log.Infof("i:%s", packetsReadable(in[:i+1]))
+		Log.Infof("o:%s", packetsReadable(out))
+		Log.Infof("e:%s", packetsReadable(expects[i]))
+		Log.Infof("q:%s", packetsReadable(peekQueuePackets(q)))
 	}
 
 	// case. 翻转2
@@ -200,14 +199,14 @@ func TestAvPacketQueue(t *testing.T) {
 func a(t uint32) base.AvPacket {
 	return base.AvPacket{
 		PayloadType: base.AvPacketPtAac,
-		Timestamp:   t,
+		Timestamp:   int64(t),
 	}
 }
 
 func v(t uint32) base.AvPacket {
 	return base.AvPacket{
 		PayloadType: base.AvPacketPtAvc,
-		Timestamp:   t,
+		Timestamp:   int64(t),
 	}
 }
 

@@ -8,12 +8,6 @@
 
 package rtprtcp
 
-import (
-	"errors"
-)
-
-var ErrRtp = errors.New("lal.rtp: fxxk")
-
 // rfc3984 5.2.  Common Structure of the RTP Payload Format
 // Table 1.  Summary of NAL unit types and their payload structures
 //
@@ -34,11 +28,11 @@ const (
 	NaluTypeAvcStapa     = 24 // one packet, multiple nals
 	NaluTypeAvcFua       = 28
 
-	// TODO(chef): hevc有stapa格式吗
+	// NaluTypeHevcFua TODO(chef): hevc有stapa格式吗
 	NaluTypeHevcFua = 49
 )
 
-// 比较序号的值，内部处理序号翻转问题，见单元测试中的例子
+// CompareSeq 比较序号的值，内部处理序号翻转问题，见单元测试中的例子
 // @return  0 a和b相等
 //          1 a大于b
 //         -1 a小于b
@@ -62,7 +56,7 @@ func CompareSeq(a, b uint16) int {
 	return 1
 }
 
-// a减b的值，内部处理序号翻转问题，如果a小于b，则返回负值，见单元测试中的例子
+// SubSeq a减b的值，内部处理序号翻转问题，如果a小于b，则返回负值，见单元测试中的例子
 func SubSeq(a, b uint16) int {
 	if a == b {
 		return 0

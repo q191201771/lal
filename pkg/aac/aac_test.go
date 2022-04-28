@@ -9,11 +9,12 @@
 package aac_test
 
 import (
+	"errors"
 	"testing"
 
-	"github.com/q191201771/lal/pkg/aac"
+	"github.com/q191201771/lal/pkg/base"
 
-	"github.com/q191201771/naza/pkg/nazalog"
+	"github.com/q191201771/lal/pkg/aac"
 
 	"github.com/q191201771/naza/pkg/assert"
 )
@@ -58,10 +59,14 @@ func TestAscContext(t *testing.T) {
 
 	// error case
 	_, err = aac.NewAscContext(nil)
-	assert.Equal(t, aac.ErrAac, err)
+	assert.Equal(t, true, errors.Is(err, base.ErrShortBuffer))
 	// error case
 	_, err = aac.MakeAscWithAdtsHeader(nil)
-	assert.Equal(t, aac.ErrAac, err)
+	assert.Equal(t, true, errors.Is(err, base.ErrShortBuffer))
+
+	// case
+	ascCtx, err = aac.NewAscContext([]byte{0x13, 0x90, 0x56, 0xe5, 0xa0})
+	assert.Equal(t, nil, err)
 }
 
 func TestMakeAudioDataSeqHeader(t *testing.T) {
@@ -78,14 +83,14 @@ func TestMakeAudioDataSeqHeader(t *testing.T) {
 
 	// error case
 	_, err = aac.MakeAudioDataSeqHeaderWithAsc(nil)
-	assert.Equal(t, aac.ErrAac, err)
+	assert.Equal(t, true, errors.Is(err, base.ErrShortBuffer))
 	// error case
 	_, err = aac.MakeAudioDataSeqHeaderWithAdtsHeader(nil)
-	assert.Equal(t, aac.ErrAac, err)
+	assert.Equal(t, true, errors.Is(err, base.ErrShortBuffer))
 }
 
 func TestSequenceHeaderContext(t *testing.T) {
 	var shCtx aac.SequenceHeaderContext
 	shCtx.Unpack(goldenSh)
-	nazalog.Debugf("%+v", shCtx)
+	aac.Log.Debugf("%+v", shCtx)
 }

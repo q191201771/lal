@@ -15,5 +15,5 @@ import (
 )
 
 func TestHls(t *testing.T) {
-	innertest.InnerTestEntry(t)
+	innertest.Entry(t)
 }

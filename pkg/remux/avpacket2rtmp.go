@@ -17,14 +17,18 @@ import (
 	"github.com/q191201771/lal/pkg/rtprtcp"
 	"github.com/q191201771/lal/pkg/sdp"
 	"github.com/q191201771/naza/pkg/bele"
-	"github.com/q191201771/naza/pkg/nazalog"
 )
 
-// AvPacket转换为RTMP
-// 目前AvPacket来自RTSP的sdp以及rtp的合帧包。理论上也支持webrtc，后续接入webrtc时再验证
+// AvPacket2RtmpRemuxer AvPacket转换为RTMP
+//
+// 目前AvPacket来自
+// - RTSP的sdp以及rtp的合帧包
+// - 业务方通过接口向lalserver输入的流
+// - 理论上也支持webrtc，后续接入webrtc时再验证
 //
 type AvPacket2RtmpRemuxer struct {
-	onRtmpAvMsg rtmp.OnReadRtmpAvMsg
+	option    base.AvPacketStreamOption
+	onRtmpMsg rtmp.OnReadRtmpAvMsg
 
 	hasEmittedMetadata bool
 	audioType          base.AvPacketPt
@@ -35,15 +39,29 @@ type AvPacket2RtmpRemuxer struct {
 	pps []byte
 }
 
-func NewAvPacket2RtmpRemuxer(onRtmpAvMsg rtmp.OnReadRtmpAvMsg) *AvPacket2RtmpRemuxer {
+func NewAvPacket2RtmpRemuxer() *AvPacket2RtmpRemuxer {
 	return &AvPacket2RtmpRemuxer{
-		onRtmpAvMsg: onRtmpAvMsg,
-		audioType:   base.AvPacketPtUnknown,
-		videoType:   base.AvPacketPtUnknown,
+		option:    base.DefaultApsOption,
+		audioType: base.AvPacketPtUnknown,
+		videoType: base.AvPacketPtUnknown,
 	}
 }
 
-// 实现RTSP回调数据的三个接口，使得接入时方便些
+func (r *AvPacket2RtmpRemuxer) WithOption(modOption func(option *base.AvPacketStreamOption)) {
+	modOption(&r.option)
+}
+
+func (r *AvPacket2RtmpRemuxer) WithOnRtmpMsg(onRtmpMsg rtmp.OnReadRtmpAvMsg) *AvPacket2RtmpRemuxer {
+	r.onRtmpMsg = onRtmpMsg
+	return r
+}
+
+// ---------------------------------------------------------------------------------------------------------------------
+
+// OnRtpPacket OnSdp OnAvPacket
+//
+// 实现RTSP回调数据的接口 rtsp.IBaseInSessionObserver ，使得接入时方便些
+//
 func (r *AvPacket2RtmpRemuxer) OnRtpPacket(pkt rtprtcp.RtpPacket) {
 	// noop
 }
@@ -54,7 +72,9 @@ func (r *AvPacket2RtmpRemuxer) OnAvPacket(pkt base.AvPacket) {
 	r.FeedAvPacket(pkt)
 }
 
-// rtsp场景下，有时sps、pps等信息只包含在sdp中，有时包含在rtp包中，
+// ---------------------------------------------------------------------------------------------------------------------
+
+// InitWithAvConfig rtsp场景下，有时sps、pps等信息只包含在sdp中，有时包含在rtp包中，
 // 这里提供输入sdp的sps、pps等信息的机会，如果没有，可以不调用
 //
 // 内部不持有输入参数的内存块
@@ -76,14 +96,14 @@ func (r *AvPacket2RtmpRemuxer) InitWithAvConfig(asc, vps, sps, pps []byte) {
 	}
 
 	if r.audioType == base.AvPacketPtUnknown && r.videoType == base.AvPacketPtUnknown {
-		nazalog.Warn("has no audio or video")
+		Log.Warn("has no audio or video")
 		return
 	}
 
 	if r.audioType != base.AvPacketPtUnknown {
 		bAsh, err = aac.MakeAudioDataSeqHeaderWithAsc(asc)
 		if err != nil {
-			nazalog.Errorf("build aac seq header failed. err=%+v", err)
+			Log.Errorf("build aac seq header failed. err=%+v", err)
 			return
 		}
 	}
@@ -92,13 +112,13 @@ func (r *AvPacket2RtmpRemuxer) InitWithAvConfig(asc, vps, sps, pps []byte) {
 		if r.videoType == base.AvPacketPtHevc {
 			bVsh, err = hevc.BuildSeqHeaderFromVpsSpsPps(vps, sps, pps)
 			if err != nil {
-				nazalog.Errorf("build hevc seq header failed. err=%+v", err)
+				Log.Errorf("build hevc seq header failed. err=%+v", err)
 				return
 			}
 		} else {
 			bVsh, err = avc.BuildSeqHeaderFromSpsPps(sps, pps)
 			if err != nil {
-				nazalog.Errorf("build avc seq header failed. err=%+v", err)
+				Log.Errorf("build avc seq header failed. err=%+v", err)
 				return
 			}
 		}
@@ -113,16 +133,31 @@ func (r *AvPacket2RtmpRemuxer) InitWithAvConfig(asc, vps, sps, pps []byte) {
 	}
 }
 
-// @param pkt: 内部不持有该内存块
+// FeedAvPacket
+//
+// 输入 base.AvPacket 数据
+//
+// @param pkt:
+//
+//  - 如果是aac，格式是裸数据，不需要adts头
+//  - 如果是h264，格式是avcc或Annexb，具体取决于前面的配置
+//
+//  内部不持有该内存块
 //
 func (r *AvPacket2RtmpRemuxer) FeedAvPacket(pkt base.AvPacket) {
 	switch pkt.PayloadType {
 	case base.AvPacketPtAvc:
 		fallthrough
 	case base.AvPacketPtHevc:
-		nals, err := avc.SplitNaluAvcc(pkt.Payload)
+		var nals [][]byte
+		var err error
+		if r.option.VideoFormat == base.AvPacketStreamVideoFormatAvcc {
+			nals, err = avc.SplitNaluAvcc(pkt.Payload)
+		} else {
+			nals, err = avc.SplitNaluAnnexb(pkt.Payload)
+		}
 		if err != nil {
-			nazalog.Errorf("iterate nalu failed. err=%+v", err)
+			Log.Errorf("iterate nalu failed. err=%+v", err)
 			return
 		}
 
@@ -149,7 +184,7 @@ func (r *AvPacket2RtmpRemuxer) FeedAvPacket(pkt base.AvPacket) {
 
 						bVsh, err := avc.BuildSeqHeaderFromSpsPps(r.sps, r.pps)
 						if err != nil {
-							nazalog.Errorf("build avc seq header failed. err=%+v", err)
+							Log.Errorf("build avc seq header failed. err=%+v", err)
 							continue
 						}
 						r.emitRtmpAvMsg(false, bVsh, pkt.Timestamp)
@@ -182,14 +217,14 @@ func (r *AvPacket2RtmpRemuxer) FeedAvPacket(pkt base.AvPacket) {
 					if len(r.vps) > 0 && len(r.sps) > 0 && len(r.pps) > 0 {
 						bVsh, err := hevc.BuildSeqHeaderFromVpsSpsPps(r.vps, r.sps, r.pps)
 						if err != nil {
-							nazalog.Errorf("build hevc seq header failed. err=%+v", err)
+							Log.Errorf("build hevc seq header failed. err=%+v", err)
 							continue
 						}
 						r.emitRtmpAvMsg(false, bVsh, pkt.Timestamp)
 						r.clearVideoSeqHeader()
 					}
 				} else {
-					if t == hevc.NaluTypeSliceIdr || t == hevc.NaluTypeSliceIdrNlp || t == hevc.NaluTypeSliceCranut {
+					if hevc.IsIrapNalu(t) {
 						payload[0] = base.RtmpHevcKeyFrame
 					} else {
 						payload[0] = base.RtmpHevcInterFrame
@@ -217,11 +252,13 @@ func (r *AvPacket2RtmpRemuxer) FeedAvPacket(pkt base.AvPacket) {
 		copy(payload[2:], pkt.Payload)
 		r.emitRtmpAvMsg(true, payload, pkt.Timestamp)
 	default:
-		nazalog.Warnf("unsupported packet. type=%d", pkt.PayloadType)
+		Log.Warnf("unsupported packet. type=%d", pkt.PayloadType)
 	}
 }
 
-func (r *AvPacket2RtmpRemuxer) emitRtmpAvMsg(isAudio bool, payload []byte, timestamp uint32) {
+// ---------------------------------------------------------------------------------------------------------------------
+
+func (r *AvPacket2RtmpRemuxer) emitRtmpAvMsg(isAudio bool, payload []byte, timestamp int64) {
 	if !r.hasEmittedMetadata {
 		// TODO(chef): 此处简化了从sps中获取宽高写入metadata的逻辑
 		audiocodecid := -1
@@ -237,10 +274,10 @@ func (r *AvPacket2RtmpRemuxer) emitRtmpAvMsg(isAudio bool, payload []byte, times
 		}
 		bMetadata, err := rtmp.BuildMetadata(-1, -1, audiocodecid, videocodecid)
 		if err != nil {
-			nazalog.Errorf("build metadata failed. err=%+v", err)
+			Log.Errorf("build metadata failed. err=%+v", err)
 			return
 		}
-		r.onRtmpAvMsg(base.RtmpMsg{
+		r.onRtmpMsg(base.RtmpMsg{
 			Header: base.RtmpHeader{
 				Csid:         rtmp.CsidAmf,
 				MsgLen:       uint32(len(bMetadata)),
@@ -265,10 +302,10 @@ func (r *AvPacket2RtmpRemuxer) emitRtmpAvMsg(isAudio bool, payload []byte, times
 	}
 
 	msg.Header.MsgLen = uint32(len(payload))
-	msg.Header.TimestampAbs = timestamp
+	msg.Header.TimestampAbs = uint32(timestamp)
 	msg.Payload = payload
 
-	r.onRtmpAvMsg(msg)
+	r.onRtmpMsg(msg)
 }
 
 func (r *AvPacket2RtmpRemuxer) setVps(b []byte) {

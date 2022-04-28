@@ -11,7 +11,6 @@ package base
 import (
 	"net"
 	"strings"
-	"time"
 
 	"github.com/q191201771/naza/pkg/connection"
 )
@@ -43,7 +42,7 @@ func NewHttpSubSession(option HttpSubSessionOption) *HttpSubSession {
 		stat: StatSession{
 			Protocol:   option.Protocol,
 			SessionId:  option.Uk,
-			StartTime:  time.Now().Format("2006-01-02 15:04:05.999"),
+			StartTime:  ReadableNowTime(),
 			RemoteAddr: option.Conn.RemoteAddr().String(),
 		},
 	}
@@ -118,7 +117,7 @@ func (session *HttpSubSession) StreamName() string {
 	case ProtocolHttpts:
 		suffix = ".ts"
 	default:
-		Logger.Warnf("[%s] acquire stream name but protocol unknown.", session.Uk)
+		Log.Warnf("[%s] acquire stream name but protocol unknown.", session.Uk)
 	}
 	return strings.TrimSuffix(session.UrlCtx.LastItemOfPath, suffix)
 }

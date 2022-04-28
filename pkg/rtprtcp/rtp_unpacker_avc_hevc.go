@@ -13,7 +13,6 @@ import (
 	"github.com/q191201771/lal/pkg/base"
 	"github.com/q191201771/lal/pkg/hevc"
 	"github.com/q191201771/naza/pkg/bele"
-	"github.com/q191201771/naza/pkg/nazalog"
 )
 
 type RtpUnpackerAvcHevc struct {
@@ -49,7 +48,7 @@ func (unpacker *RtpUnpackerAvcHevc) TryUnpackOne(list *RtpPacketList) (unpackedF
 	case PositionTypeSingle:
 		var pkt base.AvPacket
 		pkt.PayloadType = unpacker.payloadType
-		pkt.Timestamp = first.Packet.Header.Timestamp / uint32(unpacker.clockRate/1000)
+		pkt.Timestamp = int64(first.Packet.Header.Timestamp / uint32(unpacker.clockRate/1000))
 
 		pkt.Payload = make([]byte, len(first.Packet.Raw)-int(first.Packet.Header.payloadOffset)+4)
 		bele.BePutUint32(pkt.Payload, uint32(len(first.Packet.Raw))-first.Packet.Header.payloadOffset)
@@ -63,7 +62,7 @@ func (unpacker *RtpUnpackerAvcHevc) TryUnpackOne(list *RtpPacketList) (unpackedF
 	case PositionTypeStapa:
 		var pkt base.AvPacket
 		pkt.PayloadType = unpacker.payloadType
-		pkt.Timestamp = first.Packet.Header.Timestamp / uint32(unpacker.clockRate/1000)
+		pkt.Timestamp = int64(first.Packet.Header.Timestamp / uint32(unpacker.clockRate/1000))
 
 		// 跳过首字节，并且将多nalu前的2字节长度，替换成4字节长度
 		buf := first.Packet.Raw[first.Packet.Header.payloadOffset+1:]
@@ -72,7 +71,7 @@ func (unpacker *RtpUnpackerAvcHevc) TryUnpackOne(list *RtpPacketList) (unpackedF
 		totalSize := 0
 		for i := 0; i != len(buf); {
 			if len(buf)-i < 2 {
-				nazalog.Errorf("invalid STAP-A packet.")
+				Log.Errorf("invalid STAP-A packet.")
 				return false, 0
 			}
 			naluSize := int(bele.BeUint16(buf[i:]))
@@ -114,7 +113,7 @@ func (unpacker *RtpUnpackerAvcHevc) TryUnpackOne(list *RtpPacketList) (unpackedF
 			} else if p.Packet.positionType == PositionTypeFuaEnd {
 				var pkt base.AvPacket
 				pkt.PayloadType = unpacker.payloadType
-				pkt.Timestamp = p.Packet.Header.Timestamp / uint32(unpacker.clockRate/1000)
+				pkt.Timestamp = int64(p.Packet.Header.Timestamp / uint32(unpacker.clockRate/1000))
 
 				var naluTypeLen int
 				var naluType []byte
@@ -179,7 +178,7 @@ func (unpacker *RtpUnpackerAvcHevc) TryUnpackOne(list *RtpPacketList) (unpackedF
 				return true, p.Packet.Header.Seq
 			} else {
 				// 不应该出现其他类型
-				nazalog.Errorf("invalid position type. position=%d, first=(h=%+v, pos=%d), prev=(h=%+v, pos=%d), p=(h=%+v, pos=%d)",
+				Log.Errorf("invalid position type. position=%d, first=(h=%+v, pos=%d), prev=(h=%+v, pos=%d), p=(h=%+v, pos=%d)",
 					p.Packet.positionType, first.Packet.Header, first.Packet.positionType, prev.Packet.Header, prev.Packet.positionType, p.Packet.Header, p.Packet.positionType)
 				return false, 0
 			}
@@ -190,7 +189,7 @@ func (unpacker *RtpUnpackerAvcHevc) TryUnpackOne(list *RtpPacketList) (unpackedF
 	case PositionTypeFuaEnd:
 		// noop
 	default:
-		nazalog.Errorf("invalid position. pos=%d", first.Packet.positionType)
+		Log.Errorf("invalid position. pos=%d", first.Packet.positionType)
 	}
 
 	return false, 0
@@ -262,7 +261,7 @@ func calcPositionIfNeededAvc(pkt *RtpPacket) {
 	} else if outerNaluType == NaluTypeAvcStapa {
 		pkt.positionType = PositionTypeStapa
 	} else {
-		nazalog.Errorf("unknown nalu type. outerNaluType=%d", outerNaluType)
+		Log.Errorf("unknown nalu type. outerNaluType=%d", outerNaluType)
 	}
 
 	return
@@ -278,28 +277,12 @@ func calcPositionIfNeededHevc(pkt *RtpPacket) {
 	// +-------------+-----------------+
 
 	outerNaluType := hevc.ParseNaluType(b[0])
-
-	switch outerNaluType {
-	case hevc.NaluTypeVps:
-		fallthrough
-	case hevc.NaluTypeSps:
-		fallthrough
-	case hevc.NaluTypePps:
-		fallthrough
-	case hevc.NaluTypeSei:
-		fallthrough
-	case hevc.NaluTypeSliceTrailN:
-		fallthrough
-	case hevc.NaluTypeSliceTrailR:
-		fallthrough
-	case hevc.NaluTypeSliceIdr:
-		fallthrough
-	case hevc.NaluTypeSliceIdrNlp:
-		fallthrough
-	case hevc.NaluTypeSliceCranut:
+	if _, ok := hevc.NaluTypeMapping[outerNaluType]; ok {
 		pkt.positionType = PositionTypeSingle
 		return
-	case NaluTypeHevcFua:
+	}
+
+	if outerNaluType == NaluTypeHevcFua {
 		// Figure 1: The Structure of the HEVC NAL Unit Header
 
 		// 0                   1                   2                   3
@@ -340,10 +323,9 @@ func calcPositionIfNeededHevc(pkt *RtpPacket) {
 
 		pkt.positionType = PositionTypeFuaMiddle
 		return
-	default:
-		// TODO chef: 没有实现 AP 48
-		nazalog.Errorf("unknown nalu type. outerNaluType=%d(%d), header=%+v, len=%d",
-			b[0], outerNaluType, pkt.Header, len(pkt.Raw))
 	}
 
+	// TODO chef: 没有实现 AP 48
+	Log.Errorf("unknown nalu type. outerNaluType=%d(%d), header=%+v, len=%d",
+		b[0], outerNaluType, pkt.Header, len(pkt.Raw))
 }

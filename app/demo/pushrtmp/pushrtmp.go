@@ -53,6 +53,8 @@ var aliveSessionCount int32
 
 func main() {
 	defer nazalog.Sync()
+	base.LogoutStartInfo()
+
 	filename, urlTmpl, num, isRecursive, logfile := parseFlag()
 	initLog(logfile)
 
@@ -90,6 +92,8 @@ func push(tags []httpflv.Tag, url string, isRecursive bool) {
 	ps := rtmp.NewPushSession(func(option *rtmp.PushSessionOption) {
 		option.PushTimeoutMs = 5000
 		option.WriteAvTimeoutMs = 10000
+		option.WriteBufSize = 0
+		option.WriteChanSize = 0
 	})
 
 	if err := ps.Push(url); err != nil {
@@ -101,7 +105,7 @@ func push(tags []httpflv.Tag, url string, isRecursive bool) {
 	nazalog.Infof("push succ. url=%s", url)
 
 	go func() {
-		flvFilePump := httpflv.NewFileFilePump(func(option *httpflv.FlvFilePumpOption) {
+		flvFilePump := httpflv.NewFlvFilePump(func(option *httpflv.FlvFilePumpOption) {
 			option.IsRecursive = isRecursive
 		})
 		_ = flvFilePump.PumpWithTags(tags, func(tag httpflv.Tag) bool {

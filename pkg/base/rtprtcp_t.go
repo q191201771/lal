@@ -9,7 +9,7 @@
 package base
 
 const (
-	// 注意，一般情况下，AVC使用96，AAC使用97，HEVC使用98
+	// RtpPacketTypeAvcOrHevc 注意，一般情况下，AVC使用96，AAC使用97，HEVC使用98
 	// 但是我还遇到过：
 	// HEVC使用96
 	// AVC使用105

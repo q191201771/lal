@@ -11,8 +11,7 @@ fi
 
 echo '-----gofmt-----'
 if command -v gofmt >/dev/null 2>&1; then
-    gofmt -l ./
-    gofmt -w ./
+    gofmt -s -l -w ./
 else
     echo 'CHEFNOTICEME gofmt not exist!'
 fi
@@ -36,7 +35,8 @@ done
 
 # 跑 go test 生成测试覆盖率
 echo "-----CI coverage-----"
-# 从网上下载测试用的flv文件
+
+## 从网上下载测试用的flv文件
 if [ ! -s "./testdata/test.flv" ]; then
     if [ ! -d "./testdata" ]; then
         mkdir "./testdata"
@@ -47,31 +47,13 @@ if [ ! -s "./testdata/test.flv" ]; then
     fi
 fi
 
-# 将测试的flv文件分别拷贝到logic，rtmp，httpflv，hls的testdata目录下
-mkdir "./pkg/logic/testdata"
-mkdir "./pkg/rtmp/testdata"
-mkdir "./pkg/httpflv/testdata"
-mkdir "./pkg/hls/testdata"
-cp ./testdata/test.flv ./pkg/logic/testdata/test.flv
-cp ./testdata/test.flv ./pkg/rtmp/testdata/test.flv
-cp ./testdata/test.flv ./pkg/httpflv/testdata/test.flv
-cp ./testdata/test.flv ./pkg/hls/testdata/test.flv
+## 拷贝测试依赖的文件
+cp ./conf/lalserver.conf.json.tmpl ./testdata/lalserver.conf.json
+mkdir "./testdata/conf"
+cp ./conf/cert.pem ./conf/key.pem ./testdata/conf/
+cp ./conf/cert.pem ./conf/key.pem ./testdata/conf/
 
-# 将配置文件分别拷贝到logic，rtmp，httpflv，hls的testdata目录下
-cp ./conf/lalserver.conf.json.tmpl ./pkg/logic/testdata/lalserver.conf.json
-cp ./conf/lalserver.conf.json.tmpl ./pkg/rtmp/testdata/lalserver.conf.json
-cp ./conf/lalserver.conf.json.tmpl ./pkg/httpflv/testdata/lalserver.conf.json
-cp ./conf/lalserver.conf.json.tmpl ./pkg/hls/testdata/lalserver.conf.json
-
-mkdir "./pkg/logic/testdata/conf"
-mkdir "./pkg/rtmp/testdata/conf"
-mkdir "./pkg/httpflv/testdata/conf"
-mkdir "./pkg/hls/testdata/conf"
-cp ./conf/cert.pem ./conf/key.pem ./pkg/logic/testdata/conf/
-cp ./conf/cert.pem ./conf/key.pem ./pkg/rtmp/testdata/conf/
-cp ./conf/cert.pem ./conf/key.pem ./pkg/httpflv/testdata/conf/
-cp ./conf/cert.pem ./conf/key.pem ./pkg/hls/testdata/conf/
-
+## 执行所有pkg里的单元测试，并生成测试覆盖文件
 echo "" > coverage.txt
 for d in $(go list ./... | grep -v vendor | grep pkg | grep -v innertest); do
     go test -race -coverprofile=profile.out -covermode=atomic $d
@@ -81,8 +63,8 @@ for d in $(go list ./... | grep -v vendor | grep pkg | grep -v innertest); do
     fi
 done
 
-rm -rf ./pkg/logic/logs ./pkg/rtmp/logs ./pkg/httpflv/logs ./pkg/hls/logs
-#rm -rf ./pkg/logic/testdata ./pkg/rtmp/testdata ./pkg/httpflv/testdata ./pkg/hls/testdata
-rm -rf ./pkg/logic/lal_record ./pkg/rtmp/lal_record ./pkg/httpflv/lal_record ./pkg/hls/lal_record
+## 删除测试生成的垃圾文件
+find ./pkg -name 'lal_record' | xargs rm -rf
+find ./pkg -name 'logs' | xargs rm -rf
 
 echo 'done.'

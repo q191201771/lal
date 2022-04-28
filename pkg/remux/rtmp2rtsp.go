@@ -9,6 +9,7 @@
 package remux
 
 import (
+	"encoding/hex"
 	"math/rand"
 	"time"
 
@@ -18,10 +19,10 @@ import (
 	"github.com/q191201771/lal/pkg/hevc"
 	"github.com/q191201771/lal/pkg/rtprtcp"
 	"github.com/q191201771/lal/pkg/sdp"
-	"github.com/q191201771/naza/pkg/nazalog"
 )
 
 // TODO(chef): refactor 将analyze部分独立出来作为一个filter
+// TODO(chef): fix 如果前面来的音频和视频数据没有seq header，都是gop中间的数据，那么analyze分析的结果可能是音频和视频都没有
 
 var (
 	// config
@@ -29,7 +30,7 @@ var (
 	maxAnalyzeAvMsgSize = 16
 )
 
-// 提供rtmp数据向sdp+rtp数据的转换
+// Rtmp2RtspRemuxer 提供rtmp数据向sdp+rtp数据的转换
 type Rtmp2RtspRemuxer struct {
 	onSdp       OnSdp
 	onRtpPacket OnRtpPacket
@@ -49,7 +50,7 @@ type Rtmp2RtspRemuxer struct {
 type OnSdp func(sdpCtx sdp.LogicContext)
 type OnRtpPacket func(pkt rtprtcp.RtpPacket)
 
-// @param onSdp:       每次回调为独立的内存块，回调结束后，内部不再使用该内存块
+// NewRtmp2RtspRemuxer @param onSdp:       每次回调为独立的内存块，回调结束后，内部不再使用该内存块
 // @param onRtpPacket: 每次回调为独立的内存块，回调结束后，内部不再使用该内存块
 //
 func NewRtmp2RtspRemuxer(onSdp OnSdp, onRtpPacket OnRtpPacket) *Rtmp2RtspRemuxer {
@@ -61,10 +62,25 @@ func NewRtmp2RtspRemuxer(onSdp OnSdp, onRtpPacket OnRtpPacket) *Rtmp2RtspRemuxer
 	}
 }
 
-// @param msg: 函数调用结束后，内部不持有`msg`内存块
+// FeedRtmpMsg @param msg: 函数调用结束后，内部不持有`msg`内存块
 //
 func (r *Rtmp2RtspRemuxer) FeedRtmpMsg(msg base.RtmpMsg) {
 	var err error
+
+	switch msg.Header.MsgTypeId {
+	case base.RtmpTypeIdMetadata:
+		return
+	case base.RtmpTypeIdAudio:
+		if len(msg.Payload) <= 2 {
+			Log.Warnf("rtmp msg too short, ignore. header=%+v, payload=%s", msg.Header, hex.Dump(msg.Payload))
+			return
+		}
+	case base.RtmpTypeIdVideo:
+		if len(msg.Payload) <= 5 {
+			Log.Warnf("rtmp msg too short, ignore. header=%+v, payload=%s", msg.Header, hex.Dump(msg.Payload))
+			return
+		}
+	}
 
 	if msg.Header.MsgTypeId == base.RtmpTypeIdMetadata {
 		// noop
@@ -79,10 +95,10 @@ func (r *Rtmp2RtspRemuxer) FeedRtmpMsg(msg base.RtmpMsg) {
 		if msg.IsAvcKeySeqHeader() || msg.IsHevcKeySeqHeader() {
 			if msg.IsAvcKeySeqHeader() {
 				r.sps, r.pps, err = avc.ParseSpsPpsFromSeqHeader(msg.Payload)
-				nazalog.Assert(nil, err)
+				Log.Assert(nil, err)
 			} else if msg.IsHevcKeySeqHeader() {
 				r.vps, r.sps, r.pps, err = hevc.ParseVpsSpsPpsFromSeqHeader(msg.Payload)
-				nazalog.Assert(nil, err)
+				Log.Assert(nil, err)
 			}
 			r.doAnalyze()
 			return
@@ -110,7 +126,7 @@ func (r *Rtmp2RtspRemuxer) FeedRtmpMsg(msg base.RtmpMsg) {
 }
 
 func (r *Rtmp2RtspRemuxer) doAnalyze() {
-	nazalog.Assert(false, r.analyzeDone)
+	Log.Assert(false, r.analyzeDone)
 
 	if r.isAnalyzeEnough() {
 		if r.sps != nil && r.pps != nil {
@@ -126,7 +142,7 @@ func (r *Rtmp2RtspRemuxer) doAnalyze() {
 
 		// 回调sdp
 		ctx, err := sdp.Pack(r.vps, r.sps, r.pps, r.asc)
-		nazalog.Assert(nil, err)
+		Log.Assert(nil, err)
 		r.onSdp(ctx)
 
 		// 分析阶段缓存的数据
@@ -155,20 +171,27 @@ func (r *Rtmp2RtspRemuxer) isAnalyzeEnough() bool {
 }
 
 func (r *Rtmp2RtspRemuxer) remux(msg base.RtmpMsg) {
+	var packer *rtprtcp.RtpPacker
 	var rtppkts []rtprtcp.RtpPacket
 	switch msg.Header.MsgTypeId {
 	case base.RtmpTypeIdAudio:
-		rtppkts = r.getAudioPacker().Pack(base.AvPacket{
-			Timestamp:   msg.Header.TimestampAbs,
-			PayloadType: r.audioPt,
-			Payload:     msg.Payload[2:],
-		})
+		packer = r.getAudioPacker()
+		if packer != nil {
+			rtppkts = packer.Pack(base.AvPacket{
+				Timestamp:   int64(msg.Header.TimestampAbs),
+				PayloadType: r.audioPt,
+				Payload:     msg.Payload[2:],
+			})
+		}
 	case base.RtmpTypeIdVideo:
-		rtppkts = r.getVideoPacker().Pack(base.AvPacket{
-			Timestamp:   msg.Header.TimestampAbs,
-			PayloadType: r.videoPt,
-			Payload:     msg.Payload[5:],
-		})
+		packer = r.getVideoPacker()
+		if packer != nil {
+			rtppkts = r.getVideoPacker().Pack(base.AvPacket{
+				Timestamp:   int64(msg.Header.TimestampAbs),
+				PayloadType: r.videoPt,
+				Payload:     msg.Payload[5:],
+			})
+		}
 	}
 
 	for i := range rtppkts {
@@ -177,18 +200,22 @@ func (r *Rtmp2RtspRemuxer) remux(msg base.RtmpMsg) {
 }
 
 func (r *Rtmp2RtspRemuxer) getAudioPacker() *rtprtcp.RtpPacker {
+	if r.asc == nil {
+		return nil
+	}
+
 	if r.audioPacker == nil {
 		// TODO(chef): ssrc随机产生，并且整个lal没有在setup信令中传递ssrc
 		r.audioSsrc = rand.Uint32()
 
-		// TODO(chef): 如果rtmp不是以音视频头开始，也可能收到了帧数据，但是头不存在，目前该remux没有做过多容错判断，后续要加上，或者在输入层保证
 		ascCtx, err := aac.NewAscContext(r.asc)
 		if err != nil {
-			nazalog.Errorf("parse asc failed. err=%+v", err)
+			Log.Errorf("parse asc failed. err=%+v", err)
+			return nil
 		}
 		clockRate, err := ascCtx.GetSamplingFrequency()
 		if err != nil {
-			nazalog.Errorf("get sampling frequency failed. err=%+v", err)
+			Log.Errorf("get sampling frequency failed. err=%+v, asc=%s", err, hex.Dump(r.asc))
 		}
 
 		pp := rtprtcp.NewRtpPackerPayloadAac()
@@ -198,6 +225,9 @@ func (r *Rtmp2RtspRemuxer) getAudioPacker() *rtprtcp.RtpPacker {
 }
 
 func (r *Rtmp2RtspRemuxer) getVideoPacker() *rtprtcp.RtpPacker {
+	if r.sps == nil {
+		return nil
+	}
 	if r.videoPacker == nil {
 		r.videoSsrc = rand.Uint32()
 		pp := rtprtcp.NewRtpPackerPayloadAvcHevc(r.videoPt, func(option *rtprtcp.RtpPackerPayloadAvcHevcOption) {

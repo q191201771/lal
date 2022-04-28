@@ -23,12 +23,12 @@ var defaultChunkDivider = ChunkDivider{
 	localChunkSize: LocalChunkSize,
 }
 
-// @return 返回的内存块由内部申请，不依赖参数<message>内存块
+// Message2Chunks @return 返回的内存块由内部申请，不依赖参数<message>内存块
 func Message2Chunks(message []byte, header *base.RtmpHeader) []byte {
 	return defaultChunkDivider.Message2Chunks(message, header)
 }
 
-// TODO chef: 新的 message 的第一个 chunk 始终使用 fmt0 格式，没有参考前一个 message
+// Message2Chunks TODO chef: 新的 message 的第一个 chunk 始终使用 fmt0 格式，没有参考前一个 message
 func (d *ChunkDivider) Message2Chunks(message []byte, header *base.RtmpHeader) []byte {
 	return message2Chunks(message, header, nil, d.localChunkSize)
 }
@@ -108,7 +108,6 @@ func calcHeader(header *base.RtmpHeader, prevHeader *base.RtmpHeader, out []byte
 
 	// 设置扩展时间戳
 	if timestamp > maxTimestampInMessageHeader {
-		//log.Debugf("CHEFERASEME %+v %+v %d %d", header, prevHeader, timestamp, index)
 		bele.BePutUint32(out[index:], timestamp)
 		index += 4
 	}

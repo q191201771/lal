@@ -13,12 +13,11 @@ import (
 	"time"
 
 	"github.com/q191201771/lal/pkg/rtprtcp"
-	"github.com/q191201771/naza/pkg/nazalog"
 )
 
 func TestMswLsw2UnixNano(t *testing.T) {
 	u := rtprtcp.MswLsw2UnixNano(3805600902, 2181843386)
-	nazalog.Debug(u)
+	rtprtcp.Log.Debug(u)
 	tt := time.Unix(int64(u/1e9), int64(u%1e9))
-	nazalog.Debug(tt.String())
+	rtprtcp.Log.Debug(tt.String())
 }

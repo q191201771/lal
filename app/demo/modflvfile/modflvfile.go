@@ -40,6 +40,7 @@ func main() {
 		option.AssertBehavior = nazalog.AssertFatal
 	})
 	defer nazalog.Sync()
+	base.LogoutStartInfo()
 
 	var err error
 	inFileName, outFileName := parseFlag()
@@ -77,7 +78,7 @@ func main() {
 
 func parseFlag() (string, string) {
 	i := flag.String("i", "", "specify input flv file")
-	o := flag.String("o", "", "specify ouput flv file")
+	o := flag.String("o", "", "specify output flv file")
 	flag.Parse()
 	if *i == "" || *o == "" {
 		flag.Usage()

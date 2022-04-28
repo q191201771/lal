@@ -8,8 +8,6 @@
 
 package rtprtcp
 
-import "github.com/q191201771/naza/pkg/nazalog"
-
 type RtpPackerPayloadAac struct {
 }
 
@@ -31,7 +29,7 @@ func (r *RtpPackerPayloadAac) Pack(in []byte, maxSize int) (out [][]byte) {
 	// 第三部分是帧数据的数组
 
 	if len(in) > maxSize {
-		nazalog.Warnf("frame size bigger than rtp payload size while packing. len(in)=%d, maxSize=%d", len(in), maxSize)
+		Log.Warnf("frame size bigger than rtp payload size while packing. len(in)=%d, maxSize=%d", len(in), maxSize)
 	}
 
 	auHeadersLength := 2 // auHeaderSize * nbAuHeaders = 2 * 1

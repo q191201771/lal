@@ -15,5 +15,5 @@ import (
 )
 
 func TestRtmp(t *testing.T) {
-	innertest.InnerTestEntry(t)
+	innertest.Entry(t)
 }

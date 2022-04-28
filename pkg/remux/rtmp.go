@@ -13,6 +13,12 @@ import (
 	"github.com/q191201771/lal/pkg/rtmp"
 )
 
+// MakeDefaultRtmpHeader
+//
+// 使用场景：一般是输入流转换为输出流时。
+// 目的：使得流格式更标准。
+// 做法：设置 MsgStreamId 和 Csid，其他字段保持`in`的值。
+//
 func MakeDefaultRtmpHeader(in base.RtmpHeader) (out base.RtmpHeader) {
 	out.MsgLen = in.MsgLen
 	out.TimestampAbs = in.TimestampAbs

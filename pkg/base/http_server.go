@@ -10,7 +10,6 @@ package base
 
 import (
 	"crypto/tls"
-	"errors"
 	"net"
 	"net/http"
 	"reflect"
@@ -21,11 +20,6 @@ import (
 // TODO(chef)
 // - 考虑移入naza中
 // - 考虑增加一个pattern全部未命中的mux回调
-
-var (
-	ErrAddrEmpty             = errors.New("lal.base: http server addr empty")
-	ErrMultiRegistForPattern = errors.New("lal.base: http server multiple registrations for pattern")
-)
 
 const (
 	NetworkTcp = "tcp"
@@ -113,7 +107,7 @@ func (s *HttpServerManager) AddListen(addrCtx LocalAddrCtx, pattern string, hand
 		if reflect.ValueOf(prevHandler).Pointer() == reflect.ValueOf(handler).Pointer() {
 			return nil
 		} else {
-			return ErrMultiRegistForPattern
+			return ErrMultiRegisterForPattern
 		}
 	}
 	ctx.pattern2Handler[pattern] = handler

@@ -10,13 +10,16 @@ package avc_test
 
 import (
 	"bytes"
-	"fmt"
+	"encoding/hex"
+	"errors"
 	"testing"
+
+	"github.com/q191201771/naza/pkg/nazalog"
+
+	"github.com/q191201771/lal/pkg/base"
 
 	"github.com/q191201771/naza/pkg/nazabits"
 	"github.com/q191201771/naza/pkg/nazaerrors"
-
-	"github.com/q191201771/naza/pkg/nazalog"
 
 	"github.com/q191201771/lal/pkg/avc"
 
@@ -34,7 +37,7 @@ func TestParseNaluType(t *testing.T) {
 		assert.Equal(t, out, actual)
 
 		b := avc.ParseNaluTypeReadable(in)
-		nazalog.Debug(b)
+		avc.Log.Debug(b)
 	}
 }
 
@@ -58,7 +61,7 @@ func TestParseSliceType(t *testing.T) {
 
 		b, err := avc.ParseSliceTypeReadable(item.in)
 		assert.Equal(t, nil, err)
-		nazalog.Debug(b)
+		avc.Log.Debug(b)
 	}
 }
 
@@ -136,7 +139,7 @@ func TestParseSps(t *testing.T) {
 	err = avc.ParseSps(nil, &ctx)
 	assert.Equal(t, true, nazaerrors.Is(err, nazabits.ErrNazaBits))
 	assert.IsNotNil(t, err)
-	nazalog.Debugf("error expected not nil, actual=%+v", err)
+	avc.Log.Debugf("error expected not nil, actual=%+v", err)
 
 	err = avc.ParseSps(goldenSps2, &ctx)
 	assert.Equal(t, nil, err)
@@ -155,12 +158,12 @@ func TestCorner(t *testing.T) {
 	sps, pps, err := avc.ParseSpsPpsFromSeqHeader([]byte{0})
 	assert.Equal(t, nil, sps)
 	assert.Equal(t, nil, pps)
-	assert.Equal(t, avc.ErrAvc, err)
+	assert.Equal(t, true, errors.Is(err, base.ErrShortBuffer))
 
 	b := &bytes.Buffer{}
 	err = avc.CaptureAvcc2Annexb(b, []byte{0x17, 0x0, 0x1})
 	assert.Equal(t, nil, b.Bytes())
-	assert.Equal(t, avc.ErrAvc, err)
+	assert.Equal(t, true, errors.Is(err, base.ErrShortBuffer))
 }
 
 func TestParsePps_Case2(t *testing.T) {
@@ -240,28 +243,28 @@ func TestIterateNaluAnnexb(t *testing.T) {
 			nalList: [][]byte{
 				{0xa, 0xb},
 			},
-			err: avc.ErrAvc,
+			err: base.ErrAvc,
 		},
 		{
 			nals:    []byte{0, 0, 1},
 			nalList: nil,
-			err:     avc.ErrAvc,
+			err:     base.ErrAvc,
 		},
 		{
 			nals:    []byte{0, 0, 1, 0, 0, 1},
 			nalList: nil,
-			err:     avc.ErrAvc,
+			err:     base.ErrAvc,
 		},
 		{
 			nals:    nil,
 			nalList: nil,
-			err:     avc.ErrAvc,
+			err:     base.ErrShortBuffer,
 		},
 	}
 	for _, v := range golden {
 		nalList, err := avc.SplitNaluAnnexb(v.nals)
 		assert.Equal(t, v.nalList, nalList)
-		assert.Equal(t, v.err, err, fmt.Sprintf("%+v", v))
+		assert.Equal(t, true, errors.Is(err, v.err))
 	}
 }
 
@@ -289,29 +292,65 @@ func TestIterateNaluAvcc(t *testing.T) {
 		{
 			nals:    []byte{0, 0}, // length不全
 			nalList: nil,
-			err:     avc.ErrAvc,
+			err:     base.ErrShortBuffer,
 		},
 		{
 			nals:    nil,
 			nalList: nil,
-			err:     avc.ErrAvc,
+			err:     base.ErrShortBuffer,
 		},
 		{
 			nals:    []byte{0, 0, 0, 1}, // 只有length
 			nalList: nil,
-			err:     avc.ErrAvc,
+			err:     base.ErrShortBuffer,
 		},
 		{
 			nals: []byte{0, 0, 0, 2, 0xa}, // 包体数据不全
 			nalList: [][]byte{
 				{0xa},
 			},
-			err: avc.ErrAvc,
+			err: base.ErrShortBuffer,
 		},
 	}
 	for _, v := range golden {
 		nalList, err := avc.SplitNaluAvcc(v.nals)
 		assert.Equal(t, v.nalList, nalList)
-		assert.Equal(t, v.err, err)
+		assert.Equal(t, true, errors.Is(err, v.err))
 	}
+}
+
+func TestIssue135(t *testing.T) {
+	//
+	// https://github.com/q191201771/lal/issues/135
+	//
+	// TRACE [0xc0000ff0b0] RTMP_READ cb. fmt=0, csid=6, header={Csid:6 MsgLen:77 MsgTypeId:9 MsgStreamId:1 TimestampAbs:0}, timestamp=0,
+	// hex=00000000  17 00 00 00 00 01 4d 40  1f ff e2 00 18 67 4d 40  |......M@.....gM@|
+	//     00000010  1f ec a0 28 02 dd 08 00  00 03 00 08 00 00 03 01  |...(............|
+	// - chunk_composer.go:192
+	//
+	// configurationVersion 1
+	// AVCProfileIndication 4d
+	// profile_compatibility 40
+	// AVCLevelIndication 1f
+	// lengthSizeMinusOne ff & 2 = 2
+	// numOfSequenceParameterSets e2 & 5 = 2
+	// sequenceParameterSetLength 00 18 = 18
+	//
+	// 注意，因为抓的数据不全，所以会返回错误
+	// 只是用来调试看numOfSps是否为2, 第一个spsLength是否为24
+	encStr := "1700000000014d401fffe20018674d401feca02802dd08000003000800000301"
+	dst := make([]byte, 32)
+	n, err := hex.Decode(dst, []byte(encStr))
+	nazalog.Debugf("%d, %+v", n, err)
+	b, err := avc.SpsPpsSeqHeader2Annexb(dst)
+	nazalog.Debugf("%s, %+v", hex.Dump(b), err)
+}
+
+func TestTryParseSeqHeader(t *testing.T) {
+	// https://github.com/q191201771/lal/issues/143
+	payload, err := hex.DecodeString("17000000000142000affe1000a6742000af80f0044be0801000568ce388000")
+	// "6742000af80f0044be08 68ce388000"
+	assert.Equal(t, nil, err)
+	err = avc.TryParseSeqHeader(payload)
+	assert.Equal(t, nil, err)
 }

@@ -22,12 +22,17 @@ type PushSessionOption struct {
 	PushTimeoutMs int
 
 	WriteAvTimeoutMs     int
+	WriteBufSize         int // io层发送音视频数据的缓冲大小，如果为0，则没有缓冲
+	WriteChanSize        int // io层发送音视频数据的异步队列大小，如果为0，则同步发送
 	HandshakeComplexFlag bool
 }
 
 var defaultPushSessionOption = PushSessionOption{
-	PushTimeoutMs:    10000,
-	WriteAvTimeoutMs: 0,
+	PushTimeoutMs:        10000,
+	WriteAvTimeoutMs:     0,
+	WriteBufSize:         0,
+	WriteChanSize:        0,
+	HandshakeComplexFlag: false,
 }
 
 type ModPushSessionOption func(option *PushSessionOption)
@@ -42,12 +47,14 @@ func NewPushSession(modOptions ...ModPushSessionOption) *PushSession {
 		core: NewClientSession(CstPushSession, func(option *ClientSessionOption) {
 			option.DoTimeoutMs = opt.PushTimeoutMs
 			option.WriteAvTimeoutMs = opt.WriteAvTimeoutMs
+			option.WriteBufSize = opt.WriteBufSize
+			option.WriteChanSize = opt.WriteChanSize
 			option.HandshakeComplexFlag = opt.HandshakeComplexFlag
 		}),
 	}
 }
 
-// 阻塞直到和对端完成推流前，握手部分的工作（也即收到RTMP Publish response），或者发生错误
+// Push 阻塞直到和对端完成推流前，握手部分的工作（也即收到RTMP Publish response），或者发生错误
 func (s *PushSession) Push(rawUrl string) error {
 	return s.core.Do(rawUrl)
 }
@@ -58,7 +65,7 @@ func (s *PushSession) Write(msg []byte) error {
 	return s.core.Write(msg)
 }
 
-// 将缓存的数据立即刷新发送
+// Flush 将缓存的数据立即刷新发送
 // 是否有缓存策略，请参见配置及内部实现
 func (s *PushSession) Flush() error {
 	return s.core.Flush()
@@ -82,42 +89,42 @@ func (s *PushSession) WaitChan() <-chan error {
 
 // ---------------------------------------------------------------------------------------------------------------------
 
-// 文档请参考： interface ISessionUrlContext
+// Url 文档请参考： interface ISessionUrlContext
 func (s *PushSession) Url() string {
 	return s.core.Url()
 }
 
-// 文档请参考： interface ISessionUrlContext
+// AppName 文档请参考： interface ISessionUrlContext
 func (s *PushSession) AppName() string {
 	return s.core.AppName()
 }
 
-// 文档请参考： interface ISessionUrlContext
+// StreamName 文档请参考： interface ISessionUrlContext
 func (s *PushSession) StreamName() string {
 	return s.core.StreamName()
 }
 
-// 文档请参考： interface ISessionUrlContext
+// RawQuery 文档请参考： interface ISessionUrlContext
 func (s *PushSession) RawQuery() string {
 	return s.core.RawQuery()
 }
 
-// 文档请参考： interface IObject
+// UniqueKey 文档请参考： interface IObject
 func (s *PushSession) UniqueKey() string {
 	return s.core.uniqueKey
 }
 
-// 文档请参考： interface ISessionStat
+// GetStat 文档请参考： interface ISessionStat
 func (s *PushSession) GetStat() base.StatSession {
 	return s.core.GetStat()
 }
 
-// 文档请参考： interface ISessionStat
+// UpdateStat 文档请参考： interface ISessionStat
 func (s *PushSession) UpdateStat(intervalSec uint32) {
 	s.core.UpdateStat(intervalSec)
 }
 
-// 文档请参考： interface ISessionStat
+// IsAlive 文档请参考： interface ISessionStat
 func (s *PushSession) IsAlive() (readAlive, writeAlive bool) {
 	return s.core.IsAlive()
 }

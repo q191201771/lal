@@ -24,12 +24,15 @@ type PullSessionOption struct {
 	PullTimeoutMs int
 
 	ReadAvTimeoutMs      int
+	ReadBufSize          int // io层读取音视频数据时的缓冲大小，如果为0，则没有缓冲
 	HandshakeComplexFlag bool
 }
 
 var defaultPullSessionOption = PullSessionOption{
-	PullTimeoutMs:   10000,
-	ReadAvTimeoutMs: 0,
+	PullTimeoutMs:        10000,
+	ReadAvTimeoutMs:      0,
+	ReadBufSize:          0,
+	HandshakeComplexFlag: false,
 }
 
 type ModPullSessionOption func(option *PullSessionOption)
@@ -44,12 +47,13 @@ func NewPullSession(modOptions ...ModPullSessionOption) *PullSession {
 		core: NewClientSession(CstPullSession, func(option *ClientSessionOption) {
 			option.DoTimeoutMs = opt.PullTimeoutMs
 			option.ReadAvTimeoutMs = opt.ReadAvTimeoutMs
+			option.ReadBufSize = opt.ReadBufSize
 			option.HandshakeComplexFlag = opt.HandshakeComplexFlag
 		}),
 	}
 }
 
-// 阻塞直到和对端完成拉流前的所有准备工作（也即收到RTMP Play response），或者发生错误
+// Pull 阻塞直到和对端完成拉流前的所有准备工作（也即收到RTMP Play response），或者发生错误
 //
 // @param onReadRtmpAvMsg: msg: 注意，回调结束后，`msg`的内存块会被`PullSession`重复使用
 //                              也即多次回调的`msg`是复用的同一块内存块
@@ -79,42 +83,42 @@ func (s *PullSession) WaitChan() <-chan error {
 
 // ---------------------------------------------------------------------------------------------------------------------
 
-// 文档请参考： interface ISessionUrlContext
+// Url 文档请参考： interface ISessionUrlContext
 func (s *PullSession) Url() string {
 	return s.core.Url()
 }
 
-// 文档请参考： interface ISessionUrlContext
+// AppName 文档请参考： interface ISessionUrlContext
 func (s *PullSession) AppName() string {
 	return s.core.AppName()
 }
 
-// 文档请参考： interface ISessionUrlContext
+// StreamName 文档请参考： interface ISessionUrlContext
 func (s *PullSession) StreamName() string {
 	return s.core.StreamName()
 }
 
-// 文档请参考： interface ISessionUrlContext
+// RawQuery 文档请参考： interface ISessionUrlContext
 func (s *PullSession) RawQuery() string {
 	return s.core.RawQuery()
 }
 
-// 文档请参考： interface IObject
+// UniqueKey 文档请参考： interface IObject
 func (s *PullSession) UniqueKey() string {
 	return s.core.uniqueKey
 }
 
-// 文档请参考： interface ISessionStat
+// GetStat 文档请参考： interface ISessionStat
 func (s *PullSession) GetStat() base.StatSession {
 	return s.core.GetStat()
 }
 
-// 文档请参考： interface ISessionStat
+// UpdateStat 文档请参考： interface ISessionStat
 func (s *PullSession) UpdateStat(intervalSec uint32) {
 	s.core.UpdateStat(intervalSec)
 }
 
-// 文档请参考： interface ISessionStat
+// IsAlive 文档请参考： interface ISessionStat
 func (s *PullSession) IsAlive() (readAlive, writeAlive bool) {
 	return s.core.IsAlive()
 }

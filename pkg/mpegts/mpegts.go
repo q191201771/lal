@@ -8,13 +8,9 @@
 
 package mpegts
 
-import "errors"
-
 // MPEG: Moving Picture Experts Group
 
-var ErrMpegts = errors.New("lal.mpegts: fxxk")
-
-// 每个TS文件都以固定的PAT，PMT开始
+// FixedFragmentHeader 每个TS文件都以固定的PAT，PMT开始
 var FixedFragmentHeader = []byte{
 	/* TS */
 	0x47, 0x40, 0x00, 0x10, 0x00,
@@ -74,7 +70,7 @@ var FixedFragmentHeader = []byte{
 	0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
 }
 
-// 每个TS文件都以固定的PAT，PMT开始
+// FixedFragmentHeaderHevc 每个TS文件都以固定的PAT，PMT开始
 var FixedFragmentHeaderHevc = []byte{
 	/* TS */
 	0x47, 0x40, 0x00, 0x10, 0x00,
@@ -144,7 +140,7 @@ const (
 	PidVideo uint16 = 0x100
 	PidAudio uint16 = 0x101
 
-	// ------------------------------------------
+	// AdaptationFieldControlReserved ------------------------------------------
 	// <iso13818-1.pdf> <Table 2-5> <page 38/174>
 	// ------------------------------------------
 	AdaptationFieldControlReserved uint8 = 0 // Reserved for future use by ISO/IEC
@@ -168,13 +164,13 @@ const (
 
 // PES
 const (
-	// -----------------------------------------------------------------
+	// StreamIdAudio -----------------------------------------------------------------
 	// <iso13818-1.pdf> <Table 2-18-Stream_id assignments> <page 52/174>
 	// -----------------------------------------------------------------
 	StreamIdAudio uint8 = 192 // 110x xxxx 0xC0
 	StreamIdVideo uint8 = 224 // 1110 xxxx
 
-	// ------------------------------
+	// PtsDtsFlags0 ------------------------------
 	// <iso13818-1.pdf> <page 53/174>
 	// ------------------------------
 	PtsDtsFlags0 uint8 = 0 // no PTS no DTS

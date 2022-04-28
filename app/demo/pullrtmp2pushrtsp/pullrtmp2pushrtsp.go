@@ -27,6 +27,7 @@ func main() {
 	_ = nazalog.Init(func(option *nazalog.Option) {
 		option.AssertBehavior = nazalog.AssertFatal
 	})
+	base.LogoutStartInfo()
 
 	inRtmpUrl, outRtspUrl, overTcp := parseFlag()
 

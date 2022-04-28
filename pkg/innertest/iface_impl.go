@@ -19,39 +19,9 @@ import (
 	"github.com/q191201771/lal/pkg/rtsp"
 )
 
-// TODO(chef): refactor 有的interface以I开头，有的不是
-
-// TODO(chef): 整理所有Server类型Session的生命周期管理
-//   -
-//   - rtmp没有独立的Pub、Sub Session结构体类型，而是直接使用ServerSession
-//   - write失败，需要反应到loop来
-//   - rtsp是否也应该上层使用Command作为代理，避免生命周期管理混乱
-//
-// server.pub:  rtmp(), rtsp
-// server.sub:  rtmp(), rtsp, flv, ts
-//
-// client.push: rtmp, rtsp
-// client.pull: rtmp, rtsp, flv
-//
-// other:       rtmp.ClientSession, rtmp.ServerSession
-//              rtsp.BaseInSession, rtsp.BaseOutSession, rtsp.ClientCommandSession, rtsp.ServerCommandSessionS
-//              base.HttpSubSession
-
-// ISessionUrlContext 实际测试
-//
-// |                | 实际url                                               | Url()    | AppName, StreamName, RawQuery  |
-// | -              | -                                                    | -        | -                              |
-// | rtmp pub推流    | rtmp://127.0.0.1:1935/live/test110                   | 同实际url | live, test110,                 |
-// |                | rtmp://127.0.0.1:1935/a/b/c/d/test110?p1=1&p2=2      | 同实际url | a/b, c/d/test110, p1=1&p2=2    |
-// | rtsp pub推流    | rtsp://localhost:5544/live/test110                   | 同实际url | live, test110,                 |
-// | rtsp pub推流    | rtsp://localhost:5544/a/b/c/d/test110?p1=1&p2=2      | 同实际url | a/b/c/d, test110, p1=1&p2=2    |
-// | httpflv sub拉流  | http://127.0.0.1:8080/live/test110.flv              | 同实际url | live, test110,                 |
-// |                 | http://127.0.0.1:8080/a/b/c/d/test110.flv?p1=1&p2=2 | 同实际url | a/b/c/d, test110, p1=1&p2=2    |
-// | rtmp sub拉流    | 同rtmp pub                                           | .        | .                              |
-// | rtsp sub拉流    | 同rtsp pub                                           | .        | .                              |
-// | httpts sub拉流 | 同httpflv sub，只是末尾的.flv换成.ts，不再赘述             | .       | .                              |
-
-//
+// TODO(chef):
+// 规范检查
+// 1. 所有interface以I开头
 
 // IClientSession: 所有Client Session都满足
 var (
@@ -65,12 +35,10 @@ var (
 // IServerSession
 var (
 	_ base.IServerSession = &rtmp.ServerSession{}
+	_ base.IServerSession = &rtsp.PubSession{}
+	_ base.IServerSession = &rtsp.SubSession{}
 	_ base.IServerSession = &httpflv.SubSession{}
 	_ base.IServerSession = &httpts.SubSession{}
-
-	// 这两个比较特殊，它们没有RunLoop函数，RunLoop在rtsp.ServerCommandSession上
-	//_ base.IServerSession = &rtsp.PubSession{}
-	//_ base.IServerSession = &rtsp.SubSession{}
 )
 
 // IClientSessionLifecycle: 所有Client Session都满足
@@ -91,12 +59,11 @@ var (
 var (
 	// server session
 	_ base.IServerSessionLifecycle = &rtmp.ServerSession{}
+	_ base.IServerSessionLifecycle = &rtsp.PubSession{}
+	_ base.IServerSessionLifecycle = &rtsp.SubSession{}
 	_ base.IServerSessionLifecycle = &httpflv.SubSession{}
 	_ base.IServerSessionLifecycle = &httpts.SubSession{}
 
-	// 这两个比较特殊，它们没有RunLoop函数，RunLoop在rtsp.ServerCommandSession上
-	//_ base.IServerSessionLifecycle = &rtsp.PubSession{}
-	//_ base.IServerSessionLifecycle = &rtsp.SubSession{}
 	// other
 	_ base.IServerSessionLifecycle = &base.HttpSubSession{}
 	_ base.IServerSessionLifecycle = &rtsp.ServerCommandSession{}
@@ -169,38 +136,42 @@ var (
 
 // ---------------------------------------------------------------------------------------------------------------------
 
+var _ logic.ICustomizePubSessionContext = &logic.CustomizePubSessionContext{}
+var _ base.IAvPacketStream = &logic.CustomizePubSessionContext{}
+
+// ---------------------------------------------------------------------------------------------------------------------
+
 var _ logic.ILalServer = &logic.ServerManager{}
-var _ rtmp.ServerObserver = &logic.ServerManager{}
-var _ logic.HttpServerHandlerObserver = &logic.ServerManager{}
-var _ rtsp.ServerObserver = &logic.ServerManager{}
+var _ rtmp.IServerObserver = &logic.ServerManager{}
+var _ logic.IHttpServerHandlerObserver = &logic.ServerManager{}
+var _ rtsp.IServerObserver = &logic.ServerManager{}
 var _ logic.IGroupCreator = &logic.ServerManager{}
-var _ logic.GroupObserver = &logic.ServerManager{}
+var _ logic.IGroupObserver = &logic.ServerManager{}
 
 var _ logic.INotifyHandler = &logic.HttpNotify{}
 var _ logic.IGroupManager = &logic.SimpleGroupManager{}
 var _ logic.IGroupManager = &logic.ComplexGroupManager{}
 
-var _ rtmp.PubSessionObserver = &logic.Group{} //
-var _ rtsp.PullSessionObserver = &logic.Group{}
-var _ rtsp.PullSessionObserver = &remux.AvPacket2RtmpRemuxer{}
-var _ rtsp.PubSessionObserver = &logic.Group{}
-var _ rtsp.PubSessionObserver = &remux.AvPacket2RtmpRemuxer{}
-var _ hls.MuxerObserver = &logic.Group{}
-var _ rtsp.BaseInSessionObserver = &logic.Group{} //
-var _ rtsp.BaseInSessionObserver = &remux.AvPacket2RtmpRemuxer{}
+var _ rtmp.IPubSessionObserver = &logic.Group{} //
+var _ rtsp.IPullSessionObserver = &logic.Group{}
+var _ rtsp.IPullSessionObserver = &remux.AvPacket2RtmpRemuxer{}
+var _ rtsp.IPubSessionObserver = &logic.Group{}
+var _ rtsp.IPubSessionObserver = &remux.AvPacket2RtmpRemuxer{}
+var _ hls.IMuxerObserver = &logic.Group{}
+var _ rtsp.IBaseInSessionObserver = &logic.Group{} //
+var _ rtsp.IBaseInSessionObserver = &remux.AvPacket2RtmpRemuxer{}
+var _ remux.IRtmp2MpegtsRemuxerObserver = &hls.Muxer{}
 
-var _ rtmp.ServerSessionObserver = &rtmp.Server{}
+var _ rtmp.IServerSessionObserver = &rtmp.Server{}
 var _ rtmp.IHandshakeClient = &rtmp.HandshakeClientSimple{}
 var _ rtmp.IHandshakeClient = &rtmp.HandshakeClientComplex{}
 
-var _ rtsp.ServerCommandSessionObserver = &rtsp.Server{}
-var _ rtsp.ClientCommandSessionObserver = &rtsp.PushSession{}
-var _ rtsp.ClientCommandSessionObserver = &rtsp.PullSession{}
+var _ rtsp.IServerCommandSessionObserver = &rtsp.Server{}
+var _ rtsp.IClientCommandSessionObserver = &rtsp.PushSession{}
+var _ rtsp.IClientCommandSessionObserver = &rtsp.PullSession{}
 var _ rtsp.IInterleavedPacketWriter = &rtsp.PushSession{}
 var _ rtsp.IInterleavedPacketWriter = &rtsp.PullSession{}
 var _ rtsp.IInterleavedPacketWriter = &rtsp.PubSession{}
 var _ rtsp.IInterleavedPacketWriter = &rtsp.SubSession{}
 var _ rtsp.IInterleavedPacketWriter = &rtsp.ClientCommandSession{}
 var _ rtsp.IInterleavedPacketWriter = &rtsp.ServerCommandSession{}
-
-var _ hls.StreamerObserver = &hls.Muxer{}
