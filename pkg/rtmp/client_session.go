@@ -34,7 +34,6 @@ type ClientSession struct {
 	chunkComposer  *ChunkComposer
 	urlCtx         base.UrlContext
 	hc             IHandshakeClient
-	peerWinAckSize int
 
 	conn                  connection.Connection
 	prevConnStat          connection.Stat
@@ -540,8 +539,8 @@ func (s *ClientSession) doProtocolControlMessage(stream *Stream) error {
 
 	switch stream.header.MsgTypeId {
 	case base.RtmpTypeIdWinAckSize:
-		s.peerWinAckSize = val
-		Log.Infof("[%s] < R Window Acknowledgement Size: %d", s.uniqueKey, s.peerWinAckSize)
+		s.option.PeerWinAckSize = val
+		Log.Infof("[%s] < R Window Acknowledgement Size: %d", s.uniqueKey, s.option.PeerWinAckSize)
 	case base.RtmpTypeIdBandwidth:
 		// TODO chef: 是否需要关注这个信令
 		Log.Warnf("[%s] < R Set Peer Bandwidth. ignore.", s.uniqueKey)
@@ -556,13 +555,13 @@ func (s *ClientSession) doProtocolControlMessage(stream *Stream) error {
 
 func (s *ClientSession) doRespAcknowledgement(stream *Stream) error {
 	//参考srs代码
-	if s.peerWinAckSize <= 0 {
+	if s.option.PeerWinAckSize <= 0 {
 		return nil
 	}
 	currStat := s.conn.GetStat()
 	delta := uint32(currStat.ReadBytesSum - s.recvLastAck)
 	//此次接收小于窗口大小一半，不处理
-	if delta < uint32(s.peerWinAckSize/2) {
+	if delta < uint32(s.option.PeerWinAckSize/2) {
 		return nil
 	}
 	s.recvLastAck = currStat.ReadBytesSum
