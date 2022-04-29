@@ -34,7 +34,6 @@ type ClientSession struct {
 	chunkComposer  *ChunkComposer
 	urlCtx         base.UrlContext
 	hc             IHandshakeClient
-	peerWinAckSize int
 
 	conn                  connection.Connection
 	prevConnStat          connection.Stat
@@ -48,6 +47,9 @@ type ClientSession struct {
 
 	debugLogReadUserCtrlMsgCount int
 	debugLogReadUserCtrlMsgMax   int
+
+	recvLastAck uint64
+	seqNum      uint32
 
 	disposeOnce sync.Once
 }
@@ -70,6 +72,8 @@ type ClientSessionOption struct {
 	WriteChanSize int // io层发送音视频数据的异步队列大小，如果为0，则同步发送
 
 	HandshakeComplexFlag bool // 握手是否使用复杂模式
+
+	PeerWinAckSize int
 }
 
 var defaultClientSessOption = ClientSessionOption{
@@ -80,6 +84,7 @@ var defaultClientSessOption = ClientSessionOption{
 	WriteBufSize:         0,
 	WriteChanSize:        0,
 	HandshakeComplexFlag: false,
+	PeerWinAckSize:0,
 }
 
 type ModClientSessionOption func(option *ClientSessionOption)
@@ -347,6 +352,11 @@ func (s *ClientSession) runReadLoop() {
 }
 
 func (s *ClientSession) doMsg(stream *Stream) error {
+	if s.t == CstPullSession {
+		if err := s.doRespAcknowledgement(stream); err != nil {
+			return err
+		}
+	}
 	switch stream.header.MsgTypeId {
 	case base.RtmpTypeIdWinAckSize:
 		fallthrough
@@ -529,8 +539,8 @@ func (s *ClientSession) doProtocolControlMessage(stream *Stream) error {
 
 	switch stream.header.MsgTypeId {
 	case base.RtmpTypeIdWinAckSize:
-		s.peerWinAckSize = val
-		Log.Infof("[%s] < R Window Acknowledgement Size: %d", s.uniqueKey, s.peerWinAckSize)
+		s.option.PeerWinAckSize = val
+		Log.Infof("[%s] < R Window Acknowledgement Size: %d", s.uniqueKey, s.option.PeerWinAckSize)
 	case base.RtmpTypeIdBandwidth:
 		// TODO chef: 是否需要关注这个信令
 		Log.Warnf("[%s] < R Set Peer Bandwidth. ignore.", s.uniqueKey)
@@ -543,6 +553,27 @@ func (s *ClientSession) doProtocolControlMessage(stream *Stream) error {
 	return nil
 }
 
+func (s *ClientSession) doRespAcknowledgement(stream *Stream) error {
+	//参考srs代码
+	if s.option.PeerWinAckSize <= 0 {
+		return nil
+	}
+	currStat := s.conn.GetStat()
+	delta := uint32(currStat.ReadBytesSum - s.recvLastAck)
+	//此次接收小于窗口大小一半，不处理
+	if delta < uint32(s.option.PeerWinAckSize/2) {
+		return nil
+	}
+	s.recvLastAck = currStat.ReadBytesSum
+	seqNum := s.seqNum + delta
+	//当序列号溢出时，将其重置
+	if seqNum > 0xf0000000 {
+		seqNum = delta
+	}
+	s.seqNum = seqNum
+	//时间戳暂时先发0
+	return s.packer.writeAcknowledgement(s.conn, seqNum)
+}
 func (s *ClientSession) notifyDoResultSucc() {
 	// 碰上过对端服务器实现有问题，对于play信令回复了两次相同的结果，我们在这里忽略掉非第一次的回复
 	if s.hasNotifyDoResultSucc {
@@ -552,7 +583,11 @@ func (s *ClientSession) notifyDoResultSucc() {
 	s.hasNotifyDoResultSucc = true
 
 	s.conn.ModWriteChanSize(s.option.WriteChanSize)
-	s.conn.ModWriteBufSize(s.option.WriteBufSize)
+	//pull有可能还需要小包发送，不使用缓存
+	if s.t == CstPushSession {
+		s.conn.ModWriteBufSize(s.option.WriteBufSize)
+	}
+
 	s.conn.ModReadTimeoutMs(s.option.ReadAvTimeoutMs)
 	s.conn.ModWriteTimeoutMs(s.option.WriteAvTimeoutMs)
 
