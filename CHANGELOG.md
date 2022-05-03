@@ -1,4 +1,4 @@
-#### v0.29.0 (2022-05-03)
+#### v0.29.1 (2022-05-03)
 
 - [feat] lalserver: 支持集成第三方协议的输入流 https://pengrl.com/#/customize_pub
 - [feat] rtmp: pull session增加ack应答，提高兼容性
