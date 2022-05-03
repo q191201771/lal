@@ -15,7 +15,7 @@ type (
 
 const (
 	AvPacketStreamAudioFormatUnknown AvPacketStreamAudioFormat = 0
-	AvPacketStreamAudioFormatRawAac AvPacketStreamAudioFormat = 1
+	AvPacketStreamAudioFormatRawAac  AvPacketStreamAudioFormat = 1
 
 	AvPacketStreamVideoFormatUnknown AvPacketStreamVideoFormat = 0
 	AvPacketStreamVideoFormatAvcc    AvPacketStreamVideoFormat = 1

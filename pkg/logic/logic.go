@@ -22,8 +22,8 @@ type ILalServer interface {
 	// AddCustomizePubSession 定制化增强功能。业务方可以将自己的流输入到 ILalServer 中
 	//
 	// @example 示例见 lal/app/demo/customize_lalserver
-  //
-  // @doc 文档见 <lalserver二次开发 - pub接入自定义流> https://pengrl.com/lal/#/customize_pub
+	//
+	// @doc 文档见 <lalserver二次开发 - pub接入自定义流> https://pengrl.com/lal/#/customize_pub
 	//
 	AddCustomizePubSession(streamName string) (ICustomizePubSessionContext, error)
 

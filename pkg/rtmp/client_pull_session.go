@@ -26,7 +26,7 @@ type PullSessionOption struct {
 	ReadAvTimeoutMs      int
 	ReadBufSize          int // io层读取音视频数据时的缓冲大小，如果为0，则没有缓冲
 	HandshakeComplexFlag bool
-	PeerWinAckSize int
+	PeerWinAckSize       int
 }
 
 var defaultPullSessionOption = PullSessionOption{
@@ -34,7 +34,7 @@ var defaultPullSessionOption = PullSessionOption{
 	ReadAvTimeoutMs:      0,
 	ReadBufSize:          0,
 	HandshakeComplexFlag: false,
-	PeerWinAckSize:0,
+	PeerWinAckSize:       0,
 }
 
 type ModPullSessionOption func(option *PullSessionOption)

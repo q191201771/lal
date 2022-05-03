@@ -30,10 +30,10 @@ type ClientSession struct {
 	t      ClientSessionType
 	option ClientSessionOption
 
-	packer         *MessagePacker
-	chunkComposer  *ChunkComposer
-	urlCtx         base.UrlContext
-	hc             IHandshakeClient
+	packer        *MessagePacker
+	chunkComposer *ChunkComposer
+	urlCtx        base.UrlContext
+	hc            IHandshakeClient
 
 	conn                  connection.Connection
 	prevConnStat          connection.Stat
@@ -84,7 +84,7 @@ var defaultClientSessOption = ClientSessionOption{
 	WriteBufSize:         0,
 	WriteChanSize:        0,
 	HandshakeComplexFlag: false,
-	PeerWinAckSize:0,
+	PeerWinAckSize:       0,
 }
 
 type ModClientSessionOption func(option *ClientSessionOption)
@@ -554,7 +554,7 @@ func (s *ClientSession) doProtocolControlMessage(stream *Stream) error {
 }
 
 func (s *ClientSession) doRespAcknowledgement(stream *Stream) error {
-	//参考srs代码
+	// https://github.com/q191201771/lal/pull/154
 	if s.option.PeerWinAckSize <= 0 {
 		return nil
 	}
