@@ -100,7 +100,6 @@ func NewGroup(appName string, streamName string, config *Config, observer IGroup
 		rtmpGopCache:         remux.NewGopCache("rtmp", uk, config.RtmpConfig.GopNum),
 		httpflvGopCache:      remux.NewGopCache("httpflv", uk, config.HttpflvConfig.GopNum),
 		httptsGopCache:       remux.NewGopCacheMpegts(uk, config.HttptsConfig.GopNum),
-		pullProxy:            &pullProxy{},
 	}
 
 	g.initRelayPush()
@@ -200,9 +199,7 @@ func (group *Group) GetStat(maxsub int) base.StatGroup {
 		group.stat.StatPub = base.StatPub{}
 	}
 
-	if group.pullProxy.pullSession != nil {
-		group.stat.StatPull = base.StatSession2Pull(group.pullProxy.pullSession.GetStat())
-	}
+	group.stat.StatPull = group.getStatPull()
 
 	group.stat.StatSubs = nil
 	var statSubCount int
@@ -301,6 +298,21 @@ func (group *Group) HasOutSession() bool {
 	return group.hasOutSession()
 }
 
+func (group *Group) OutSessionNum() int {
+	// TODO(chef): 没有包含hls的播放者
+
+	group.mutex.Lock()
+	defer group.mutex.Unlock()
+
+	pushNum := 0
+	for _, item := range group.url2PushProxy {
+		if item.isPushing || item.pushSession != nil {
+			pushNum++
+		}
+	}
+	return len(group.rtmpSubSessionSet) + len(group.rtspSubSessionSet) + len(group.httpflvSubSessionSet) + len(group.httptsSubSessionSet) + pushNum
+}
+
 // ---------------------------------------------------------------------------------------------------------------------
 
 // disposeInactiveSessions 关闭不活跃的session
@@ -320,12 +332,9 @@ func (group *Group) disposeInactiveSessions() {
 			group.rtspPubSession.Dispose()
 		}
 	}
-	if group.pullProxy.pullSession != nil {
-		if readAlive, _ := group.pullProxy.pullSession.IsAlive(); !readAlive {
-			Log.Warnf("[%s] session timeout. session=%s", group.UniqueKey, group.pullProxy.pullSession.UniqueKey())
-			group.pullProxy.pullSession.Dispose()
-		}
-	}
+
+	group.disposeInactivePullSession()
+
 	for session := range group.rtmpSubSessionSet {
 		if _, writeAlive := session.IsAlive(); !writeAlive {
 			Log.Warnf("[%s] session timeout. session=%s", group.UniqueKey, session.UniqueKey())
@@ -370,9 +379,9 @@ func (group *Group) updateAllSessionStat() {
 	if group.rtspPubSession != nil {
 		group.rtspPubSession.UpdateStat(calcSessionStatIntervalSec)
 	}
-	if group.pullProxy.pullSession != nil {
-		group.pullProxy.pullSession.UpdateStat(calcSessionStatIntervalSec)
-	}
+
+	group.updatePullSessionStat()
+
 	for session := range group.rtmpSubSessionSet {
 		session.UpdateStat(calcSessionStatIntervalSec)
 	}
@@ -402,10 +411,6 @@ func (group *Group) hasSubSession() bool {
 		len(group.httpflvSubSessionSet) != 0 ||
 		len(group.httptsSubSessionSet) != 0 ||
 		len(group.rtspSubSessionSet) != 0
-}
-
-func (group *Group) hasPullSession() bool {
-	return group.pullProxy.pullSession != nil
 }
 
 func (group *Group) hasPushSession() bool {
@@ -440,10 +445,7 @@ func (group *Group) inSessionUniqueKey() string {
 	if group.rtspPubSession != nil {
 		return group.rtspPubSession.UniqueKey()
 	}
-	if group.pullProxy.pullSession != nil {
-		return group.pullProxy.pullSession.UniqueKey()
-	}
-	return ""
+	return group.pullSessionUniqueKey()
 }
 
 func (group *Group) shouldStartRtspRemuxer() bool {

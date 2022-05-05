@@ -116,7 +116,7 @@ func (group *Group) AddRtmpPullSession(session *rtmp.PullSession) bool {
 
 	Log.Debugf("[%s] [%s] add PullSession into group.", group.UniqueKey, session.UniqueKey())
 
-	group.pullProxy.pullSession = session
+	group.setPullSession(session)
 	group.addIn()
 
 	if group.shouldStartRtspRemuxer() {
@@ -196,7 +196,7 @@ func (group *Group) delRtspPubSession(session *rtsp.PubSession) {
 func (group *Group) delRtmpPullSession(session *rtmp.PullSession) {
 	Log.Debugf("[%s] [%s] del rtmp PullSession from group.", group.UniqueKey, session.UniqueKey())
 
-	group.pullProxy.pullSession = nil
+	group.setPullSession(nil)
 	group.setPullingFlag(false)
 	group.delIn()
 }

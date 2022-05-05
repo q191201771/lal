@@ -10,6 +10,7 @@ package logic
 
 import (
 	"fmt"
+	"github.com/q191201771/lal/pkg/base"
 
 	"github.com/q191201771/lal/pkg/rtmp"
 )
@@ -35,6 +36,7 @@ type pullProxy struct {
 }
 
 func (group *Group) initRelayPull() {
+	group.pullProxy = &pullProxy{}
 	enable := group.config.RelayPullConfig.Enable
 	addr := group.config.RelayPullConfig.Addr
 	appName := group.appName
@@ -67,6 +69,43 @@ func (group *Group) setPullingFlag(flag bool) {
 
 func (group *Group) getPullingFlag() bool {
 	return group.pullProxy.isPulling
+}
+
+func (group *Group) setPullSession(session *rtmp.PullSession) {
+	group.pullProxy.pullSession = session
+}
+
+func (group *Group) getStatPull() base.StatPull {
+	if group.pullProxy.pullSession != nil {
+		return base.StatSession2Pull(group.pullProxy.pullSession.GetStat())
+	}
+	return base.StatPull{}
+}
+
+func (group *Group) disposeInactivePullSession() {
+	if group.pullProxy.pullSession != nil {
+		if readAlive, _ := group.pullProxy.pullSession.IsAlive(); !readAlive {
+			Log.Warnf("[%s] session timeout. session=%s", group.UniqueKey, group.pullProxy.pullSession.UniqueKey())
+			group.pullProxy.pullSession.Dispose()
+		}
+	}
+}
+
+func (group *Group) updatePullSessionStat() {
+	if group.pullProxy.pullSession != nil {
+		group.pullProxy.pullSession.UpdateStat(calcSessionStatIntervalSec)
+	}
+}
+
+func (group *Group) hasPullSession() bool {
+	return group.pullProxy.pullSession != nil
+}
+
+func (group *Group) pullSessionUniqueKey() string {
+	if group.pullProxy.pullSession != nil {
+		return group.pullProxy.pullSession.UniqueKey()
+	}
+	return ""
 }
 
 // 判断是否需要pull从远端拉流至本地，如果需要，则触发pull
@@ -119,10 +158,11 @@ func (group *Group) pullIfNeeded() {
 	}()
 }
 
-// 判断是否需要停止pull
+// stopPullIfNeeded
 //
-// 当前调用时机：
-// 1. 定时器定时检查
+// 判断是否需要停止pull，也即当没有观看者时会停止pull
+//
+// 当前调用时机是定时器定时检查
 //
 func (group *Group) stopPullIfNeeded() {
 	// 没有输出型的流了
