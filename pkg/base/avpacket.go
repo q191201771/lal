@@ -44,7 +44,8 @@ func (a AvPacketPt) ReadableString() string {
 //
 type AvPacket struct {
 	PayloadType AvPacketPt
-	Timestamp   int64
+	Timestamp   int64 // 如无特殊说明，此字段是Dts
+	Pts         int64
 	Payload     []byte
 }
 
