@@ -105,18 +105,18 @@ func (group *Group) AddRtspPubSession(session *rtsp.PubSession) error {
 	return nil
 }
 
-func (group *Group) AddRtmpPullSession(session *rtmp.PullSession) bool {
+func (group *Group) AddRtmpPullSession(session *rtmp.PullSession) error {
 	group.mutex.Lock()
 	defer group.mutex.Unlock()
 
 	if group.hasInSession() {
 		Log.Errorf("[%s] in stream already exist. wanna add=%s", group.UniqueKey, session.UniqueKey())
-		return false
+		return base.ErrDupInStream
 	}
 
 	Log.Debugf("[%s] [%s] add PullSession into group.", group.UniqueKey, session.UniqueKey())
 
-	group.setPullSession(session)
+	group.setRtmpPullSession(session)
 	group.addIn()
 
 	if group.shouldStartRtspRemuxer() {
@@ -126,7 +126,26 @@ func (group *Group) AddRtmpPullSession(session *rtmp.PullSession) bool {
 		)
 	}
 
-	return true
+	return nil
+}
+
+func (group *Group) AddRtspPullSession(session *rtsp.PullSession) error {
+	group.mutex.Lock()
+	defer group.mutex.Unlock()
+
+	if group.hasInSession() {
+		Log.Errorf("[%s] in stream already exist. wanna add=%s", group.UniqueKey, session.UniqueKey())
+		return base.ErrDupInStream
+	}
+
+	Log.Debugf("[%s] [%s] add PullSession into group.", group.UniqueKey, session.UniqueKey())
+
+	group.setRtspPullSession(session)
+	group.addIn()
+
+	group.rtsp2RtmpRemuxer = remux.NewAvPacket2RtmpRemuxer().WithOnRtmpMsg(group.onRtmpMsgFromRemux)
+
+	return nil
 }
 
 // ---------------------------------------------------------------------------------------------------------------------
@@ -152,7 +171,13 @@ func (group *Group) DelRtspPubSession(session *rtsp.PubSession) {
 func (group *Group) DelRtmpPullSession(session *rtmp.PullSession) {
 	group.mutex.Lock()
 	defer group.mutex.Unlock()
-	group.delRtmpPullSession(session)
+	group.delPullSession(session)
+}
+
+func (group *Group) DelRtspPullSession(session *rtsp.PullSession) {
+	group.mutex.Lock()
+	defer group.mutex.Unlock()
+	group.delPullSession(session)
 }
 
 // ---------------------------------------------------------------------------------------------------------------------
@@ -193,11 +218,10 @@ func (group *Group) delRtspPubSession(session *rtsp.PubSession) {
 	group.delIn()
 }
 
-func (group *Group) delRtmpPullSession(session *rtmp.PullSession) {
+func (group *Group) delPullSession(session base.IObject) {
 	Log.Debugf("[%s] [%s] del rtmp PullSession from group.", group.UniqueKey, session.UniqueKey())
 
-	group.setPullSession(nil)
-	group.setPullingFlag(false)
+	group.resetRelayPull()
 	group.delIn()
 }
 

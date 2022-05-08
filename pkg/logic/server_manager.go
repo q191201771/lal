@@ -366,22 +366,26 @@ func (sm *ServerManager) StatGroup(streamName string) *base.StatGroup {
 	ret = g.GetStat(math.MaxInt32)
 	return &ret
 }
-func (sm *ServerManager) CtrlStartPull(info base.ApiCtrlStartPullReq) {
+
+func (sm *ServerManager) CtrlStartRelayPull(info base.ApiCtrlStartRelayPullReq) (string, error) {
 	sm.mutex.Lock()
 	defer sm.mutex.Unlock()
-	g := sm.getGroup(info.AppName, info.StreamName)
-	if g == nil {
-		Log.Warnf("group not exist, ignore start pull. streamName=%s", info.StreamName)
-		return
+
+	streamName := info.StreamName
+	if streamName == "" {
+		ctx, err := base.ParseUrl(info.Url, -1)
+		if err != nil {
+			return "", err
+		}
+		streamName = ctx.LastItemOfPath
 	}
-	var url string
-	if info.UrlParam != "" {
-		url = fmt.Sprintf("rtmp://%s/%s/%s?%s", info.Addr, info.AppName, info.StreamName, info.UrlParam)
-	} else {
-		url = fmt.Sprintf("rtmp://%s/%s/%s", info.Addr, info.AppName, info.StreamName)
-	}
-	g.StartPull(url)
+
+	// 注意，如果group不存在，我们依然relay pull
+	g := sm.getOrCreateGroup("", streamName)
+
+	return g.StartPull(info.Url)
 }
+
 func (sm *ServerManager) CtrlKickOutSession(info base.ApiCtrlKickOutSession) base.HttpResponseBasic {
 	sm.mutex.Lock()
 	defer sm.mutex.Unlock()

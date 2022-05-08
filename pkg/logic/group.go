@@ -46,9 +46,7 @@ type Group struct {
 	rtmp2RtspRemuxer    *remux.Rtmp2RtspRemuxer
 	rtmp2MpegtsRemuxer  *remux.Rtmp2MpegtsRemuxer
 	// pull
-	pullEnable bool
-	pullUrl    string
-	pullProxy  *pullProxy
+	pullProxy *pullProxy
 	// rtmp pub使用
 	dummyAudioFilter *remux.DummyAudioFilter
 	// rtmp sub使用
@@ -102,8 +100,8 @@ func NewGroup(appName string, streamName string, config *Config, observer IGroup
 		httptsGopCache:       remux.NewGopCacheMpegts(uk, config.HttptsConfig.GopNum),
 	}
 
-	g.initRelayPush()
-	g.initRelayPull()
+	g.initRelayPushByConfig()
+	g.initRelayPullByConfig()
 
 	if config.RtmpConfig.MergeWriteSize > 0 {
 		g.rtmpMergeWriter = base.NewMergeWriter(g.writev2RtmpSubSessions, config.RtmpConfig.MergeWriteSize)
@@ -125,7 +123,7 @@ func (group *Group) Tick(tickCount uint32) {
 	group.mutex.Lock()
 	defer group.mutex.Unlock()
 
-	group.stopPullIfNeeded()
+	//group.stopPullIfNeeded()
 	group.pullIfNeeded()
 	group.startPushIfNeeded()
 

@@ -39,7 +39,7 @@ type ILalServer interface {
 	StatLalInfo() base.LalInfo
 	StatAllGroup() (sgs []base.StatGroup)
 	StatGroup(streamName string) *base.StatGroup
-	CtrlStartPull(info base.ApiCtrlStartPullReq)
+	CtrlStartRelayPull(info base.ApiCtrlStartRelayPullReq) (string, error)
 	CtrlKickOutSession(info base.ApiCtrlKickOutSession) base.HttpResponseBasic
 }
 

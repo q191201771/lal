@@ -27,6 +27,11 @@ import (
 type ClientSession struct {
 	uniqueKey string
 
+	onDoResult func()
+
+	// 只有PullSession使用
+	onReadRtmpAvMsg OnReadRtmpAvMsg
+
 	t      ClientSessionType
 	option ClientSessionOption
 
@@ -41,9 +46,6 @@ type ClientSession struct {
 	stat                  base.StatSession
 	doResultChan          chan struct{}
 	hasNotifyDoResultSucc bool
-
-	// 只有PullSession使用
-	onReadRtmpAvMsg OnReadRtmpAvMsg
 
 	debugLogReadUserCtrlMsgCount int
 	debugLogReadUserCtrlMsgMax   int
@@ -112,12 +114,14 @@ func NewClientSession(t ClientSessionType, modOptions ...ModClientSessionOption)
 	}
 
 	s := &ClientSession{
-		uniqueKey:     uk,
-		t:             t,
-		option:        option,
-		doResultChan:  make(chan struct{}, 1),
-		packer:        NewMessagePacker(),
-		chunkComposer: NewChunkComposer(),
+		uniqueKey:       uk,
+		onDoResult:      defaultOnPullResult,
+		onReadRtmpAvMsg: defaultOnReadRtmpAvMsg,
+		t:               t,
+		option:          option,
+		doResultChan:    make(chan struct{}, 1),
+		packer:          NewMessagePacker(),
+		chunkComposer:   NewChunkComposer(),
 		stat: base.StatSession{
 			Protocol:  base.ProtocolRtmp,
 			SessionId: uk,
@@ -591,6 +595,7 @@ func (s *ClientSession) notifyDoResultSucc() {
 	s.conn.ModReadTimeoutMs(s.option.ReadAvTimeoutMs)
 	s.conn.ModWriteTimeoutMs(s.option.WriteAvTimeoutMs)
 
+	s.onDoResult()
 	s.doResultChan <- struct{}{}
 }
 
@@ -605,4 +610,11 @@ func (s *ClientSession) dispose(err error) error {
 		retErr = s.conn.Close()
 	})
 	return retErr
+}
+
+func defaultOnPullResult() {
+}
+
+func defaultOnReadRtmpAvMsg(msg base.RtmpMsg) {
+
 }

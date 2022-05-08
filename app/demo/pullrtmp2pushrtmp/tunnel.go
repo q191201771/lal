@@ -214,13 +214,13 @@ func (t *Tunnel) Start() (ret ErrorCode) {
 
 	t.pullSession = rtmp.NewPullSession(func(option *rtmp.PullSessionOption) {
 		option.PullTimeoutMs = pullTimeoutMs
-	})
-	nazalog.Infof("[%s] start pull. [%s] url=%s", t.uk, t.pullSession.UniqueKey(), t.inUrl)
-
-	err := t.pullSession.Pull(t.inUrl, func(msg base.RtmpMsg) {
+	}).WithOnReadRtmpAvMsg(func(msg base.RtmpMsg) {
 		m := msg.Clone()
 		t.rtmpMsgQ <- m
 	})
+	nazalog.Infof("[%s] start pull. [%s] url=%s", t.uk, t.pullSession.UniqueKey(), t.inUrl)
+
+	err := t.pullSession.Pull(t.inUrl)
 	// pull失败就直接退出
 	if err != nil {
 		nazalog.Errorf("[%s] pull error. [%s] err=%+v", t.uk, t.pullSession.UniqueKey(), err)

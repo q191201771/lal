@@ -40,7 +40,7 @@ type pushProxy struct {
 	pushSession *rtmp.PushSession
 }
 
-func (group *Group) initRelayPush() {
+func (group *Group) initRelayPushByConfig() {
 	enable := group.config.RelayPushConfig.Enable
 	addrList := group.config.RelayPushConfig.AddrList
 	appName := group.appName

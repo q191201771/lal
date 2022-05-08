@@ -31,7 +31,6 @@ func main() {
 
 	inRtmpUrl, outRtspUrl, overTcp := parseFlag()
 
-	pullSession := rtmp.NewPullSession()
 	pushSession := rtsp.NewPushSession(func(option *rtsp.PushSessionOption) {
 		option.OverTcp = overTcp == 1
 	})
@@ -50,8 +49,10 @@ func main() {
 		},
 	)
 
+	pullSession := rtmp.NewPullSession().WithOnReadRtmpAvMsg(remuxer.FeedRtmpMsg)
+
 	nazalog.Info("start pull.")
-	err := pullSession.Pull(inRtmpUrl, remuxer.FeedRtmpMsg) // pull接收的数据放入remuxer中
+	err := pullSession.Pull(inRtmpUrl)
 	nazalog.Assert(nil, err)
 	nazalog.Info("pull succ.")
 
