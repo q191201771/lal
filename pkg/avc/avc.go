@@ -69,6 +69,7 @@ var SliceTypeMapping = map[uint8]string{
 
 const (
 	NaluTypeSlice    uint8 = 1
+	NaluTypePartition_A uint8 =2
 	NaluTypeIdrSlice uint8 = 5
 	NaluTypeSei      uint8 = 6
 	NaluTypeSps      uint8 = 7
