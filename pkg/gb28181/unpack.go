@@ -71,10 +71,10 @@ type PsUnpacker struct {
 	videoStreamType byte
 	audioStreamType byte
 
-	preVideoPts uint64
-	preAudioPts uint64
-	preVideoDts uint64
-	preAudioDts uint64
+	preVideoPts int64
+	preAudioPts int64
+	preVideoDts int64
+	preAudioDts int64
 
 	preVideoTimestamp uint32
 	preAudioTimestamp uint32
@@ -88,7 +88,9 @@ type PsUnpacker struct {
 
 func NewPsUnpacker() *PsUnpacker {
 	return &PsUnpacker{
-		buf: nazabytes.NewBuffer(4096),
+		buf:         nazabytes.NewBuffer(4096),
+		preVideoPts: -1,
+		preAudioPts: -1,
 	}
 }
 
@@ -233,8 +235,8 @@ func (p *PsUnpacker) FeedRtpBody(rtpBody []byte, rtpTimestamp uint32) {
 			phdl := int(rb[i+2])
 			i += 3
 
-			var pts uint64
-			var dts uint64
+			var pts int64
+			var dts int64
 			j := 0
 			if ptsDtsFlag&0x2 != 0 {
 				_, pts = readPts(rb[i:])
@@ -249,25 +251,28 @@ func (p *PsUnpacker) FeedRtpBody(rtpBody []byte, rtpTimestamp uint32) {
 			i += phdl
 			if code == psPackStartCodeAudioStream {
 				if pts == 0 {
-					pts = p.preAudioPts
+					if p.preAudioPts > 0 {
+						pts = p.preAudioPts
+					}
+
 				}
 				if dts == 0 {
 					dts = pts
 				}
 				if p.audioStreamType == StreamTypeAAC {
 					nazalog.Debugf("audio code=%d, length=%d, ptsDtsFlag=%d, phdl=%d, pts=%d, dts=%d,type=%d", code, length, ptsDtsFlag, phdl, pts, dts, p.audioStreamType)
-					if p.preAudioPts != 0 {
+					if p.preAudioPts > 0 || (p.preAudioPts == 0 && pts > 0) {
 						if p.preAudioPts != pts {
 							if p.onAudio != nil {
-								p.onAudio(p.audioBuf, int64(p.preAudioDts), int64(p.preAudioPts))
+								p.onAudio(p.audioBuf, p.preAudioDts, p.preAudioPts)
 							}
 							p.audioBuf = nil
 						}
-					} else {
+					} else if p.preAudioPts == 0 && pts == 0 {
 						if p.preAudioTimestamp != 0 {
 							if p.preAudioTimestamp != rtpTimestamp {
 								if p.onAudio != nil {
-									p.onAudio(p.audioBuf, int64(p.preAudioDts), int64(p.preAudioPts))
+									p.onAudio(p.audioBuf, int64(p.preAudioTimestamp), int64(p.preAudioTimestamp))
 								}
 								p.audioBuf = nil
 							}
@@ -282,24 +287,26 @@ func (p *PsUnpacker) FeedRtpBody(rtpBody []byte, rtpTimestamp uint32) {
 
 			} else {
 				if pts == 0 {
-					pts = p.preVideoPts
+					if p.preVideoPts > 0 {
+						pts = p.preVideoPts
+					}
 				}
 				if dts == 0 {
 					dts = pts
 				}
 				//根据时间戳来判断是否是相同一帧，不同时间戳处理前一帧
-				if p.preVideoPts != 0 {
+				if p.preVideoPts > 0 || (p.preVideoPts == 0 && pts > 0) {
 					if p.preVideoPts != pts {
 						if p.onVideo != nil {
 							p.iterateNaluByStartCode(code, p.preVideoDts, p.preVideoPts)
 							p.videoBuf = nil
 						}
 					}
-				} else {
+				} else if p.preVideoPts == 0 && pts == 0 {
 					if p.preVideoTimestamp != 0 {
 						if p.preVideoTimestamp != rtpTimestamp {
 							if p.onVideo != nil {
-								p.iterateNaluByStartCode(code, p.preVideoDts, p.preVideoPts)
+								p.iterateNaluByStartCode(code, int64(p.preVideoTimestamp), int64(p.preVideoTimestamp))
 								p.videoBuf = nil
 							}
 						}
@@ -307,10 +314,11 @@ func (p *PsUnpacker) FeedRtpBody(rtpBody []byte, rtpTimestamp uint32) {
 						p.preVideoTimestamp = rtpTimestamp
 					}
 				}
-				p.preVideoPts = pts
-				p.preVideoDts = dts
 				//暂存当前帧
 				p.videoBuf = append(p.videoBuf, rb[i:i+length-3-phdl]...)
+
+				p.preVideoPts = pts
+				p.preVideoDts = dts
 			}
 			p.buf.Skip(6 + length)
 		case psPackStartCodePesPrivate2:
@@ -346,7 +354,7 @@ func (p *PsUnpacker) SkipPackStreamBody(rb []byte, indexId int) {
 	p.buf.Skip(indexId + 2 + l)
 }
 
-func (p *PsUnpacker) iterateNaluByStartCode(code uint32, pts, dts uint64) {
+func (p *PsUnpacker) iterateNaluByStartCode(code uint32, pts, dts int64) {
 	leading, preLeading, startPos := 0, 0, 0
 	startPos, preLeading = avc.IterateNaluStartCode(p.videoBuf, 0)
 	if startPos >= 0 {
@@ -366,7 +374,7 @@ func (p *PsUnpacker) iterateNaluByStartCode(code uint32, pts, dts uint64) {
 			} else {
 				nazalog.Errorf("Video code=%d, length=%d,pts=%d, dts=%d, type=%s", code, len(nalu), pts, dts, avc.ParseNaluTypeReadable(nalu[preLeading]))
 			}
-			p.onVideo(nalu, int64(dts), int64(pts))
+			p.onVideo(nalu, dts, pts)
 			if nextPos >= 0 {
 				preLeading = leading
 			}
@@ -409,8 +417,8 @@ type Pes struct {
 	ptsDtsFlag uint8
 	pad2       uint8
 	phdl       uint8
-	pts        uint64
-	dts        uint64
+	pts        int64
+	dts        int64
 }
 
 func ParsePes(b []byte) (pes Pes, length int) {
@@ -443,10 +451,10 @@ func ParsePes(b []byte) (pes Pes, length int) {
 }
 
 // read pts or dts
-func readPts(b []byte) (fb uint8, pts uint64) {
+func readPts(b []byte) (fb uint8, pts int64) {
 	fb = b[0] >> 4
-	pts |= uint64((b[0]>>1)&0x07) << 30
-	pts |= (uint64(b[1])<<8 | uint64(b[2])) >> 1 << 15
-	pts |= (uint64(b[3])<<8 | uint64(b[4])) >> 1
+	pts |= int64((b[0]>>1)&0x07) << 30
+	pts |= (int64(b[1])<<8 | int64(b[2])) >> 1 << 15
+	pts |= (int64(b[3])<<8 | int64(b[4])) >> 1
 	return
 }
