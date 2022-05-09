@@ -77,6 +77,7 @@ type PsUnpacker struct {
 	preAudioDts uint64
 
 	videoBuf []byte
+	audioBuf []byte
 
 	onAudio onAudioFn
 	onVideo onVideoFn
@@ -137,6 +138,7 @@ func (p *PsUnpacker) FeedRtpBody(rtpBody []byte, rtpTimestamp uint32) {
 	// Table 2-35 - Program Stream map
 	//
 	// TODO(chef): [fix] 有些没做有效长度判断
+	firstVideoPack := false
 	for p.buf.Len() != 0 {
 		rb := p.buf.Bytes()
 		i := 0
@@ -155,6 +157,7 @@ func (p *PsUnpacker) FeedRtpBody(rtpBody []byte, rtpTimestamp uint32) {
 			l := int(rb[i] & 0x7)
 			i += 1 + l
 			p.buf.Skip(i)
+			firstVideoPack = true
 		case psPackStartCodeSystemHeader:
 			nazalog.Debugf("-----system header-----")
 			// skip
@@ -250,18 +253,24 @@ func (p *PsUnpacker) FeedRtpBody(rtpBody []byte, rtpTimestamp uint32) {
 				if dts == 0 {
 					dts = pts
 				}
+				if p.audioStreamType == StreamTypeAAC {
+					nazalog.Debugf("audio code=%d, length=%d, ptsDtsFlag=%d, phdl=%d, pts=%d, dts=%d,type=%d", code, length, ptsDtsFlag, phdl, pts, dts, p.audioStreamType)
+					if p.preAudioPts != 0 {
+						if p.preAudioPts != pts {
+							if p.onAudio != nil {
+								p.onAudio(p.audioBuf, int64(p.preAudioDts), int64(p.preAudioPts))
+							}
+							p.audioBuf = nil
+						}
+					}
+					p.audioBuf = append(p.audioBuf, rb[i:i+length-3-phdl]...)
+				}
 				p.preAudioPts = pts
 				p.preAudioDts = dts
-				if p.videoStreamType == StreamTypeAAC {
-					nazalog.Debugf("audio code=%d, length=%d, ptsDtsFlag=%d, phdl=%d, pts=%d, dts=%d,type=%d", code, length, ptsDtsFlag, phdl, pts, dts, p.audioStreamType)
-					if p.onAudio != nil {
-						p.onAudio(rb[i:i+length-3-phdl], int64(dts), int64(pts))
-					}
-				}
 
 			} else {
 				if pts == 0 {
-					if p.videoBuf == nil {
+					if firstVideoPack {
 						pts = uint64(rtpTimestamp)
 					} else {
 						pts = p.preVideoPts
@@ -358,7 +367,7 @@ func (p *PsUnpacker) findNextNaluStartPos(buf []byte, index int) (startPos int, 
 		if p.videoStreamType == StreamTypeH265 {
 			nalType := (buf[i+pos] >> 1) & 0x3f
 			if bufLen > i+pos+2 {
-				if hevcNalu(nalType, buf[i+pos:]) {
+				if isHevcNalu(nalType, buf[i+pos:]) {
 					startPos = i + pos - leading - 1
 					return
 				}
@@ -366,7 +375,7 @@ func (p *PsUnpacker) findNextNaluStartPos(buf []byte, index int) (startPos int, 
 		} else {
 			nalType := buf[i+pos] & 0x1f
 			if bufLen > i+pos+1 {
-				if avcNalu(nalType, buf[i+pos:]) {
+				if isAvcNalu(nalType, buf[i+pos:]) {
 					startPos = i + pos - leading - 1
 					return
 				}
@@ -401,7 +410,7 @@ func (p *PsUnpacker) findNaluStartPos(buf []byte) (pos int, leading int) {
 	return
 }
 
-func avcNalu(nalType byte, nalu []byte) bool {
+func isAvcNalu(nalType byte, nalu []byte) bool {
 	switch nalType {
 	case avc.NaluTypeSlice:
 		fallthrough
@@ -428,8 +437,8 @@ func avcNalu(nalType byte, nalu []byte) bool {
 	}
 	return false
 }
-func hevcNalu(nalType byte, nalu []byte) bool {
-	nuhLayerId := ((nalType & 0x01) << 5) | ((nalu[1] >> 3) & 0x1F)
+func isHevcNalu(nalType byte, nalu []byte) bool {
+	nuhLayerId := (nalType & 0x01 << 5) | (nalu[1] >> 3 & 0x1F)
 	if nalType == hevc.NaluTypeVps ||
 		nalType == hevc.NaluTypeSps ||
 		nalType == hevc.NaluTypePps ||
