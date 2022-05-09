@@ -76,6 +76,9 @@ type PsUnpacker struct {
 	preVideoDts uint64
 	preAudioDts uint64
 
+	preVideoTimestamp uint32
+	preAudioTimestamp uint32
+
 	videoBuf []byte
 	audioBuf []byte
 
@@ -138,7 +141,6 @@ func (p *PsUnpacker) FeedRtpBody(rtpBody []byte, rtpTimestamp uint32) {
 	// Table 2-35 - Program Stream map
 	//
 	// TODO(chef): [fix] 有些没做有效长度判断
-	firstVideoPack := false
 	for p.buf.Len() != 0 {
 		rb := p.buf.Bytes()
 		i := 0
@@ -157,7 +159,6 @@ func (p *PsUnpacker) FeedRtpBody(rtpBody []byte, rtpTimestamp uint32) {
 			l := int(rb[i] & 0x7)
 			i += 1 + l
 			p.buf.Skip(i)
-			firstVideoPack = true
 		case psPackStartCodeSystemHeader:
 			nazalog.Debugf("-----system header-----")
 			// skip
@@ -248,7 +249,7 @@ func (p *PsUnpacker) FeedRtpBody(rtpBody []byte, rtpTimestamp uint32) {
 			i += phdl
 			if code == psPackStartCodeAudioStream {
 				if pts == 0 {
-					pts = uint64(rtpTimestamp)
+					pts = p.preAudioPts
 				}
 				if dts == 0 {
 					dts = pts
@@ -262,6 +263,17 @@ func (p *PsUnpacker) FeedRtpBody(rtpBody []byte, rtpTimestamp uint32) {
 							}
 							p.audioBuf = nil
 						}
+					} else {
+						if p.preAudioTimestamp != 0 {
+							if p.preAudioTimestamp != rtpTimestamp {
+								if p.onAudio != nil {
+									p.onAudio(p.audioBuf, int64(p.preAudioDts), int64(p.preAudioPts))
+								}
+								p.audioBuf = nil
+							}
+						} else {
+							p.preAudioTimestamp = rtpTimestamp
+						}
 					}
 					p.audioBuf = append(p.audioBuf, rb[i:i+length-3-phdl]...)
 				}
@@ -270,11 +282,7 @@ func (p *PsUnpacker) FeedRtpBody(rtpBody []byte, rtpTimestamp uint32) {
 
 			} else {
 				if pts == 0 {
-					if firstVideoPack {
-						pts = uint64(rtpTimestamp)
-					} else {
-						pts = p.preVideoPts
-					}
+					pts = p.preVideoPts
 				}
 				if dts == 0 {
 					dts = pts
@@ -283,35 +291,20 @@ func (p *PsUnpacker) FeedRtpBody(rtpBody []byte, rtpTimestamp uint32) {
 				if p.preVideoPts != 0 {
 					if p.preVideoPts != pts {
 						if p.onVideo != nil {
-							leading, preLeading := 0, 0
-							startPos, preLeading := p.findNextNaluStartPos(p.videoBuf, 0)
-							if startPos >= 0 {
-								nextPos := startPos
-								buf := p.videoBuf[:0]
-								for startPos >= 0 {
-									nextPos, leading = p.findNextNaluStartPos(p.videoBuf, startPos+3)
-									if nextPos >= 0 {
-										buf = p.videoBuf[startPos:nextPos]
-									} else {
-										buf = p.videoBuf[startPos:]
-									}
-									startPos = nextPos
-									if p.videoStreamType == StreamTypeH265 {
-										nazalog.Debugf("Video code=%d, length=%d,pts=%d, dts=%d, type=%s", code, len(buf), p.preVideoPts, p.preVideoDts, hevc.ParseNaluTypeReadable(buf[preLeading+1]))
-
-									} else {
-										nazalog.Debugf("Video code=%d, length=%d,pts=%d, dts=%d, type=%s", code, len(buf), p.preVideoPts, p.preVideoDts, avc.ParseNaluTypeReadable(buf[preLeading+1]))
-									}
-									p.onVideo(buf, int64(p.preVideoDts), int64(p.preVideoPts))
-									if nextPos >= 0 {
-										preLeading = leading
-									}
-								}
-
-							}
-
+							p.iterateNaluByStartCode(code, p.preVideoDts, p.preVideoPts)
 							p.videoBuf = nil
 						}
+					}
+				} else {
+					if p.preVideoTimestamp != 0 {
+						if p.preVideoTimestamp != rtpTimestamp {
+							if p.onVideo != nil {
+								p.iterateNaluByStartCode(code, p.preVideoDts, p.preVideoPts)
+								p.videoBuf = nil
+							}
+						}
+					} else {
+						p.preVideoTimestamp = rtpTimestamp
 					}
 				}
 				p.preVideoPts = pts
@@ -319,10 +312,7 @@ func (p *PsUnpacker) FeedRtpBody(rtpBody []byte, rtpTimestamp uint32) {
 				//暂存当前帧
 				p.videoBuf = append(p.videoBuf, rb[i:i+length-3-phdl]...)
 			}
-
 			p.buf.Skip(6 + length)
-		case psPackStartCodeHikStream:
-			p.SkipPackStreamBody(rb, i)
 		case psPackStartCodePesPrivate2:
 			fallthrough
 		case psPackStartCodePesEcm:
@@ -333,8 +323,10 @@ func (p *PsUnpacker) FeedRtpBody(rtpBody []byte, rtpTimestamp uint32) {
 			fallthrough
 		case psPackStartCodePackEnd:
 			p.buf.Skip(i)
+		case psPackStartCodeHikStream:
+			fallthrough
 		case psPackStartCodePesPsd:
-			p.SkipPackStreamBody(rb, i)
+			fallthrough
 		default:
 			nazalog.Errorf("default %s", hex.Dump(nazabytes.Prefix(rb[i-4:], 32)))
 			p.SkipPackStreamBody(rb, i)
@@ -354,108 +346,32 @@ func (p *PsUnpacker) SkipPackStreamBody(rb []byte, indexId int) {
 	p.buf.Skip(indexId + 2 + l)
 }
 
-//参考media-server 中的ps解析
-func (p *PsUnpacker) findNextNaluStartPos(buf []byte, index int) (startPos int, leading int) {
-	bufLen := len(buf)
-	startPos = -1
-	leading = 0
-	var pos int
-	for i := index; i+2 < bufLen; i += pos {
-		if pos, leading = p.findNaluStartPos(buf[i:]); pos < 0 {
-			return
-		}
-		if p.videoStreamType == StreamTypeH265 {
-			nalType := (buf[i+pos] >> 1) & 0x3f
-			if bufLen > i+pos+2 {
-				if isHevcNalu(nalType, buf[i+pos:]) {
-					startPos = i + pos - leading - 1
-					return
-				}
+func (p *PsUnpacker) iterateNaluByStartCode(code uint32, pts, dts uint64) {
+	leading, preLeading, startPos := 0, 0, 0
+	startPos, preLeading = avc.IterateNaluStartCode(p.videoBuf, 0)
+	if startPos >= 0 {
+		nextPos := startPos
+		nalu := p.videoBuf[:0]
+		for startPos >= 0 {
+			nextPos, leading = avc.IterateNaluStartCode(p.videoBuf, startPos+preLeading)
+			if nextPos >= 0 {
+				nalu = p.videoBuf[startPos:nextPos]
+			} else {
+				nalu = p.videoBuf[startPos:]
 			}
-		} else {
-			nalType := buf[i+pos] & 0x1f
-			if bufLen > i+pos+1 {
-				if isAvcNalu(nalType, buf[i+pos:]) {
-					startPos = i + pos - leading - 1
-					return
-				}
+			startPos = nextPos
+			if p.videoStreamType == StreamTypeH265 {
+				nazalog.Errorf("Video code=%d, length=%d,pts=%d, dts=%d, type=%s", code, len(nalu), pts, dts, hevc.ParseNaluTypeReadable(nalu[preLeading]))
+
+			} else {
+				nazalog.Errorf("Video code=%d, length=%d,pts=%d, dts=%d, type=%s", code, len(nalu), pts, dts, avc.ParseNaluTypeReadable(nalu[preLeading]))
+			}
+			p.onVideo(nalu, int64(dts), int64(pts))
+			if nextPos >= 0 {
+				preLeading = leading
 			}
 		}
-
 	}
-	return
-}
-func (p *PsUnpacker) findNaluStartPos(buf []byte) (pos int, leading int) {
-	bufLen := len(buf)
-	zeros := 0
-	pos = -1
-	for i := 0; i+1 < bufLen; i++ {
-		if buf[i] == 1 {
-			if zeros > 2 {
-				leading = 3
-				pos = i + 1
-				break
-			} else if zeros == 2 {
-				leading = 2
-				pos = i + 1
-				break
-			}
-		}
-		if buf[i] == 0 {
-			zeros += 1
-		} else {
-			zeros = 0
-		}
-	}
-	return
-}
-
-func isAvcNalu(nalType byte, nalu []byte) bool {
-	switch nalType {
-	case avc.NaluTypeSlice:
-		fallthrough
-	case avc.NaluTypePartition_A:
-		fallthrough
-	case avc.NaluTypeIdrSlice:
-		if nalu[1]&0x80 == 0 {
-			return false
-		} else {
-			return true
-		}
-	case avc.NaluTypeSei:
-		fallthrough
-	case avc.NaluTypeSps:
-		fallthrough
-	case avc.NaluTypePps:
-		fallthrough
-	case avc.NaluTypeAud:
-		return true
-	default:
-		if nalType > 14 && nalType < 18 {
-			return true
-		}
-	}
-	return false
-}
-func isHevcNalu(nalType byte, nalu []byte) bool {
-	nuhLayerId := (nalType & 0x01 << 5) | (nalu[1] >> 3 & 0x1F)
-	if nalType == hevc.NaluTypeVps ||
-		nalType == hevc.NaluTypeSps ||
-		nalType == hevc.NaluTypePps ||
-		(nuhLayerId == 0 && (nalType == hevc.NaluTypeAud ||
-			nalType == hevc.NaluTypeSei ||
-			nalType >= 41 && nalType <= 44 ||
-			nalType >= 48 && nalType <= 55)) {
-		return true
-	} else if nalType <= 31 {
-		if nalu[2]&0x80 == 0 {
-			return false
-		} else {
-			return true
-		}
-	}
-
-	return false
 }
 
 // ---------------------------------------------------------------------------------------------------------------------

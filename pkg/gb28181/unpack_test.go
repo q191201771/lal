@@ -111,20 +111,6 @@ var hevcNalu = []byte{
 	0x00, 0x00, 0x01, 0x26, 0x01, 0x83,
 }
 
-func TestFindNaluStartPos(t *testing.T) {
-	unpacker := NewPsUnpacker().WithCallbackFunc(nil, func(payload []byte, dts int64, pts int64) {
-
-	})
-	findPos := 0
-	startPos, leading := unpacker.findNaluStartPos(avcNalu)
-	nazalog.Debugf("find pos=%d,start pos=%d,leading=%d", findPos+startPos, startPos, leading)
-	for startPos > 0 {
-		findPos += startPos
-		startPos, leading = unpacker.findNaluStartPos(avcNalu[findPos:])
-		nazalog.Debugf("find pos=%d,start pos=%d,leading=%d", findPos+startPos, startPos, leading)
-	}
-}
-
 func TestPsUnpacker2(t *testing.T) {
 	// 解析别人提供的一些测试数据，开发阶段用
 
