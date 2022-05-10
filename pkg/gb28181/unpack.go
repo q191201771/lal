@@ -10,7 +10,11 @@ package gb28181
 
 import (
 	"encoding/hex"
+
+	"github.com/q191201771/lal/pkg/hevc"
+
 	"github.com/q191201771/lal/pkg/avc"
+
 	"github.com/q191201771/naza/pkg/bele"
 	"github.com/q191201771/naza/pkg/nazabits"
 	"github.com/q191201771/naza/pkg/nazabytes"
@@ -25,6 +29,25 @@ const (
 	psPackStartCodeProgramStreamMap = 0x01bc
 	psPackStartCodeAudioStream      = 0x01c0
 	psPackStartCodeVideoStream      = 0x01e0
+	psPackStartCodeHikStream        = 0x01bd
+
+	psPackStartCodePesPsd      = 0xff // program_stream_directory
+	psPackStartCodePesPrivate1 = 0xbd // private_stream_1
+	psPackStartCodePesPadding  = 0xbe // padding_stream
+	psPackStartCodePesPrivate2 = 0xbf // padding_stream_2
+	psPackStartCodePesEcm      = 0xf0 // ECM_stream
+	psPackStartCodePesEmm      = 0xf1 // EMM_stream
+
+	psPackStartCodePackEnd = 0xb9
+)
+const (
+	StreamTypeH264 = 0x1b
+	StreamTypeH265 = 0x24
+	StreamTypeAAC  = 0x0f
+	StreamG711A    = 0x90 //PCMA
+	StreamG7221    = 0x92
+	StreamG7231    = 0x93
+	StreamG729     = 0x99
 )
 
 type onAudioFn func(payload []byte, dts int64, pts int64)
@@ -45,13 +68,31 @@ type IPsUnpackerObserver interface {
 type PsUnpacker struct {
 	buf *nazabytes.Buffer
 
+	videoStreamType byte
+	audioStreamType byte
+
+	preVideoPts int64
+	preAudioPts int64
+	preVideoDts int64
+	preAudioDts int64
+
+	preVideoRtpts int64
+	preAudioRtpts int64
+
+	videoBuf []byte
+	audioBuf []byte
+
 	onAudio onAudioFn
 	onVideo onVideoFn
 }
 
 func NewPsUnpacker() *PsUnpacker {
 	return &PsUnpacker{
-		buf: nazabytes.NewBuffer(4096),
+		buf:           nazabytes.NewBuffer(4096),
+		preVideoPts:   -1,
+		preAudioPts:   -1,
+		preVideoRtpts: -1,
+		preAudioRtpts: -1,
 	}
 }
 
@@ -67,20 +108,29 @@ func (p *PsUnpacker) WithCallbackFunc(onAudio onAudioFn, onVideo onVideoFn) *PsU
 	return p
 }
 
+func (p *PsUnpacker) VideoStreamType() byte {
+	return p.videoStreamType
+}
+
+func (p *PsUnpacker) AudioStreamType() byte {
+	return p.audioStreamType
+}
+
 // FeedRtpPacket
 //
 // @param rtpPacket: rtp包，注意，包含rtp包头部分
 //
-func (p *PsUnpacker) FeedRtpPacket(rtpPacket []byte) {
+func (p *PsUnpacker) FeedRtpPacket(rtpPacket []byte, rtpts uint32) {
 	nazalog.Debugf("> FeedRtpPacket. len=%d", len(rtpPacket))
 
 	// skip rtp header
-	p.FeedRtpBody(rtpPacket[12:])
+	p.FeedRtpBody(rtpPacket[12:], rtpts)
 }
 
-func (p *PsUnpacker) FeedRtpBody(rtpBody []byte) {
-	_, _ = p.buf.Write(rtpBody)
-
+//pes 没有pts时使用外部传入，rtpBody 需要传入两个ps header之间的数据
+func (p *PsUnpacker) FeedRtpBody(rtpBody []byte, rtpts uint32) {
+	p.buf.Reset()
+	p.buf.Write(rtpBody)
 	// ISO/IEC iso13818-1
 	//
 	// 2.5 Program Stream bitstream requirements
@@ -106,6 +156,9 @@ func (p *PsUnpacker) FeedRtpBody(rtpBody []byte) {
 			// skip system clock reference(SCR)
 			// skip PES program mux rate
 			i += 6 + 3
+			if len(rb) <= i {
+				return
+			}
 			// skip stuffing
 			l := int(rb[i] & 0x7)
 			i += 1 + l
@@ -113,8 +166,7 @@ func (p *PsUnpacker) FeedRtpBody(rtpBody []byte) {
 		case psPackStartCodeSystemHeader:
 			nazalog.Debugf("-----system header-----")
 			// skip
-			l := int(bele.BeUint16(rb[i:]))
-			p.buf.Skip(i + 2 + l)
+			p.SkipPackStreamBody(rb, i)
 		case psPackStartCodeProgramStreamMap:
 			nazalog.Debugf("-----program stream map-----")
 
@@ -155,6 +207,11 @@ func (p *PsUnpacker) FeedRtpBody(rtpBody []byte) {
 				streamId := rb[i]
 				i += 1
 				// elementary_stream_info_length
+				if streamId >= 0xe0 && streamId <= 0xef {
+					p.videoStreamType = streamType
+				} else if streamId >= 0xc0 && streamId <= 0xdf {
+					p.audioStreamType = streamType
+				}
 				esil := int(bele.BeUint16(rb[i:]))
 				nazalog.Debugf("streamType=%d, streamId=%d, esil=%d", streamType, streamId, esil)
 				i += 2 + esil
@@ -165,23 +222,23 @@ func (p *PsUnpacker) FeedRtpBody(rtpBody []byte) {
 			nazalog.Debugf("CHEFERASEME i=%d, esml=%d, %s", i, esml, hex.Dump(nazabytes.Prefix(p.buf.Bytes(), 128)))
 			p.buf.Skip(i)
 		case psPackStartCodeAudioStream:
-			nazalog.Debugf("-----audio stream-----")
+			fallthrough
 		case psPackStartCodeVideoStream:
-			nazalog.Debugf("-----video stream-----")
+			//nazalog.Debugf("-----video stream-----")
 			length := int(bele.BeUint16(rb[i:]))
 			i += 2
 			//nazalog.Debugf("CHEFERASEME %d %d %d", p.buf.Len(), len(rtpBody), length)
 
-			if len(rb)-6 < length {
+			if len(rb)-i < length {
 				return
 			}
 
-			ptsDtsFlag := rb[i+1] & 0x0c
+			ptsDtsFlag := rb[i+1] >> 6
 			phdl := int(rb[i+2])
 			i += 3
 
-			var pts uint64
-			var dts uint64
+			var pts int64 = -1
+			var dts int64 = -1
 			j := 0
 			if ptsDtsFlag&0x2 != 0 {
 				_, pts = readPts(rb[i:])
@@ -194,16 +251,136 @@ func (p *PsUnpacker) FeedRtpBody(rtpBody []byte) {
 			}
 
 			i += phdl
-
-			nazalog.Debugf("code=%d, length=%d, ptsDtsFlag=%d, phdl=%d, pts=%d, dts=%d, type=%s", code, length, ptsDtsFlag, phdl, pts, dts, avc.ParseNaluTypeReadable(rb[i+4]))
-			if p.onVideo != nil {
-				p.onVideo(rb[i:i+length-3-phdl], int64(dts), int64(pts))
+			if code == psPackStartCodeAudioStream {
+				if p.audioStreamType == StreamTypeAAC {
+					nazalog.Debugf("audio code=%d, length=%d, ptsDtsFlag=%d, phdl=%d, pts=%d, dts=%d,type=%d", code, length, ptsDtsFlag, phdl, pts, dts, p.audioStreamType)
+					if pts == -1 {
+						if p.preAudioPts == -1 {
+							if p.preAudioRtpts == -1 {
+								// 整个流的第一帧，啥也不干
+							} else {
+								// 整个流没有pts字段，退化成使用rtpts
+								if p.preAudioRtpts != int64(rtpts) {
+									// 使用rtp的时间戳回调，但是，并不用rtp的时间戳更新pts
+									if p.onAudio != nil {
+										p.onAudio(p.audioBuf, p.preAudioDts, p.preAudioPts)
+									}
+									p.audioBuf = nil
+								} else {
+									// 同一帧，啥也不干
+								}
+							}
+						} else {
+							// 同一帧，啥也不干
+							pts = p.preAudioPts
+						}
+					} else {
+						if pts != p.preAudioPts && p.preAudioPts >= 0 {
+							if p.onAudio != nil {
+								p.onAudio(p.audioBuf, p.preAudioDts, p.preAudioPts)
+							}
+							p.audioBuf = nil
+						} else {
+							// 同一帧，啥也不干
+						}
+					}
+					p.audioBuf = append(p.audioBuf, rb[i:i+length-3-phdl]...)
+					p.preAudioRtpts = int64(rtpts)
+					p.preAudioPts = pts
+					p.preAudioDts = dts
+				}
+			} else {
+				if pts == -1 {
+					if p.preVideoPts == -1 {
+						if p.preVideoRtpts == -1 {
+							// 整个流的第一帧，啥也不干
+						} else {
+							// 整个流没有pts字段，退化成使用rtpts
+							if p.preVideoRtpts != int64(rtpts) {
+								// 使用rtp的时间戳回调，但是，并不用rtp的时间戳更新pts
+								p.iterateNaluByStartCode(code, p.preVideoRtpts, p.preVideoRtpts)
+								p.videoBuf = nil
+							} else {
+								// 同一帧，啥也不干
+							}
+						}
+					} else {
+						// 同一帧，啥也不干
+						pts = p.preVideoPts
+					}
+				} else {
+					if pts != p.preVideoPts && p.preVideoPts >= 0 {
+						p.iterateNaluByStartCode(code, p.preVideoPts, p.preVideoPts)
+						p.videoBuf = nil
+					} else {
+						// 同一帧，啥也不干
+					}
+				}
+				p.videoBuf = append(p.videoBuf, rb[i:i+length-3-phdl]...)
+				p.preVideoRtpts = int64(rtpts)
+				p.preVideoPts = pts
+				p.preVideoDts = dts
 			}
-
 			p.buf.Skip(6 + length)
+		case psPackStartCodePesPrivate2:
+			fallthrough
+		case psPackStartCodePesEcm:
+			fallthrough
+		case psPackStartCodePesEmm:
+			fallthrough
+		case psPackStartCodePesPadding:
+			fallthrough
+		case psPackStartCodePackEnd:
+			p.buf.Skip(i)
+		case psPackStartCodeHikStream:
+			fallthrough
+		case psPackStartCodePesPsd:
+			fallthrough
 		default:
-			nazalog.Errorf("%s", hex.Dump(nazabytes.Prefix(rb, 32)))
+			nazalog.Errorf("default %s", hex.Dump(nazabytes.Prefix(rb[i-4:], 32)))
+			p.SkipPackStreamBody(rb, i)
 			return
+
+		}
+	}
+}
+func (p *PsUnpacker) SkipPackStreamBody(rb []byte, indexId int) {
+	if len(rb[:]) < indexId+2 {
+		return
+	}
+	l := int(bele.BeUint16(rb[indexId:]))
+	if len(rb[:]) < indexId+2+l {
+		return
+	}
+	p.buf.Skip(indexId + 2 + l)
+}
+
+func (p *PsUnpacker) iterateNaluByStartCode(code uint32, pts, dts int64) {
+	leading, preLeading, startPos := 0, 0, 0
+	startPos, preLeading = avc.IterateNaluStartCode(p.videoBuf, 0)
+	if startPos >= 0 {
+		nextPos := startPos
+		nalu := p.videoBuf[:0]
+		for startPos >= 0 {
+			nextPos, leading = avc.IterateNaluStartCode(p.videoBuf, startPos+preLeading)
+			if nextPos >= 0 {
+				nalu = p.videoBuf[startPos:nextPos]
+			} else {
+				nalu = p.videoBuf[startPos:]
+			}
+			startPos = nextPos
+			if p.videoStreamType == StreamTypeH265 {
+				nazalog.Errorf("Video code=%d, length=%d,pts=%d, dts=%d, type=%s", code, len(nalu), pts, dts, hevc.ParseNaluTypeReadable(nalu[preLeading]))
+
+			} else {
+				nazalog.Errorf("Video code=%d, length=%d,pts=%d, dts=%d, type=%s", code, len(nalu), pts, dts, avc.ParseNaluTypeReadable(nalu[preLeading]))
+			}
+			if p.onVideo != nil {
+				p.onVideo(nalu, dts, pts)
+			}
+			if nextPos >= 0 {
+				preLeading = leading
+			}
 		}
 	}
 }
@@ -243,8 +420,8 @@ type Pes struct {
 	ptsDtsFlag uint8
 	pad2       uint8
 	phdl       uint8
-	pts        uint64
-	dts        uint64
+	pts        int64
+	dts        int64
 }
 
 func ParsePes(b []byte) (pes Pes, length int) {
@@ -277,10 +454,10 @@ func ParsePes(b []byte) (pes Pes, length int) {
 }
 
 // read pts or dts
-func readPts(b []byte) (fb uint8, pts uint64) {
+func readPts(b []byte) (fb uint8, pts int64) {
 	fb = b[0] >> 4
-	pts |= uint64((b[0]>>1)&0x07) << 30
-	pts |= (uint64(b[1])<<8 | uint64(b[2])) >> 1 << 15
-	pts |= (uint64(b[3])<<8 | uint64(b[4])) >> 1
+	pts |= int64((b[0]>>1)&0x07) << 30
+	pts |= (int64(b[1])<<8 | int64(b[2])) >> 1 << 15
+	pts |= (int64(b[3])<<8 | int64(b[4])) >> 1
 	return
 }
