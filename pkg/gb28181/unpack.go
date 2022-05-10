@@ -76,8 +76,8 @@ type PsUnpacker struct {
 	preVideoDts int64
 	preAudioDts int64
 
-	preVideoTimestamp uint32
-	preAudioTimestamp uint32
+	preVideoRtpts int64
+	preAudioRtpts int64
 
 	videoBuf []byte
 	audioBuf []byte
@@ -88,9 +88,11 @@ type PsUnpacker struct {
 
 func NewPsUnpacker() *PsUnpacker {
 	return &PsUnpacker{
-		buf:         nazabytes.NewBuffer(4096),
-		preVideoPts: -1,
-		preAudioPts: -1,
+		buf:           nazabytes.NewBuffer(4096),
+		preVideoPts:   -1,
+		preAudioPts:   -1,
+		preVideoRtpts: -1,
+		preAudioRtpts: -1,
 	}
 }
 
@@ -118,15 +120,15 @@ func (p *PsUnpacker) AudioStreamType() byte {
 //
 // @param rtpPacket: rtp包，注意，包含rtp包头部分
 //
-func (p *PsUnpacker) FeedRtpPacket(rtpPacket []byte, rtpTimestamp uint32) {
+func (p *PsUnpacker) FeedRtpPacket(rtpPacket []byte, rtpts uint32) {
 	nazalog.Debugf("> FeedRtpPacket. len=%d", len(rtpPacket))
 
 	// skip rtp header
-	p.FeedRtpBody(rtpPacket[12:], rtpTimestamp)
+	p.FeedRtpBody(rtpPacket[12:], rtpts)
 }
 
 //pes 没有pts时使用外部传入，rtpBody 需要传入两个ps header之间的数据
-func (p *PsUnpacker) FeedRtpBody(rtpBody []byte, rtpTimestamp uint32) {
+func (p *PsUnpacker) FeedRtpBody(rtpBody []byte, rtpts uint32) {
 	p.buf.Reset()
 	p.buf.Write(rtpBody)
 	// ISO/IEC iso13818-1
@@ -235,8 +237,8 @@ func (p *PsUnpacker) FeedRtpBody(rtpBody []byte, rtpTimestamp uint32) {
 			phdl := int(rb[i+2])
 			i += 3
 
-			var pts int64
-			var dts int64
+			var pts int64 = -1
+			var dts int64 = -1
 			j := 0
 			if ptsDtsFlag&0x2 != 0 {
 				_, pts = readPts(rb[i:])
@@ -250,73 +252,72 @@ func (p *PsUnpacker) FeedRtpBody(rtpBody []byte, rtpTimestamp uint32) {
 
 			i += phdl
 			if code == psPackStartCodeAudioStream {
-				if pts == 0 {
-					if p.preAudioPts > 0 {
-						pts = p.preAudioPts
-					}
-
-				}
-				if dts == 0 {
-					dts = pts
-				}
 				if p.audioStreamType == StreamTypeAAC {
 					nazalog.Debugf("audio code=%d, length=%d, ptsDtsFlag=%d, phdl=%d, pts=%d, dts=%d,type=%d", code, length, ptsDtsFlag, phdl, pts, dts, p.audioStreamType)
-					if p.preAudioPts > 0 || (p.preAudioPts == 0 && pts > 0) {
-						if p.preAudioPts != pts {
+					if pts == -1 {
+						if p.preAudioPts == -1 {
+							if p.preAudioRtpts == -1 {
+								// 整个流的第一帧，啥也不干
+							} else {
+								// 整个流没有pts字段，退化成使用rtpts
+								if p.preAudioRtpts != int64(rtpts) {
+									// 使用rtp的时间戳回调，但是，并不用rtp的时间戳更新pts
+									if p.onAudio != nil {
+										p.onAudio(p.audioBuf, p.preAudioDts, p.preAudioPts)
+									}
+									p.audioBuf = nil
+								} else {
+									// 同一帧，啥也不干
+								}
+							}
+						} else {
+							// 同一帧，啥也不干
+							pts = p.preAudioPts
+						}
+					} else {
+						if pts != p.preAudioPts && p.preAudioPts >= 0 {
 							if p.onAudio != nil {
 								p.onAudio(p.audioBuf, p.preAudioDts, p.preAudioPts)
 							}
 							p.audioBuf = nil
-						}
-					} else if p.preAudioPts == 0 && pts == 0 {
-						if p.preAudioTimestamp != 0 {
-							if p.preAudioTimestamp != rtpTimestamp {
-								if p.onAudio != nil {
-									p.onAudio(p.audioBuf, int64(p.preAudioTimestamp), int64(p.preAudioTimestamp))
-								}
-								p.audioBuf = nil
-							}
 						} else {
-							p.preAudioTimestamp = rtpTimestamp
+							// 同一帧，啥也不干
 						}
 					}
 					p.audioBuf = append(p.audioBuf, rb[i:i+length-3-phdl]...)
+					p.preAudioRtpts = int64(rtpts)
+					p.preAudioPts = pts
+					p.preAudioDts = dts
 				}
-				p.preAudioPts = pts
-				p.preAudioDts = dts
-
 			} else {
-				if pts == 0 {
-					if p.preVideoPts > 0 {
-						pts = p.preVideoPts
-					}
-				}
-				if dts == 0 {
-					dts = pts
-				}
-				//根据时间戳来判断是否是相同一帧，不同时间戳处理前一帧
-				if p.preVideoPts > 0 || (p.preVideoPts == 0 && pts > 0) {
-					if p.preVideoPts != pts {
-						if p.onVideo != nil {
-							p.iterateNaluByStartCode(code, p.preVideoDts, p.preVideoPts)
-							p.videoBuf = nil
-						}
-					}
-				} else if p.preVideoPts == 0 && pts == 0 {
-					if p.preVideoTimestamp != 0 {
-						if p.preVideoTimestamp != rtpTimestamp {
-							if p.onVideo != nil {
-								p.iterateNaluByStartCode(code, int64(p.preVideoTimestamp), int64(p.preVideoTimestamp))
+				if pts == -1 {
+					if p.preVideoPts == -1 {
+						if p.preVideoRtpts == -1 {
+							// 整个流的第一帧，啥也不干
+						} else {
+							// 整个流没有pts字段，退化成使用rtpts
+							if p.preVideoRtpts != int64(rtpts) {
+								// 使用rtp的时间戳回调，但是，并不用rtp的时间戳更新pts
+								p.iterateNaluByStartCode(code, p.preVideoRtpts, p.preVideoRtpts)
 								p.videoBuf = nil
+							} else {
+								// 同一帧，啥也不干
 							}
 						}
 					} else {
-						p.preVideoTimestamp = rtpTimestamp
+						// 同一帧，啥也不干
+						pts = p.preVideoPts
+					}
+				} else {
+					if pts != p.preVideoPts && p.preVideoPts >= 0 {
+						p.iterateNaluByStartCode(code, p.preVideoPts, p.preVideoPts)
+						p.videoBuf = nil
+					} else {
+						// 同一帧，啥也不干
 					}
 				}
-				//暂存当前帧
 				p.videoBuf = append(p.videoBuf, rb[i:i+length-3-phdl]...)
-
+				p.preVideoRtpts = int64(rtpts)
 				p.preVideoPts = pts
 				p.preVideoDts = dts
 			}
@@ -374,7 +375,9 @@ func (p *PsUnpacker) iterateNaluByStartCode(code uint32, pts, dts int64) {
 			} else {
 				nazalog.Errorf("Video code=%d, length=%d,pts=%d, dts=%d, type=%s", code, len(nalu), pts, dts, avc.ParseNaluTypeReadable(nalu[preLeading]))
 			}
-			p.onVideo(nalu, dts, pts)
+			if p.onVideo != nil {
+				p.onVideo(nalu, dts, pts)
+			}
 			if nextPos >= 0 {
 				preLeading = leading
 			}
