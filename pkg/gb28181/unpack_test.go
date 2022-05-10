@@ -6,19 +6,19 @@
 //
 // Author: Chef (191201771@qq.com)
 
-package gb28181_test
+package gb28181
 
 import (
 	"bytes"
 	"encoding/hex"
 	"fmt"
-	"github.com/q191201771/lal/pkg/avc"
-	"github.com/q191201771/lal/pkg/gb28181"
-	"github.com/q191201771/naza/pkg/nazabytes"
-	"github.com/q191201771/naza/pkg/nazalog"
 	"io/ioutil"
 	"os"
 	"testing"
+
+	"github.com/q191201771/lal/pkg/avc"
+	"github.com/q191201771/naza/pkg/nazabytes"
+	"github.com/q191201771/naza/pkg/nazalog"
 )
 
 var goldenRtpList = []string{
@@ -66,7 +66,7 @@ var goldenRtpList = []string{
 }
 
 func TestPsUnpacker(t *testing.T) {
-	unpacker := gb28181.NewPsUnpacker().WithCallbackFunc(nil, func(payload []byte, dts int64, pts int64) {
+	unpacker := NewPsUnpacker().WithCallbackFunc(nil, func(payload []byte, dts int64, pts int64) {
 
 	})
 
@@ -74,8 +74,41 @@ func TestPsUnpacker(t *testing.T) {
 		nazalog.Debugf("%d", i)
 		b, _ := hex.DecodeString(item)
 		nazalog.Debugf("%s", hex.Dump(nazabytes.Prefix(b, 128)))
-		unpacker.FeedRtpPacket(b)
+		unpacker.FeedRtpPacket(b, 0)
 	}
+}
+
+var avcNalu = []byte{
+	0x00, 0x00, 0x00,
+	0x01, 0x64, 0x00, 0x20, 0xFF,
+	0xE1, 0x00, 0x19,
+	0x67, 0x64, 0x00, 0x20, 0xAC, 0xD9, 0x40, 0xC0, 0x29, 0xB0, 0x11, 0x00, 0x00, 0x03, 0x00, 0x01, 0x00, 0x00, 0x03, 0x00, 0x32, 0x0F, 0x18, 0x31, 0x96,
+	0x01, 0x00, 0x05,
+	0x68, 0xEB, 0xEC, 0xB2, 0x2C,
+	0x00, 0x00, 0x00, 0x00,
+	0x01, 0x09, 0x00,
+	0x00, 0x00, 0x00, 0x00,
+	0x01, 0x65, 0x01,
+	0x00, 0x00,
+	0x01, 0x41, 0x03,
+}
+var hevcNalu = []byte{
+	0x00, 0x00, 0x00, 0x01, 0x40, 0x01,
+	0x0c, 0x01, 0xff, 0xff,
+	0x01,
+	0x60, 0x00, 0x00, 0x03, 0x00,
+	0x90, 0x00, 0x00, 0x03, 0x00, 0x00, 0x03, 0x00,
+	0x3f,
+	0xba, 0x02, 0x40,
+	0x00, 0x00, 0x00, 0x01, 0x42, 0x01,
+	0x01,
+	0x01,
+	0x60, 0x00, 0x00, 0x03, 0x00,
+	0x90, 0x00, 0x00, 0x03, 0x00, 0x00, 0x03, 0x00,
+	0x3f,
+	0xa0, 0x05, 0x02, 0x01, 0x71, 0xf2, 0xe5, 0xba, 0x4a, 0x4c, 0x2f, 0x01, 0x01, 0x00, 0x00, 0x03, 0x00, 0x01, 0x00, 0x00, 0x03, 0x00, 0x0f, 0x08,
+	0x00, 0x00, 0x00, 0x01, 0x44, 0x01, 0xc0, 0x73, 0xc1, 0x89,
+	0x00, 0x00, 0x01, 0x26, 0x01, 0x83,
 }
 
 func TestPsUnpacker2(t *testing.T) {
@@ -96,7 +129,7 @@ func test1() {
 	defer fp.Close()
 
 	waitingSps := true
-	unpacker := gb28181.NewPsUnpacker().WithCallbackFunc(nil, func(payload []byte, dts int64, pts int64) {
+	unpacker := NewPsUnpacker().WithCallbackFunc(nil, func(payload []byte, dts int64, pts int64) {
 		nazalog.Debugf("onVideo. length=%d", len(payload))
 		if waitingSps {
 			if avc.ParseNaluType(payload[4]) == avc.NaluTypeSps {
@@ -107,7 +140,7 @@ func test1() {
 		}
 		_, _ = fp.Write(payload)
 	})
-	unpacker.FeedRtpBody(b)
+	unpacker.FeedRtpBody(b, 0)
 }
 
 func test2() {
@@ -119,7 +152,7 @@ func test2() {
 	nazalog.Assert(nil, err)
 	defer fp.Close()
 
-	unpacker := gb28181.NewPsUnpacker().WithCallbackFunc(nil, func(payload []byte, dts int64, pts int64) {
+	unpacker := NewPsUnpacker().WithCallbackFunc(nil, func(payload []byte, dts int64, pts int64) {
 		nazalog.Debugf("onVideo. length=%d", len(payload))
 		_, _ = fp.Write(payload)
 	})
@@ -136,6 +169,6 @@ func test2() {
 		b = bytes.Join(bytes.Split(b, []byte{'\n'}), nil)
 		b = bytes.Join(bytes.Split(b, []byte{' '}), nil)
 		nazalog.Debugf("%s", hex.Dump(b))
-		unpacker.FeedRtpPacket(b)
+		unpacker.FeedRtpPacket(b, 0)
 	}
 }
