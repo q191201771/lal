@@ -40,6 +40,7 @@ type ILalServer interface {
 	StatAllGroup() (sgs []base.StatGroup)
 	StatGroup(streamName string) *base.StatGroup
 	CtrlStartRelayPull(info base.ApiCtrlStartRelayPullReq) (string, error)
+	CtrlStopRelayPull(streamName string) base.ApiCtrlStopRelayPull
 	CtrlKickOutSession(info base.ApiCtrlKickOutSession) base.HttpResponseBasic
 }
 

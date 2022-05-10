@@ -21,7 +21,7 @@ import (
 	"github.com/q191201771/naza/pkg/nazalog"
 )
 
-const ConfVersion = "v0.2.9"
+const ConfVersion = "v0.3.0"
 
 const (
 	defaultHlsCleanupMode    = hls.CleanupModeInTheEnd
@@ -31,16 +31,16 @@ const (
 )
 
 type Config struct {
-	ConfVersion       string            `json:"conf_version"`
-	RtmpConfig        RtmpConfig        `json:"rtmp"`
-	DefaultHttpConfig DefaultHttpConfig `json:"default_http"`
-	HttpflvConfig     HttpflvConfig     `json:"httpflv"`
-	HlsConfig         HlsConfig         `json:"hls"`
-	HttptsConfig      HttptsConfig      `json:"httpts"`
-	RtspConfig        RtspConfig        `json:"rtsp"`
-	RecordConfig      RecordConfig      `json:"record"`
-	RelayPushConfig   RelayPushConfig   `json:"relay_push"`
-	RelayPullConfig   RelayPullConfig   `json:"relay_pull"`
+	ConfVersion           string                `json:"conf_version"`
+	RtmpConfig            RtmpConfig            `json:"rtmp"`
+	DefaultHttpConfig     DefaultHttpConfig     `json:"default_http"`
+	HttpflvConfig         HttpflvConfig         `json:"httpflv"`
+	HlsConfig             HlsConfig             `json:"hls"`
+	HttptsConfig          HttptsConfig          `json:"httpts"`
+	RtspConfig            RtspConfig            `json:"rtsp"`
+	RecordConfig          RecordConfig          `json:"record"`
+	RelayPushConfig       RelayPushConfig       `json:"relay_push"`
+	StaticRelayPullConfig StaticRelayPullConfig `json:"static_relay_pull"`
 
 	HttpApiConfig    HttpApiConfig    `json:"http_api"`
 	ServerId         string           `json:"server_id"`
@@ -101,7 +101,7 @@ type RelayPushConfig struct {
 	AddrList []string `json:"addr_list"`
 }
 
-type RelayPullConfig struct {
+type StaticRelayPullConfig struct {
 	Enable bool   `json:"enable"`
 	Addr   string `json:"addr"`
 }

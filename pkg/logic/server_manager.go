@@ -383,9 +383,40 @@ func (sm *ServerManager) CtrlStartRelayPull(info base.ApiCtrlStartRelayPullReq) 
 	// 注意，如果group不存在，我们依然relay pull
 	g := sm.getOrCreateGroup("", streamName)
 
-	return g.StartPull(info.Url)
+	return g.StartPull(info)
 }
 
+// CtrlStopRelayPull
+//
+// TODO(chef): 整理错误值
+//
+func (sm *ServerManager) CtrlStopRelayPull(streamName string) (ret base.ApiCtrlStopRelayPull) {
+	sm.mutex.Lock()
+	defer sm.mutex.Unlock()
+
+	g := sm.getGroup("", streamName)
+	if g == nil {
+		ret.ErrorCode = base.ErrorCodeGroupNotFound
+		ret.Desp = base.DespGroupNotFound
+		return
+	}
+
+	ret.Data.SessionId = g.StopPull()
+	if ret.Data.SessionId == "" {
+		ret.ErrorCode = base.ErrorCodeSessionNotFound
+		ret.Desp = base.DespSessionNotFound
+		return
+	}
+
+	ret.ErrorCode = base.ErrorCodeSucc
+	ret.Desp = base.DespSucc
+	return
+}
+
+// CtrlKickOutSession
+//
+// TODO(chef): refactor 不要返回http结果，返回error吧
+//
 func (sm *ServerManager) CtrlKickOutSession(info base.ApiCtrlKickOutSession) base.HttpResponseBasic {
 	sm.mutex.Lock()
 	defer sm.mutex.Unlock()

@@ -221,7 +221,7 @@ func (group *Group) delRtspPubSession(session *rtsp.PubSession) {
 func (group *Group) delPullSession(session base.IObject) {
 	Log.Debugf("[%s] [%s] del rtmp PullSession from group.", group.UniqueKey, session.UniqueKey())
 
-	group.resetRelayPull()
+	group.resetRelayPullSession()
 	group.delIn()
 }
 

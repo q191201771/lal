@@ -123,8 +123,7 @@ func (group *Group) Tick(tickCount uint32) {
 	group.mutex.Lock()
 	defer group.mutex.Unlock()
 
-	//group.stopPullIfNeeded()
-	group.pullIfNeeded()
+	group.tickPullModule()
 	group.startPushIfNeeded()
 
 	// 定时关闭没有数据的session
