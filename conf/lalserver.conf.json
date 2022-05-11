@@ -54,7 +54,7 @@
     "addr_list":[
     ]
   },
-  "relay_pull": {
+  "static_relay_pull": {
     "enable": false,
     "addr": ""
   },

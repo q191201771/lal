@@ -42,7 +42,7 @@ type IBaseInSessionObserver interface {
 
 	// OnAvPacket
 	//
-	// @param pkt: pkt结构体中字段含义见rtprtcp.OnAvPacket
+	// @param pkt: pkt结构体中字段含义见 rtprtcp.OnAvPacket
 	//
 	OnAvPacket(pkt base.AvPacket)
 }

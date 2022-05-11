@@ -37,7 +37,13 @@ func (group *Group) AddCustomizePubSession(streamName string) (ICustomizePubSess
 		)
 	}
 
-	group.customizePubSession.WithOnRtmpMsg(group.OnReadRtmpAvMsg)
+	if group.config.RtmpConfig.AddDummyAudioEnable {
+		group.dummyAudioFilter = remux.NewDummyAudioFilter(group.UniqueKey, group.config.RtmpConfig.AddDummyAudioWaitAudioMs, group.OnReadRtmpAvMsg)
+		group.customizePubSession.WithOnRtmpMsg(group.dummyAudioFilter.OnReadRtmpAvMsg)
+	} else {
+		group.customizePubSession.WithOnRtmpMsg(group.OnReadRtmpAvMsg)
+	}
+
 	return group.customizePubSession, nil
 }
 
@@ -63,7 +69,9 @@ func (group *Group) AddRtmpPubSession(session *rtmp.ServerSession) error {
 		)
 	}
 
-	// TODO(chef): 为rtmp pull以及rtsp也添加叠加静音音频的功能
+	// TODO(chef): feat 为其他输入流也添加假音频。比如rtmp pull以及rtsp
+	// TODO(chef): refactor 可考虑抽象出一个输入流的配置块
+	// TODO(chef): refactor 考虑放入addIn中
 	if group.config.RtmpConfig.AddDummyAudioEnable {
 		// TODO(chef): 从整体控制和锁关系来说，应该让pub的数据回调到group中进锁后再让数据流入filter
 		// TODO(chef): 这里用OnReadRtmpAvMsg正确吗，是否会重复进锁
@@ -97,18 +105,18 @@ func (group *Group) AddRtspPubSession(session *rtsp.PubSession) error {
 	return nil
 }
 
-func (group *Group) AddRtmpPullSession(session *rtmp.PullSession) bool {
+func (group *Group) AddRtmpPullSession(session *rtmp.PullSession) error {
 	group.mutex.Lock()
 	defer group.mutex.Unlock()
 
 	if group.hasInSession() {
 		Log.Errorf("[%s] in stream already exist. wanna add=%s", group.UniqueKey, session.UniqueKey())
-		return false
+		return base.ErrDupInStream
 	}
 
 	Log.Debugf("[%s] [%s] add PullSession into group.", group.UniqueKey, session.UniqueKey())
 
-	group.pullProxy.pullSession = session
+	group.setRtmpPullSession(session)
 	group.addIn()
 
 	if group.shouldStartRtspRemuxer() {
@@ -118,13 +126,34 @@ func (group *Group) AddRtmpPullSession(session *rtmp.PullSession) bool {
 		)
 	}
 
-	return true
+	return nil
+}
+
+func (group *Group) AddRtspPullSession(session *rtsp.PullSession) error {
+	group.mutex.Lock()
+	defer group.mutex.Unlock()
+
+	if group.hasInSession() {
+		Log.Errorf("[%s] in stream already exist. wanna add=%s", group.UniqueKey, session.UniqueKey())
+		return base.ErrDupInStream
+	}
+
+	Log.Debugf("[%s] [%s] add PullSession into group.", group.UniqueKey, session.UniqueKey())
+
+	group.setRtspPullSession(session)
+	group.addIn()
+
+	group.rtsp2RtmpRemuxer = remux.NewAvPacket2RtmpRemuxer().WithOnRtmpMsg(group.onRtmpMsgFromRemux)
+
+	return nil
 }
 
 // ---------------------------------------------------------------------------------------------------------------------
 
-func (sm *Group) DelCustomizePubSession(sessionCtx ICustomizePubSessionContext) {
-
+func (group *Group) DelCustomizePubSession(sessionCtx ICustomizePubSessionContext) {
+	group.mutex.Lock()
+	defer group.mutex.Unlock()
+	group.delCustomizePubSession(sessionCtx)
 }
 
 func (group *Group) DelRtmpPubSession(session *rtmp.ServerSession) {
@@ -142,10 +171,28 @@ func (group *Group) DelRtspPubSession(session *rtsp.PubSession) {
 func (group *Group) DelRtmpPullSession(session *rtmp.PullSession) {
 	group.mutex.Lock()
 	defer group.mutex.Unlock()
-	group.delRtmpPullSession(session)
+	group.delPullSession(session)
+}
+
+func (group *Group) DelRtspPullSession(session *rtsp.PullSession) {
+	group.mutex.Lock()
+	defer group.mutex.Unlock()
+	group.delPullSession(session)
 }
 
 // ---------------------------------------------------------------------------------------------------------------------
+
+func (group *Group) delCustomizePubSession(sessionCtx ICustomizePubSessionContext) {
+	Log.Debugf("[%s] [%s] del rtmp PubSession from group.", group.UniqueKey, sessionCtx.UniqueKey())
+
+	if sessionCtx != group.customizePubSession {
+		Log.Warnf("[%s] del rtmp pub session but not match. del session=%s, group session=%p",
+			group.UniqueKey, sessionCtx.UniqueKey(), group.rtmpPubSession)
+		return
+	}
+
+	group.delIn()
+}
 
 func (group *Group) delRtmpPubSession(session *rtmp.ServerSession) {
 	Log.Debugf("[%s] [%s] del rtmp PubSession from group.", group.UniqueKey, session.UniqueKey())
@@ -171,11 +218,10 @@ func (group *Group) delRtspPubSession(session *rtsp.PubSession) {
 	group.delIn()
 }
 
-func (group *Group) delRtmpPullSession(session *rtmp.PullSession) {
+func (group *Group) delPullSession(session base.IObject) {
 	Log.Debugf("[%s] [%s] del rtmp PullSession from group.", group.UniqueKey, session.UniqueKey())
 
-	group.pullProxy.pullSession = nil
-	group.setPullingFlag(false)
+	group.resetRelayPullSession()
 	group.delIn()
 }
 
@@ -212,6 +258,7 @@ func (group *Group) delIn() {
 
 	group.rtmpPubSession = nil
 	group.rtspPubSession = nil
+	group.customizePubSession = nil
 	group.rtsp2RtmpRemuxer = nil
 	group.rtmp2RtspRemuxer = nil
 	group.dummyAudioFilter = nil

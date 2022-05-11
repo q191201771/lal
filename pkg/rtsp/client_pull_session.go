@@ -35,7 +35,10 @@ var defaultPullSessionOption = PullSessionOption{
 }
 
 type PullSession struct {
-	uniqueKey     string // const after ctor
+	uniqueKey string // const after ctor
+
+	onDescribeResponse func()
+
 	cmdSession    *ClientCommandSession
 	baseInSession *BaseInSession
 
@@ -46,6 +49,8 @@ type PullSession struct {
 type ModPullSessionOption func(option *PullSessionOption)
 
 func NewPullSession(observer IPullSessionObserver, modOptions ...ModPullSessionOption) *PullSession {
+	// TODO(chef): refactor 把observer从New中移除到With的函数中
+
 	option := defaultPullSessionOption
 	for _, fn := range modOptions {
 		fn(&option)
@@ -53,8 +58,9 @@ func NewPullSession(observer IPullSessionObserver, modOptions ...ModPullSessionO
 
 	uk := base.GenUkRtspPullSession()
 	s := &PullSession{
-		uniqueKey: uk,
-		waitChan:  make(chan error, 1),
+		uniqueKey:          uk,
+		onDescribeResponse: defaultOnDescribeResponse,
+		waitChan:           make(chan error, 1),
 	}
 	cmdSession := NewClientCommandSession(CcstPullSession, uk, s, func(opt *ClientCommandSessionOption) {
 		opt.DoTimeoutMs = option.PullTimeoutMs
@@ -65,6 +71,11 @@ func NewPullSession(observer IPullSessionObserver, modOptions ...ModPullSessionO
 	s.cmdSession = cmdSession
 	Log.Infof("[%s] lifecycle new rtsp PullSession. session=%p", uk, s)
 	return s
+}
+
+func (session *PullSession) WithOnDescribeResponse(onDescribeResponse func()) *PullSession {
+	session.onDescribeResponse = onDescribeResponse
+	return session
 }
 
 // Pull 阻塞直到和对端完成拉流前，握手部分的工作（也即收到RTSP Play response），或者发生错误
@@ -192,6 +203,7 @@ func (session *PullSession) OnConnectResult() {
 
 // OnDescribeResponse IClientCommandSessionObserver, callback by ClientCommandSession
 func (session *PullSession) OnDescribeResponse(sdpCtx sdp.LogicContext) {
+	session.onDescribeResponse()
 	session.baseInSession.InitWithSdp(sdpCtx)
 }
 
@@ -229,4 +241,8 @@ func (session *PullSession) dispose(err error) error {
 		retErr = nazaerrors.CombineErrors(e1, e2)
 	})
 	return retErr
+}
+
+func defaultOnDescribeResponse() {
+
 }

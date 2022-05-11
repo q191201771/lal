@@ -20,13 +20,14 @@ import (
 )
 
 // AvPacket2RtmpRemuxer AvPacket转换为RTMP
+//
 // 目前AvPacket来自
 // - RTSP的sdp以及rtp的合帧包
 // - 业务方通过接口向lalserver输入的流
 // - 理论上也支持webrtc，后续接入webrtc时再验证
 //
 type AvPacket2RtmpRemuxer struct {
-	option    AvPacketStreamOption
+	option    base.AvPacketStreamOption
 	onRtmpMsg rtmp.OnReadRtmpAvMsg
 
 	hasEmittedMetadata bool
@@ -40,15 +41,14 @@ type AvPacket2RtmpRemuxer struct {
 
 func NewAvPacket2RtmpRemuxer() *AvPacket2RtmpRemuxer {
 	return &AvPacket2RtmpRemuxer{
-		option:    DefaultApsOption,
+		option:    base.DefaultApsOption,
 		audioType: base.AvPacketPtUnknown,
 		videoType: base.AvPacketPtUnknown,
 	}
 }
 
-func (r *AvPacket2RtmpRemuxer) WithOption(modOption func(option *AvPacketStreamOption)) *AvPacket2RtmpRemuxer {
+func (r *AvPacket2RtmpRemuxer) WithOption(modOption func(option *base.AvPacketStreamOption)) {
 	modOption(&r.option)
-	return r
 }
 
 func (r *AvPacket2RtmpRemuxer) WithOnRtmpMsg(onRtmpMsg rtmp.OnReadRtmpAvMsg) *AvPacket2RtmpRemuxer {
@@ -151,7 +151,7 @@ func (r *AvPacket2RtmpRemuxer) FeedAvPacket(pkt base.AvPacket) {
 	case base.AvPacketPtHevc:
 		var nals [][]byte
 		var err error
-		if r.option.VideoFormat == AvPacketStreamVideoFormatAvcc {
+		if r.option.VideoFormat == base.AvPacketStreamVideoFormatAvcc {
 			nals, err = avc.SplitNaluAvcc(pkt.Payload)
 		} else {
 			nals, err = avc.SplitNaluAnnexb(pkt.Payload)
@@ -258,7 +258,7 @@ func (r *AvPacket2RtmpRemuxer) FeedAvPacket(pkt base.AvPacket) {
 
 // ---------------------------------------------------------------------------------------------------------------------
 
-func (r *AvPacket2RtmpRemuxer) emitRtmpAvMsg(isAudio bool, payload []byte, timestamp uint32) {
+func (r *AvPacket2RtmpRemuxer) emitRtmpAvMsg(isAudio bool, payload []byte, timestamp int64) {
 	if !r.hasEmittedMetadata {
 		// TODO(chef): 此处简化了从sps中获取宽高写入metadata的逻辑
 		audiocodecid := -1
@@ -302,7 +302,7 @@ func (r *AvPacket2RtmpRemuxer) emitRtmpAvMsg(isAudio bool, payload []byte, times
 	}
 
 	msg.Header.MsgLen = uint32(len(payload))
-	msg.Header.TimestampAbs = timestamp
+	msg.Header.TimestampAbs = uint32(timestamp)
 	msg.Payload = payload
 
 	r.onRtmpMsg(msg)

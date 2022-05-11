@@ -14,6 +14,8 @@ import (
 )
 
 type CustomizePubSessionContext struct {
+	uniqueKey string
+
 	streamName string
 	remuxer    *remux.AvPacket2RtmpRemuxer
 	onRtmpMsg  func(msg base.RtmpMsg)
@@ -21,6 +23,7 @@ type CustomizePubSessionContext struct {
 
 func NewCustomizePubSessionContext(streamName string) *CustomizePubSessionContext {
 	return &CustomizePubSessionContext{
+		uniqueKey:  base.GenUkCustomizePubSession(),
 		streamName: streamName,
 		remuxer:    remux.NewAvPacket2RtmpRemuxer(),
 	}
@@ -31,14 +34,22 @@ func (ctx *CustomizePubSessionContext) WithOnRtmpMsg(onRtmpMsg func(msg base.Rtm
 	return ctx
 }
 
+func (ctx *CustomizePubSessionContext) UniqueKey() string {
+	return ctx.uniqueKey
+}
+
 func (ctx *CustomizePubSessionContext) StreamName() string {
 	return ctx.streamName
 }
 
 // ---------------------------------------------------------------------------------------------------------------------
 
-func (ctx *CustomizePubSessionContext) WithOption(modOption func(option *remux.AvPacketStreamOption)) {
+func (ctx *CustomizePubSessionContext) WithOption(modOption func(option *base.AvPacketStreamOption)) {
 	ctx.remuxer.WithOption(modOption)
+}
+
+func (ctx *CustomizePubSessionContext) FeedAudioSpecificConfig(asc []byte) {
+	ctx.remuxer.InitWithAvConfig(asc, nil, nil, nil)
 }
 
 func (ctx *CustomizePubSessionContext) FeedAvPacket(packet base.AvPacket) {

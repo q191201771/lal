@@ -1,3 +1,16 @@
+#### v0.29.1 (2022-05-03)
+
+- [feat] lalserver: 支持集成第三方协议的输入流 https://pengrl.com/#/customize_pub
+- [feat] rtmp: pull session增加ack应答，提高兼容性
+- [opt] rtsp: lalserver增加配置项`rtsp->out_wait_key_frame_flag`，用于控制发送rtsp数据时，是否等待关键帧再发送
+- [opt] 增强健壮性，检查rtmp消息长度有效性
+- [fix] 增强兼容性，rtmp转mpegts时，使用nalu中的sps和pps
+- [fix] lalserver鉴权: 修复rtmp拉流鉴权的问题
+- [fix] 解析H265类型不够全面，导致推流失败 #140
+- [fix] lalserver录制: 是否创建mpegts录制根目录由mpegts录制开关控制
+- [fix] demo: dispatch调度程序检测保活时间单位错误
+- [perf] mpegts: 加大内存预分配大小
+
 #### v0.28.0 (2022-03-27)
 
 - [feat] httpts: 支持gop缓冲，提高秒开 #129

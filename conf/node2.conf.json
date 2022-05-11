@@ -1,44 +1,70 @@
 {
   "# doc of config": "https://pengrl.com/lal/#/ConfigBrief",
-  "conf_version": "v0.1.2",
+  "conf_version": "v0.2.9",
   "rtmp": {
     "enable": true,
-    "addr": ":1955",
-    "gop_num": 2
+    "addr": ":2935",
+    "gop_num": 0,
+    "merge_write_size": 0,
+    "add_dummy_audio_enable": false,
+    "add_dummy_audio_wait_audio_ms": 150
+  },
+  "default_http": {
+    "http_listen_addr": ":9080",
+    "https_listen_addr": ":5433",
+    "https_cert_file": "./conf/cert.pem",
+    "https_key_file": "./conf/key.pem"
   },
   "httpflv": {
     "enable": true,
-    "sub_listen_addr": ":8280",
-    "enable_https": false,
-    "gop_num": 2
-
+    "enable_https": true,
+    "url_pattern": "/",
+    "gop_num": 0
   },
   "hls": {
-    "enable": false
+    "enable": true,
+    "enable_https": true,
+    "url_pattern": "/hls/",
+    "out_path": "./lal_record/hls/",
+    "fragment_duration_ms": 3000,
+    "fragment_num": 6,
+    "delete_threshold": 6,
+    "cleanup_mode": 1,
+    "use_memory_as_disk_flag": false
   },
   "httpts": {
-    "enable": false
+    "enable": true,
+    "enable_https": true,
+    "url_pattern": "/",
+    "gop_num": 0
   },
   "rtsp": {
-    "enable": false
+    "enable": true,
+    "addr": ":6544",
+    "out_wait_key_frame_flag": true
   },
   "record": {
     "enable_flv": false,
-    "enable_mpegts": false
+    "flv_out_path": "./lal_record/flv/",
+    "enable_mpegts": false,
+    "mpegts_out_path": "./lal_record/mpegts"
   },
   "relay_push": {
-    "enable": false
+    "enable": false,
+    "addr_list":[
+    ]
   },
   "relay_pull": {
-    "enable": false
+    "enable": false,
+    "addr": ""
   },
   "http_api": {
     "enable": true,
-    "addr": ":8283"
+    "addr": ":9083"
   },
-  "server_id": "2",
+  "server_id": "1",
   "http_notify": {
-    "enable": true,
+    "enable": false,
     "update_interval_sec": 5,
     "on_server_start": "http://127.0.0.1:10101/on_server_start",
     "on_update": "http://127.0.0.1:10101/on_update",
@@ -48,15 +74,35 @@
     "on_sub_stop": "http://127.0.0.1:10101/on_sub_stop",
     "on_rtmp_connect": "http://127.0.0.1:10101/on_rtmp_connect"
   },
+  "simple_auth": {
+    "key": "q191201771",
+    "dangerous_lal_secret": "pengrl",
+    "pub_rtmp_enable": false,
+    "sub_rtmp_enable": false,
+    "sub_httpflv_enable": false,
+    "sub_httpts_enable": false,
+    "pub_rtsp_enable": false,
+    "sub_rtsp_enable": false,
+    "hls_m3u8_enable": false
+  },
   "pprof": {
-    "enable": false
+    "enable": true,
+    "addr": ":9084"
   },
   "log": {
     "level": 1,
-    "filename": "./logs/lalserver2.log",
+    "filename": "./logs/lalserver.log",
     "is_to_stdout": true,
     "is_rotate_daily": true,
     "short_file_flag": true,
+    "timestamp_flag": true,
+    "timestamp_with_ms_flag": true,
+    "level_flag": true,
     "assert_behavior": 1
+  },
+  "debug": {
+    "log_group_interval_sec": 30,
+    "log_group_max_group_num": 10,
+    "log_group_max_sub_num_per_group": 10
   }
 }

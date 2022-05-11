@@ -10,19 +10,26 @@ package base
 
 // 文档见： https://pengrl.com/p/20100/
 
-const HttpApiVersion = "v0.1.4"
+const HttpApiVersion = "v0.2.0"
 
 const (
-	ErrorCodeSucc            = 0
-	DespSucc                 = "succ"
+	ErrorCodeSucc = 0
+	DespSucc      = "succ"
+
 	ErrorCodeGroupNotFound   = 1001
 	DespGroupNotFound        = "group not found"
 	ErrorCodeParamMissing    = 1002
 	DespParamMissing         = "param missing"
 	ErrorCodeSessionNotFound = 1003
 	DespSessionNotFound      = "session not found"
+
+	ErrorCodeStartRelayPullFail = 2004
 )
 
+// HttpResponseBasic
+//
+// TODO(chef): 因为ILalserver会直接使用这个接口，所以重命名为ApiResponseBasic
+//
 type HttpResponseBasic struct {
 	ErrorCode int    `json:"error_code"`
 	Desp      string `json:"desp"`
@@ -54,12 +61,28 @@ type ApiStatGroup struct {
 	Data *StatGroup `json:"data"`
 }
 
-type ApiCtrlStartPullReq struct {
-	Protocol   string `json:"protocol"`
-	Addr       string `json:"addr"`
-	AppName    string `json:"app_name"`
-	StreamName string `json:"stream_name"`
-	UrlParam   string `json:"url_param"`
+type ApiCtrlStartRelayPull struct {
+	HttpResponseBasic
+	Data struct {
+		SessionId string `json:"session_id"`
+	} `json:"data"`
+}
+
+type ApiCtrlStopRelayPull struct {
+	HttpResponseBasic
+	Data struct {
+		SessionId string `json:"session_id"`
+	} `json:"data"`
+}
+
+// ---------------------------------------------------------------------------------------------------------------------
+
+type ApiCtrlStartRelayPullReq struct {
+	Url                      string `json:"url"`
+	StreamName               string `json:"stream_name"`
+	PullTimeoutMs            int    `json:"pull_timeout_ms"`
+	PullRetryNum             int    `json:"pull_retry_num"`
+	AutoStopPullAfterNoOutMs int    `json:"auto_stop_pull_after_no_out_ms"`
 }
 
 type ApiCtrlKickOutSession struct {

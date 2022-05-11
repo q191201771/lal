@@ -1,4 +1,4 @@
-// Copyright 2019, Chef.  All rights reserved.
+// Copyright 2022, Chef.  All rights reserved.
 // https://github.com/q191201771/lal
 //
 // Use of this source code is governed by a MIT-style license
@@ -11,13 +11,12 @@ package main
 import (
 	"flag"
 	"fmt"
+	"github.com/q191201771/lal/pkg/aac"
 	"github.com/q191201771/lal/pkg/avc"
-	"github.com/q191201771/lal/pkg/remux"
+	"github.com/q191201771/naza/pkg/nazalog"
 	"io/ioutil"
 	"os"
 	"time"
-
-	"github.com/q191201771/naza/pkg/nazalog"
 
 	"github.com/q191201771/lal/pkg/base"
 
@@ -25,67 +24,9 @@ import (
 	"github.com/q191201771/naza/pkg/bininfo"
 )
 
-//lal/app/demo/customize_lalserver
+// 文档见 <lalserver二次开发 - pub接入自定义流>
+// https://pengrl.com/lal/#/customize_pub
 //
-// 演示lalserver通过插件功能扩展输入流
-// 提示，插件功能是基于代码层面的，和通过与lalserver建立连接将流发送到lalserver是两种不同的方式
-//
-// 提示，这个demo，可以看成是业务方基于lal实现的一个定制化（功能增强版）的lalserver应用
-// 换句话说，它并不强制要求在lal的github repo下
-//
-// demo的具体功能是，读取一个h264 es流文件，并将这个流输入到lalserver中
-// 注意，lalserver其实并不关心业务方的流的来源（比如网络or文件or其他）
-// 也不关心原始流的格式
-// 只要业务方将流转换成lalserver所要求的格式，调用相应的接口传入数据即可
-//
-// 业务方的流输入到lalserver后，就可以使用lalserver所支持的协议，从lalserver拉流了
-//
-
-func showHowToCustomizePub(lals logic.ILalServer) {
-	const (
-		customizePubStreamName = "c110"
-		h264filename           = "/tmp/test.h264"
-
-		durationInterval = uint32(66)
-	)
-
-	go func() {
-		time.Sleep(200 * time.Millisecond)
-		session, err := lals.AddCustomizePubSession(customizePubStreamName)
-		nazalog.Assert(nil, err)
-		session.WithOption(func(option *remux.AvPacketStreamOption) {
-			option.VideoFormat = remux.AvPacketStreamVideoFormatAnnexb
-		})
-
-		// demo的输入比较简单，一次性将整个es文件读入
-		content, err := ioutil.ReadFile(h264filename)
-		nazalog.Assert(nil, err)
-
-		timestamp := uint32(0)
-		for {
-			// 借助lal中的一个帮助函数，将es流切割成一个一个的nal
-			// 提示，这里切割的是整个文件，并且，函数执行结束后，并没有退出for循环，换句话说，流会无限循环输入到lalserver中
-			err = avc.IterateNaluAnnexb(content, func(nal []byte) {
-				// 将nal数据转换为lalserver要求的格式输入
-				packet := base.AvPacket{
-					PayloadType: base.AvPacketPtAvc,
-					Timestamp:   timestamp,
-					Payload:     append(avc.NaluStartCode4, nal...),
-				}
-				session.FeedAvPacket(packet)
-
-				// 发送完后，计算时间戳，并按帧间隔时间延时发送
-				t := avc.ParseNaluType(nal[0])
-				if t == avc.NaluTypeSps || t == avc.NaluTypePps || t == avc.NaluTypeSei {
-					// noop
-				} else {
-					timestamp += durationInterval
-					time.Sleep(time.Duration(durationInterval) * time.Millisecond)
-				}
-			})
-		}
-	}()
-}
 
 func main() {
 	defer nazalog.Sync()
@@ -95,7 +36,8 @@ func main() {
 		option.ConfFilename = confFilename
 	})
 
-	showHowToCustomizePub(lals)
+	// 比常规lalserver多加了这一行
+	go showHowToCustomizePub(lals)
 
 	err := lals.RunLoop()
 	nazalog.Infof("server manager done. err=%+v", err)
@@ -113,4 +55,142 @@ func parseFlag() string {
 	}
 
 	return *cf
+}
+
+func showHowToCustomizePub(lals logic.ILalServer) {
+	const (
+		h264filename = "/tmp/test.h264"
+		aacfilename  = "/tmp/test.aac"
+
+		customizePubStreamName = "c110"
+	)
+
+	time.Sleep(200 * time.Millisecond)
+
+	// 从音频和视频各自的ES流文件中读取出所有数据
+	// 然后将它们按时间戳排序，合并到一个AvPacket数组中
+	audioContent, audioPackets := readAudioPacketsFromFile(aacfilename)
+	_, videoPackets := readVideoPacketsFromFile(h264filename)
+	packets := mergePackets(audioPackets, videoPackets)
+
+	// 1. 向lalserver中加入自定义的pub session
+	session, err := lals.AddCustomizePubSession(customizePubStreamName)
+	nazalog.Assert(nil, err)
+	// 2. 配置session
+	session.WithOption(func(option *base.AvPacketStreamOption) {
+		option.VideoFormat = base.AvPacketStreamVideoFormatAnnexb
+	})
+
+	asc, err := aac.MakeAscWithAdtsHeader(audioContent[:aac.AdtsHeaderLength])
+	nazalog.Assert(nil, err)
+	// 3. 填入aac的audio specific config信息
+	session.FeedAudioSpecificConfig(asc)
+
+	// 4. 按时间戳间隔匀速发送音频和视频
+	startRealTime := time.Now()
+	startTs := int64(0)
+	for i := range packets {
+		diffTs := packets[i].Timestamp - startTs
+		diffReal := time.Now().Sub(startRealTime).Milliseconds()
+		//nazalog.Debugf("%d: %s, %d, %d", i, packets[i].DebugString(), diffTs, diffReal)
+		if diffReal < diffTs {
+			time.Sleep(time.Duration(diffTs-diffReal) * time.Millisecond)
+		}
+		session.FeedAvPacket(packets[i])
+	}
+
+	// 5. 所有数据发送关闭后，将pub session从lal server移除
+	lals.DelCustomizePubSession(session)
+}
+
+// readAudioPacketsFromFile 从aac es流文件读取所有音频包
+//
+func readAudioPacketsFromFile(filename string) (audioContent []byte, audioPackets []base.AvPacket) {
+	var err error
+	audioContent, err = ioutil.ReadFile(filename)
+	nazalog.Assert(nil, err)
+
+	pos := 0
+	timestamp := float32(0)
+	for {
+		ctx, err := aac.NewAdtsHeaderContext(audioContent[pos : pos+aac.AdtsHeaderLength])
+		nazalog.Assert(nil, err)
+
+		packet := base.AvPacket{
+			PayloadType: base.AvPacketPtAac,
+			Timestamp:   int64(timestamp),
+			Payload:     audioContent[pos+aac.AdtsHeaderLength : pos+int(ctx.AdtsLength)],
+		}
+
+		audioPackets = append(audioPackets, packet)
+
+		timestamp += float32(48000*4*2) / float32(8192*2) // (frequence * bytePerSample * channel) / (packetSize * channel)
+
+		pos += int(ctx.AdtsLength)
+		if pos == len(audioContent) {
+			break
+		}
+	}
+
+	return
+}
+
+// readVideoPacketsFromFile 从h264 es流文件读取所有视频包
+//
+func readVideoPacketsFromFile(filename string) (videoContent []byte, videoPackets []base.AvPacket) {
+	var err error
+	videoContent, err = ioutil.ReadFile(filename)
+	nazalog.Assert(nil, err)
+
+	timestamp := float32(0)
+	err = avc.IterateNaluAnnexb(videoContent, func(nal []byte) {
+		// 将nal数据转换为lalserver要求的格式输入
+		packet := base.AvPacket{
+			PayloadType: base.AvPacketPtAvc,
+			Timestamp:   int64(timestamp),
+			Payload:     append(avc.NaluStartCode4, nal...),
+		}
+
+		videoPackets = append(videoPackets, packet)
+
+		t := avc.ParseNaluType(nal[0])
+		if t == avc.NaluTypeSps || t == avc.NaluTypePps || t == avc.NaluTypeSei {
+			// noop
+		} else {
+			timestamp += float32(1000) / float32(15) // 1秒 / fps
+		}
+	})
+	nazalog.Assert(nil, err)
+
+	return
+}
+
+// mergePackets 将音频队列和视频队列按时间戳有序合并为一个队列
+//
+func mergePackets(audioPackets, videoPackets []base.AvPacket) (packets []base.AvPacket) {
+	var i, j int
+	for {
+		// audio数组为空，将video的剩余数据取出，然后merge结束
+		if i == len(audioPackets) {
+			packets = append(packets, videoPackets[j:]...)
+			break
+		}
+
+		//
+		if j == len(videoPackets) {
+			packets = append(packets, audioPackets[i:]...)
+			break
+		}
+
+		// 音频和视频都有数据，取时间戳小的
+		if audioPackets[i].Timestamp < videoPackets[j].Timestamp {
+			packets = append(packets, audioPackets[i])
+			i++
+		} else {
+			packets = append(packets, videoPackets[j])
+			j++
+		}
+	}
+
+	return
 }

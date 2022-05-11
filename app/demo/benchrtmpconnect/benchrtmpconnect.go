@@ -59,8 +59,7 @@ func main() {
 				option.HandshakeComplexFlag = false
 			})
 			b := time.Now()
-			err := pullSession.Pull(u, func(msg base.RtmpMsg) {
-			})
+			err := pullSession.Pull(u)
 			e := time.Now()
 			cost := e.Sub(b).Milliseconds()
 			// 耗时不够1毫秒，我们将值取整到1毫秒，并打印更精确的实际耗时

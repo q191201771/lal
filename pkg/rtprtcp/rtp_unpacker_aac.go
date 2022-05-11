@@ -75,7 +75,7 @@ func (unpacker *RtpUnpackerAac) TryUnpackOne(list *RtpPacketList) (unpackedFlag 
 			// one complete access unit
 			var outPkt base.AvPacket
 			outPkt.PayloadType = unpacker.payloadType
-			outPkt.Timestamp = p.Packet.Header.Timestamp / uint32(unpacker.clockRate/1000)
+			outPkt.Timestamp = int64(p.Packet.Header.Timestamp / uint32(unpacker.clockRate/1000))
 			outPkt.Payload = b[aus[0].pos : aus[0].pos+aus[0].size]
 			unpacker.onAvPacket(outPkt)
 
@@ -131,7 +131,7 @@ func (unpacker *RtpUnpackerAac) TryUnpackOne(list *RtpPacketList) (unpackedFlag 
 			} else if cacheSize == totalSize {
 				var outPkt base.AvPacket
 				outPkt.PayloadType = unpacker.payloadType
-				outPkt.Timestamp = p.Packet.Header.Timestamp / uint32(unpacker.clockRate/1000)
+				outPkt.Timestamp = int64(p.Packet.Header.Timestamp / uint32(unpacker.clockRate/1000))
 				for _, a := range as {
 					outPkt.Payload = append(outPkt.Payload, a...)
 				}
@@ -153,9 +153,9 @@ func (unpacker *RtpUnpackerAac) TryUnpackOne(list *RtpPacketList) (unpackedFlag 
 	for i := range aus {
 		var outPkt base.AvPacket
 		outPkt.PayloadType = unpacker.payloadType
-		outPkt.Timestamp = p.Packet.Header.Timestamp / uint32(unpacker.clockRate/1000)
+		outPkt.Timestamp = int64(p.Packet.Header.Timestamp / uint32(unpacker.clockRate/1000))
 		// TODO chef: 这里1024的含义
-		outPkt.Timestamp += uint32(i * (1024 * 1000) / unpacker.clockRate)
+		outPkt.Timestamp += int64(uint32(i * (1024 * 1000) / unpacker.clockRate))
 		outPkt.Payload = b[aus[i].pos : aus[i].pos+aus[i].size]
 		unpacker.onAvPacket(outPkt)
 	}
