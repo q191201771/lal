@@ -8,9 +8,9 @@
 
 package base
 
-// 文档见： https://pengrl.com/p/20100/
+// 文档见： https://pengrl.com/lal/#/HTTPAPI
 
-const HttpApiVersion = "v0.2.0"
+const HttpApiVersion = "v0.3.0"
 
 const (
 	ErrorCodeSucc = 0
@@ -64,7 +64,8 @@ type ApiStatGroup struct {
 type ApiCtrlStartRelayPull struct {
 	HttpResponseBasic
 	Data struct {
-		SessionId string `json:"session_id"`
+		StreamName string `json:"stream_name"`
+		SessionId  string `json:"session_id"`
 	} `json:"data"`
 }
 
@@ -85,7 +86,7 @@ type ApiCtrlStartRelayPullReq struct {
 	AutoStopPullAfterNoOutMs int    `json:"auto_stop_pull_after_no_out_ms"`
 }
 
-type ApiCtrlKickOutSession struct {
+type ApiCtrlKickSession struct {
 	StreamName string `json:"stream_name"`
 	SessionId  string `json:"session_id"`
 }

@@ -50,7 +50,7 @@ func (h *HttpApiServer) RunLoop() error {
 	mux.HandleFunc("/api/stat/all_group", h.statAllGroupHandler)
 	mux.HandleFunc("/api/ctrl/start_relay_pull", h.ctrlStartRelayPullHandler)
 	mux.HandleFunc("/api/ctrl/stop_relay_pull", h.ctrlStopRelayPullHandler)
-	mux.HandleFunc("/api/ctrl/kick_out_session", h.ctrlKickOutSessionHandler)
+	mux.HandleFunc("/api/ctrl/kick_session", h.ctrlKickSessionHandler)
 
 	var srv http.Server
 	srv.Handler = mux
@@ -126,7 +126,7 @@ func (h *HttpApiServer) ctrlStartRelayPullHandler(w http.ResponseWriter, req *ht
 			info.PullRetryNum = -1
 		}
 		if !j.Exist("auto_stop_pull_after_no_out_ms") {
-			info.AutoStopPullAfterNoOutMs = 10000
+			info.AutoStopPullAfterNoOutMs = -1
 		}
 		return nil
 	}
@@ -141,17 +141,8 @@ func (h *HttpApiServer) ctrlStartRelayPullHandler(w http.ResponseWriter, req *ht
 	}
 	Log.Infof("http api start pull. req info=%+v", info)
 
-	var sessionId string
-	sessionId, err = h.sm.CtrlStartRelayPull(info)
-	if err != nil {
-		v.ErrorCode = base.ErrorCodeStartRelayPullFail
-		v.Desp = err.Error()
-	} else {
-		v.ErrorCode = base.ErrorCodeSucc
-		v.Desp = base.DespSucc
-		v.Data.SessionId = sessionId
-	}
-	feedback(v, w)
+	resp := h.sm.CtrlStartRelayPull(info)
+	feedback(resp, w)
 	return
 }
 
@@ -174,9 +165,9 @@ func (h *HttpApiServer) ctrlStopRelayPullHandler(w http.ResponseWriter, req *htt
 	return
 }
 
-func (h *HttpApiServer) ctrlKickOutSessionHandler(w http.ResponseWriter, req *http.Request) {
+func (h *HttpApiServer) ctrlKickSessionHandler(w http.ResponseWriter, req *http.Request) {
 	var v base.HttpResponseBasic
-	var info base.ApiCtrlKickOutSession
+	var info base.ApiCtrlKickSession
 
 	err := nazahttp.UnmarshalRequestJsonBody(req, &info, "stream_name", "session_id")
 	if err != nil {
@@ -188,7 +179,7 @@ func (h *HttpApiServer) ctrlKickOutSessionHandler(w http.ResponseWriter, req *ht
 	}
 	Log.Infof("http api kick out session. req info=%+v", info)
 
-	resp := h.sm.CtrlKickOutSession(info)
+	resp := h.sm.CtrlKickSession(info)
 	feedback(resp, w)
 	return
 }

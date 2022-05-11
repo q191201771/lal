@@ -263,8 +263,8 @@ func (sm *ServerManager) RunLoop() error {
 
 			// 关闭空闲的group
 			sm.groupManager.Iterate(func(group *Group) bool {
-				if group.IsTotalEmpty() {
-					Log.Infof("erase empty group. [%s]", group.UniqueKey)
+				if group.IsInactive() {
+					Log.Infof("erase inactive group. [%s]", group.UniqueKey)
 					group.Dispose()
 					return false
 				}
@@ -367,7 +367,7 @@ func (sm *ServerManager) StatGroup(streamName string) *base.StatGroup {
 	return &ret
 }
 
-func (sm *ServerManager) CtrlStartRelayPull(info base.ApiCtrlStartRelayPullReq) (string, error) {
+func (sm *ServerManager) CtrlStartRelayPull(info base.ApiCtrlStartRelayPullReq) (ret base.ApiCtrlStartRelayPull) {
 	sm.mutex.Lock()
 	defer sm.mutex.Unlock()
 
@@ -375,7 +375,9 @@ func (sm *ServerManager) CtrlStartRelayPull(info base.ApiCtrlStartRelayPullReq) 
 	if streamName == "" {
 		ctx, err := base.ParseUrl(info.Url, -1)
 		if err != nil {
-			return "", err
+			ret.ErrorCode = base.ErrorCodeStartRelayPullFail
+			ret.Desp = err.Error()
+			return
 		}
 		streamName = ctx.LastItemOfPath
 	}
@@ -383,7 +385,17 @@ func (sm *ServerManager) CtrlStartRelayPull(info base.ApiCtrlStartRelayPullReq) 
 	// 注意，如果group不存在，我们依然relay pull
 	g := sm.getOrCreateGroup("", streamName)
 
-	return g.StartPull(info)
+	sessionId, err := g.StartPull(info)
+	if err != nil {
+		ret.ErrorCode = base.ErrorCodeStartRelayPullFail
+		ret.Desp = err.Error()
+	} else {
+		ret.ErrorCode = base.ErrorCodeSucc
+		ret.Desp = base.DespSucc
+		ret.Data.StreamName = streamName
+		ret.Data.SessionId = sessionId
+	}
+	return
 }
 
 // CtrlStopRelayPull
@@ -413,11 +425,11 @@ func (sm *ServerManager) CtrlStopRelayPull(streamName string) (ret base.ApiCtrlS
 	return
 }
 
-// CtrlKickOutSession
+// CtrlKickSession
 //
 // TODO(chef): refactor 不要返回http结果，返回error吧
 //
-func (sm *ServerManager) CtrlKickOutSession(info base.ApiCtrlKickOutSession) base.HttpResponseBasic {
+func (sm *ServerManager) CtrlKickSession(info base.ApiCtrlKickSession) base.HttpResponseBasic {
 	sm.mutex.Lock()
 	defer sm.mutex.Unlock()
 	g := sm.getGroup("", info.StreamName)
@@ -427,7 +439,7 @@ func (sm *ServerManager) CtrlKickOutSession(info base.ApiCtrlKickOutSession) bas
 			Desp:      base.DespGroupNotFound,
 		}
 	}
-	if !g.KickOutSession(info.SessionId) {
+	if !g.KickSession(info.SessionId) {
 		return base.HttpResponseBasic{
 			ErrorCode: base.ErrorCodeSessionNotFound,
 			Desp:      base.DespSessionNotFound,

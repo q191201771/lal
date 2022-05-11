@@ -22,8 +22,8 @@
     "gop_num": 0
   },
   "hls": {
-    "enable": true,
-    "enable_https": true,
+    "enable": false,
+    "enable_https": false,
     "url_pattern": "/hls/",
     "out_path": "./lal_record/hls/",
     "fragment_duration_ms": 3000,
@@ -54,7 +54,7 @@
     "addr_list":[
     ]
   },
-  "relay_pull": {
+  "static_relay_pull": {
     "enable": false,
     "addr": ""
   },

@@ -355,10 +355,6 @@ func getAllHttpApi(addr string) {
 	var b []byte
 	var err error
 
-	b, err = httpGet(fmt.Sprintf("http://%s/api/list", addr))
-	Log.Assert(nil, err)
-	Log.Debugf("%s", string(b))
-
 	b, err = httpGet(fmt.Sprintf("http://%s/api/stat/lal_info", addr))
 	Log.Assert(nil, err)
 	Log.Debugf("%s", string(b))
@@ -376,8 +372,8 @@ func getAllHttpApi(addr string) {
 	Log.Assert(nil, err)
 	Log.Debugf("%s", string(b))
 
-	var ackos base.ApiCtrlKickOutSession
-	b, err = httpPost(fmt.Sprintf("http://%s/api/ctrl/kick_out_session", addr), &ackos)
+	var ackos base.ApiCtrlKickSession
+	b, err = httpPost(fmt.Sprintf("http://%s/api/ctrl/kick_session", addr), &ackos)
 	Log.Assert(nil, err)
 	Log.Debugf("%s", string(b))
 }

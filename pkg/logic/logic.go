@@ -39,9 +39,9 @@ type ILalServer interface {
 	StatLalInfo() base.LalInfo
 	StatAllGroup() (sgs []base.StatGroup)
 	StatGroup(streamName string) *base.StatGroup
-	CtrlStartRelayPull(info base.ApiCtrlStartRelayPullReq) (string, error)
+	CtrlStartRelayPull(info base.ApiCtrlStartRelayPullReq) base.ApiCtrlStartRelayPull
 	CtrlStopRelayPull(streamName string) base.ApiCtrlStopRelayPull
-	CtrlKickOutSession(info base.ApiCtrlKickOutSession) base.HttpResponseBasic
+	CtrlKickSession(info base.ApiCtrlKickSession) base.HttpResponseBasic
 }
 
 // NewLalServer 创建一个lal server

@@ -232,19 +232,27 @@ func (group *Group) GetStat(maxsub int) base.StatGroup {
 	return group.stat
 }
 
-func (group *Group) KickOutSession(sessionId string) bool {
+func (group *Group) KickSession(sessionId string) bool {
 	group.mutex.Lock()
 	defer group.mutex.Unlock()
 
 	Log.Infof("[%s] kick out session. session id=%s", group.UniqueKey, sessionId)
 
 	if strings.HasPrefix(sessionId, base.UkPreRtmpServerSession) {
-		if group.rtmpPubSession != nil {
+		if group.rtmpPubSession != nil && group.rtmpPubSession.UniqueKey() == sessionId {
 			group.rtmpPubSession.Dispose()
 			return true
 		}
+		for s := range group.rtmpSubSessionSet {
+			if s.UniqueKey() == sessionId {
+				s.Dispose()
+				return true
+			}
+		}
+	} else if strings.HasPrefix(sessionId, base.UkPreRtmpPullSession) || strings.HasPrefix(sessionId, base.UkPreRtspPullSession) {
+		return group.kickPull(sessionId)
 	} else if strings.HasPrefix(sessionId, base.UkPreRtspPubSession) {
-		if group.rtspPubSession != nil {
+		if group.rtspPubSession != nil && group.rtspPubSession.UniqueKey() == sessionId {
 			group.rtspPubSession.Dispose()
 			return true
 		}
@@ -271,16 +279,16 @@ func (group *Group) KickOutSession(sessionId string) bool {
 			}
 		}
 	} else {
-		Log.Errorf("[%s] kick out session while session id format invalid. %s", group.UniqueKey, sessionId)
+		Log.Errorf("[%s] kick session while session id format invalid. %s", group.UniqueKey, sessionId)
 	}
 
 	return false
 }
 
-func (group *Group) IsTotalEmpty() bool {
+func (group *Group) IsInactive() bool {
 	group.mutex.Lock()
 	defer group.mutex.Unlock()
-	return group.isTotalEmpty()
+	return group.isTotalEmpty() && !group.isPullModuleAlive()
 }
 
 func (group *Group) HasInSession() bool {

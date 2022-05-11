@@ -12,6 +12,7 @@ import (
 	"fmt"
 	"github.com/q191201771/lal/pkg/base"
 	"github.com/q191201771/lal/pkg/rtsp"
+	"github.com/q191201771/naza/pkg/nazalog"
 	"strings"
 	"time"
 
@@ -38,6 +39,9 @@ func (group *Group) StartPull(info base.ApiCtrlStartRelayPullReq) (string, error
 // @return 如果PullSession存在，返回它的unique key
 //
 func (group *Group) StopPull() string {
+	group.mutex.Lock()
+	defer group.mutex.Unlock()
+
 	group.pullProxy.apiEnable = false
 	return group.stopPull()
 }
@@ -60,7 +64,8 @@ type pullProxy struct {
 	rtspSession      *rtsp.PullSession
 }
 
-// 根据配置文件中的静态回源配置来初始化回源设置
+// initRelayPullByConfig 根据配置文件中的静态回源配置来初始化回源设置
+//
 func (group *Group) initRelayPullByConfig() {
 	const (
 		staticRelayPullTimeoutMs                = 5000 //
@@ -73,7 +78,9 @@ func (group *Group) initRelayPullByConfig() {
 	appName := group.appName
 	streamName := group.streamName
 
-	group.pullProxy = &pullProxy{}
+	group.pullProxy = &pullProxy{
+		lastHasOutTs: time.Now().UnixNano() / 1e6,
+	}
 
 	var pullUrl string
 	if enable {
@@ -149,6 +156,24 @@ func (group *Group) pullSessionUniqueKey() string {
 	return ""
 }
 
+func (group *Group) isPullModuleAlive() bool {
+	return group.hasPullSession() || group.pullProxy.isSessionPulling || !group.shouldAutoStopPull()
+}
+
+// kickPull
+//
+// @return 返回true，表示找到对应的session，并关闭
+//
+func (group *Group) kickPull(sessionId string) bool {
+	if (group.pullProxy.rtmpSession != nil && group.pullProxy.rtmpSession.UniqueKey() == sessionId) ||
+		(group.pullProxy.rtspSession != nil && group.pullProxy.rtspSession.UniqueKey() == sessionId) {
+		group.pullProxy.apiEnable = false
+		group.stopPull()
+		return true
+	}
+	return false
+}
+
 // 判断是否需要pull从远端拉流至本地，如果需要，则触发pull
 //
 // 当前调用时机：
@@ -162,7 +187,7 @@ func (group *Group) pullIfNeeded() (string, error) {
 	}
 
 	// 如果没有从本地拉流的，就不需要pull了
-	if group.ShouldAutoStop() {
+	if group.shouldAutoStopPull() {
 		return "", nil
 	}
 
@@ -254,35 +279,35 @@ func (group *Group) pullIfNeeded() (string, error) {
 }
 
 func (group *Group) stopPull() string {
-	Log.Infof("[%s] stop pull since no sub session.", group.UniqueKey)
-
 	// 关闭时，清空用于重试的计数
 	group.pullProxy.startCount = 0
 
 	if group.pullProxy.rtmpSession != nil {
+		Log.Infof("[%s] stop pull session.", group.UniqueKey)
 		group.pullProxy.rtmpSession.Dispose()
-		return group.pullProxy.rtspSession.UniqueKey()
+		return group.pullProxy.rtmpSession.UniqueKey()
 	}
 	if group.pullProxy.rtspSession != nil {
+		Log.Infof("[%s] stop pull session.", group.UniqueKey)
 		group.pullProxy.rtspSession.Dispose()
-		return group.pullProxy.rtmpSession.UniqueKey()
+		return group.pullProxy.rtspSession.UniqueKey()
 	}
 	return ""
 }
 
 func (group *Group) tickPullModule() {
 	if group.hasSubSession() {
-		group.pullProxy.lastHasOutTs = time.Now().Unix()
+		group.pullProxy.lastHasOutTs = time.Now().UnixNano() / 1e6
 	}
 
-	if group.ShouldAutoStop() {
+	if group.shouldAutoStopPull() {
 		group.stopPull()
 	} else {
 		group.pullIfNeeded()
 	}
 }
 
-func (group *Group) ShouldAutoStop() bool {
+func (group *Group) shouldAutoStopPull() bool {
 	if group.pullProxy.autoStopPullAfterNoOutMs < 0 {
 		return false
 	} else if group.pullProxy.autoStopPullAfterNoOutMs == 0 {
@@ -291,6 +316,7 @@ func (group *Group) ShouldAutoStop() bool {
 		if group.hasOutSession() {
 			return false
 		}
-		return time.Now().Unix()-group.pullProxy.lastHasOutTs >= int64(group.pullProxy.autoStopPullAfterNoOutMs)
+		nazalog.Debugf("%d %d %d", group.pullProxy.lastHasOutTs, time.Now().UnixNano(), group.pullProxy.autoStopPullAfterNoOutMs)
+		return group.pullProxy.lastHasOutTs != -1 && time.Now().UnixNano()/1e6-group.pullProxy.lastHasOutTs >= int64(group.pullProxy.autoStopPullAfterNoOutMs)
 	}
 }
