@@ -10,6 +10,7 @@ package rtmp
 
 import (
 	"context"
+	"crypto/tls"
 	"encoding/hex"
 	"fmt"
 	"net"
@@ -79,7 +80,7 @@ var defaultClientSessOption = ClientSessionOption{
 	ReadBufSize:          0,
 	WriteBufSize:         0,
 	WriteChanSize:        0,
-	HandshakeComplexFlag: false,
+	HandshakeComplexFlag: true,
 }
 
 type ModClientSessionOption func(option *ClientSessionOption)
@@ -306,8 +307,19 @@ func (s *ClientSession) tcpConnect() error {
 	s.stat.RemoteAddr = s.urlCtx.HostWithPort
 
 	var conn net.Conn
-	if conn, err = net.Dial("tcp", s.urlCtx.HostWithPort); err != nil {
-		return err
+	if s.urlCtx.Scheme == "rtmps" {
+		// rtmps跳过证书认证
+		conf := &tls.Config{
+			InsecureSkipVerify: true,
+		}
+
+		if conn, err = tls.Dial("tcp", s.urlCtx.HostWithPort, conf); err != nil {
+			return err
+		}
+	} else {
+		if conn, err = net.Dial("tcp", s.urlCtx.HostWithPort); err != nil {
+			return err
+		}
 	}
 
 	s.conn = connection.New(conn, func(option *connection.Option) {
