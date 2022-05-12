@@ -11,6 +11,7 @@ package hls
 import (
 	"bytes"
 	"fmt"
+	"os"
 
 	"github.com/q191201771/naza/pkg/nazaerrors"
 
@@ -36,7 +37,8 @@ type MuxerConfig struct {
 	FragmentDurationMs int    `json:"fragment_duration_ms"`
 	FragmentNum        int    `json:"fragment_num"`
 	DeleteThreshold    int    `json:"delete_threshold"`
-	CleanupMode        int    `json:"cleanup_mode"` // TODO chef: lalserver的模式1的逻辑是在上层做的，应该重构到hls模块中
+	CleanupMode        int    `json:"cleanup_mode"`  // TODO chef: lalserver的模式1的逻辑是在上层做的，应该重构到hls模块中
+	RecordNumber       int    `json:"record_number"` // TODO chef: 当CleanupMode为模式0或是模式1时，保留record.m3u8中文件的数量，0为全部保留
 }
 
 const (
@@ -364,6 +366,66 @@ func (m *Muxer) writeRecordPlaylist() {
 
 		content = append(content, []byte(fragLines)...)
 		content = append(content, []byte("#EXT-X-ENDLIST\n")...)
+
+		// 删除多余的ts文件
+		if m.config.RecordNumber > 0 {
+			n := 0 // content中换行符的个数
+			contentlength := len(content)
+			offset := bytes.Index(content, []byte("#EXT-X-DISCONTINUITY\n")) + 21
+			for i := offset; i < contentlength; i++ {
+				if content[i] == '\n' {
+					n++
+				}
+			}
+			tsnumber := (n - 1) / 2
+			if tsnumber > m.config.RecordNumber {
+				firstn := 0  // 第一个换行符的位置
+				secondn := 0 // 第二个换行符的位置
+				for i := offset; i < contentlength; i++ {
+					if content[i] == '\n' {
+						if firstn == 0 {
+							firstn = i
+						} else if secondn == 0 {
+							secondn = i
+							break
+						} else {
+							break
+						}
+					}
+				}
+
+				removefile := m.outPath + "/" + string(content[firstn+1:secondn])
+				os.Remove(removefile)
+				copy(content[offset-1:], content[secondn:])
+				content = content[:contentlength-secondn+offset-1]
+				contentlength := len(content)
+
+				dotpos := bytes.Index(content[offset:], []byte(".ts\n"))
+				hpos := 0
+				for i := offset + dotpos; i >= 0; i-- {
+					if content[i] == '-' {
+						hpos = i
+						break
+					}
+				}
+				sequence := content[hpos+1 : offset+dotpos]
+				sequencelength := offset + dotpos - hpos + 1
+
+				offset = bytes.Index(content, []byte("#EXT-X-MEDIA-SEQUENCE:")) + 22 // 寻找sequence值的位置
+				for i := offset; i < contentlength; i++ {                            // 寻找sequence值后面的换行符位置
+					if content[i] == '\n' {
+						n = i
+						break
+					}
+				}
+
+				newcontent := make([]byte, offset+sequencelength+contentlength-n)
+				copy(newcontent, content[:offset])
+				copy(newcontent[offset:], sequence)
+				copy(newcontent[offset+sequencelength:], content[n:])
+				content = newcontent
+			}
+		}
 	} else {
 		// m3u8文件不存在
 		var buf bytes.Buffer
