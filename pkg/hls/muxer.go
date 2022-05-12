@@ -12,6 +12,8 @@ import (
 	"bytes"
 	"fmt"
 	"os"
+	"strconv"
+	"time"
 
 	"github.com/q191201771/naza/pkg/nazaerrors"
 
@@ -38,13 +40,14 @@ type MuxerConfig struct {
 	FragmentNum        int    `json:"fragment_num"`
 	DeleteThreshold    int    `json:"delete_threshold"`
 	CleanupMode        int    `json:"cleanup_mode"`  // TODO chef: lalserver的模式1的逻辑是在上层做的，应该重构到hls模块中
-	RecordNumber       int    `json:"record_number"` // TODO chef: 当CleanupMode为模式0或是模式1时，保留record.m3u8中文件的数量，0为全部保留
+	RecordNumber       int    `json:"record_number"` // TODO chef: 当CleanupMode为模式0、1或是3时，保留record.m3u8中文件的数量，0为全部保留
 }
 
 const (
-	CleanupModeNever    = 0
-	CleanupModeInTheEnd = 1
-	CleanupModeAsap     = 2
+	CleanupModeNever       = 0
+	CleanupModeInTheEnd    = 1
+	CleanupModeAsap        = 2
+	CleanupModeRecordCycle = 3 // 创建hls目录时除了outpath/streamname，还添加个时间戳，也就是outpath/streamname/timestamp，同时断流时文件夹改名为[开始时间]-[结束时间]
 )
 
 // Muxer
@@ -98,6 +101,9 @@ type fragmentInfo struct {
 func NewMuxer(streamName string, config *MuxerConfig, observer IMuxerObserver) *Muxer {
 	uk := base.GenUkHlsMuxer()
 	op := PathStrategy.GetMuxerOutPath(config.OutPath, streamName)
+	if config.CleanupMode == CleanupModeRecordCycle {
+		op = op + "/" + strconv.FormatInt(time.Now().Unix(), 10)
+	}
 	playlistFilename := PathStrategy.GetLiveM3u8FileName(op, streamName)
 	recordPlaylistFilename := PathStrategy.GetRecordM3u8FileName(op, streamName)
 	playlistFilenameBak := fmt.Sprintf("%s.bak", playlistFilename)
@@ -127,6 +133,12 @@ func (m *Muxer) Dispose() {
 	Log.Infof("[%s] lifecycle dispose hls muxer.", m.UniqueKey)
 	if err := m.closeFragment(true); err != nil {
 		Log.Errorf("[%s] close fragment error. err=%+v", m.UniqueKey, err)
+		return
+	}
+	if m.config.CleanupMode == CleanupModeRecordCycle {
+		outpath := m.outPath
+		newoutpath := outpath + "-" + strconv.FormatInt(time.Now().Unix(), 10)
+		os.Rename(outpath, newoutpath)
 	}
 }
 
@@ -323,11 +335,12 @@ func (m *Muxer) closeFragment(isLast bool) error {
 
 	m.writePlaylist(isLast)
 
-	if m.config.CleanupMode == CleanupModeNever || m.config.CleanupMode == CleanupModeInTheEnd {
+	cleanupmode := m.config.CleanupMode
+	if cleanupmode == CleanupModeNever || cleanupmode == CleanupModeInTheEnd || cleanupmode == CleanupModeRecordCycle {
 		m.writeRecordPlaylist()
 	}
 
-	if m.config.CleanupMode == CleanupModeAsap {
+	if cleanupmode == CleanupModeAsap {
 		frag := m.getDeleteFrag()
 		if frag.filename != "" {
 			filenameWithPath := PathStrategy.GetTsFileNameWithPath(m.outPath, frag.filename)
