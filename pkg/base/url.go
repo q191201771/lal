@@ -53,7 +53,7 @@ type UrlContext struct {
 	Path                string
 	PathWithoutLastItem string // 注意，没有前面的'/'，也没有后面的'/'
 	LastItemOfPath      string // 注意，没有前面的'/'
-	RawQuery            string
+	RawQuery            string // 参数
 
 	RawUrlWithoutUserInfo string
 
@@ -183,7 +183,8 @@ func ParseRtspUrl(rawUrl string) (ctx UrlContext, err error) {
 	if err != nil {
 		return
 	}
-	if ctx.Scheme != "rtsp" || ctx.Host == "" || ctx.Path == "" {
+	// 注意，存在一种情况，使用rtsp pull session，直接拉取没有url path的流，所以不检查ctx.Path
+	if ctx.Scheme != "rtsp" || ctx.Host == "" {
 		return ctx, fmt.Errorf("%w. url=%s", ErrInvalidUrl, rawUrl)
 	}
 

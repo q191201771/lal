@@ -200,15 +200,13 @@ func entry() {
 		rtmpPullSession = rtmp.NewPullSession(func(option *rtmp.PullSessionOption) {
 			option.ReadAvTimeoutMs = 10000
 			option.ReadBufSize = 0
+		}).WithOnReadRtmpAvMsg(func(msg base.RtmpMsg) {
+			tag := remux.RtmpMsg2FlvTag(msg)
+			err := rtmpWriter.WriteTag(*tag)
+			assert.Equal(t, nil, err)
+			rtmpPullTagCount.Increment()
 		})
-		err := rtmpPullSession.Pull(
-			rtmpPullUrl,
-			func(msg base.RtmpMsg) {
-				tag := remux.RtmpMsg2FlvTag(msg)
-				err := rtmpWriter.WriteTag(*tag)
-				assert.Equal(t, nil, err)
-				rtmpPullTagCount.Increment()
-			})
+		err := rtmpPullSession.Pull(rtmpPullUrl)
 		Log.Assert(nil, err)
 		err = <-rtmpPullSession.WaitChan()
 		Log.Debug(err)
@@ -357,10 +355,6 @@ func getAllHttpApi(addr string) {
 	var b []byte
 	var err error
 
-	b, err = httpGet(fmt.Sprintf("http://%s/api/list", addr))
-	Log.Assert(nil, err)
-	Log.Debugf("%s", string(b))
-
 	b, err = httpGet(fmt.Sprintf("http://%s/api/stat/lal_info", addr))
 	Log.Assert(nil, err)
 	Log.Debugf("%s", string(b))
@@ -373,13 +367,13 @@ func getAllHttpApi(addr string) {
 	Log.Assert(nil, err)
 	Log.Debugf("%s", string(b))
 
-	var acspr base.ApiCtrlStartPullReq
-	b, err = httpPost(fmt.Sprintf("http://%s/api/ctrl/start_pull", addr), &acspr)
+	var acspr base.ApiCtrlStartRelayPullReq
+	b, err = httpPost(fmt.Sprintf("http://%s/api/ctrl/start_relay_pull", addr), &acspr)
 	Log.Assert(nil, err)
 	Log.Debugf("%s", string(b))
 
-	var ackos base.ApiCtrlKickOutSession
-	b, err = httpPost(fmt.Sprintf("http://%s/api/ctrl/kick_out_session", addr), &ackos)
+	var ackos base.ApiCtrlKickSession
+	b, err = httpPost(fmt.Sprintf("http://%s/api/ctrl/kick_session", addr), &ackos)
 	Log.Assert(nil, err)
 	Log.Debugf("%s", string(b))
 }

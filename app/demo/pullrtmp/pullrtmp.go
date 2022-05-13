@@ -11,14 +11,13 @@ package main
 import (
 	"flag"
 	"fmt"
+	"github.com/q191201771/lal/pkg/remux"
 	"os"
 	"strconv"
 	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
-
-	"github.com/q191201771/lal/pkg/remux"
 
 	"github.com/q191201771/lal/pkg/base"
 
@@ -97,15 +96,15 @@ func pull(url string, filename string) {
 		option.PullTimeoutMs = 10000
 		option.ReadAvTimeoutMs = 10000
 		option.ReadBufSize = 0
-	})
-
-	err = session.Pull(url, func(msg base.RtmpMsg) {
+	}).WithOnReadRtmpAvMsg(func(msg base.RtmpMsg) {
 		if filename != "" {
 			tag := remux.RtmpMsg2FlvTag(msg)
 			err := w.WriteTag(*tag)
 			nazalog.Assert(nil, err)
 		}
 	})
+
+	err = session.Pull(url)
 	if err != nil {
 		nazalog.Errorf("pull failed. err=%+v", err)
 		return

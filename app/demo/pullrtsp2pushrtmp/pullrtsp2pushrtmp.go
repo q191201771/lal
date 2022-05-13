@@ -84,8 +84,8 @@ func parseFlag() (inUrl string, outUrl string, overTcp int) {
 	if *i == "" || *o == "" {
 		flag.Usage()
 		_, _ = fmt.Fprintf(os.Stderr, `Example:
-  %s -i rtsp://localhost:5544/live/test110 -o rtmp://localhost:19350/live/test220 -t 0
-  %s -i rtsp://localhost:5544/live/test110 -o rtmp://localhost:19350/live/test220 -t 1
+  %s -i rtsp://localhost:5544/live/test110 -o rtmp://localhost:1935/live/test220 -t 0
+  %s -i rtsp://localhost:5544/live/test110 -o rtmp://localhost:1935/live/test220 -t 1
 `, os.Args[0], os.Args[0])
 		base.OsExitAndWaitPressIfWindows(1)
 	}

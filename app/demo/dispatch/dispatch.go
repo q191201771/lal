@@ -147,13 +147,15 @@ func OnSubStartHandler(w http.ResponseWriter, r *http.Request) {
 	nazalog.Assert(true, exist)
 
 	// 向汇报节点，发送pull级联拉流的命令，其中包含pub所在节点信息
-	url := fmt.Sprintf("http://%s/api/ctrl/start_pull", reqServer.ApiAddr)
-	var b base.ApiCtrlStartPullReq
-	b.Protocol = base.ProtocolRtmp
-	b.Addr = pubServer.RtmpAddr
-	b.AppName = info.AppName
-	b.StreamName = info.StreamName
-	b.UrlParam = config.PullSecretParam
+	// TODO(chef): 还没有测试新的接口start_relay_pull，只是保证可以编译通过
+	url := fmt.Sprintf("http://%s/api/ctrl/start_relay_pull", reqServer.ApiAddr)
+	var b base.ApiCtrlStartRelayPullReq
+	b.Url = fmt.Sprintf("%s://%s/%s/%s?%s", base.ProtocolRtmp, pubServer.RtmpAddr, info.AppName, info.StreamName, config.PullSecretParam)
+	//b.Protocol = base.ProtocolRtmp
+	//b.Addr = pubServer.RtmpAddr
+	//b.AppName = info.AppName
+	//b.StreamName = info.StreamName
+	//b.UrlParam = config.PullSecretParam
 
 	nazalog.Infof("[%s] ctrl pull. send to %s with %+v", id, reqServer.ApiAddr, b)
 	if _, err := nazahttp.PostJson(url, b, nil); err != nil {

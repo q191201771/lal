@@ -26,6 +26,9 @@ import (
 
 type IGroupObserver interface {
 	CleanupHlsIfNeeded(appName string, streamName string, path string)
+
+	OnRelayPullStart(info base.PullStartInfo) // TODO(chef): refactor me
+	OnRelayPullStop(info base.PullStopInfo)
 }
 
 type Group struct {
@@ -46,9 +49,7 @@ type Group struct {
 	rtmp2RtspRemuxer    *remux.Rtmp2RtspRemuxer
 	rtmp2MpegtsRemuxer  *remux.Rtmp2MpegtsRemuxer
 	// pull
-	pullEnable bool
-	pullUrl    string
-	pullProxy  *pullProxy
+	pullProxy *pullProxy
 	// rtmp pub使用
 	dummyAudioFilter *remux.DummyAudioFilter
 	// rtmp sub使用
@@ -100,11 +101,10 @@ func NewGroup(appName string, streamName string, config *Config, observer IGroup
 		rtmpGopCache:         remux.NewGopCache("rtmp", uk, config.RtmpConfig.GopNum),
 		httpflvGopCache:      remux.NewGopCache("httpflv", uk, config.HttpflvConfig.GopNum),
 		httptsGopCache:       remux.NewGopCacheMpegts(uk, config.HttptsConfig.GopNum),
-		pullProxy:            &pullProxy{},
 	}
 
-	g.initRelayPush()
-	g.initRelayPull()
+	g.initRelayPushByConfig()
+	g.initRelayPullByConfig()
 
 	if config.RtmpConfig.MergeWriteSize > 0 {
 		g.rtmpMergeWriter = base.NewMergeWriter(g.writev2RtmpSubSessions, config.RtmpConfig.MergeWriteSize)
@@ -126,8 +126,7 @@ func (group *Group) Tick(tickCount uint32) {
 	group.mutex.Lock()
 	defer group.mutex.Unlock()
 
-	group.stopPullIfNeeded()
-	group.pullIfNeeded()
+	group.tickPullModule()
 	group.startPushIfNeeded()
 
 	// 定时关闭没有数据的session
@@ -200,9 +199,7 @@ func (group *Group) GetStat(maxsub int) base.StatGroup {
 		group.stat.StatPub = base.StatPub{}
 	}
 
-	if group.pullProxy.pullSession != nil {
-		group.stat.StatPull = base.StatSession2Pull(group.pullProxy.pullSession.GetStat())
-	}
+	group.stat.StatPull = group.getStatPull()
 
 	group.stat.StatSubs = nil
 	var statSubCount int
@@ -238,19 +235,27 @@ func (group *Group) GetStat(maxsub int) base.StatGroup {
 	return group.stat
 }
 
-func (group *Group) KickOutSession(sessionId string) bool {
+func (group *Group) KickSession(sessionId string) bool {
 	group.mutex.Lock()
 	defer group.mutex.Unlock()
 
 	Log.Infof("[%s] kick out session. session id=%s", group.UniqueKey, sessionId)
 
 	if strings.HasPrefix(sessionId, base.UkPreRtmpServerSession) {
-		if group.rtmpPubSession != nil {
+		if group.rtmpPubSession != nil && group.rtmpPubSession.UniqueKey() == sessionId {
 			group.rtmpPubSession.Dispose()
 			return true
 		}
+		for s := range group.rtmpSubSessionSet {
+			if s.UniqueKey() == sessionId {
+				s.Dispose()
+				return true
+			}
+		}
+	} else if strings.HasPrefix(sessionId, base.UkPreRtmpPullSession) || strings.HasPrefix(sessionId, base.UkPreRtspPullSession) {
+		return group.kickPull(sessionId)
 	} else if strings.HasPrefix(sessionId, base.UkPreRtspPubSession) {
-		if group.rtspPubSession != nil {
+		if group.rtspPubSession != nil && group.rtspPubSession.UniqueKey() == sessionId {
 			group.rtspPubSession.Dispose()
 			return true
 		}
@@ -277,16 +282,16 @@ func (group *Group) KickOutSession(sessionId string) bool {
 			}
 		}
 	} else {
-		Log.Errorf("[%s] kick out session while session id format invalid. %s", group.UniqueKey, sessionId)
+		Log.Errorf("[%s] kick session while session id format invalid. %s", group.UniqueKey, sessionId)
 	}
 
 	return false
 }
 
-func (group *Group) IsTotalEmpty() bool {
+func (group *Group) IsInactive() bool {
 	group.mutex.Lock()
 	defer group.mutex.Unlock()
-	return group.isTotalEmpty()
+	return group.isTotalEmpty() && !group.isPullModuleAlive()
 }
 
 func (group *Group) HasInSession() bool {
@@ -299,6 +304,21 @@ func (group *Group) HasOutSession() bool {
 	group.mutex.Lock()
 	defer group.mutex.Unlock()
 	return group.hasOutSession()
+}
+
+func (group *Group) OutSessionNum() int {
+	// TODO(chef): 没有包含hls的播放者
+
+	group.mutex.Lock()
+	defer group.mutex.Unlock()
+
+	pushNum := 0
+	for _, item := range group.url2PushProxy {
+		if item.isPushing || item.pushSession != nil {
+			pushNum++
+		}
+	}
+	return len(group.rtmpSubSessionSet) + len(group.rtspSubSessionSet) + len(group.httpflvSubSessionSet) + len(group.httptsSubSessionSet) + pushNum
 }
 
 // ---------------------------------------------------------------------------------------------------------------------
@@ -320,12 +340,9 @@ func (group *Group) disposeInactiveSessions() {
 			group.rtspPubSession.Dispose()
 		}
 	}
-	if group.pullProxy.pullSession != nil {
-		if readAlive, _ := group.pullProxy.pullSession.IsAlive(); !readAlive {
-			Log.Warnf("[%s] session timeout. session=%s", group.UniqueKey, group.pullProxy.pullSession.UniqueKey())
-			group.pullProxy.pullSession.Dispose()
-		}
-	}
+
+	group.disposeInactivePullSession()
+
 	for session := range group.rtmpSubSessionSet {
 		if _, writeAlive := session.IsAlive(); !writeAlive {
 			Log.Warnf("[%s] session timeout. session=%s", group.UniqueKey, session.UniqueKey())
@@ -370,9 +387,9 @@ func (group *Group) updateAllSessionStat() {
 	if group.rtspPubSession != nil {
 		group.rtspPubSession.UpdateStat(calcSessionStatIntervalSec)
 	}
-	if group.pullProxy.pullSession != nil {
-		group.pullProxy.pullSession.UpdateStat(calcSessionStatIntervalSec)
-	}
+
+	group.updatePullSessionStat()
+
 	for session := range group.rtmpSubSessionSet {
 		session.UpdateStat(calcSessionStatIntervalSec)
 	}
@@ -402,10 +419,6 @@ func (group *Group) hasSubSession() bool {
 		len(group.httpflvSubSessionSet) != 0 ||
 		len(group.httptsSubSessionSet) != 0 ||
 		len(group.rtspSubSessionSet) != 0
-}
-
-func (group *Group) hasPullSession() bool {
-	return group.pullProxy.pullSession != nil
 }
 
 func (group *Group) hasPushSession() bool {
@@ -440,10 +453,7 @@ func (group *Group) inSessionUniqueKey() string {
 	if group.rtspPubSession != nil {
 		return group.rtspPubSession.UniqueKey()
 	}
-	if group.pullProxy.pullSession != nil {
-		return group.pullProxy.pullSession.UniqueKey()
-	}
-	return ""
+	return group.pullSessionUniqueKey()
 }
 
 func (group *Group) shouldStartRtspRemuxer() bool {

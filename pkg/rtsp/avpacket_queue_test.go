@@ -199,14 +199,14 @@ func TestAvPacketQueue(t *testing.T) {
 func a(t uint32) base.AvPacket {
 	return base.AvPacket{
 		PayloadType: base.AvPacketPtAac,
-		Timestamp:   t,
+		Timestamp:   int64(t),
 	}
 }
 
 func v(t uint32) base.AvPacket {
 	return base.AvPacket{
 		PayloadType: base.AvPacketPtAvc,
-		Timestamp:   t,
+		Timestamp:   int64(t),
 	}
 }
 

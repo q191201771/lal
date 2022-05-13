@@ -102,10 +102,10 @@ func main() {
 		nazalog.Info("pull flv succ.")
 		defer httpflvPullSession.Dispose()
 	case PullTypeRtmp:
-		rtmpPullSession = rtmp.NewPullSession()
-		err = rtmpPullSession.Pull(pullUrl, func(msg base.RtmpMsg) {
+		rtmpPullSession = rtmp.NewPullSession().WithOnReadRtmpAvMsg(func(msg base.RtmpMsg) {
 			handleReadPayloadFn(msg.Payload)
 		})
+		err = rtmpPullSession.Pull(pullUrl)
 		if err != nil {
 			nazalog.Fatalf("pull rtmp failed. err=%+v", err)
 		}

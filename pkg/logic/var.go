@@ -15,8 +15,6 @@ var Log = nazalog.GetGlobalLogger()
 var (
 	relayPushTimeoutMs        = 5000
 	relayPushWriteAvTimeoutMs = 5000
-	relayPullTimeoutMs        = 5000
-	relayPullReadAvTimeoutMs  = 5000
 
 	// calcSessionStatIntervalSec 计算所有session收发码率的时间间隔
 	//

@@ -121,6 +121,10 @@ func (msg RtmpMsg) IsAacSeqHeader() bool {
 	return msg.Header.MsgTypeId == RtmpTypeIdAudio && (msg.Payload[0]>>4) == RtmpSoundFormatAac && msg.Payload[1] == RtmpAacPacketTypeSeqHeader
 }
 
+func (msg RtmpMsg) VideoCodecId() uint8 {
+	return msg.Payload[0] & 0xF
+}
+
 func (msg RtmpMsg) Clone() (ret RtmpMsg) {
 	ret.Header = msg.Header
 	ret.Payload = make([]byte, len(msg.Payload))

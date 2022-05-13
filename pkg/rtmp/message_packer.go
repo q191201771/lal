@@ -260,6 +260,14 @@ func (packer *MessagePacker) writePingRequest(writer io.Writer, timestamp uint32
 
 	return packer.ChunkAndWrite(writer, csidProtocolControl, base.RtmpTypeIdUserControl, 0)
 }
+func (packer *MessagePacker) writeAcknowledgement(writer io.Writer, seqNum uint32) error {
+	packer.b.ModWritePos(12)
+
+	// 5
+	_ = bele.WriteBe(packer.b, seqNum)
+
+	return packer.ChunkAndWrite(writer, csidProtocolControl, base.RtmpTypeIdAck, 0)
+}
 
 func (packer *MessagePacker) writePingResponse(writer io.Writer, timestamp uint32) error {
 	packer.b.ModWritePos(12)

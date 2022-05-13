@@ -215,6 +215,7 @@ func TestParseRtmpUrl(t *testing.T) {
 func TestParseRtspUrl(t *testing.T) {
 	golden := map[string]base.UrlContext{
 		// 其他测试见ParseUrl
+		// 密码中有@
 		"rtsp://admin:P!@1988@127.0.0.1:5554/h264/ch33/main/av_stream": {
 			Url:                   "rtsp://admin:P!@1988@127.0.0.1:5554/h264/ch33/main/av_stream",
 			Scheme:                "rtsp",
@@ -230,6 +231,23 @@ func TestParseRtspUrl(t *testing.T) {
 			LastItemOfPath:        "av_stream",
 			RawQuery:              "",
 			RawUrlWithoutUserInfo: "rtsp://127.0.0.1:5554/h264/ch33/main/av_stream",
+		},
+		// 没有url path
+		"rtsp://admin:abd@123@192.168.1.71": {
+			Url:                   "rtsp://admin:abd@123@192.168.1.71",
+			Scheme:                "rtsp",
+			Username:              "admin",
+			Password:              "abd@123",
+			StdHost:               "192.168.1.71",
+			HostWithPort:          "192.168.1.71:554",
+			Host:                  "192.168.1.71",
+			Port:                  554,
+			PathWithRawQuery:      "",
+			Path:                  "",
+			PathWithoutLastItem:   "",
+			LastItemOfPath:        "",
+			RawQuery:              "",
+			RawUrlWithoutUserInfo: "rtsp://192.168.1.71",
 		},
 	}
 	for k, v := range golden {

@@ -16,7 +16,8 @@ import (
 	"github.com/q191201771/lal/pkg/rtmp"
 )
 
-// 检查远端rtmp流是否能正常拉取
+// StreamExist 检查远端rtmp流是否能正常拉取
+//
 func StreamExist(url string) error {
 	const (
 		timeoutMs = 10000
@@ -27,30 +28,31 @@ func StreamExist(url string) error {
 	ctx, cancel := context.WithTimeout(context.Background(), timeoutMs*time.Millisecond)
 	defer cancel()
 
-	s := rtmp.NewPullSession()
+	// 有的场景只有音频没有视频，所以我们不检查视频
+	var hasNotify bool
+	var readMetadata bool
+	var readAudio bool
+	s := rtmp.NewPullSession().WithOnReadRtmpAvMsg(func(msg base.RtmpMsg) {
+		if hasNotify {
+			return
+		}
+
+		switch msg.Header.MsgTypeId {
+		case base.RtmpTypeIdMetadata:
+			readMetadata = true
+		case base.RtmpTypeIdAudio:
+			readAudio = true
+		}
+		if readMetadata && readAudio {
+			hasNotify = true
+			errChan <- nil
+		}
+	})
+
 	defer s.Dispose()
 
 	go func() {
-		// 有的场景只有音频没有视频，所以我们不检查视频
-		var hasNotify bool
-		var readMetadata bool
-		var readAudio bool
-		err := s.Pull(url, func(msg base.RtmpMsg) {
-			if hasNotify {
-				return
-			}
-
-			switch msg.Header.MsgTypeId {
-			case base.RtmpTypeIdMetadata:
-				readMetadata = true
-			case base.RtmpTypeIdAudio:
-				readAudio = true
-			}
-			if readMetadata && readAudio {
-				hasNotify = true
-				errChan <- nil
-			}
-		})
+		err := s.Pull(url)
 		if err != nil {
 			errChan <- err
 		}

@@ -178,7 +178,7 @@ func (r *Rtmp2RtspRemuxer) remux(msg base.RtmpMsg) {
 		packer = r.getAudioPacker()
 		if packer != nil {
 			rtppkts = packer.Pack(base.AvPacket{
-				Timestamp:   msg.Header.TimestampAbs,
+				Timestamp:   int64(msg.Header.TimestampAbs),
 				PayloadType: r.audioPt,
 				Payload:     msg.Payload[2:],
 			})
@@ -187,7 +187,7 @@ func (r *Rtmp2RtspRemuxer) remux(msg base.RtmpMsg) {
 		packer = r.getVideoPacker()
 		if packer != nil {
 			rtppkts = r.getVideoPacker().Pack(base.AvPacket{
-				Timestamp:   msg.Header.TimestampAbs,
+				Timestamp:   int64(msg.Header.TimestampAbs),
 				PayloadType: r.videoPt,
 				Payload:     msg.Payload[5:],
 			})

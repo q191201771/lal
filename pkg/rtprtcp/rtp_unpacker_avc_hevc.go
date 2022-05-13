@@ -48,7 +48,7 @@ func (unpacker *RtpUnpackerAvcHevc) TryUnpackOne(list *RtpPacketList) (unpackedF
 	case PositionTypeSingle:
 		var pkt base.AvPacket
 		pkt.PayloadType = unpacker.payloadType
-		pkt.Timestamp = first.Packet.Header.Timestamp / uint32(unpacker.clockRate/1000)
+		pkt.Timestamp = int64(first.Packet.Header.Timestamp / uint32(unpacker.clockRate/1000))
 
 		pkt.Payload = make([]byte, len(first.Packet.Raw)-int(first.Packet.Header.payloadOffset)+4)
 		bele.BePutUint32(pkt.Payload, uint32(len(first.Packet.Raw))-first.Packet.Header.payloadOffset)
@@ -62,7 +62,7 @@ func (unpacker *RtpUnpackerAvcHevc) TryUnpackOne(list *RtpPacketList) (unpackedF
 	case PositionTypeStapa:
 		var pkt base.AvPacket
 		pkt.PayloadType = unpacker.payloadType
-		pkt.Timestamp = first.Packet.Header.Timestamp / uint32(unpacker.clockRate/1000)
+		pkt.Timestamp = int64(first.Packet.Header.Timestamp / uint32(unpacker.clockRate/1000))
 
 		// 跳过首字节，并且将多nalu前的2字节长度，替换成4字节长度
 		buf := first.Packet.Raw[first.Packet.Header.payloadOffset+1:]
@@ -113,7 +113,7 @@ func (unpacker *RtpUnpackerAvcHevc) TryUnpackOne(list *RtpPacketList) (unpackedF
 			} else if p.Packet.positionType == PositionTypeFuaEnd {
 				var pkt base.AvPacket
 				pkt.PayloadType = unpacker.payloadType
-				pkt.Timestamp = p.Packet.Header.Timestamp / uint32(unpacker.clockRate/1000)
+				pkt.Timestamp = int64(p.Packet.Header.Timestamp / uint32(unpacker.clockRate/1000))
 
 				var naluTypeLen int
 				var naluType []byte

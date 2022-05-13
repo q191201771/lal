@@ -9,64 +9,190 @@
 package logic
 
 import (
+	"errors"
 	"fmt"
+	"github.com/q191201771/lal/pkg/base"
+	"github.com/q191201771/lal/pkg/rtsp"
+	"github.com/q191201771/naza/pkg/nazalog"
+	"strings"
+	"time"
 
 	"github.com/q191201771/lal/pkg/rtmp"
 )
 
 // StartPull 外部命令主动触发pull拉流
 //
-// 当前调用时机：
-// 1. 比如http api
-//
-func (group *Group) StartPull(url string) {
+func (group *Group) StartPull(info base.ApiCtrlStartRelayPullReq) (string, error) {
 	group.mutex.Lock()
 	defer group.mutex.Unlock()
 
-	group.setPullUrl(true, url)
-	group.pullIfNeeded()
+	group.pullProxy.apiEnable = true
+	group.pullProxy.pullUrl = info.Url
+	group.pullProxy.pullTimeoutMs = info.PullTimeoutMs
+	group.pullProxy.pullRetryNum = info.PullRetryNum
+	group.pullProxy.autoStopPullAfterNoOutMs = info.AutoStopPullAfterNoOutMs
+	group.pullProxy.rtspMode = info.RtspMode
+
+	return group.pullIfNeeded()
+}
+
+// StopPull
+//
+// @return 如果PullSession存在，返回它的unique key
+//
+func (group *Group) StopPull() string {
+	group.mutex.Lock()
+	defer group.mutex.Unlock()
+
+	group.pullProxy.apiEnable = false
+	return group.stopPull()
 }
 
 // ---------------------------------------------------------------------------------------------------------------------
 
 type pullProxy struct {
-	isPulling   bool
-	pullSession *rtmp.PullSession
+	staticRelayPullEnable    bool // 是否开启pull TODO(chef): refactor 这两个bool可以考虑合并成一个
+	apiEnable                bool
+	pullUrl                  string
+	pullTimeoutMs            int
+	pullRetryNum             int
+	autoStopPullAfterNoOutMs int // 没有观看者时，是否自动停止pull
+	rtspMode int
+
+	startCount   int
+	lastHasOutTs int64
+
+	isSessionPulling bool // 是否正在pull，注意，这是一个内部状态，表示的是session的状态，而不是整体任务应该处于的状态
+	rtmpSession      *rtmp.PullSession
+	rtspSession      *rtsp.PullSession
 }
 
-func (group *Group) initRelayPull() {
-	enable := group.config.RelayPullConfig.Enable
-	addr := group.config.RelayPullConfig.Addr
+// initRelayPullByConfig 根据配置文件中的静态回源配置来初始化回源设置
+//
+func (group *Group) initRelayPullByConfig() {
+	// 注意，这是配置文件中静态回源的配置值，不是HTTP-API的默认值
+	const (
+		staticRelayPullTimeoutMs                = 5000 //
+		staticRelayPullRetryNum                 = base.PullRetryNumForever
+		staticRelayPullAutoStopPullAfterNoOutMs = base.AutoStopPullAfterNoOutMsImmediately
+	)
+
+	enable := group.config.StaticRelayPullConfig.Enable
+	addr := group.config.StaticRelayPullConfig.Addr
 	appName := group.appName
 	streamName := group.streamName
 
-	// 根据配置文件中的静态回源配置来初始化回源设置
+	group.pullProxy = &pullProxy{
+		startCount:0,
+		lastHasOutTs: time.Now().UnixNano() / 1e6,
+	}
+
 	var pullUrl string
 	if enable {
 		pullUrl = fmt.Sprintf("rtmp://%s/%s/%s", addr, appName, streamName)
 	}
-	group.setPullUrl(enable, pullUrl)
+
+	group.pullProxy.pullUrl = pullUrl
+	group.pullProxy.staticRelayPullEnable = enable
+	group.pullProxy.pullTimeoutMs = staticRelayPullTimeoutMs
+	group.pullProxy.pullRetryNum = staticRelayPullRetryNum
+	group.pullProxy.autoStopPullAfterNoOutMs = staticRelayPullAutoStopPullAfterNoOutMs
 }
 
-func (group *Group) isPullEnable() bool {
-	return group.pullEnable
+func (group *Group) setRtmpPullSession(session *rtmp.PullSession) {
+	group.pullProxy.rtmpSession = session
 }
 
-func (group *Group) setPullUrl(enable bool, url string) {
-	group.pullEnable = enable
-	group.pullUrl = url
+func (group *Group) setRtspPullSession(session *rtsp.PullSession) {
+	group.pullProxy.rtspSession = session
 }
 
-func (group *Group) getPullUrl() string {
-	return group.pullUrl
+func (group *Group) resetRelayPullSession() {
+	group.pullProxy.isSessionPulling = false
+	group.pullProxy.rtmpSession = nil
+	group.pullProxy.rtspSession = nil
 }
 
-func (group *Group) setPullingFlag(flag bool) {
-	group.pullProxy.isPulling = flag
+func (group *Group) getStatPull() base.StatPull {
+	if group.pullProxy.rtmpSession != nil {
+		return base.StatSession2Pull(group.pullProxy.rtmpSession.GetStat())
+	}
+	if group.pullProxy.rtspSession != nil {
+		return base.StatSession2Pull(group.pullProxy.rtspSession.GetStat())
+	}
+	return base.StatPull{}
 }
 
-func (group *Group) getPullingFlag() bool {
-	return group.pullProxy.isPulling
+func (group *Group) disposeInactivePullSession() {
+	if group.pullProxy.rtmpSession != nil {
+		if readAlive, _ := group.pullProxy.rtmpSession.IsAlive(); !readAlive {
+			Log.Warnf("[%s] session timeout. session=%s", group.UniqueKey, group.pullProxy.rtmpSession.UniqueKey())
+			group.pullProxy.rtmpSession.Dispose()
+		}
+	}
+	if group.pullProxy.rtspSession != nil {
+		if readAlive, _ := group.pullProxy.rtspSession.IsAlive(); !readAlive {
+			Log.Warnf("[%s] session timeout. session=%s", group.UniqueKey, group.pullProxy.rtspSession.UniqueKey())
+			group.pullProxy.rtspSession.Dispose()
+		}
+	}
+}
+
+func (group *Group) updatePullSessionStat() {
+	if group.pullProxy.rtmpSession != nil {
+		group.pullProxy.rtmpSession.UpdateStat(calcSessionStatIntervalSec)
+	}
+	if group.pullProxy.rtspSession != nil {
+		group.pullProxy.rtspSession.UpdateStat(calcSessionStatIntervalSec)
+	}
+}
+
+func (group *Group) isPullModuleAlive() bool {
+	if group.hasPullSession() || group.pullProxy.isSessionPulling {
+		return true
+	}
+	flag, _ := group.shouldStartPull()
+	return flag
+}
+
+func (group *Group) tickPullModule() {
+	if group.hasSubSession() {
+		group.pullProxy.lastHasOutTs = time.Now().UnixNano() / 1e6
+	}
+
+	if group.shouldAutoStopPull() {
+		group.stopPull()
+	} else {
+		group.pullIfNeeded()
+	}
+}
+
+func (group *Group) hasPullSession() bool {
+	return group.pullProxy.rtmpSession != nil || group.pullProxy.rtspSession != nil
+}
+
+func (group *Group) pullSessionUniqueKey() string {
+	if group.pullProxy.rtmpSession != nil {
+		return group.pullProxy.rtmpSession.UniqueKey()
+	}
+	if group.pullProxy.rtspSession != nil {
+		return group.pullProxy.rtspSession.UniqueKey()
+	}
+	return ""
+}
+
+// kickPull
+//
+// @return 返回true，表示找到对应的session，并关闭
+//
+func (group *Group) kickPull(sessionId string) bool {
+	if (group.pullProxy.rtmpSession != nil && group.pullProxy.rtmpSession.UniqueKey() == sessionId) ||
+		(group.pullProxy.rtspSession != nil && group.pullProxy.rtspSession.UniqueKey() == sessionId) {
+		group.pullProxy.apiEnable = false
+		group.stopPull()
+		return true
+	}
+	return false
 }
 
 // 判断是否需要pull从远端拉流至本地，如果需要，则触发pull
@@ -76,58 +202,150 @@ func (group *Group) getPullingFlag() bool {
 // 2. 外部命令，比如http api
 // 3. 定时器，比如pull的连接断了，通过定时器可以重启触发pull
 //
-func (group *Group) pullIfNeeded() {
-	if !group.isPullEnable() {
-		return
+func (group *Group) pullIfNeeded() (string, error) {
+	if flag, err := group.shouldStartPull(); !flag {
+		return "", err
 	}
-	// 如果没有从本地拉流的，就不需要pull了
-	if !group.hasSubSession() {
-		return
-	}
-	// 如果本地已经有输入型的流，就不需要pull了
-	if group.hasInSession() {
-		return
-	}
-	// 已经在pull中，就不需要pull了
-	if group.getPullingFlag() {
-		return
-	}
-	group.setPullingFlag(true)
 
-	Log.Infof("[%s] start relay pull. url=%s", group.UniqueKey, group.getPullUrl())
+	Log.Infof("[%s] start relay pull. url=%s", group.UniqueKey, group.pullProxy.pullUrl)
 
-	go func() {
-		pullSession := rtmp.NewPullSession(func(option *rtmp.PullSessionOption) {
-			option.PullTimeoutMs = relayPullTimeoutMs
-			option.ReadAvTimeoutMs = relayPullReadAvTimeoutMs
+	group.pullProxy.isSessionPulling = true
+	group.pullProxy.startCount++
+
+	isPullByRtmp := strings.HasPrefix(group.pullProxy.pullUrl, "rtmp")
+
+	var rtmpSession *rtmp.PullSession
+	var rtspSession *rtsp.PullSession
+	var uk string
+
+	if isPullByRtmp {
+		rtmpSession = rtmp.NewPullSession(func(option *rtmp.PullSessionOption) {
+			option.PullTimeoutMs = group.pullProxy.pullTimeoutMs
+		}).WithOnPullSucc(func() {
+			err := group.AddRtmpPullSession(rtmpSession)
+			if err != nil {
+				rtmpSession.Dispose()
+				return
+			}
+		}).WithOnReadRtmpAvMsg(group.OnReadRtmpAvMsg)
+
+		uk = rtmpSession.UniqueKey()
+	} else {
+		rtspSession = rtsp.NewPullSession(group, func(option *rtsp.PullSessionOption) {
+			option.PullTimeoutMs = group.pullProxy.pullTimeoutMs
+			option.OverTcp = group.pullProxy.rtspMode == 0
+		}).WithOnDescribeResponse(func() {
+			err := group.AddRtspPullSession(rtspSession)
+			if err != nil {
+				rtspSession.Dispose()
+				return
+			}
 		})
-		// TODO(chef): 处理数据回调，是否应该等待Add成功之后。避免竞态条件中途加入了其他in session
-		err := pullSession.Pull(group.getPullUrl(), group.OnReadRtmpAvMsg)
-		if err != nil {
-			Log.Errorf("[%s] relay pull fail. err=%v", pullSession.UniqueKey(), err)
-			group.DelRtmpPullSession(pullSession)
+
+		uk = rtspSession.UniqueKey()
+	}
+
+	go func(rtPullUrl string, rtIsPullByRtmp bool, rtRtmpSession *rtmp.PullSession, rtRtspSession *rtsp.PullSession) {
+		if rtIsPullByRtmp {
+			// TODO(chef): 处理数据回调，是否应该等待Add成功之后。避免竞态条件中途加入了其他in session
+			err := rtRtmpSession.Pull(rtPullUrl)
+			if err != nil {
+				Log.Errorf("[%s] relay pull fail. err=%v", rtRtmpSession.UniqueKey(), err)
+				group.DelRtmpPullSession(rtRtmpSession)
+				return
+			}
+
+			err = <-rtRtmpSession.WaitChan()
+			Log.Infof("[%s] relay pull done. err=%v", rtRtmpSession.UniqueKey(), err)
+			group.DelRtmpPullSession(rtRtmpSession)
 			return
 		}
-		res := group.AddRtmpPullSession(pullSession)
-		if res {
-			err = <-pullSession.WaitChan()
-			Log.Infof("[%s] relay pull done. err=%v", pullSession.UniqueKey(), err)
-			group.DelRtmpPullSession(pullSession)
-		} else {
-			pullSession.Dispose()
+
+		err := rtRtspSession.Pull(rtPullUrl)
+		if err != nil {
+			Log.Errorf("[%s] relay pull fail. err=%v", rtRtspSession.UniqueKey(), err)
+			group.DelRtspPullSession(rtRtspSession)
+			return
 		}
-	}()
+
+		err = <-rtRtspSession.WaitChan()
+		Log.Infof("[%s] relay pull done. err=%v", rtRtspSession.UniqueKey(), err)
+		group.DelRtspPullSession(rtRtspSession)
+		return
+	}(group.pullProxy.pullUrl, isPullByRtmp, rtmpSession, rtspSession)
+
+	return uk, nil
 }
 
-// 判断是否需要停止pull
-//
-// 当前调用时机：
-// 1. 定时器定时检查
-//
-func (group *Group) stopPullIfNeeded() {
-	// 没有输出型的流了
-	if group.pullProxy.pullSession != nil && !group.hasSubSession() {
-		Log.Infof("[%s] stop pull since no sub session.", group.UniqueKey)
-		group.pullProxy.pullSession.Dispose()
+func (group *Group) stopPull() string {
+	// 关闭时，清空用于重试的计数
+	group.pullProxy.startCount = 0
+
+	if group.pullProxy.rtmpSession != nil {
+		Log.Infof("[%s] stop pull session.", group.UniqueKey)
+		group.pullProxy.rtmpSession.Dispose()
+		return group.pullProxy.rtmpSession.UniqueKey()
 	}
+	if group.pullProxy.rtspSession != nil {
+		Log.Infof("[%s] stop pull session.", group.UniqueKey)
+		group.pullProxy.rtspSession.Dispose()
+		return group.pullProxy.rtspSession.UniqueKey()
+	}
+	return ""
+}
+
+
+func (group *Group) shouldStartPull() (bool, error) {
+	// 如果本地已经有输入型的流，就不需要pull了
+	if group.hasInSession() {
+		return false, base.ErrDupInStream
+	}
+
+	// 已经在pull中，就不需要pull了
+	if group.pullProxy.isSessionPulling {
+		return false, base.ErrDupInStream
+	}
+
+	if !group.pullProxy.staticRelayPullEnable && !group.pullProxy.apiEnable {
+		return false, errors.New("relay pull not enable")
+	}
+
+	// 没人观看自动停的逻辑，是否满足并且需要触发
+	if group.shouldAutoStopPull() {
+		return false, errors.New("should auto stop pull")
+	}
+
+	// 检查重试次数
+	if group.pullProxy.pullRetryNum >= 0 {
+		if group.pullProxy.startCount > group.pullProxy.pullRetryNum {
+			return false, errors.New("relay pull retry limited")
+		}
+	} else {
+		// 负数永远都重试
+	}
+
+	return true, nil
+}
+
+// shouldAutoStopPull 是否需要自动停，根据没人观看停的逻辑
+//
+func (group *Group) shouldAutoStopPull() bool {
+	// 没开启
+	if group.pullProxy.autoStopPullAfterNoOutMs < 0 {
+		return false
+	}
+
+	// 还有观众
+	if group.hasOutSession() {
+		return false
+	}
+
+	// 没有观众，并且设置为立即关闭
+	if group.pullProxy.autoStopPullAfterNoOutMs == 0 {
+		return true
+	}
+
+	// 是否达到时间阈值
+	nazalog.Debugf("%d %d %d", group.pullProxy.lastHasOutTs, time.Now().UnixNano(), group.pullProxy.autoStopPullAfterNoOutMs)
+	return group.pullProxy.lastHasOutTs != -1 && time.Now().UnixNano()/1e6-group.pullProxy.lastHasOutTs >= int64(group.pullProxy.autoStopPullAfterNoOutMs)
 }

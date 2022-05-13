@@ -75,6 +75,14 @@ func (h *HttpNotify) NotifySubStop(info base.SubStopInfo) {
 	h.asyncPost(h.cfg.OnSubStop, info)
 }
 
+func (h *HttpNotify) NotifyPullStart(info base.PullStartInfo) {
+	h.asyncPost(h.cfg.OnRelayPullStart, info)
+}
+
+func (h *HttpNotify) NotifyPullStop(info base.PullStopInfo) {
+	h.asyncPost(h.cfg.OnRelayPullStop, info)
+}
+
 func (h *HttpNotify) NotifyRtmpConnect(info base.RtmpConnectInfo) {
 	h.asyncPost(h.cfg.OnRtmpConnect, info)
 }
@@ -103,6 +111,14 @@ func (h *HttpNotify) OnSubStart(info base.SubStartInfo) {
 
 func (h *HttpNotify) OnSubStop(info base.SubStopInfo) {
 	h.NotifySubStop(info)
+}
+
+func (h *HttpNotify) OnRelayPullStart(info base.PullStartInfo) {
+	h.NotifyPullStart(info)
+}
+
+func (h *HttpNotify) OnRelayPullStop(info base.PullStopInfo) {
+	h.NotifyPullStop(info)
 }
 
 func (h *HttpNotify) OnRtmpConnect(info base.RtmpConnectInfo) {
