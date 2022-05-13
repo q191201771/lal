@@ -120,8 +120,8 @@ type HttpNotifyConfig struct {
 	OnPubStop         string `json:"on_pub_stop"`
 	OnSubStart        string `json:"on_sub_start"`
 	OnSubStop         string `json:"on_sub_stop"`
-	OnRelayPullStart string `json:"on_relay_pull_start"`
-	OnRelayPullStop string `json:"on_relay_pull_stop"`
+	OnRelayPullStart  string `json:"on_relay_pull_start"`
+	OnRelayPullStop   string `json:"on_relay_pull_stop"`
 	OnRtmpConnect     string `json:"on_rtmp_connect"`
 }
 

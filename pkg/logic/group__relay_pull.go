@@ -57,7 +57,7 @@ type pullProxy struct {
 	pullTimeoutMs            int
 	pullRetryNum             int
 	autoStopPullAfterNoOutMs int // 没有观看者时，是否自动停止pull
-	rtspMode int
+	rtspMode                 int
 
 	startCount   int
 	lastHasOutTs int64
@@ -83,7 +83,7 @@ func (group *Group) initRelayPullByConfig() {
 	streamName := group.streamName
 
 	group.pullProxy = &pullProxy{
-		startCount:0,
+		startCount:   0,
 		lastHasOutTs: time.Now().UnixNano() / 1e6,
 	}
 
@@ -293,7 +293,6 @@ func (group *Group) stopPull() string {
 	}
 	return ""
 }
-
 
 func (group *Group) shouldStartPull() (bool, error) {
 	// 如果本地已经有输入型的流，就不需要pull了
