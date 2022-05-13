@@ -10,10 +10,13 @@ package rtmp
 
 import (
 	"context"
+	"crypto/md5"
 	"crypto/tls"
+	"encoding/base64"
 	"encoding/hex"
 	"fmt"
 	"net"
+	"strings"
 	"sync"
 	"time"
 
@@ -42,6 +45,7 @@ type ClientSession struct {
 	staleStat             *connection.Stat
 	stat                  base.StatSession
 	doResultChan          chan struct{}
+	errChan               chan error
 	hasNotifyDoResultSucc bool
 
 	// 只有PullSession使用
@@ -51,6 +55,13 @@ type ClientSession struct {
 	debugLogReadUserCtrlMsgMax   int
 
 	disposeOnce sync.Once
+	authInfo    AuthInfo
+}
+
+type AuthInfo struct {
+	challenge string
+	salt      string
+	opaque    string
 }
 
 type ClientSessionType int
@@ -112,6 +123,7 @@ func NewClientSession(t ClientSessionType, modOptions ...ModClientSessionOption)
 		t:             t,
 		option:        option,
 		doResultChan:  make(chan struct{}, 1),
+		errChan:       make(chan error, 1),
 		packer:        NewMessagePacker(),
 		chunkComposer: NewChunkComposer(),
 		stat: base.StatSession{
@@ -140,7 +152,31 @@ func (s *ClientSession) Do(rawUrl string) error {
 		ctx, cancel = context.WithTimeout(context.Background(), time.Duration(s.option.DoTimeoutMs)*time.Millisecond)
 	}
 	defer cancel()
-	return s.doContext(ctx, rawUrl)
+
+	if err := s.parseUrl(rawUrl); err != nil {
+		return err
+	}
+
+	err := s.doContext(ctx)
+
+	return err
+}
+
+func (s *ClientSession) parseAuthorityInfo(auth string) {
+	// 解析salt、challenge、opaque字段
+	res := strings.Split(auth, "&")
+	for _, info := range res {
+		if pos := strings.IndexAny(info, "="); pos > 0 {
+			switch info[:pos] {
+			case "salt":
+				s.authInfo.salt = info[pos+1:]
+			case "challenge":
+				s.authInfo.challenge = info[pos+1:]
+			case "opaque":
+				s.authInfo.opaque = info[pos+1:]
+			}
+		}
+	}
 }
 
 func (s *ClientSession) Write(msg []byte) error {
@@ -232,49 +268,88 @@ func (s *ClientSession) IsAlive() (readAlive, writeAlive bool) {
 	return
 }
 
-func (s *ClientSession) doContext(ctx context.Context, rawUrl string) error {
-	errChan := make(chan error, 1)
+func (s *ClientSession) connect() {
+	if err := s.tcpConnect(); err != nil {
+		s.errChan <- err
+		return
+	}
 
-	go func() {
-		if err := s.parseUrl(rawUrl); err != nil {
-			errChan <- err
-			return
-		}
-		if err := s.tcpConnect(); err != nil {
-			errChan <- err
-			return
-		}
+	if err := s.handshake(); err != nil {
+		s.errChan <- err
+		return
+	}
 
-		if err := s.handshake(); err != nil {
-			errChan <- err
-			return
-		}
+	Log.Infof("[%s] > W SetChunkSize %d.", s.uniqueKey, LocalChunkSize)
+	if err := s.packer.writeChunkSize(s.conn, LocalChunkSize); err != nil {
+		s.errChan <- err
+		return
+	}
 
-		Log.Infof("[%s] > W SetChunkSize %d.", s.uniqueKey, LocalChunkSize)
-		if err := s.packer.writeChunkSize(s.conn, LocalChunkSize); err != nil {
-			errChan <- err
-			return
-		}
+	Log.Infof("[%s] > W connect('%s'). tcUrl=%s", s.uniqueKey, s.appName(), s.tcUrl())
+	if err := s.packer.writeConnect(s.conn, s.appName(), s.tcUrl(), s.t == CstPushSession); err != nil {
+		s.errChan <- err
+		return
+	}
 
-		Log.Infof("[%s] > W connect('%s'). tcUrl=%s", s.uniqueKey, s.appName(), s.tcUrl())
-		if err := s.packer.writeConnect(s.conn, s.appName(), s.tcUrl(), s.t == CstPushSession); err != nil {
-			errChan <- err
-			return
-		}
+	s.runReadLoop()
+}
 
-		s.runReadLoop()
-	}()
+func (s *ClientSession) doContext(ctx context.Context) error {
+	go s.connect()
 
 	select {
 	case <-ctx.Done():
 		_ = s.dispose(nil)
 		return ctx.Err()
-	case err := <-errChan:
+	case err := <-s.errChan:
 		_ = s.dispose(err)
 		return err
 	case <-s.doResultChan:
 		return nil
 	}
+}
+
+func (s *ClientSession) DealErrorMessage(description string) (err error) {
+
+	if strings.Contains(description, "code=403 need auth") {
+		// app和tcUrl需要加上streamid、authmod、user
+		s.urlCtx.PathWithoutLastItem = fmt.Sprintf("%s/%s?authmod=adobe&user=%s", s.urlCtx.PathWithoutLastItem, s.urlCtx.LastItemOfPath, s.urlCtx.Username)
+
+		//关闭上一次连接并发起新的连接
+		s.dispose(nil)
+		s.connect()
+	} else if strings.Contains(description, "?reason=needauth") {
+		descriptions := strings.Split(description, ":")
+		if len(descriptions) != 3 {
+			err = fmt.Errorf("inavlid message:", description)
+			return err
+		} else {
+			descriptions[2] = strings.Replace(descriptions[2], " ", "", -1)
+			replacestr := fmt.Sprintf("?reason=needauth&user=%s&", s.urlCtx.Username)
+			authinfo := strings.Replace(descriptions[2], replacestr, "", -1)
+
+			s.parseAuthorityInfo(authinfo)
+
+			// base64(md5(username|salt|password))作为新的salt1
+			mds := md5.Sum([]byte(s.urlCtx.Username + s.authInfo.salt + s.urlCtx.Password))
+			salt1 := base64.StdEncoding.EncodeToString(mds[:])
+
+			// response = base64(md5(salt1|opaque|challenge))
+			mds1 := md5.Sum([]byte(salt1 + s.authInfo.opaque + s.authInfo.challenge))
+			response := base64.StdEncoding.EncodeToString(mds1[:])
+
+			// app和tcUrl需要加上challenge、response、opaque字段
+			s.urlCtx.PathWithoutLastItem = fmt.Sprintf("%s&challenge=%s&response=%s&opaque=%s", s.urlCtx.PathWithoutLastItem, s.authInfo.challenge, response, s.authInfo.opaque)
+
+			// 关闭前一个连接并发起新的连接
+			s.dispose(nil)
+			s.connect()
+		}
+	} else {
+		err = fmt.Errorf("invalid errmessage:", description)
+		return err
+	}
+	return nil
 }
 
 func (s *ClientSession) parseUrl(rawUrl string) (err error) {
@@ -440,8 +515,31 @@ func (s *ClientSession) doCommandMessage(stream *Stream) error {
 		return s.doResultMessage(stream, tid)
 	case "onStatus":
 		return s.doOnStatusMessage(stream, tid)
+	case "_error":
+		return s.doErrorMessage(stream, tid)
 	default:
 		Log.Errorf("[%s] read unknown command message. cmd=%s, %s", s.uniqueKey, cmd, stream.toDebugString())
+	}
+
+	return nil
+}
+
+func (s *ClientSession) doErrorMessage(stream *Stream, tid int) error {
+	if err := stream.msg.readNull(); err != nil {
+		return err
+	}
+	infos, err := stream.msg.readObjectWithType()
+	if err != nil {
+		return err
+	}
+	switch s.t {
+	case CstPushSession:
+		description, err := infos.FindString("description")
+		if err != nil {
+			return err
+		}
+
+		return s.DealErrorMessage(description)
 	}
 
 	return nil
