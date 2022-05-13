@@ -10,7 +10,7 @@ package base
 
 // 文档见： https://pengrl.com/lal/#/HTTPAPI
 
-const HttpApiVersion = "v0.3.0"
+const HttpApiVersion = "v0.3.1"
 
 const (
 	ErrorCodeSucc = 0
@@ -23,7 +23,7 @@ const (
 	ErrorCodeSessionNotFound = 1003
 	DespSessionNotFound      = "session not found"
 
-	ErrorCodeStartRelayPullFail = 2004
+	ErrorCodeStartRelayPullFail = 2001
 )
 
 // HttpResponseBasic
@@ -78,12 +78,24 @@ type ApiCtrlStopRelayPull struct {
 
 // ---------------------------------------------------------------------------------------------------------------------
 
+const (
+	PullRetryNumForever = -1
+	PullRetryNumNever = 0
+
+	AutoStopPullAfterNoOutMsNever = -1
+	AutoStopPullAfterNoOutMsImmediately = 0
+
+	RtspModeTcp = 0
+	RtspModeUdp = 1
+)
+
 type ApiCtrlStartRelayPullReq struct {
 	Url                      string `json:"url"`
 	StreamName               string `json:"stream_name"`
 	PullTimeoutMs            int    `json:"pull_timeout_ms"`
 	PullRetryNum             int    `json:"pull_retry_num"`
 	AutoStopPullAfterNoOutMs int    `json:"auto_stop_pull_after_no_out_ms"`
+	RtspMode int `json:"rtsp_mode"`
 }
 
 type ApiCtrlKickSession struct {

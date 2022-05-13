@@ -123,10 +123,13 @@ func (h *HttpApiServer) ctrlStartRelayPullHandler(w http.ResponseWriter, req *ht
 			info.PullTimeoutMs = 5000
 		}
 		if !j.Exist("pull_retry_num") {
-			info.PullRetryNum = -1
+			info.PullRetryNum = base.PullRetryNumForever
 		}
 		if !j.Exist("auto_stop_pull_after_no_out_ms") {
-			info.AutoStopPullAfterNoOutMs = -1
+			info.AutoStopPullAfterNoOutMs = base.AutoStopPullAfterNoOutMsNever
+		}
+		if !j.Exist("rtsp_mode") {
+			info.RtspMode = base.RtspModeTcp
 		}
 		return nil
 	}

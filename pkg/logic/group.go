@@ -26,6 +26,9 @@ import (
 
 type IGroupObserver interface {
 	CleanupHlsIfNeeded(appName string, streamName string, path string)
+
+	OnRelayPullStart(info base.PullStartInfo) // TODO(chef): refactor me
+	OnRelayPullStop(info base.PullStopInfo)
 }
 
 type Group struct {

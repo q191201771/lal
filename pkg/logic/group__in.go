@@ -126,6 +126,18 @@ func (group *Group) AddRtmpPullSession(session *rtmp.PullSession) error {
 		)
 	}
 
+	var info base.PullStartInfo
+	info.SessionId = session.UniqueKey()
+	info.Url = session.Url()
+	info.Protocol = base.ProtocolRtmp
+	info.RemoteAddr = session.GetStat().RemoteAddr
+	info.AppName = session.AppName()
+	info.StreamName = session.StreamName()
+	info.UrlParam = session.RawQuery()
+	info.HasInSession = group.hasInSession()
+	info.HasOutSession = group.hasOutSession()
+	group.observer.OnRelayPullStart(info)
+
 	return nil
 }
 
@@ -144,6 +156,18 @@ func (group *Group) AddRtspPullSession(session *rtsp.PullSession) error {
 	group.addIn()
 
 	group.rtsp2RtmpRemuxer = remux.NewAvPacket2RtmpRemuxer().WithOnRtmpMsg(group.onRtmpMsgFromRemux)
+
+	var info base.PullStartInfo
+	info.SessionId = session.UniqueKey()
+	info.Url = session.Url()
+	info.Protocol = base.ProtocolRtsp
+	info.RemoteAddr = session.GetStat().RemoteAddr
+	info.AppName = session.AppName()
+	info.StreamName = session.StreamName()
+	info.UrlParam = session.RawQuery()
+	info.HasInSession = group.hasInSession()
+	info.HasOutSession = group.hasOutSession()
+	group.observer.OnRelayPullStart(info)
 
 	return nil
 }
@@ -172,12 +196,36 @@ func (group *Group) DelRtmpPullSession(session *rtmp.PullSession) {
 	group.mutex.Lock()
 	defer group.mutex.Unlock()
 	group.delPullSession(session)
+
+	var info base.PullStopInfo
+	info.SessionId = session.UniqueKey()
+	info.Url = session.Url()
+	info.Protocol = base.ProtocolRtmp
+	info.RemoteAddr = session.GetStat().RemoteAddr
+	info.AppName = session.AppName()
+	info.StreamName = session.StreamName()
+	info.UrlParam = session.RawQuery()
+	info.HasInSession = group.hasInSession()
+	info.HasOutSession = group.hasOutSession()
+	group.observer.OnRelayPullStop(info)
 }
 
 func (group *Group) DelRtspPullSession(session *rtsp.PullSession) {
 	group.mutex.Lock()
 	defer group.mutex.Unlock()
 	group.delPullSession(session)
+
+	var info base.PullStopInfo
+	info.SessionId = session.UniqueKey()
+	info.Url = session.Url()
+	info.Protocol = base.ProtocolRtsp
+	info.RemoteAddr = session.GetStat().RemoteAddr
+	info.AppName = session.AppName()
+	info.StreamName = session.StreamName()
+	info.UrlParam = session.RawQuery()
+	info.HasInSession = group.hasInSession()
+	info.HasOutSession = group.hasOutSession()
+	group.observer.OnRelayPullStop(info)
 }
 
 // ---------------------------------------------------------------------------------------------------------------------
@@ -204,6 +252,7 @@ func (group *Group) delRtmpPubSession(session *rtmp.ServerSession) {
 	}
 
 	group.delIn()
+
 }
 
 func (group *Group) delRtspPubSession(session *rtsp.PubSession) {
@@ -219,7 +268,7 @@ func (group *Group) delRtspPubSession(session *rtsp.PubSession) {
 }
 
 func (group *Group) delPullSession(session base.IObject) {
-	Log.Debugf("[%s] [%s] del rtmp PullSession from group.", group.UniqueKey, session.UniqueKey())
+	Log.Debugf("[%s] [%s] del PullSession from group.", group.UniqueKey, session.UniqueKey())
 
 	group.resetRelayPullSession()
 	group.delIn()

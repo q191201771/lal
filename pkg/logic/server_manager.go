@@ -865,6 +865,16 @@ func (sm *ServerManager) CleanupHlsIfNeeded(appName string, streamName string, p
 	}
 }
 
+func (sm *ServerManager) OnRelayPullStart(info base.PullStartInfo) {
+	info.ServerId = sm.config.ServerId
+	sm.option.NotifyHandler.OnRelayPullStart(info)
+}
+
+func (sm *ServerManager) OnRelayPullStop(info base.PullStopInfo) {
+	info.ServerId = sm.config.ServerId
+	sm.option.NotifyHandler.OnRelayPullStop(info)
+}
+
 // ---------------------------------------------------------------------------------------------------------------------
 
 func (sm *ServerManager) Config() *Config {

@@ -74,6 +74,8 @@ type INotifyHandler interface {
 	OnPubStop(info base.PubStopInfo)
 	OnSubStart(info base.SubStartInfo)
 	OnSubStop(info base.SubStopInfo)
+	OnRelayPullStart(info base.PullStartInfo)
+	OnRelayPullStop(info base.PullStopInfo)
 	OnRtmpConnect(info base.RtmpConnectInfo)
 }
 

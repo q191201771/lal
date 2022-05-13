@@ -21,7 +21,7 @@ import (
 	"github.com/q191201771/naza/pkg/nazalog"
 )
 
-const ConfVersion = "v0.3.0"
+const ConfVersion = "v0.3.1"
 
 const (
 	defaultHlsCleanupMode    = hls.CleanupModeInTheEnd
@@ -120,6 +120,8 @@ type HttpNotifyConfig struct {
 	OnPubStop         string `json:"on_pub_stop"`
 	OnSubStart        string `json:"on_sub_start"`
 	OnSubStop         string `json:"on_sub_stop"`
+	OnRelayPullStart string `json:"on_relay_pull_start"`
+	OnRelayPullStop string `json:"on_relay_pull_stop"`
 	OnRtmpConnect     string `json:"on_rtmp_connect"`
 }
 

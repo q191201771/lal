@@ -53,7 +53,7 @@ type UrlContext struct {
 	Path                string
 	PathWithoutLastItem string // 注意，没有前面的'/'，也没有后面的'/'
 	LastItemOfPath      string // 注意，没有前面的'/'
-	RawQuery            string
+	RawQuery            string // 参数
 
 	RawUrlWithoutUserInfo string
 
