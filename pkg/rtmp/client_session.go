@@ -321,7 +321,7 @@ func (s *ClientSession) DealErrorMessage(description string) (err error) {
 	} else if strings.Contains(description, "?reason=needauth") {
 		descriptions := strings.Split(description, ":")
 		if len(descriptions) != 3 {
-			err = fmt.Errorf("inavlid message:", description)
+			err = fmt.Errorf("inavlid message: %s", description)
 			return err
 		} else {
 			descriptions[2] = strings.Replace(descriptions[2], " ", "", -1)
@@ -346,7 +346,7 @@ func (s *ClientSession) DealErrorMessage(description string) (err error) {
 			s.connect()
 		}
 	} else {
-		err = fmt.Errorf("invalid errmessage:", description)
+		err = fmt.Errorf("invalid errmessage: %s", description)
 		return err
 	}
 	return nil
