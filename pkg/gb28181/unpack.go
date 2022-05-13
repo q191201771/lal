@@ -23,32 +23,6 @@ import (
 
 // TODO(chef): gb28181 package处于开发中阶段，请不使用
 
-const (
-	psPackStartCodePackHeader       = 0x01ba
-	psPackStartCodeSystemHeader     = 0x01bb
-	psPackStartCodeProgramStreamMap = 0x01bc
-	psPackStartCodeAudioStream      = 0x01c0
-	psPackStartCodeVideoStream      = 0x01e0
-	psPackStartCodeHikStream        = 0x01bd
-
-	psPackStartCodePesPsd      = 0xff // program_stream_directory
-	psPackStartCodePesPrivate1 = 0xbd // private_stream_1
-	psPackStartCodePesPadding  = 0xbe // padding_stream
-	psPackStartCodePesPrivate2 = 0xbf // padding_stream_2
-	psPackStartCodePesEcm      = 0xf0 // ECM_stream
-	psPackStartCodePesEmm      = 0xf1 // EMM_stream
-
-	psPackStartCodePackEnd = 0xb9
-)
-const (
-	StreamTypeH264 = 0x1b
-	StreamTypeH265 = 0x24
-	StreamTypeAAC  = 0x0f
-	StreamG711A    = 0x90 //PCMA
-	StreamG7221    = 0x92
-	StreamG7231    = 0x93
-	StreamG729     = 0x99
-)
 
 type onAudioFn func(payload []byte, dts int64, pts int64)
 type onVideoFn func(payload []byte, dts int64, pts int64)
@@ -88,7 +62,7 @@ type PsUnpacker struct {
 
 func NewPsUnpacker() *PsUnpacker {
 	return &PsUnpacker{
-		buf:           nazabytes.NewBuffer(4096),
+		buf:           nazabytes.NewBuffer(psBufInitSize),
 		preVideoPts:   -1,
 		preAudioPts:   -1,
 		preVideoRtpts: -1,
