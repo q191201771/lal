@@ -126,12 +126,14 @@ func NewClientSession(t ClientSessionType, modOptions ...ModClientSessionOption)
 	}
 
 	s := &ClientSession{
-		uniqueKey:     uk,
-		t:             t,
-		option:        option,
-		doResultChan:  make(chan struct{}, 1),
-		packer:        NewMessagePacker(),
-		chunkComposer: NewChunkComposer(),
+		uniqueKey:       uk,
+		onDoResult:      defaultOnPullResult,
+		onReadRtmpAvMsg: defaultOnReadRtmpAvMsg,
+		t:               t,
+		option:          option,
+		doResultChan:    make(chan struct{}, 1),
+		packer:          NewMessagePacker(),
+		chunkComposer:   NewChunkComposer(),
 		stat: base.StatSession{
 			Protocol:  base.ProtocolRtmp,
 			SessionId: uk,
@@ -167,23 +169,6 @@ func (s *ClientSession) Do(rawUrl string) error {
 	err := s.doContext(ctx)
 
 	return err
-}
-
-func (s *ClientSession) parseAuthorityInfo(auth string) {
-	// 解析salt、challenge、opaque字段
-	res := strings.Split(auth, "&")
-	for _, info := range res {
-		if pos := strings.IndexAny(info, "="); pos > 0 {
-			switch info[:pos] {
-			case "salt":
-				s.authInfo.salt = info[pos+1:]
-			case "challenge":
-				s.authInfo.challenge = info[pos+1:]
-			case "opaque":
-				s.authInfo.opaque = info[pos+1:]
-			}
-		}
-	}
 }
 
 func (s *ClientSession) Write(msg []byte) error {
@@ -314,49 +299,6 @@ func (s *ClientSession) doContext(ctx context.Context) error {
 	case <-s.doResultChan:
 		return nil
 	}
-}
-
-func (s *ClientSession) DealErrorMessage(description string) (err error) {
-
-	if strings.Contains(description, "code=403 need auth") {
-		// app和tcUrl需要加上streamid、authmod、user
-		s.urlCtx.PathWithoutLastItem = fmt.Sprintf("%s/%s?authmod=adobe&user=%s", s.urlCtx.PathWithoutLastItem, s.urlCtx.LastItemOfPath, s.urlCtx.Username)
-
-		//关闭上一次连接并发起新的连接
-		s.dispose(nil)
-		s.connect()
-	} else if strings.Contains(description, "?reason=needauth") {
-		descriptions := strings.Split(description, ":")
-		if len(descriptions) != 3 {
-			err = fmt.Errorf("inavlid message: %s", description)
-			return err
-		} else {
-			descriptions[2] = strings.Replace(descriptions[2], " ", "", -1)
-			replacestr := fmt.Sprintf("?reason=needauth&user=%s&", s.urlCtx.Username)
-			authinfo := strings.Replace(descriptions[2], replacestr, "", -1)
-
-			s.parseAuthorityInfo(authinfo)
-
-			// base64(md5(username|salt|password))作为新的salt1
-			mds := md5.Sum([]byte(s.urlCtx.Username + s.authInfo.salt + s.urlCtx.Password))
-			salt1 := base64.StdEncoding.EncodeToString(mds[:])
-
-			// response = base64(md5(salt1|opaque|challenge))
-			mds1 := md5.Sum([]byte(salt1 + s.authInfo.opaque + s.authInfo.challenge))
-			response := base64.StdEncoding.EncodeToString(mds1[:])
-
-			// app和tcUrl需要加上challenge、response、opaque字段
-			s.urlCtx.PathWithoutLastItem = fmt.Sprintf("%s&challenge=%s&response=%s&opaque=%s", s.urlCtx.PathWithoutLastItem, s.authInfo.challenge, response, s.authInfo.opaque)
-
-			// 关闭前一个连接并发起新的连接
-			s.dispose(nil)
-			s.connect()
-		}
-	} else {
-		err = fmt.Errorf("invalid errmessage: %s", description)
-		return err
-	}
-	return nil
 }
 
 func (s *ClientSession) parseUrl(rawUrl string) (err error) {
@@ -551,9 +493,68 @@ func (s *ClientSession) doErrorMessage(stream *Stream, tid int) error {
 			return err
 		}
 
-		return s.DealErrorMessage(description)
+		return s.dealErrorMessage(description)
 	}
 
+	return nil
+}
+
+func (s *ClientSession) parseAuthorityInfo(auth string) {
+	// 解析salt、challenge、opaque字段
+	res := strings.Split(auth, "&")
+	for _, info := range res {
+		if pos := strings.IndexAny(info, "="); pos > 0 {
+			switch info[:pos] {
+			case "salt":
+				s.authInfo.salt = info[pos+1:]
+			case "challenge":
+				s.authInfo.challenge = info[pos+1:]
+			case "opaque":
+				s.authInfo.opaque = info[pos+1:]
+			}
+		}
+	}
+}
+
+func (s *ClientSession) dealErrorMessage(description string) (err error) {
+	if strings.Contains(description, "code=403 need auth") {
+		// app和tcUrl需要加上streamid、authmod、user
+		s.urlCtx.PathWithoutLastItem = fmt.Sprintf("%s/%s?authmod=adobe&user=%s", s.urlCtx.PathWithoutLastItem, s.urlCtx.LastItemOfPath, s.urlCtx.Username)
+
+		//关闭上一次连接并发起新的连接
+		s.conn.Close()
+		s.connect()
+	} else if strings.Contains(description, "?reason=needauth") {
+		descriptions := strings.Split(description, ":")
+		if len(descriptions) != 3 {
+			err = fmt.Errorf("inavlid message: %s", description)
+			return err
+		} else {
+			descriptions[2] = strings.Replace(descriptions[2], " ", "", -1)
+			replacestr := fmt.Sprintf("?reason=needauth&user=%s&", s.urlCtx.Username)
+			authinfo := strings.Replace(descriptions[2], replacestr, "", -1)
+
+			s.parseAuthorityInfo(authinfo)
+
+			// base64(md5(username|salt|password))作为新的salt1
+			mds := md5.Sum([]byte(s.urlCtx.Username + s.authInfo.salt + s.urlCtx.Password))
+			salt1 := base64.StdEncoding.EncodeToString(mds[:])
+
+			// response = base64(md5(salt1|opaque|challenge))
+			mds1 := md5.Sum([]byte(salt1 + s.authInfo.opaque + s.authInfo.challenge))
+			response := base64.StdEncoding.EncodeToString(mds1[:])
+
+			// app和tcUrl需要加上challenge、response、opaque字段
+			s.urlCtx.PathWithoutLastItem = fmt.Sprintf("%s&challenge=%s&response=%s&opaque=%s", s.urlCtx.PathWithoutLastItem, s.authInfo.challenge, response, s.authInfo.opaque)
+
+			// 关闭前一个连接并发起新的连接
+			s.conn.Close()
+			s.connect()
+		}
+	} else {
+		err = fmt.Errorf("invalid errmessage: %s", description)
+		return err
+	}
 	return nil
 }
 
