@@ -12,17 +12,18 @@ import "github.com/q191201771/naza/pkg/unique"
 
 const (
 	UkPreCustomizePubSessionContext = "CUSTOMIZEPUB"
-	UkPreRtmpServerSession          = "RTMPPUBSUB"
+	UkPreRtmpServerSession          = "RTMPPUBSUB" // 两种可能，pub或者sub
 	UkPreRtmpPushSession            = "RTMPPUSH"
 	UkPreRtmpPullSession            = "RTMPPULL"
-	UkPreRtspServerCommandSession   = "RTSPSRVCMD"
 	UkPreRtspPubSession             = "RTSPPUB"
 	UkPreRtspSubSession             = "RTSPSUB"
 	UkPreRtspPushSession            = "RTSPPUSH"
 	UkPreRtspPullSession            = "RTSPPULL"
 	UkPreFlvSubSession              = "FLVSUB"
-	UkPreTsSubSession               = "TSSUB"
 	UkPreFlvPullSession             = "FLVPULL"
+	UkPreTsSubSession               = "TSSUB"
+
+	UkPreRtspServerCommandSession = "RTSPSRVCMD" // 这个不暴露给上层
 
 	UkPreGroup              = "GROUP"
 	UkPreHlsMuxer           = "HLSMUXER"

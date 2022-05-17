@@ -15,12 +15,6 @@ const (
 	// VideoCodecAvc StatGroup.VideoCodec
 	VideoCodecAvc  = "H264"
 	VideoCodecHevc = "H265"
-
-	// ProtocolRtmp StatSession.Protocol
-	ProtocolRtmp    = "RTMP"
-	ProtocolRtsp    = "RTSP"
-	ProtocolHttpflv = "HTTP-FLV"
-	ProtocolHttpts  = "HTTP-TS"
 )
 
 type StatGroup struct {

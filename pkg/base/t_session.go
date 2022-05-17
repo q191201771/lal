@@ -8,67 +8,32 @@
 
 package base
 
-import (
-	"io"
-	"strings"
-)
-
-// TODO(chef): [refactor] 整理 subsession 接口部分 IsFresh 和 ShouldWaitVideoKeyFrame
-
-// group中，session Dispose表现记录
+// ----- 所有session -----
 //
-// Dispose结束后回调OnDel:
-// rtmp.ServerSession(包含pub和sub)  1
-// rtsp.PubSession和rtsp.SubSession 1
-// rtmp.PullSession 2
-// httpflv.SubSession 3
-// httpts.SubSession 3
+// server.pub:  rtmp(ServerSession), rtsp(PubSession)
+// server.sub:  rtmp(ServerSession), rtsp(SubSession), flv(SubSession), ts(SubSession), 还有一个比较特殊的hls
 //
+// client.push: rtmp(PushSession), rtsp(PushSession)
+// client.pull: rtmp(PullSession), rtsp(PullSession), flv(PullSession)
 //
-// 情况1: 协议正常走完回调OnAdd，在自身server的RunLoop结束后，回调OnDel
-// 情况2: 在group中pull阻塞结束后，手动回调OnDel
-// 情况3: 在logic中sub RunLoop结束后，手动回调OnDel
-
-// TODO(chef): 整理所有Server类型Session的生命周期管理
-//   -
-//   - rtmp没有独立的Pub、Sub Session结构体类型，而是直接使用ServerSession
-//   - write失败，需要反应到loop来
-//   - rtsp是否也应该上层使用Command作为代理，避免生命周期管理混乱
-//
-// server.pub:  rtmp(), rtsp
-// server.sub:  rtmp(), rtsp, flv, ts, 还有一个比较特殊的hls
-//
-// client.push: rtmp, rtsp
-// client.pull: rtmp, rtsp, flv
-//
-// other:       rtmp.ClientSession, rtmp.ServerSession
-//              rtsp.BaseInSession, rtsp.BaseOutSession, rtsp.ClientCommandSession, rtsp.ServerCommandSessionS
+// other:       rtmp.ClientSession, (rtmp.ServerSession)
+//              rtsp.BaseInSession, rtsp.BaseOutSession, rtsp.ClientCommandSession, rtsp.ServerCommandSession
 //              base.HttpSubSession
 
-// ISessionUrlContext 实际测试
-//
-// |                | 实际url                                               | Url()    | AppName, StreamName, RawQuery  |
-// | -              | -                                                    | -        | -                              |
-// | rtmp pub推流    | rtmp://127.0.0.1:1935/live/test110                   | 同实际url | live, test110,                 |
-// |                | rtmp://127.0.0.1:1935/a/b/c/d/test110?p1=1&p2=2      | 同实际url | a/b, c/d/test110, p1=1&p2=2    |
-// | rtsp pub推流    | rtsp://localhost:5544/live/test110                   | 同实际url | live, test110,                 |
-// | rtsp pub推流    | rtsp://localhost:5544/a/b/c/d/test110?p1=1&p2=2      | 同实际url | a/b/c/d, test110, p1=1&p2=2    |
-// | httpflv sub拉流  | http://127.0.0.1:8080/live/test110.flv              | 同实际url | live, test110,                 |
-// |                 | http://127.0.0.1:8080/a/b/c/d/test110.flv?p1=1&p2=2 | 同实际url | a/b/c/d, test110, p1=1&p2=2    |
-// | rtmp sub拉流    | 同rtmp pub                                           | .        | .                              |
-// | rtsp sub拉流    | 同rtsp pub                                           | .        | .                              |
-// | httpts sub拉流 | 同httpflv sub，只是末尾的.flv换成.ts，不再赘述             | .       | .                              |
+// ---------------------------------------------------------------------------------------------------------------------
 
-// IsUseClosedConnectionError 当connection处于这些情况时，就不需要再Close了
-// TODO(chef): 临时放这
-// TODO(chef): 目前暂时没有使用，因为connection支持多次调用Close
-//
-func IsUseClosedConnectionError(err error) bool {
-	if err == io.EOF || (err != nil && strings.Contains(err.Error(), "use of closed network connection")) {
-		return true
-	}
-	return false
-}
+const (
+	// ProtocolRtmp StatSession.Protocol
+	ProtocolRtmp    = "RTMP"
+	ProtocolRtsp    = "RTSP"
+	ProtocolHttpflv = "FLV"
+	ProtocolHttpts  = "TS"
+
+	SessionBaseTypePub  = "PUB"
+	SessionBaseTypeSub  = "SUB"
+	SessionBaseTypePush = "PUSH"
+	SessionBaseTypePull = "PULL"
+)
 
 type IClientSession interface {
 	// PushSession:
@@ -191,3 +156,51 @@ type IObject interface {
 }
 
 // TODO chef: rtmp.ClientSession修改为BaseClientSession更好些
+
+// TODO(chef): [refactor] 整理 subsession 接口部分 IsFresh 和 ShouldWaitVideoKeyFrame
+
+// ----- group中，session Dispose表现记录 -----
+//
+// Dispose结束后回调OnDel:
+// rtmp.ServerSession(包含pub和sub)  1
+// rtsp.PubSession和rtsp.SubSession 1
+// rtmp.PullSession 2
+// httpflv.SubSession 3
+// httpts.SubSession 3
+//
+//
+// 情况1: 协议正常走完回调OnAdd，在自身server的RunLoop结束后，回调OnDel
+// 情况2: 在group中pull阻塞结束后，手动回调OnDel
+// 情况3: 在logic中sub RunLoop结束后，手动回调OnDel
+
+// TODO(chef): 整理所有Server类型Session的生命周期管理
+//   -
+//   - rtmp没有独立的Pub、Sub Session结构体类型，而是直接使用ServerSession
+//   - write失败，需要反应到loop来
+//   - rtsp是否也应该上层使用Command作为代理，避免生命周期管理混乱
+//
+
+// ISessionUrlContext 实际测试
+//
+// |                | 实际url                                               | Url()    | AppName, StreamName, RawQuery  |
+// | -              | -                                                    | -        | -                              |
+// | rtmp pub推流    | rtmp://127.0.0.1:1935/live/test110                   | 同实际url | live, test110,                 |
+// |                | rtmp://127.0.0.1:1935/a/b/c/d/test110?p1=1&p2=2      | 同实际url | a/b, c/d/test110, p1=1&p2=2    |
+// | rtsp pub推流    | rtsp://localhost:5544/live/test110                   | 同实际url | live, test110,                 |
+// | rtsp pub推流    | rtsp://localhost:5544/a/b/c/d/test110?p1=1&p2=2      | 同实际url | a/b/c/d, test110, p1=1&p2=2    |
+// | httpflv sub拉流  | http://127.0.0.1:8080/live/test110.flv              | 同实际url | live, test110,                 |
+// |                 | http://127.0.0.1:8080/a/b/c/d/test110.flv?p1=1&p2=2 | 同实际url | a/b/c/d, test110, p1=1&p2=2    |
+// | rtmp sub拉流    | 同rtmp pub                                           | .        | .                              |
+// | rtsp sub拉流    | 同rtsp pub                                           | .        | .                              |
+// | httpts sub拉流 | 同httpflv sub，只是末尾的.flv换成.ts，不再赘述             | .       | .                              |
+
+// IsUseClosedConnectionError 当connection处于这些情况时，就不需要再Close了
+// TODO(chef): 临时放这
+// TODO(chef): 目前暂时没有使用，因为connection支持多次调用Close
+//
+//func IsUseClosedConnectionError(err error) bool {
+//	if err == io.EOF || (err != nil && strings.Contains(err.Error(), "use of closed network connection")) {
+//		return true
+//	}
+//	return false
+//}

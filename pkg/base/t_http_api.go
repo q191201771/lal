@@ -10,8 +10,6 @@ package base
 
 // 文档见： https://pengrl.com/lal/#/HTTPAPI
 
-const HttpApiVersion = "v0.3.1"
-
 const (
 	ErrorCodeSucc = 0
 	DespSucc      = "succ"
