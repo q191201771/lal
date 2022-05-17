@@ -38,7 +38,7 @@ func (h *HttpApiServer) Listen() (err error) {
 	if h.ln, err = net.Listen("tcp", h.addr); err != nil {
 		return
 	}
-	Log.Infof("start httpapi server listen. addr=%s", h.addr)
+	Log.Infof("start http-api server listen. addr=%s", h.addr)
 	return
 }
 
@@ -58,6 +58,8 @@ func (h *HttpApiServer) RunLoop() error {
 }
 
 // TODO chef: dispose
+
+// ---------------------------------------------------------------------------------------------------------------------
 
 func (h *HttpApiServer) statLalInfoHandler(w http.ResponseWriter, req *http.Request) {
 	var v base.ApiStatLalInfo
@@ -101,40 +103,13 @@ func (h *HttpApiServer) statGroupHandler(w http.ResponseWriter, req *http.Reques
 	return
 }
 
+// ---------------------------------------------------------------------------------------------------------------------
+
 func (h *HttpApiServer) ctrlStartRelayPullHandler(w http.ResponseWriter, req *http.Request) {
 	var v base.ApiCtrlStartRelayPull
 	var info base.ApiCtrlStartRelayPullReq
 
-	// TODO(chef): feat nazahttp.UnmarshalRequestJsonBody 只能做必填项检查，没法做选填项
-	fn := func() error {
-		var body []byte
-		var err error
-		body, err = ioutil.ReadAll(req.Body)
-		if err = json.Unmarshal(body, &info); err != nil {
-			return err
-		}
-		var j nazajson.Json
-		j, err = nazajson.New(body)
-		if !j.Exist("url") {
-			return nazahttp.ErrParamMissing
-		}
-
-		if !j.Exist("pull_timeout_ms") {
-			info.PullTimeoutMs = 5000
-		}
-		if !j.Exist("pull_retry_num") {
-			info.PullRetryNum = base.PullRetryNumForever
-		}
-		if !j.Exist("auto_stop_pull_after_no_out_ms") {
-			info.AutoStopPullAfterNoOutMs = base.AutoStopPullAfterNoOutMsNever
-		}
-		if !j.Exist("rtsp_mode") {
-			info.RtspMode = base.RtspModeTcp
-		}
-		return nil
-	}
-
-	err := fn()
+	j, err := unmarshalRequestJsonBody(req, info, "url")
 	if err != nil {
 		Log.Warnf("http api start pull error. err=%+v", err)
 		v.ErrorCode = base.ErrorCodeParamMissing
@@ -142,6 +117,20 @@ func (h *HttpApiServer) ctrlStartRelayPullHandler(w http.ResponseWriter, req *ht
 		feedback(v, w)
 		return
 	}
+
+	if !j.Exist("pull_timeout_ms") {
+		info.PullTimeoutMs = 5000
+	}
+	if !j.Exist("pull_retry_num") {
+		info.PullRetryNum = base.PullRetryNumNever
+	}
+	if !j.Exist("auto_stop_pull_after_no_out_ms") {
+		info.AutoStopPullAfterNoOutMs = base.AutoStopPullAfterNoOutMsNever
+	}
+	if !j.Exist("rtsp_mode") {
+		info.RtspMode = base.RtspModeTcp
+	}
+
 	Log.Infof("http api start pull. req info=%+v", info)
 
 	resp := h.sm.CtrlStartRelayPull(info)
@@ -172,7 +161,7 @@ func (h *HttpApiServer) ctrlKickSessionHandler(w http.ResponseWriter, req *http.
 	var v base.HttpResponseBasic
 	var info base.ApiCtrlKickSession
 
-	err := nazahttp.UnmarshalRequestJsonBody(req, &info, "stream_name", "session_id")
+	_, err := unmarshalRequestJsonBody(req, &info, "stream_name", "session_id")
 	if err != nil {
 		Log.Warnf("http api kick out session error. err=%+v", err)
 		v.ErrorCode = base.ErrorCodeParamMissing
@@ -180,6 +169,7 @@ func (h *HttpApiServer) ctrlKickSessionHandler(w http.ResponseWriter, req *http.
 		feedback(v, w)
 		return
 	}
+
 	Log.Infof("http api kick out session. req info=%+v", info)
 
 	resp := h.sm.CtrlKickSession(info)
@@ -193,4 +183,24 @@ func feedback(v interface{}, w http.ResponseWriter) {
 	resp, _ := json.Marshal(v)
 	w.Header().Add("Server", base.LalHttpApiServer)
 	_, _ = w.Write(resp)
+}
+
+// TODO(chef): 搬到naza中
+func unmarshalRequestJsonBody(r *http.Request, info interface{}, keyFieldList ...string) (nazajson.Json, error) {
+	body, err := ioutil.ReadAll(r.Body)
+	if err != nil {
+		return nazajson.Json{}, err
+	}
+
+	j, err := nazajson.New(body)
+	if err != nil {
+		return j, err
+	}
+	for _, kf := range keyFieldList {
+		if !j.Exist(kf) {
+			return j, nazahttp.ErrParamMissing
+		}
+	}
+
+	return j, json.Unmarshal(body, info)
 }
