@@ -109,7 +109,7 @@ func (h *HttpApiServer) ctrlStartRelayPullHandler(w http.ResponseWriter, req *ht
 	var v base.ApiCtrlStartRelayPull
 	var info base.ApiCtrlStartRelayPullReq
 
-	j, err := unmarshalRequestJsonBody(req, info, "url")
+	j, err := unmarshalRequestJsonBody(req, &info, "url")
 	if err != nil {
 		Log.Warnf("http api start pull error. err=%+v", err)
 		v.ErrorCode = base.ErrorCodeParamMissing
