@@ -129,7 +129,7 @@ func (group *Group) AddRtmpPullSession(session *rtmp.PullSession) error {
 	var info base.PullStartInfo
 	info.SessionId = session.UniqueKey()
 	info.Url = session.Url()
-	info.Protocol = base.ProtocolRtmp
+	info.Protocol = session.GetStat().Protocol
 	info.RemoteAddr = session.GetStat().RemoteAddr
 	info.AppName = session.AppName()
 	info.StreamName = session.StreamName()
@@ -160,7 +160,7 @@ func (group *Group) AddRtspPullSession(session *rtsp.PullSession) error {
 	var info base.PullStartInfo
 	info.SessionId = session.UniqueKey()
 	info.Url = session.Url()
-	info.Protocol = base.ProtocolRtsp
+	info.Protocol = session.GetStat().Protocol
 	info.RemoteAddr = session.GetStat().RemoteAddr
 	info.AppName = session.AppName()
 	info.StreamName = session.StreamName()
@@ -200,7 +200,7 @@ func (group *Group) DelRtmpPullSession(session *rtmp.PullSession) {
 	var info base.PullStopInfo
 	info.SessionId = session.UniqueKey()
 	info.Url = session.Url()
-	info.Protocol = base.ProtocolRtmp
+	info.Protocol = session.GetStat().Protocol
 	info.RemoteAddr = session.GetStat().RemoteAddr
 	info.AppName = session.AppName()
 	info.StreamName = session.StreamName()
@@ -218,7 +218,7 @@ func (group *Group) DelRtspPullSession(session *rtsp.PullSession) {
 	var info base.PullStopInfo
 	info.SessionId = session.UniqueKey()
 	info.Url = session.Url()
-	info.Protocol = base.ProtocolRtsp
+	info.Protocol = session.GetStat().Protocol
 	info.RemoteAddr = session.GetStat().RemoteAddr
 	info.AppName = session.AppName()
 	info.StreamName = session.StreamName()

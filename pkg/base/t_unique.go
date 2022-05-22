@@ -11,17 +11,17 @@ package base
 import "github.com/q191201771/naza/pkg/unique"
 
 const (
-	UkPreCustomizePubSessionContext = "CUSTOMIZEPUB"
-	UkPreRtmpServerSession          = "RTMPPUBSUB" // 两种可能，pub或者sub
-	UkPreRtmpPushSession            = "RTMPPUSH"
-	UkPreRtmpPullSession            = "RTMPPULL"
-	UkPreRtspPubSession             = "RTSPPUB"
-	UkPreRtspSubSession             = "RTSPSUB"
-	UkPreRtspPushSession            = "RTSPPUSH"
-	UkPreRtspPullSession            = "RTSPPULL"
-	UkPreFlvSubSession              = "FLVSUB"
-	UkPreFlvPullSession             = "FLVPULL"
-	UkPreTsSubSession               = "TSSUB"
+	UkPreCustomizePubSessionContext = SessionProtocolCustomizeStr + SessionBaseTypePubStr // "CUSTOMIZEPUB"
+	UkPreRtmpServerSession          = SessionProtocolRtmpStr + SessionBaseTypePubSubStr   // "RTMPPUBSUB" // 两种可能，pub或者sub
+	UkPreRtmpPushSession            = SessionProtocolRtmpStr + SessionBaseTypePushStr     // "RTMPPUSH"
+	UkPreRtmpPullSession            = SessionProtocolRtmpStr + SessionBaseTypePullStr     // "RTMPPULL"
+	UkPreRtspPubSession             = SessionProtocolRtspStr + SessionBaseTypePubStr      // "RTSPPUB"
+	UkPreRtspSubSession             = SessionProtocolRtspStr + SessionBaseTypePubSubStr   // "RTSPSUB"
+	UkPreRtspPushSession            = SessionProtocolRtspStr + SessionBaseTypePushStr     // "RTSPPUSH"
+	UkPreRtspPullSession            = SessionProtocolRtspStr + SessionBaseTypePullStr     // "RTSPPULL"
+	UkPreFlvSubSession              = SessionProtocolFlvStr + SessionBaseTypePubSubStr    // "FLVSUB"
+	UkPreFlvPullSession             = SessionProtocolFlvStr + SessionBaseTypePullStr      // "FLVPULL"
+	UkPreTsSubSession               = SessionProtocolTsStr + SessionBaseTypePubSubStr     // "TSSUB"
 
 	UkPreRtspServerCommandSession = "RTSPSRVCMD" // 这个不暴露给上层
 

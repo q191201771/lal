@@ -27,7 +27,7 @@ func TestSimpleAuthCtx(t *testing.T) {
 		PubRtmpEnable:      true,
 	})
 	var info base.PubStartInfo
-	info.Protocol = base.ProtocolRtmp
+	info.Protocol = base.SessionProtocolRtmpStr
 	info.StreamName = "test110"
 
 	info.UrlParam = "lal_secret=700997e1595a06c9ffa60ebef79105b0"

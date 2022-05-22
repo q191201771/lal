@@ -41,10 +41,8 @@ type PullSession struct {
 	uniqueKey string            // const after ctor
 	option    PullSessionOption // const after ctor
 
-	conn         connection.Connection
-	prevConnStat connection.Stat
-	staleStat    *connection.Stat
-	stat         base.StatSession
+	conn        connection.Connection
+	sessionStat base.BasicSessionStat // TODO(chef): fix 没有初始化 202205
 
 	urlCtx base.UrlContext
 
@@ -140,39 +138,24 @@ func (session *PullSession) UniqueKey() string {
 	return session.uniqueKey
 }
 
+// ----- ISessionStat --------------------------------------------------------------------------------------------------
+
 // UpdateStat 文档请参考： interface ISessionStat
 func (session *PullSession) UpdateStat(intervalSec uint32) {
-	currStat := session.conn.GetStat()
-	rDiff := currStat.ReadBytesSum - session.prevConnStat.ReadBytesSum
-	session.stat.ReadBitrate = int(rDiff * 8 / 1024 / uint64(intervalSec))
-	wDiff := currStat.WroteBytesSum - session.prevConnStat.WroteBytesSum
-	session.stat.WriteBitrate = int(wDiff * 8 / 1024 / uint64(intervalSec))
-	session.stat.Bitrate = session.stat.ReadBitrate
-	session.prevConnStat = currStat
+	session.sessionStat.UpdateStatWitchConn(session.conn, intervalSec)
 }
 
 // GetStat 文档请参考： interface ISessionStat
 func (session *PullSession) GetStat() base.StatSession {
-	connStat := session.conn.GetStat()
-	session.stat.ReadBytesSum = connStat.ReadBytesSum
-	session.stat.WroteBytesSum = connStat.WroteBytesSum
-	return session.stat
+	return session.sessionStat.GetStatWithConn(session.conn)
 }
 
 // IsAlive 文档请参考： interface ISessionStat
 func (session *PullSession) IsAlive() (readAlive, writeAlive bool) {
-	currStat := session.conn.GetStat()
-	if session.staleStat == nil {
-		session.staleStat = new(connection.Stat)
-		*session.staleStat = currStat
-		return true, true
-	}
-
-	readAlive = !(currStat.ReadBytesSum-session.staleStat.ReadBytesSum == 0)
-	writeAlive = !(currStat.WroteBytesSum-session.staleStat.WroteBytesSum == 0)
-	*session.staleStat = currStat
-	return
+	return session.sessionStat.IsAliveWitchConn(session.conn)
 }
+
+// ---------------------------------------------------------------------------------------------------------------------
 
 func (session *PullSession) pullContext(ctx context.Context, rawUrl string, onReadFlvTag OnReadFlvTag) error {
 	errChan := make(chan error, 1)

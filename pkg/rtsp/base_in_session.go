@@ -21,7 +21,6 @@ import (
 	"github.com/q191201771/lal/pkg/base"
 	"github.com/q191201771/lal/pkg/rtprtcp"
 	"github.com/q191201771/lal/pkg/sdp"
-	"github.com/q191201771/naza/pkg/connection"
 	"github.com/q191201771/naza/pkg/nazanet"
 )
 
@@ -62,10 +61,7 @@ type BaseInSession struct {
 	videoRtpChannel  int
 	videoRtcpChannel int
 
-	currConnStat connection.StatAtomic
-	prevConnStat connection.Stat
-	staleStat    *connection.Stat
-	stat         base.StatSession
+	sessionStat base.BasicSessionStat
 
 	mu              sync.Mutex
 	sdpCtx          sdp.LogicContext // const after set
@@ -88,13 +84,16 @@ type BaseInSession struct {
 	dumpReadSr       base.LogDump
 }
 
-func NewBaseInSession(uniqueKey string, cmdSession IInterleavedPacketWriter) *BaseInSession {
+func NewBaseInSession(uniqueKey string, sessionBaseType string, cmdSession IInterleavedPacketWriter) *BaseInSession {
 	s := &BaseInSession{
 		uniqueKey: uniqueKey,
-		stat: base.StatSession{
-			Protocol:  base.ProtocolRtsp,
-			SessionId: uniqueKey,
-			StartTime: base.ReadableNowTime(),
+		sessionStat: base.BasicSessionStat{
+			Stat: base.StatSession{
+				SessionId: uniqueKey,
+				Protocol:  base.SessionProtocolRtspStr,
+				BaseType:  sessionBaseType,
+				StartTime: base.ReadableNowTime(),
+			},
 		},
 		cmdSession:       cmdSession,
 		waitChan:         make(chan error, 1),
@@ -106,8 +105,8 @@ func NewBaseInSession(uniqueKey string, cmdSession IInterleavedPacketWriter) *Ba
 	return s
 }
 
-func NewBaseInSessionWithObserver(uniqueKey string, cmdSession IInterleavedPacketWriter, observer IBaseInSessionObserver) *BaseInSession {
-	s := NewBaseInSession(uniqueKey, cmdSession)
+func NewBaseInSessionWithObserver(uniqueKey string, sessionBaseType string, cmdSession IInterleavedPacketWriter, observer IBaseInSessionObserver) *BaseInSession {
+	s := NewBaseInSession(uniqueKey, sessionBaseType, cmdSession)
 	s.observer = observer
 	return s
 }
@@ -240,40 +239,21 @@ func (session *BaseInSession) WriteRtpRtcpDummy() {
 	}
 }
 
+// ----- ISessionStat --------------------------------------------------------------------------------------------------
+
 func (session *BaseInSession) GetStat() base.StatSession {
-	session.stat.ReadBytesSum = session.currConnStat.ReadBytesSum.Load()
-	session.stat.WroteBytesSum = session.currConnStat.WroteBytesSum.Load()
-	return session.stat
+	return session.sessionStat.GetStat()
 }
 
 func (session *BaseInSession) UpdateStat(intervalSec uint32) {
-	readBytesSum := session.currConnStat.ReadBytesSum.Load()
-	wroteBytesSum := session.currConnStat.WroteBytesSum.Load()
-	rDiff := readBytesSum - session.prevConnStat.ReadBytesSum
-	session.stat.ReadBitrate = int(rDiff * 8 / 1024 / uint64(intervalSec))
-	wDiff := wroteBytesSum - session.prevConnStat.WroteBytesSum
-	session.stat.WriteBitrate = int(wDiff * 8 / 1024 / uint64(intervalSec))
-	session.stat.Bitrate = session.stat.ReadBitrate
-	session.prevConnStat.ReadBytesSum = readBytesSum
-	session.prevConnStat.WroteBytesSum = wroteBytesSum
+	session.sessionStat.UpdateStat(intervalSec)
 }
 
 func (session *BaseInSession) IsAlive() (readAlive, writeAlive bool) {
-	readBytesSum := session.currConnStat.ReadBytesSum.Load()
-	wroteBytesSum := session.currConnStat.WroteBytesSum.Load()
-	if session.staleStat == nil {
-		session.staleStat = new(connection.Stat)
-		session.staleStat.ReadBytesSum = readBytesSum
-		session.staleStat.WroteBytesSum = wroteBytesSum
-		return true, true
-	}
-
-	readAlive = !(readBytesSum-session.staleStat.ReadBytesSum == 0)
-	writeAlive = !(wroteBytesSum-session.staleStat.WroteBytesSum == 0)
-	session.staleStat.ReadBytesSum = readBytesSum
-	session.staleStat.WroteBytesSum = wroteBytesSum
-	return
+	return session.sessionStat.IsAlive()
 }
+
+// ---------------------------------------------------------------------------------------------------------------------
 
 func (session *BaseInSession) UniqueKey() string {
 	return session.uniqueKey
@@ -323,7 +303,7 @@ func (session *BaseInSession) onReadRtcpPacket(b []byte, rAddr *net.UDPAddr, err
 
 // @param rAddr 对端地址，往对端发送数据时使用，注意，如果nil，则表示是interleaved模式，我们直接往TCP连接发数据
 func (session *BaseInSession) handleRtcpPacket(b []byte, rAddr *net.UDPAddr) error {
-	session.currConnStat.ReadBytesSum.Add(uint64(len(b)))
+	session.sessionStat.AddReadBytes(len(b))
 
 	if len(b) <= 0 {
 		Log.Errorf("[%s] handleRtcpPacket but length invalid. len=%d", session.uniqueKey, len(b))
@@ -350,7 +330,7 @@ func (session *BaseInSession) handleRtcpPacket(b []byte, rAddr *net.UDPAddr) err
 				} else {
 					_ = session.cmdSession.WriteInterleavedPacket(rrBuf, session.audioRtcpChannel)
 				}
-				session.currConnStat.WroteBytesSum.Add(uint64(len(b)))
+				session.sessionStat.AddWriteBytes(len(b))
 			}
 		case session.videoSsrc.Load():
 			session.mu.Lock()
@@ -362,7 +342,7 @@ func (session *BaseInSession) handleRtcpPacket(b []byte, rAddr *net.UDPAddr) err
 				} else {
 					_ = session.cmdSession.WriteInterleavedPacket(rrBuf, session.videoRtcpChannel)
 				}
-				session.currConnStat.WroteBytesSum.Add(uint64(len(b)))
+				session.sessionStat.AddWriteBytes(len(b))
 			}
 		default:
 			// noop
@@ -381,7 +361,7 @@ func (session *BaseInSession) handleRtcpPacket(b []byte, rAddr *net.UDPAddr) err
 }
 
 func (session *BaseInSession) handleRtpPacket(b []byte) error {
-	session.currConnStat.ReadBytesSum.Add(uint64(len(b)))
+	session.sessionStat.AddReadBytes(len(b))
 
 	if len(b) < rtprtcp.RtpFixedHeaderLength {
 		Log.Errorf("[%s] handleRtpPacket but length invalid. len=%d", session.uniqueKey, len(b))

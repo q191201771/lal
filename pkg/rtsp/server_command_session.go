@@ -103,6 +103,8 @@ func (session *ServerCommandSession) RemoteAddr() string {
 // ----- ISessionStat --------------------------------------------------------------------------------------------------
 
 func (session *ServerCommandSession) UpdateStat(intervalSec uint32) {
+	// TODO(chef): 梳理interleaved模式下，command session的ISessionStat 202205
+
 	currStat := session.conn.GetStat()
 	rDiff := currStat.ReadBytesSum - session.prevConnStat.ReadBytesSum
 	session.stat.Bitrate = int(rDiff * 8 / 1024 / uint64(intervalSec))

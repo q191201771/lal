@@ -36,7 +36,7 @@ func NewPubSession(urlCtx base.UrlContext, cmdSession *ServerCommandSession) *Pu
 		urlCtx:     urlCtx,
 		cmdSession: cmdSession,
 	}
-	baseInSession := NewBaseInSession(uk, s)
+	baseInSession := NewBaseInSession(uk, base.SessionBaseTypePubStr, s)
 	s.baseInSession = baseInSession
 	Log.Infof("[%s] lifecycle new rtsp PubSession. session=%p, streamName=%s", uk, s, urlCtx.LastItemOfPath)
 	return s
@@ -93,6 +93,8 @@ func (session *PubSession) UniqueKey() string {
 	return session.uniqueKey
 }
 
+// ----- ISessionStat --------------------------------------------------------------------------------------------------
+
 func (session *PubSession) GetStat() base.StatSession {
 	stat := session.baseInSession.GetStat()
 	stat.RemoteAddr = session.cmdSession.RemoteAddr()
@@ -106,6 +108,8 @@ func (session *PubSession) UpdateStat(intervalSec uint32) {
 func (session *PubSession) IsAlive() (readAlive, writeAlive bool) {
 	return session.baseInSession.IsAlive()
 }
+
+// ---------------------------------------------------------------------------------------------------------------------
 
 // WriteInterleavedPacket IInterleavedPacketWriter, callback by BaseInSession
 func (session *PubSession) WriteInterleavedPacket(packet []byte, channel int) error {

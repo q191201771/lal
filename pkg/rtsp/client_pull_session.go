@@ -66,7 +66,7 @@ func NewPullSession(observer IPullSessionObserver, modOptions ...ModPullSessionO
 		opt.DoTimeoutMs = option.PullTimeoutMs
 		opt.OverTcp = option.OverTcp
 	})
-	baseInSession := NewBaseInSessionWithObserver(uk, s, observer)
+	baseInSession := NewBaseInSessionWithObserver(uk, base.SessionBaseTypePullStr, s, observer)
 	s.baseInSession = baseInSession
 	s.cmdSession = cmdSession
 	Log.Infof("[%s] lifecycle new rtsp PullSession. session=%p", uk, s)
@@ -179,6 +179,8 @@ func (session *PullSession) UniqueKey() string {
 	return session.uniqueKey
 }
 
+// ----- ISessionStat --------------------------------------------------------------------------------------------------
+
 // GetStat 文档请参考： interface ISessionStat
 func (session *PullSession) GetStat() base.StatSession {
 	stat := session.baseInSession.GetStat()
@@ -195,6 +197,8 @@ func (session *PullSession) UpdateStat(intervalSec uint32) {
 func (session *PullSession) IsAlive() (readAlive, writeAlive bool) {
 	return session.baseInSession.IsAlive()
 }
+
+// ---------------------------------------------------------------------------------------------------------------------
 
 // OnConnectResult IClientCommandSessionObserver, callback by ClientCommandSession
 func (session *PullSession) OnConnectResult() {

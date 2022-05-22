@@ -36,7 +36,7 @@ type ClientSession struct {
 	// 只有PullSession使用
 	onReadRtmpAvMsg OnReadRtmpAvMsg
 
-	t      ClientSessionType
+	t      ClientSessionType // TODO(chef): refactor 使用basetype替代 202205
 	option ClientSessionOption
 
 	packer        *MessagePacker
@@ -45,12 +45,11 @@ type ClientSession struct {
 	hc            IHandshakeClient
 
 	conn                  connection.Connection
-	prevConnStat          connection.Stat
-	staleStat             *connection.Stat
-	stat                  base.StatSession
 	doResultChan          chan struct{}
 	errChan               chan error
 	hasNotifyDoResultSucc bool
+
+	sessionStat base.BasicSessionStat
 
 	debugLogReadUserCtrlMsgCount int
 	debugLogReadUserCtrlMsgMax   int
@@ -106,11 +105,14 @@ type ModClientSessionOption func(option *ClientSessionOption)
 // NewClientSession @param t: session的类型，只能是推或者拉
 func NewClientSession(t ClientSessionType, modOptions ...ModClientSessionOption) *ClientSession {
 	var uk string
+	var baseType string
 	switch t {
 	case CstPullSession:
 		uk = base.GenUkRtmpPullSession()
+		baseType = base.SessionBaseTypePullStr
 	case CstPushSession:
 		uk = base.GenUkRtmpPushSession()
+		baseType = base.SessionBaseTypePushStr
 	}
 
 	option := defaultClientSessOption
@@ -134,10 +136,13 @@ func NewClientSession(t ClientSessionType, modOptions ...ModClientSessionOption)
 		doResultChan:    make(chan struct{}, 1),
 		packer:          NewMessagePacker(),
 		chunkComposer:   NewChunkComposer(),
-		stat: base.StatSession{
-			Protocol:  base.ProtocolRtmp,
-			SessionId: uk,
-			StartTime: base.ReadableNowTime(),
+		sessionStat: base.BasicSessionStat{
+			Stat: base.StatSession{
+				SessionId: uk,
+				Protocol:  base.SessionProtocolRtmpStr,
+				BaseType:  baseType,
+				StartTime: base.ReadableNowTime(),
+			},
 		},
 		debugLogReadUserCtrlMsgMax: 5,
 		hc:                         hc,
@@ -224,41 +229,21 @@ func (s *ClientSession) UniqueKey() string {
 	return s.uniqueKey
 }
 
+// ----- ISessionStat --------------------------------------------------------------------------------------------------
+
 func (s *ClientSession) GetStat() base.StatSession {
-	connStat := s.conn.GetStat()
-	s.stat.ReadBytesSum = connStat.ReadBytesSum
-	s.stat.WroteBytesSum = connStat.WroteBytesSum
-	return s.stat
+	return s.sessionStat.GetStatWithConn(s.conn)
 }
 
 func (s *ClientSession) UpdateStat(intervalSec uint32) {
-	currStat := s.conn.GetStat()
-	rDiff := currStat.ReadBytesSum - s.prevConnStat.ReadBytesSum
-	s.stat.ReadBitrate = int(rDiff * 8 / 1024 / uint64(intervalSec))
-	wDiff := currStat.WroteBytesSum - s.prevConnStat.WroteBytesSum
-	s.stat.WriteBitrate = int(wDiff * 8 / 1024 / uint64(intervalSec))
-	switch s.t {
-	case CstPushSession:
-		s.stat.Bitrate = s.stat.WriteBitrate
-	case CstPullSession:
-		s.stat.Bitrate = s.stat.ReadBitrate
-	}
-	s.prevConnStat = currStat
+	s.sessionStat.UpdateStatWitchConn(s.conn, intervalSec)
 }
 
 func (s *ClientSession) IsAlive() (readAlive, writeAlive bool) {
-	currStat := s.conn.GetStat()
-	if s.staleStat == nil {
-		s.staleStat = new(connection.Stat)
-		*s.staleStat = currStat
-		return true, true
-	}
-
-	readAlive = !(currStat.ReadBytesSum-s.staleStat.ReadBytesSum == 0)
-	writeAlive = !(currStat.WroteBytesSum-s.staleStat.WroteBytesSum == 0)
-	*s.staleStat = currStat
-	return
+	return s.sessionStat.IsAliveWitchConn(s.conn)
 }
+
+// ---------------------------------------------------------------------------------------------------------------------
 
 func (s *ClientSession) connect() {
 	if err := s.tcpConnect(); err != nil {
@@ -328,7 +313,7 @@ func (s *ClientSession) tcpConnect() error {
 	Log.Infof("[%s] > tcp connect.", s.uniqueKey)
 	var err error
 
-	s.stat.RemoteAddr = s.urlCtx.HostWithPort
+	s.sessionStat.Stat.RemoteAddr = s.urlCtx.HostWithPort
 
 	var conn net.Conn
 	if s.urlCtx.Scheme == "rtmps" {

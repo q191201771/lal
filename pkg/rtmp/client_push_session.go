@@ -114,6 +114,8 @@ func (s *PushSession) UniqueKey() string {
 	return s.core.uniqueKey
 }
 
+// ----- ISessionStat --------------------------------------------------------------------------------------------------
+
 // GetStat 文档请参考： interface ISessionStat
 func (s *PushSession) GetStat() base.StatSession {
 	return s.core.GetStat()

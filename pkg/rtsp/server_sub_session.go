@@ -35,7 +35,7 @@ func NewSubSession(urlCtx base.UrlContext, cmdSession *ServerCommandSession) *Su
 
 		ShouldWaitVideoKeyFrame: true,
 	}
-	baseOutSession := NewBaseOutSession(uk, s)
+	baseOutSession := NewBaseOutSession(uk, base.SessionBaseTypeSubStr, s)
 	s.baseOutSession = baseOutSession
 	Log.Infof("[%s] lifecycle new rtsp SubSession. session=%p, streamName=%s", uk, s, urlCtx.LastItemOfPath)
 	return s

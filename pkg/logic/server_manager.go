@@ -379,7 +379,7 @@ func (sm *ServerManager) OnNewRtmpPubSession(session *rtmp.ServerSession) error 
 	// TODO chef: 每次赋值都逐个拼，代码冗余，考虑直接用ISession抽离一下代码
 	var info base.PubStartInfo
 	info.ServerId = sm.config.ServerId
-	info.Protocol = base.ProtocolRtmp
+	info.Protocol = session.GetStat().Protocol
 	info.Url = session.Url()
 	info.AppName = session.AppName()
 	info.StreamName = session.StreamName()
@@ -416,7 +416,7 @@ func (sm *ServerManager) OnDelRtmpPubSession(session *rtmp.ServerSession) {
 
 	var info base.PubStopInfo
 	info.ServerId = sm.config.ServerId
-	info.Protocol = base.ProtocolRtmp
+	info.Protocol = session.GetStat().Protocol
 	info.Url = session.Url()
 	info.AppName = session.AppName()
 	info.StreamName = session.StreamName()
@@ -434,7 +434,7 @@ func (sm *ServerManager) OnNewRtmpSubSession(session *rtmp.ServerSession) error 
 
 	var info base.SubStartInfo
 	info.ServerId = sm.config.ServerId
-	info.Protocol = base.ProtocolRtmp
+	info.Protocol = session.GetStat().Protocol
 	info.Url = session.Url()
 	info.AppName = session.AppName()
 	info.StreamName = session.StreamName()
@@ -468,7 +468,7 @@ func (sm *ServerManager) OnDelRtmpSubSession(session *rtmp.ServerSession) {
 
 	var info base.SubStopInfo
 	info.ServerId = sm.config.ServerId
-	info.Protocol = base.ProtocolRtmp
+	info.Protocol = session.GetStat().Protocol
 	info.AppName = session.AppName()
 	info.StreamName = session.StreamName()
 	info.UrlParam = session.RawQuery()
@@ -487,7 +487,7 @@ func (sm *ServerManager) OnNewHttpflvSubSession(session *httpflv.SubSession) err
 
 	var info base.SubStartInfo
 	info.ServerId = sm.config.ServerId
-	info.Protocol = base.ProtocolHttpflv
+	info.Protocol = session.GetStat().Protocol
 	info.Url = session.Url()
 	info.AppName = session.AppName()
 	info.StreamName = session.StreamName()
@@ -521,7 +521,7 @@ func (sm *ServerManager) OnDelHttpflvSubSession(session *httpflv.SubSession) {
 
 	var info base.SubStopInfo
 	info.ServerId = sm.config.ServerId
-	info.Protocol = base.ProtocolHttpflv
+	info.Protocol = session.GetStat().Protocol
 	info.Url = session.Url()
 	info.AppName = session.AppName()
 	info.StreamName = session.StreamName()
@@ -539,7 +539,7 @@ func (sm *ServerManager) OnNewHttptsSubSession(session *httpts.SubSession) error
 
 	var info base.SubStartInfo
 	info.ServerId = sm.config.ServerId
-	info.Protocol = base.ProtocolHttpts
+	info.Protocol = session.GetStat().Protocol
 	info.Url = session.Url()
 	info.AppName = session.AppName()
 	info.StreamName = session.StreamName()
@@ -575,7 +575,7 @@ func (sm *ServerManager) OnDelHttptsSubSession(session *httpts.SubSession) {
 
 	var info base.SubStopInfo
 	info.ServerId = sm.config.ServerId
-	info.Protocol = base.ProtocolHttpts
+	info.Protocol = session.GetStat().Protocol
 	info.Url = session.Url()
 	info.AppName = session.AppName()
 	info.StreamName = session.StreamName()
@@ -603,7 +603,7 @@ func (sm *ServerManager) OnNewRtspPubSession(session *rtsp.PubSession) error {
 
 	var info base.PubStartInfo
 	info.ServerId = sm.config.ServerId
-	info.Protocol = base.ProtocolRtsp
+	info.Protocol = session.GetStat().Protocol
 	info.Url = session.Url()
 	info.AppName = session.AppName()
 	info.StreamName = session.StreamName()
@@ -639,7 +639,7 @@ func (sm *ServerManager) OnDelRtspPubSession(session *rtsp.PubSession) {
 
 	var info base.PubStopInfo
 	info.ServerId = sm.config.ServerId
-	info.Protocol = base.ProtocolRtsp
+	info.Protocol = session.GetStat().Protocol
 	info.Url = session.Url()
 	info.AppName = session.AppName()
 	info.StreamName = session.StreamName()
@@ -664,7 +664,7 @@ func (sm *ServerManager) OnNewRtspSubSessionPlay(session *rtsp.SubSession) error
 
 	var info base.SubStartInfo
 	info.ServerId = sm.config.ServerId
-	info.Protocol = base.ProtocolRtsp
+	info.Protocol = session.GetStat().Protocol
 	info.Url = session.Url()
 	info.AppName = session.AppName()
 	info.StreamName = session.StreamName()
@@ -698,7 +698,7 @@ func (sm *ServerManager) OnDelRtspSubSession(session *rtsp.SubSession) {
 
 	var info base.SubStopInfo
 	info.ServerId = sm.config.ServerId
-	info.Protocol = base.ProtocolRtsp
+	info.Protocol = session.GetStat().Protocol
 	info.Url = session.Url()
 	info.AppName = session.AppName()
 	info.StreamName = session.StreamName()

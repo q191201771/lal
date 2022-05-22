@@ -65,15 +65,13 @@ type ServerSession struct {
 	rawQuery               string //const after set
 
 	observer      IServerSessionObserver
-	t             ServerSessionType
+	t             ServerSessionType // TODO(chef): refactor 改用 sessionStat.Stat.BaseType 202205
 	hs            HandshakeServer
 	chunkComposer *ChunkComposer
 	packer        *MessagePacker
 
-	conn         connection.Connection
-	prevConnStat connection.Stat
-	staleStat    *connection.Stat
-	stat         base.StatSession
+	conn        connection.Connection
+	sessionStat base.BasicSessionStat
 
 	// only for PubSession
 	avObserver IPubSessionObserver
@@ -103,11 +101,14 @@ func NewServerSession(observer IServerSessionObserver, conn net.Conn) *ServerSes
 		conn: connection.New(conn, func(option *connection.Option) {
 			option.ReadBufSize = readBufSize
 		}),
-		stat: base.StatSession{
-			Protocol:   base.ProtocolRtmp,
-			SessionId:  uk,
-			StartTime:  base.ReadableNowTime(),
-			RemoteAddr: conn.RemoteAddr().String(),
+		sessionStat: base.BasicSessionStat{
+			Stat: base.StatSession{
+				SessionId:  uk,
+				Protocol:   base.SessionProtocolRtmpStr,
+				BaseType:   base.SessionBaseTypePubSubStr,
+				StartTime:  base.ReadableNowTime(),
+				RemoteAddr: conn.RemoteAddr().String(),
+			},
 		},
 		uniqueKey:               uk,
 		observer:                observer,
@@ -171,41 +172,21 @@ func (s *ServerSession) UniqueKey() string {
 	return s.uniqueKey
 }
 
+// ----- ISessionStat --------------------------------------------------------------------------------------------------
+
 func (s *ServerSession) UpdateStat(intervalSec uint32) {
-	currStat := s.conn.GetStat()
-	rDiff := currStat.ReadBytesSum - s.prevConnStat.ReadBytesSum
-	s.stat.ReadBitrate = int(rDiff * 8 / 1024 / uint64(intervalSec))
-	wDiff := currStat.WroteBytesSum - s.prevConnStat.WroteBytesSum
-	s.stat.WriteBitrate = int(wDiff * 8 / 1024 / uint64(intervalSec))
-	switch s.t {
-	case ServerSessionTypePub:
-		s.stat.Bitrate = s.stat.ReadBitrate
-	case ServerSessionTypeSub:
-		s.stat.Bitrate = s.stat.WriteBitrate
-	}
-	s.prevConnStat = currStat
+	s.sessionStat.UpdateStatWitchConn(s.conn, intervalSec)
 }
 
 func (s *ServerSession) GetStat() base.StatSession {
-	connStat := s.conn.GetStat()
-	s.stat.ReadBytesSum = connStat.ReadBytesSum
-	s.stat.WroteBytesSum = connStat.WroteBytesSum
-	return s.stat
+	return s.sessionStat.GetStatWithConn(s.conn)
 }
 
 func (s *ServerSession) IsAlive() (readAlive, writeAlive bool) {
-	currStat := s.conn.GetStat()
-	if s.staleStat == nil {
-		s.staleStat = new(connection.Stat)
-		*s.staleStat = currStat
-		return true, true
-	}
-
-	readAlive = !(currStat.ReadBytesSum-s.staleStat.ReadBytesSum == 0)
-	writeAlive = !(currStat.WroteBytesSum-s.staleStat.WroteBytesSum == 0)
-	*s.staleStat = currStat
-	return
+	return s.sessionStat.IsAliveWitchConn(s.conn)
 }
+
+// ---------------------------------------------------------------------------------------------------------------------
 
 func (s *ServerSession) runReadLoop() error {
 	return s.chunkComposer.RunLoop(s.conn, s.doMsg)
@@ -451,6 +432,7 @@ func (s *ServerSession) doPublish(tid int, stream *Stream) (err error) {
 	s.modConnProps()
 
 	s.t = ServerSessionTypePub
+	s.sessionStat.Stat.BaseType = base.SessionBaseTypePubStr
 	err = s.observer.OnNewRtmpPubSession(s)
 	if err != nil {
 		s.DisposeByObserverFlag = true
@@ -493,6 +475,7 @@ func (s *ServerSession) doPlay(tid int, stream *Stream) (err error) {
 	s.modConnProps()
 
 	s.t = ServerSessionTypeSub
+	s.sessionStat.Stat.BaseType = base.SessionBaseTypeSubStr
 	err = s.observer.OnNewRtmpSubSession(s)
 	if err != nil {
 		s.DisposeByObserverFlag = true

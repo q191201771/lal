@@ -21,7 +21,6 @@ import (
 
 	"github.com/q191201771/lal/pkg/base"
 	"github.com/q191201771/lal/pkg/sdp"
-	"github.com/q191201771/naza/pkg/connection"
 	"github.com/q191201771/naza/pkg/nazanet"
 )
 
@@ -42,10 +41,7 @@ type BaseOutSession struct {
 	videoRtpChannel  int
 	videoRtcpChannel int
 
-	stat         base.StatSession
-	currConnStat connection.StatAtomic
-	prevConnStat connection.Stat
-	staleStat    *connection.Stat
+	sessionStat base.BasicSessionStat
 
 	// only for debug log
 	debugLogMaxCount         int
@@ -58,14 +54,17 @@ type BaseOutSession struct {
 	waitChan    chan error
 }
 
-func NewBaseOutSession(uniqueKey string, cmdSession IInterleavedPacketWriter) *BaseOutSession {
+func NewBaseOutSession(uniqueKey string, sessionBaseType string, cmdSession IInterleavedPacketWriter) *BaseOutSession {
 	s := &BaseOutSession{
 		uniqueKey:  uniqueKey,
 		cmdSession: cmdSession,
-		stat: base.StatSession{
-			Protocol:  base.ProtocolRtsp,
-			SessionId: uniqueKey,
-			StartTime: base.ReadableNowTime(),
+		sessionStat: base.BasicSessionStat{
+			Stat: base.StatSession{
+				SessionId: uniqueKey,
+				Protocol:  base.SessionProtocolRtspStr,
+				BaseType:  sessionBaseType,
+				StartTime: base.ReadableNowTime(),
+			},
 		},
 		audioRtpChannel:  -1,
 		videoRtpChannel:  -1,
@@ -181,51 +180,34 @@ func (session *BaseOutSession) WriteRtpPacket(packet rtprtcp.RtpPacket) error {
 	}
 
 	if err == nil {
-		session.currConnStat.WroteBytesSum.Add(uint64(len(packet.Raw)))
+		session.sessionStat.AddWriteBytes(len(packet.Raw))
 	}
 	return err
 }
 
+// ----- ISessionStat --------------------------------------------------------------------------------------------------
+
 func (session *BaseOutSession) GetStat() base.StatSession {
-	session.stat.ReadBytesSum = session.currConnStat.ReadBytesSum.Load()
-	session.stat.WroteBytesSum = session.currConnStat.WroteBytesSum.Load()
-	return session.stat
+	return session.sessionStat.GetStat()
 }
 
 func (session *BaseOutSession) UpdateStat(intervalSec uint32) {
-	readBytesSum := session.currConnStat.ReadBytesSum.Load()
-	wroteBytesSum := session.currConnStat.WroteBytesSum.Load()
-	rDiff := readBytesSum - session.prevConnStat.ReadBytesSum
-	session.stat.ReadBitrate = int(rDiff * 8 / 1024 / uint64(intervalSec))
-	wDiff := wroteBytesSum - session.prevConnStat.WroteBytesSum
-	session.stat.WriteBitrate = int(wDiff * 8 / 1024 / uint64(intervalSec))
-	session.stat.Bitrate = session.stat.WriteBitrate
-	session.prevConnStat.ReadBytesSum = readBytesSum
-	session.prevConnStat.WroteBytesSum = wroteBytesSum
+	session.sessionStat.UpdateStat(intervalSec)
 }
 
 func (session *BaseOutSession) IsAlive() (readAlive, writeAlive bool) {
-	readBytesSum := session.currConnStat.ReadBytesSum.Load()
-	wroteBytesSum := session.currConnStat.WroteBytesSum.Load()
-	if session.staleStat == nil {
-		session.staleStat = new(connection.Stat)
-		session.staleStat.ReadBytesSum = readBytesSum
-		session.staleStat.WroteBytesSum = wroteBytesSum
-		return true, true
-	}
-
-	readAlive = !(readBytesSum-session.staleStat.ReadBytesSum == 0)
-	writeAlive = !(wroteBytesSum-session.staleStat.WroteBytesSum == 0)
-	session.staleStat.ReadBytesSum = readBytesSum
-	session.staleStat.WroteBytesSum = wroteBytesSum
-	return
+	return session.sessionStat.IsAlive()
 }
+
+// ---------------------------------------------------------------------------------------------------------------------
 
 func (session *BaseOutSession) UniqueKey() string {
 	return session.uniqueKey
 }
 
 func (session *BaseOutSession) onReadRtpPacket(b []byte, rAddr *net.UDPAddr, err error) bool {
+	// TODO(chef): [fix] 在收到rtp和rtcp的地方，加入stat统计 202205
+
 	if session.loggedReadRtpCount.Load() < int32(session.debugLogMaxCount) {
 		Log.Debugf("[%s] LOGPACKET. read rtp=%s", session.uniqueKey, hex.Dump(nazabytes.Prefix(b, 32)))
 		session.loggedReadRtpCount.Increment()

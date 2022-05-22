@@ -34,7 +34,7 @@ func NewSubSession(conn net.Conn, urlCtx base.UrlContext, isWebSocket bool, webs
 				option.WriteTimeoutMs = SubSessionWriteTimeoutMs
 			},
 			Uk:           uk,
-			Protocol:     base.ProtocolHttpflv,
+			Protocol:     base.SessionProtocolFlvStr,
 			UrlCtx:       urlCtx,
 			IsWebSocket:  isWebSocket,
 			WebSocketKey: websocketKey,
@@ -107,9 +107,7 @@ func (session *SubSession) RawQuery() string {
 	return session.core.RawQuery()
 }
 
-// ---------------------------------------------------------------------------------------------------------------------
-// ISessionStat interface
-// ---------------------------------------------------------------------------------------------------------------------
+// ----- ISessionStat --------------------------------------------------------------------------------------------------
 
 func (session *SubSession) UpdateStat(intervalSec uint32) {
 	session.core.UpdateStat(intervalSec)

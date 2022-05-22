@@ -54,7 +54,7 @@ func NewPushSession(modOptions ...ModPushSessionOption) *PushSession {
 		opt.DoTimeoutMs = option.PushTimeoutMs
 		opt.OverTcp = option.OverTcp
 	})
-	baseOutSession := NewBaseOutSession(uk, s)
+	baseOutSession := NewBaseOutSession(uk, base.SessionBaseTypePushStr, s)
 	s.cmdSession = cmdSession
 	s.baseOutSession = baseOutSession
 	Log.Infof("[%s] lifecycle new rtsp PushSession. session=%p", uk, s)
@@ -161,6 +161,8 @@ func (session *PushSession) UniqueKey() string {
 	return session.uniqueKey
 }
 
+// ----- ISessionStat --------------------------------------------------------------------------------------------------
+
 // GetStat 文档请参考： interface ISessionStat
 func (session *PushSession) GetStat() base.StatSession {
 	stat := session.baseOutSession.GetStat()
@@ -177,6 +179,8 @@ func (session *PushSession) UpdateStat(intervalSec uint32) {
 func (session *PushSession) IsAlive() (readAlive, writeAlive bool) {
 	return session.baseOutSession.IsAlive()
 }
+
+// ---------------------------------------------------------------------------------------------------------------------
 
 // OnConnectResult IClientCommandSessionObserver, callback by ClientCommandSession
 func (session *PushSession) OnConnectResult() {
