@@ -34,6 +34,7 @@ func main() {
 func parseFlag() string {
 	binInfoFlag := flag.Bool("v", false, "show bin info")
 	cf := flag.String("c", "", "specify conf file")
+	p := flag.String("p", "", "specify current work directory")
 	flag.Parse()
 
 	if *binInfoFlag {
@@ -41,6 +42,7 @@ func parseFlag() string {
 		_, _ = fmt.Fprintln(os.Stderr, base.LalFullInfo)
 		os.Exit(0)
 	}
+	os.Chdir(*p)
 
 	return *cf
 }
