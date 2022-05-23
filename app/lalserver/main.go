@@ -42,7 +42,9 @@ func parseFlag() string {
 		_, _ = fmt.Fprintln(os.Stderr, base.LalFullInfo)
 		os.Exit(0)
 	}
-	os.Chdir(*p)
+	if *p != "" {
+		os.Chdir(*p)
+	}
 
 	return *cf
 }
