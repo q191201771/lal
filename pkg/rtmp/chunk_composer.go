@@ -260,7 +260,7 @@ func (c *ChunkComposer) RunLoop(reader io.Reader, cb OnCompleteMessage) error {
 
 		// TODO(chef): 这里应该永远执行不到，可以删除掉
 		if stream.msg.Len() > stream.header.MsgLen {
-			return base.NewErrRtmpShortBuffer(int(aggregateStream.header.MsgLen), int(stream.msg.Len()), "len of msg bigger tthan msg len of header")
+			return base.NewErrRtmpShortBuffer(int(stream.header.MsgLen), int(stream.msg.Len()), "len of msg bigger tthan msg len of header")
 		}
 	}
 }
