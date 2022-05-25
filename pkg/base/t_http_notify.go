@@ -10,24 +10,29 @@ package base
 
 // 文档见： https://pengrl.com/p/20101/
 
+// TODO(chef): refactor 重命名为t_http_an_notify.go 202205
+
 type SessionEventCommonInfo struct {
 	ServerId string `json:"server_id"`
 
 	SessionId  string `json:"session_id"`
-	Url        string `json:"url"`
 	Protocol   string `json:"protocol"`
+	BaseType   string `json:"base_type"`
+	RemoteAddr string `json:"remote_addr"`
+
+	Url        string `json:"url"`
 	AppName    string `json:"app_name"`
 	StreamName string `json:"stream_name"`
 	UrlParam   string `json:"url_param"`
-	RemoteAddr string `json:"remote_addr"`
 
 	HasInSession  bool `json:"has_in_session"`
 	HasOutSession bool `json:"has_out_session"`
 }
 
 type UpdateInfo struct {
-	ServerId string      `json:"server_id"`
-	Groups   []StatGroup `json:"groups"`
+	ServerId string `json:"server_id"`
+
+	Groups []StatGroup `json:"groups"`
 }
 
 type PubStartInfo struct {
@@ -55,10 +60,67 @@ type PullStopInfo struct {
 }
 
 type RtmpConnectInfo struct {
-	ServerId   string `json:"server_id"`
+	ServerId string `json:"server_id"`
+
 	SessionId  string `json:"session_id"`
 	RemoteAddr string `json:"remote_addr"`
 	App        string `json:"app"`
 	FlashVer   string `json:"flashVer"`
 	TcUrl      string `json:"tcUrl"`
+}
+
+// ---------------------------------------------------------------------------------------------------------------------
+
+func Session2PubStartInfo(session ISession) PubStartInfo {
+	return PubStartInfo{
+		session2EventCommonInfo(session),
+	}
+}
+
+func Session2PubStopInfo(session ISession) PubStopInfo {
+	return PubStopInfo{
+		session2EventCommonInfo(session),
+	}
+}
+
+func Session2SubStartInfo(session ISession) SubStartInfo {
+	return SubStartInfo{
+		session2EventCommonInfo(session),
+	}
+}
+
+func Session2SubStopInfo(session ISession) SubStopInfo {
+	return SubStopInfo{
+		session2EventCommonInfo(session),
+	}
+}
+
+func Session2PullStartInfo(session ISession) PullStartInfo {
+	return PullStartInfo{
+		session2EventCommonInfo(session),
+	}
+}
+
+func Session2PullStopInfo(session ISession) PullStopInfo {
+	return PullStopInfo{
+		session2EventCommonInfo(session),
+	}
+}
+
+// ---------------------------------------------------------------------------------------------------------------------
+
+func session2EventCommonInfo(session ISession) SessionEventCommonInfo {
+	var info SessionEventCommonInfo
+	stat := session.GetStat()
+	info.SessionId = stat.SessionId
+	info.Protocol = stat.Protocol
+	info.BaseType = stat.BaseType
+	info.RemoteAddr = stat.RemoteAddr
+
+	info.Url = session.Url()
+	info.AppName = session.AppName()
+	info.StreamName = session.StreamName()
+	info.Url = session.Url()
+	info.UrlParam = session.RawQuery()
+	return info
 }

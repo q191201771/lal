@@ -23,6 +23,20 @@ import (
 // 规范检查
 // 1. 所有interface以I开头
 
+var (
+	_ base.ISession = &rtmp.ServerSession{}
+	_ base.ISession = &rtsp.PubSession{}
+	_ base.ISession = &rtsp.SubSession{}
+	_ base.ISession = &httpflv.SubSession{}
+	_ base.ISession = &httpts.SubSession{}
+
+	_ base.ISession = &rtmp.PushSession{}
+	_ base.ISession = &rtmp.PullSession{}
+	_ base.ISession = &rtsp.PushSession{}
+	_ base.ISession = &rtsp.PullSession{}
+	_ base.ISession = &httpflv.PullSession{}
+)
+
 // IClientSession: 所有Client Session都满足
 var (
 	_ base.IClientSession = &rtmp.PushSession{}

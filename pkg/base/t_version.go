@@ -18,9 +18,9 @@ import "strings"
 // LalVersion 版本，该变量由外部脚本修改维护
 const LalVersion = "v0.29.1"
 
-const HttpApiVersion = "v0.3.2"
+const HttpApiVersion = "v0.3.3"
 
-const HttpNotifyVersion = "v0.1.2"
+const HttpNotifyVersion = "v0.1.3"
 
 var (
 	LalLibraryName = "lal"

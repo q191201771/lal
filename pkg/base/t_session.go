@@ -8,11 +8,6 @@
 
 package base
 
-import (
-	"github.com/q191201771/naza/pkg/connection"
-	"github.com/q191201771/naza/pkg/nazalog"
-)
-
 // ----- 所有session -----
 //
 // server.pub:  rtmp(ServerSession), rtsp(PubSession)
@@ -27,101 +22,23 @@ import (
 
 // ---------------------------------------------------------------------------------------------------------------------
 
-// TODO(chef): [refactor] BasicSessionStat 放入单独的文件中 202205
-
-// BasicSessionStat
-//
-// 两种方式，一种是通过外部的 connection.Connection 获取最新状态，一种是内部自己管理状态
-//
-type BasicSessionStat struct {
-	Stat StatSession
-
-	prevConnStat connection.Stat
-	staleStat    *connection.Stat
-
-	currConnStat connection.StatAtomic
-}
-
-func (s *BasicSessionStat) AddReadBytes(n int) {
-	s.currConnStat.ReadBytesSum.Add(uint64(n))
-}
-
-func (s *BasicSessionStat) AddWriteBytes(n int) {
-	s.currConnStat.WroteBytesSum.Add(uint64(n))
-}
-
-func (s *BasicSessionStat) UpdateStat(intervalSec uint32) {
-	s.updateStat(s.currConnStat.ReadBytesSum.Load(), s.currConnStat.WroteBytesSum.Load(), s.Stat.BaseType, intervalSec)
-}
-
-func (s *BasicSessionStat) UpdateStatWitchConn(conn connection.Connection, intervalSec uint32) {
-	currStat := conn.GetStat()
-	s.updateStat(currStat.ReadBytesSum, currStat.WroteBytesSum, s.Stat.BaseType, intervalSec)
-}
-
-func (s *BasicSessionStat) GetStat() StatSession {
-	s.Stat.ReadBytesSum = s.currConnStat.ReadBytesSum.Load()
-	s.Stat.WroteBytesSum = s.currConnStat.WroteBytesSum.Load()
-	return s.Stat
-}
-
-func (s *BasicSessionStat) GetStatWithConn(conn connection.Connection) StatSession {
-	connStat := conn.GetStat()
-	s.Stat.ReadBytesSum = connStat.ReadBytesSum
-	s.Stat.WroteBytesSum = connStat.WroteBytesSum
-	return s.Stat
-}
-
-func (s *BasicSessionStat) IsAlive() (readAlive, writeAlive bool) {
-	return s.isAlive(s.currConnStat.ReadBytesSum.Load(), s.currConnStat.WroteBytesSum.Load())
-}
-
-func (s *BasicSessionStat) IsAliveWitchConn(conn connection.Connection) (readAlive, writeAlive bool) {
-	currStat := conn.GetStat()
-	return s.isAlive(currStat.ReadBytesSum, currStat.WroteBytesSum)
-}
-
-func (s *BasicSessionStat) updateStat(readBytesSum, wroteBytesSum uint64, typ string, intervalSec uint32) {
-	rDiff := readBytesSum - s.prevConnStat.ReadBytesSum
-	s.Stat.ReadBitrate = int(rDiff * 8 / 1024 / uint64(intervalSec))
-	wDiff := wroteBytesSum - s.prevConnStat.WroteBytesSum
-	s.Stat.WriteBitrate = int(wDiff * 8 / 1024 / uint64(intervalSec))
-
-	switch typ {
-	case SessionBaseTypePubStr, SessionBaseTypePullStr:
-		s.Stat.Bitrate = s.Stat.ReadBitrate
-	case SessionBaseTypeSubStr, SessionBaseTypePushStr:
-		s.Stat.Bitrate = s.Stat.WriteBitrate
-	default:
-		nazalog.Errorf("invalid session base type. type=%s", typ)
-	}
-
-	s.prevConnStat.ReadBytesSum = readBytesSum
-	s.prevConnStat.WroteBytesSum = wroteBytesSum
-}
-
-func (s *BasicSessionStat) isAlive(readBytesSum, wroteBytesSum uint64) (readAlive, writeAlive bool) {
-	if s.staleStat == nil {
-		s.staleStat = new(connection.Stat)
-		s.staleStat.ReadBytesSum = readBytesSum
-		s.staleStat.WroteBytesSum = wroteBytesSum
-		return true, true
-	}
-
-	readAlive = !(readBytesSum-s.staleStat.ReadBytesSum == 0)
-	writeAlive = !(wroteBytesSum-s.staleStat.WroteBytesSum == 0)
-	s.staleStat.ReadBytesSum = readBytesSum
-	s.staleStat.WroteBytesSum = wroteBytesSum
-	return
-}
-
 type (
-	SessionProtocol int
-
-	SessionBaseType int
+	SessionType int
 )
 
 const (
+	SessionTypeCustomizePub      SessionType = SessionProtocolCustomize<<8 | SessionBaseTypePub
+	SessionTypeRtmpServerSession SessionType = SessionProtocolRtmp<<8 | SessionBaseTypePubSub
+	SessionTypeRtmpPush          SessionType = SessionProtocolRtmp<<8 | SessionBaseTypePush
+	SessionTypeRtmpPull          SessionType = SessionProtocolRtmp<<8 | SessionBaseTypePull
+	SessionTypeRtspPub           SessionType = SessionProtocolRtsp<<8 | SessionBaseTypePub
+	SessionTypeRtspSub           SessionType = SessionProtocolRtsp<<8 | SessionBaseTypeSub
+	SessionTypeRtspPush          SessionType = SessionProtocolRtsp<<8 | SessionBaseTypePush
+	SessionTypeRtspPull          SessionType = SessionProtocolRtsp<<8 | SessionBaseTypePull
+	SessionTypeFlvSub            SessionType = SessionProtocolFlv<<8 | SessionBaseTypeSub
+	SessionTypeFlvPull           SessionType = SessionProtocolFlv<<8 | SessionBaseTypePull
+	SessionTypeTsSub             SessionType = SessionProtocolTs<<8 | SessionBaseTypeSub
+
 	SessionProtocolCustomize = 1
 	SessionProtocolRtmp      = 2
 	SessionProtocolRtsp      = 3
@@ -147,36 +64,42 @@ const (
 	SessionBaseTypePullStr   = "PULL"
 )
 
-func (protocol SessionProtocol) Stringify() string {
-	switch protocol {
-	case SessionProtocolCustomize:
-		return SessionProtocolCustomizeStr
-	case SessionProtocolRtmp:
-		return SessionProtocolRtmpStr
-	case SessionProtocolRtsp:
-		return SessionProtocolRtspStr
-	case SessionProtocolFlv:
-		return SessionProtocolFlvStr
-	case SessionProtocolTs:
-		return SessionProtocolTsStr
-	}
-	return "INVALID"
-}
+//func (protocol SessionProtocol) Stringify() string {
+//	switch protocol {
+//	case SessionProtocolCustomize:
+//		return SessionProtocolCustomizeStr
+//	case SessionProtocolRtmp:
+//		return SessionProtocolRtmpStr
+//	case SessionProtocolRtsp:
+//		return SessionProtocolRtspStr
+//	case SessionProtocolFlv:
+//		return SessionProtocolFlvStr
+//	case SessionProtocolTs:
+//		return SessionProtocolTsStr
+//	}
+//	return "INVALID"
+//}
+//
+//func (typ SessionBaseType) Stringify() string {
+//	switch typ {
+//	case SessionBaseTypePubSub:
+//		return SessionBaseTypePubSubStr
+//	case SessionBaseTypePub:
+//		return SessionBaseTypePubStr
+//	case SessionBaseTypeSub:
+//		return SessionBaseTypeSubStr
+//	case SessionBaseTypePush:
+//		return SessionBaseTypePushStr
+//	case SessionBaseTypePull:
+//		return SessionBaseTypePullStr
+//	}
+//	return "INVALID"
+//}
 
-func (typ SessionBaseType) Stringify() string {
-	switch typ {
-	case SessionBaseTypePubSub:
-		return SessionBaseTypePubSubStr
-	case SessionBaseTypePub:
-		return SessionBaseTypePubStr
-	case SessionBaseTypeSub:
-		return SessionBaseTypeSubStr
-	case SessionBaseTypePush:
-		return SessionBaseTypePushStr
-	case SessionBaseTypePull:
-		return SessionBaseTypePullStr
-	}
-	return "INVALID"
+type ISession interface {
+	ISessionUrlContext
+	IObject
+	ISessionStat
 }
 
 type IClientSession interface {
@@ -188,16 +111,12 @@ type IClientSession interface {
 	// Pull()
 
 	IClientSessionLifecycle
-	ISessionUrlContext
-	IObject
-	ISessionStat
+	ISession
 }
 
 type IServerSession interface {
 	IServerSessionLifecycle
-	ISessionUrlContext
-	IObject
-	ISessionStat
+	ISession
 }
 
 // ---------------------------------------------------------------------------------------------------------------------
@@ -288,7 +207,7 @@ type ISessionUrlContext interface {
 	Url() string
 	AppName() string
 	StreamName() string
-	RawQuery() string
+	RawQuery() string // 参数，也即 url param
 }
 
 type IObject interface {
@@ -299,66 +218,12 @@ type IObject interface {
 	UniqueKey() string
 }
 
-type ISessionType interface {
-	Protocol() SessionProtocol
-	BaseType() SessionBaseType
-
-	UniqueKey() string
-}
-
-type SessionType struct {
-	protocol  SessionProtocol
-	baseType  SessionBaseType
-	uniqueKey string
-}
-
-func NewSessionType(protocol SessionProtocol, typ SessionBaseType) SessionType {
-	var uk string
-	switch protocol {
-	case SessionProtocolCustomize:
-		if typ == SessionBaseTypePub {
-			uk = GenUkCustomizePubSession()
-		}
-	case SessionProtocolRtmp:
-		if typ == SessionBaseTypePubSub {
-			uk = GenUkRtmpServerSession()
-		} else if typ == SessionBaseTypePush {
-			uk = GenUkRtmpPushSession()
-		} else if typ == SessionBaseTypePull {
-			uk = GenUkRtmpPullSession()
-		}
-	case SessionProtocolRtsp:
-		if typ == SessionBaseTypePub {
-			uk = GenUkRtspPubSession()
-		} else if typ == SessionBaseTypeSub {
-			uk = GenUkRtspSubSession()
-		} else if typ == SessionBaseTypePush {
-			uk = GenUkRtspPushSession()
-		} else if typ == SessionBaseTypePull {
-			uk = GenUkRtspPullSession()
-		}
-	case SessionProtocolFlv:
-		if typ == SessionBaseTypeSub {
-			uk = GenUkFlvSubSession()
-		} else if typ == SessionBaseTypePull {
-			uk = GenUkFlvPullSession()
-		}
-	case SessionProtocolTs:
-		if typ == SessionBaseTypeSub {
-			uk = GenUkTsSubSession()
-		}
-	}
-	if uk == "" {
-		nazalog.Errorf("session type invalid. protocol=%s, typ=%s", protocol.Stringify(), typ.Stringify())
-		uk = "INVALID"
-	}
-
-	return SessionType{
-		protocol:  protocol,
-		baseType:  typ,
-		uniqueKey: uk,
-	}
-}
+//type ISessionType interface {
+//	Protocol() string
+//	BaseType() string
+//
+//	//UniqueKey() string
+//}
 
 // TODO chef: rtmp.ClientSession修改为BaseClientSession更好些
 

@@ -360,15 +360,9 @@ func (sm *ServerManager) OnRtmpConnect(session *rtmp.ServerSession, opa rtmp.Obj
 	info.ServerId = sm.config.ServerId
 	info.SessionId = session.UniqueKey()
 	info.RemoteAddr = session.GetStat().RemoteAddr
-	if app, err := opa.FindString("app"); err == nil {
-		info.App = app
-	}
-	if flashVer, err := opa.FindString("flashVer"); err == nil {
-		info.FlashVer = flashVer
-	}
-	if tcUrl, err := opa.FindString("tcUrl"); err == nil {
-		info.TcUrl = tcUrl
-	}
+	info.App, _ = opa.FindString("app")
+	info.FlashVer, _ = opa.FindString("flashVer")
+	info.TcUrl, _ = opa.FindString("tcUrl")
 	sm.option.NotifyHandler.OnRtmpConnect(info)
 }
 
@@ -376,16 +370,8 @@ func (sm *ServerManager) OnNewRtmpPubSession(session *rtmp.ServerSession) error 
 	sm.mutex.Lock()
 	defer sm.mutex.Unlock()
 
-	// TODO chef: 每次赋值都逐个拼，代码冗余，考虑直接用ISession抽离一下代码
-	var info base.PubStartInfo
+	info := base.Session2PubStartInfo(session)
 	info.ServerId = sm.config.ServerId
-	info.Protocol = session.GetStat().Protocol
-	info.Url = session.Url()
-	info.AppName = session.AppName()
-	info.StreamName = session.StreamName()
-	info.UrlParam = session.RawQuery()
-	info.SessionId = session.UniqueKey()
-	info.RemoteAddr = session.GetStat().RemoteAddr
 
 	// 先做simple auth鉴权
 	if err := sm.simpleAuthCtx.OnPubStart(info); err != nil {
@@ -407,6 +393,7 @@ func (sm *ServerManager) OnNewRtmpPubSession(session *rtmp.ServerSession) error 
 func (sm *ServerManager) OnDelRtmpPubSession(session *rtmp.ServerSession) {
 	sm.mutex.Lock()
 	defer sm.mutex.Unlock()
+
 	group := sm.getGroup(session.AppName(), session.StreamName())
 	if group == nil {
 		return
@@ -414,15 +401,8 @@ func (sm *ServerManager) OnDelRtmpPubSession(session *rtmp.ServerSession) {
 
 	group.DelRtmpPubSession(session)
 
-	var info base.PubStopInfo
+	info := base.Session2PubStopInfo(session)
 	info.ServerId = sm.config.ServerId
-	info.Protocol = session.GetStat().Protocol
-	info.Url = session.Url()
-	info.AppName = session.AppName()
-	info.StreamName = session.StreamName()
-	info.UrlParam = session.RawQuery()
-	info.SessionId = session.UniqueKey()
-	info.RemoteAddr = session.GetStat().RemoteAddr
 	info.HasInSession = group.HasInSession()
 	info.HasOutSession = group.HasOutSession()
 	sm.option.NotifyHandler.OnPubStop(info)
@@ -432,15 +412,8 @@ func (sm *ServerManager) OnNewRtmpSubSession(session *rtmp.ServerSession) error 
 	sm.mutex.Lock()
 	defer sm.mutex.Unlock()
 
-	var info base.SubStartInfo
+	info := base.Session2SubStartInfo(session)
 	info.ServerId = sm.config.ServerId
-	info.Protocol = session.GetStat().Protocol
-	info.Url = session.Url()
-	info.AppName = session.AppName()
-	info.StreamName = session.StreamName()
-	info.UrlParam = session.RawQuery()
-	info.SessionId = session.UniqueKey()
-	info.RemoteAddr = session.GetStat().RemoteAddr
 
 	if err := sm.simpleAuthCtx.OnSubStart(info); err != nil {
 		return err
@@ -459,6 +432,7 @@ func (sm *ServerManager) OnNewRtmpSubSession(session *rtmp.ServerSession) error 
 func (sm *ServerManager) OnDelRtmpSubSession(session *rtmp.ServerSession) {
 	sm.mutex.Lock()
 	defer sm.mutex.Unlock()
+
 	group := sm.getGroup(session.AppName(), session.StreamName())
 	if group == nil {
 		return
@@ -466,14 +440,8 @@ func (sm *ServerManager) OnDelRtmpSubSession(session *rtmp.ServerSession) {
 
 	group.DelRtmpSubSession(session)
 
-	var info base.SubStopInfo
+	info := base.Session2SubStopInfo(session)
 	info.ServerId = sm.config.ServerId
-	info.Protocol = session.GetStat().Protocol
-	info.AppName = session.AppName()
-	info.StreamName = session.StreamName()
-	info.UrlParam = session.RawQuery()
-	info.SessionId = session.UniqueKey()
-	info.RemoteAddr = session.GetStat().RemoteAddr
 	info.HasInSession = group.HasInSession()
 	info.HasOutSession = group.HasOutSession()
 	sm.option.NotifyHandler.OnSubStop(info)
@@ -485,15 +453,8 @@ func (sm *ServerManager) OnNewHttpflvSubSession(session *httpflv.SubSession) err
 	sm.mutex.Lock()
 	defer sm.mutex.Unlock()
 
-	var info base.SubStartInfo
+	info := base.Session2SubStartInfo(session)
 	info.ServerId = sm.config.ServerId
-	info.Protocol = session.GetStat().Protocol
-	info.Url = session.Url()
-	info.AppName = session.AppName()
-	info.StreamName = session.StreamName()
-	info.UrlParam = session.RawQuery()
-	info.SessionId = session.UniqueKey()
-	info.RemoteAddr = session.GetStat().RemoteAddr
 
 	if err := sm.simpleAuthCtx.OnSubStart(info); err != nil {
 		return err
@@ -512,6 +473,7 @@ func (sm *ServerManager) OnNewHttpflvSubSession(session *httpflv.SubSession) err
 func (sm *ServerManager) OnDelHttpflvSubSession(session *httpflv.SubSession) {
 	sm.mutex.Lock()
 	defer sm.mutex.Unlock()
+
 	group := sm.getGroup(session.AppName(), session.StreamName())
 	if group == nil {
 		return
@@ -519,15 +481,8 @@ func (sm *ServerManager) OnDelHttpflvSubSession(session *httpflv.SubSession) {
 
 	group.DelHttpflvSubSession(session)
 
-	var info base.SubStopInfo
+	info := base.Session2SubStopInfo(session)
 	info.ServerId = sm.config.ServerId
-	info.Protocol = session.GetStat().Protocol
-	info.Url = session.Url()
-	info.AppName = session.AppName()
-	info.StreamName = session.StreamName()
-	info.UrlParam = session.RawQuery()
-	info.SessionId = session.UniqueKey()
-	info.RemoteAddr = session.GetStat().RemoteAddr
 	info.HasInSession = group.HasInSession()
 	info.HasOutSession = group.HasOutSession()
 	sm.option.NotifyHandler.OnSubStop(info)
@@ -537,16 +492,8 @@ func (sm *ServerManager) OnNewHttptsSubSession(session *httpts.SubSession) error
 	sm.mutex.Lock()
 	defer sm.mutex.Unlock()
 
-	var info base.SubStartInfo
+	info := base.Session2SubStartInfo(session)
 	info.ServerId = sm.config.ServerId
-	info.Protocol = session.GetStat().Protocol
-	info.Url = session.Url()
-	info.AppName = session.AppName()
-	info.StreamName = session.StreamName()
-	info.UrlParam = session.RawQuery()
-	info.SessionId = session.UniqueKey()
-	info.RemoteAddr = session.GetStat().RemoteAddr
-	sm.option.NotifyHandler.OnSubStart(info)
 
 	if err := sm.simpleAuthCtx.OnSubStart(info); err != nil {
 		return err
@@ -566,6 +513,7 @@ func (sm *ServerManager) OnNewHttptsSubSession(session *httpts.SubSession) error
 func (sm *ServerManager) OnDelHttptsSubSession(session *httpts.SubSession) {
 	sm.mutex.Lock()
 	defer sm.mutex.Unlock()
+
 	group := sm.getGroup(session.AppName(), session.StreamName())
 	if group == nil {
 		return
@@ -573,15 +521,8 @@ func (sm *ServerManager) OnDelHttptsSubSession(session *httpts.SubSession) {
 
 	group.DelHttptsSubSession(session)
 
-	var info base.SubStopInfo
+	info := base.Session2SubStopInfo(session)
 	info.ServerId = sm.config.ServerId
-	info.Protocol = session.GetStat().Protocol
-	info.Url = session.Url()
-	info.AppName = session.AppName()
-	info.StreamName = session.StreamName()
-	info.UrlParam = session.RawQuery()
-	info.SessionId = session.UniqueKey()
-	info.RemoteAddr = session.GetStat().RemoteAddr
 	info.HasInSession = group.HasInSession()
 	info.HasOutSession = group.HasOutSession()
 	sm.option.NotifyHandler.OnSubStop(info)
@@ -601,15 +542,8 @@ func (sm *ServerManager) OnNewRtspPubSession(session *rtsp.PubSession) error {
 	sm.mutex.Lock()
 	defer sm.mutex.Unlock()
 
-	var info base.PubStartInfo
+	info := base.Session2PubStartInfo(session)
 	info.ServerId = sm.config.ServerId
-	info.Protocol = session.GetStat().Protocol
-	info.Url = session.Url()
-	info.AppName = session.AppName()
-	info.StreamName = session.StreamName()
-	info.UrlParam = session.RawQuery()
-	info.SessionId = session.UniqueKey()
-	info.RemoteAddr = session.GetStat().RemoteAddr
 
 	if err := sm.simpleAuthCtx.OnPubStart(info); err != nil {
 		return err
@@ -637,15 +571,8 @@ func (sm *ServerManager) OnDelRtspPubSession(session *rtsp.PubSession) {
 
 	group.DelRtspPubSession(session)
 
-	var info base.PubStopInfo
+	info := base.Session2PubStopInfo(session)
 	info.ServerId = sm.config.ServerId
-	info.Protocol = session.GetStat().Protocol
-	info.Url = session.Url()
-	info.AppName = session.AppName()
-	info.StreamName = session.StreamName()
-	info.UrlParam = session.RawQuery()
-	info.SessionId = session.UniqueKey()
-	info.RemoteAddr = session.GetStat().RemoteAddr
 	info.HasInSession = group.HasInSession()
 	info.HasOutSession = group.HasOutSession()
 	sm.option.NotifyHandler.OnPubStop(info)
@@ -662,15 +589,8 @@ func (sm *ServerManager) OnNewRtspSubSessionPlay(session *rtsp.SubSession) error
 	sm.mutex.Lock()
 	defer sm.mutex.Unlock()
 
-	var info base.SubStartInfo
+	info := base.Session2SubStartInfo(session)
 	info.ServerId = sm.config.ServerId
-	info.Protocol = session.GetStat().Protocol
-	info.Url = session.Url()
-	info.AppName = session.AppName()
-	info.StreamName = session.StreamName()
-	info.UrlParam = session.RawQuery()
-	info.SessionId = session.UniqueKey()
-	info.RemoteAddr = session.GetStat().RemoteAddr
 
 	if err := sm.simpleAuthCtx.OnSubStart(info); err != nil {
 		return err
@@ -696,15 +616,8 @@ func (sm *ServerManager) OnDelRtspSubSession(session *rtsp.SubSession) {
 
 	group.DelRtspSubSession(session)
 
-	var info base.SubStopInfo
+	info := base.Session2SubStopInfo(session)
 	info.ServerId = sm.config.ServerId
-	info.Protocol = session.GetStat().Protocol
-	info.Url = session.Url()
-	info.AppName = session.AppName()
-	info.StreamName = session.StreamName()
-	info.UrlParam = session.RawQuery()
-	info.SessionId = session.UniqueKey()
-	info.RemoteAddr = session.GetStat().RemoteAddr
 	info.HasInSession = group.HasInSession()
 	info.HasOutSession = group.HasOutSession()
 	sm.option.NotifyHandler.OnSubStop(info)
@@ -724,18 +637,18 @@ func (sm *ServerManager) CleanupHlsIfNeeded(appName string, streamName string, p
 		defertaskthread.Go(
 			sm.config.HlsConfig.FragmentDurationMs*(sm.config.HlsConfig.FragmentNum+sm.config.HlsConfig.DeleteThreshold),
 			func(param ...interface{}) {
-				appName := param[0].(string)
-				streamName := param[1].(string)
+				an := param[0].(string)
+				sn := param[1].(string)
 				outPath := param[2].(string)
 
-				if g := sm.GetGroup(appName, streamName); g != nil {
+				if g := sm.GetGroup(an, sn); g != nil {
 					if g.IsHlsMuxerAlive() {
-						Log.Warnf("cancel cleanup hls file path since hls muxer still alive. streamName=%s", streamName)
+						Log.Warnf("cancel cleanup hls file path since hls muxer still alive. streamName=%s", sn)
 						return
 					}
 				}
 
-				Log.Infof("cleanup hls file path. streamName=%s, path=%s", streamName, outPath)
+				Log.Infof("cleanup hls file path. streamName=%s, path=%s", sn, outPath)
 				if err := hls.RemoveAll(outPath); err != nil {
 					Log.Warnf("cleanup hls file path error. path=%s, err=%+v", outPath, err)
 				}

@@ -29,7 +29,6 @@ var defaultPushSessionOption = PushSessionOption{
 }
 
 type PushSession struct {
-	uniqueKey      string
 	cmdSession     *ClientCommandSession
 	baseOutSession *BaseOutSession
 
@@ -45,26 +44,24 @@ func NewPushSession(modOptions ...ModPushSessionOption) *PushSession {
 		fn(&option)
 	}
 
-	uk := base.GenUkRtspPushSession()
 	s := &PushSession{
-		uniqueKey: uk,
-		waitChan:  make(chan error, 1),
+		waitChan: make(chan error, 1),
 	}
-	cmdSession := NewClientCommandSession(CcstPushSession, uk, s, func(opt *ClientCommandSessionOption) {
+	baseOutSession := NewBaseOutSession(base.SessionTypeRtspPush, s)
+	cmdSession := NewClientCommandSession(CcstPushSession, baseOutSession.UniqueKey(), s, func(opt *ClientCommandSessionOption) {
 		opt.DoTimeoutMs = option.PushTimeoutMs
 		opt.OverTcp = option.OverTcp
 	})
-	baseOutSession := NewBaseOutSession(uk, base.SessionBaseTypePushStr, s)
 	s.cmdSession = cmdSession
 	s.baseOutSession = baseOutSession
-	Log.Infof("[%s] lifecycle new rtsp PushSession. session=%p", uk, s)
+	Log.Infof("[%s] lifecycle new rtsp PushSession. session=%p", baseOutSession.UniqueKey(), s)
 	return s
 }
 
 // Push 阻塞直到和对端完成推流前，握手部分的工作（也即收到RTSP Record response），或者发生错误
 //
 func (session *PushSession) Push(rawUrl string, sdpCtx sdp.LogicContext) error {
-	Log.Debugf("[%s] push. url=%s", session.uniqueKey, rawUrl)
+	Log.Debugf("[%s] push. url=%s", session.UniqueKey(), rawUrl)
 	session.cmdSession.InitWithSdp(sdpCtx)
 	session.baseOutSession.InitWithSdp(sdpCtx)
 	if err := session.cmdSession.Do(rawUrl); err != nil {
@@ -84,7 +81,7 @@ func (session *PushSession) Push(rawUrl string, sdpCtx sdp.LogicContext) error {
 					_ = session.baseOutSession.Dispose()
 				}
 				if cmdSessionDisposed {
-					Log.Errorf("[%s] cmd session disposed already.", session.uniqueKey)
+					Log.Errorf("[%s] cmd session disposed already.", session.UniqueKey())
 				}
 				cmdSessionDisposed = true
 			case err = <-session.baseOutSession.WaitChan():
@@ -93,7 +90,7 @@ func (session *PushSession) Push(rawUrl string, sdpCtx sdp.LogicContext) error {
 					_ = session.cmdSession.Dispose()
 				}
 				if baseInSessionDisposed {
-					Log.Errorf("[%s] base in session disposed already.", session.uniqueKey)
+					Log.Errorf("[%s] base in session disposed already.", session.UniqueKey())
 				}
 				baseInSessionDisposed = true
 			} // select loop
@@ -158,7 +155,7 @@ func (session *PushSession) RawQuery() string {
 
 // UniqueKey 文档请参考： interface IObject
 func (session *PushSession) UniqueKey() string {
-	return session.uniqueKey
+	return session.baseOutSession.UniqueKey()
 }
 
 // ----- ISessionStat --------------------------------------------------------------------------------------------------
@@ -220,7 +217,7 @@ func (session *PushSession) WriteInterleavedPacket(packet []byte, channel int) e
 func (session *PushSession) dispose(err error) error {
 	var retErr error
 	session.disposeOnce.Do(func() {
-		Log.Infof("[%s] lifecycle dispose rtsp PushSession. session=%p", session.uniqueKey, session)
+		Log.Infof("[%s] lifecycle dispose rtsp PushSession. session=%p", session.UniqueKey(), session)
 		e1 := session.cmdSession.Dispose()
 		e2 := session.baseOutSession.Dispose()
 		retErr = nazaerrors.CombineErrors(e1, e2)

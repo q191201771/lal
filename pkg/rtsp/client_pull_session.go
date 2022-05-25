@@ -35,8 +35,6 @@ var defaultPullSessionOption = PullSessionOption{
 }
 
 type PullSession struct {
-	uniqueKey string // const after ctor
-
 	onDescribeResponse func()
 
 	cmdSession    *ClientCommandSession
@@ -56,20 +54,18 @@ func NewPullSession(observer IPullSessionObserver, modOptions ...ModPullSessionO
 		fn(&option)
 	}
 
-	uk := base.GenUkRtspPullSession()
 	s := &PullSession{
-		uniqueKey:          uk,
 		onDescribeResponse: defaultOnDescribeResponse,
 		waitChan:           make(chan error, 1),
 	}
-	cmdSession := NewClientCommandSession(CcstPullSession, uk, s, func(opt *ClientCommandSessionOption) {
+	baseInSession := NewBaseInSessionWithObserver(base.SessionTypeRtspPull, s, observer)
+	cmdSession := NewClientCommandSession(CcstPullSession, baseInSession.UniqueKey(), s, func(opt *ClientCommandSessionOption) {
 		opt.DoTimeoutMs = option.PullTimeoutMs
 		opt.OverTcp = option.OverTcp
 	})
-	baseInSession := NewBaseInSessionWithObserver(uk, base.SessionBaseTypePullStr, s, observer)
 	s.baseInSession = baseInSession
 	s.cmdSession = cmdSession
-	Log.Infof("[%s] lifecycle new rtsp PullSession. session=%p", uk, s)
+	Log.Infof("[%s] lifecycle new rtsp PullSession. session=%p", baseInSession.UniqueKey(), s)
 	return s
 }
 
@@ -81,7 +77,7 @@ func (session *PullSession) WithOnDescribeResponse(onDescribeResponse func()) *P
 // Pull 阻塞直到和对端完成拉流前，握手部分的工作（也即收到RTSP Play response），或者发生错误
 //
 func (session *PullSession) Pull(rawUrl string) error {
-	Log.Debugf("[%s] pull. url=%s", session.uniqueKey, rawUrl)
+	Log.Debugf("[%s] pull. url=%s", session.UniqueKey(), rawUrl)
 	if err := session.cmdSession.Do(rawUrl); err != nil {
 		return err
 	}
@@ -102,7 +98,7 @@ func (session *PullSession) Pull(rawUrl string) error {
 					_ = session.baseInSession.Dispose()
 				}
 				if cmdSessionDisposed {
-					Log.Errorf("[%s] cmd session disposed already.", session.uniqueKey)
+					Log.Errorf("[%s] cmd session disposed already.", session.UniqueKey())
 				}
 				cmdSessionDisposed = true
 			case err = <-session.baseInSession.WaitChan():
@@ -111,7 +107,7 @@ func (session *PullSession) Pull(rawUrl string) error {
 					_ = session.cmdSession.Dispose()
 				}
 				if baseInSessionDisposed {
-					Log.Errorf("[%s] base in session disposed already.", session.uniqueKey)
+					Log.Errorf("[%s] base in session disposed already.", session.UniqueKey())
 				}
 				baseInSessionDisposed = true
 			} // select loop
@@ -176,7 +172,7 @@ func (session *PullSession) RawQuery() string {
 
 // UniqueKey 文档请参考： interface IObject
 func (session *PullSession) UniqueKey() string {
-	return session.uniqueKey
+	return session.baseInSession.UniqueKey()
 }
 
 // ----- ISessionStat --------------------------------------------------------------------------------------------------
@@ -239,7 +235,7 @@ func (session *PullSession) WriteInterleavedPacket(packet []byte, channel int) e
 func (session *PullSession) dispose(err error) error {
 	var retErr error
 	session.disposeOnce.Do(func() {
-		Log.Infof("[%s] lifecycle dispose rtsp PullSession. session=%p", session.uniqueKey, session)
+		Log.Infof("[%s] lifecycle dispose rtsp PullSession. session=%p", session.UniqueKey(), session)
 		e1 := session.cmdSession.Dispose()
 		e2 := session.baseInSession.Dispose()
 		retErr = nazaerrors.CombineErrors(e1, e2)

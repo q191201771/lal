@@ -24,6 +24,8 @@ import (
 	"github.com/q191201771/lal/pkg/sdp"
 )
 
+// TODO(chef): [refactor] 文件名修改为group__.go 202205
+
 type IGroupObserver interface {
 	CleanupHlsIfNeeded(appName string, streamName string, path string)
 
@@ -192,9 +194,9 @@ func (group *Group) GetStat(maxsub int) base.StatGroup {
 	defer group.mutex.Unlock()
 
 	if group.rtmpPubSession != nil {
-		group.stat.StatPub = base.StatSession2Pub(group.rtmpPubSession.GetStat())
+		group.stat.StatPub = base.Session2StatPub(group.rtmpPubSession)
 	} else if group.rtspPubSession != nil {
-		group.stat.StatPub = base.StatSession2Pub(group.rtspPubSession.GetStat())
+		group.stat.StatPub = base.Session2StatPub(group.rtspPubSession)
 	} else {
 		group.stat.StatPub = base.StatPub{}
 	}
@@ -208,28 +210,28 @@ func (group *Group) GetStat(maxsub int) base.StatGroup {
 		if statSubCount > maxsub {
 			break
 		}
-		group.stat.StatSubs = append(group.stat.StatSubs, base.StatSession2Sub(s.GetStat()))
+		group.stat.StatSubs = append(group.stat.StatSubs, base.Session2StatSub(s))
 	}
 	for s := range group.httpflvSubSessionSet {
 		statSubCount++
 		if statSubCount > maxsub {
 			break
 		}
-		group.stat.StatSubs = append(group.stat.StatSubs, base.StatSession2Sub(s.GetStat()))
+		group.stat.StatSubs = append(group.stat.StatSubs, base.Session2StatSub(s))
 	}
 	for s := range group.httptsSubSessionSet {
 		statSubCount++
 		if statSubCount > maxsub {
 			break
 		}
-		group.stat.StatSubs = append(group.stat.StatSubs, base.StatSession2Sub(s.GetStat()))
+		group.stat.StatSubs = append(group.stat.StatSubs, base.Session2StatSub(s))
 	}
 	for s := range group.rtspSubSessionSet {
 		statSubCount++
 		if statSubCount > maxsub {
 			break
 		}
-		group.stat.StatSubs = append(group.stat.StatSubs, base.StatSession2Sub(s.GetStat()))
+		group.stat.StatSubs = append(group.stat.StatSubs, base.Session2StatSub(s))
 	}
 
 	return group.stat

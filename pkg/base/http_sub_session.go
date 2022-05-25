@@ -28,8 +28,7 @@ type HttpSubSession struct {
 type HttpSubSessionOption struct {
 	Conn          net.Conn
 	ConnModOption connection.ModOption
-	Uk            string // unique key
-	Protocol      string
+	SessionType   SessionType
 	UrlCtx        UrlContext
 	IsWebSocket   bool
 	WebSocketKey  string
@@ -39,15 +38,7 @@ func NewHttpSubSession(option HttpSubSessionOption) *HttpSubSession {
 	s := &HttpSubSession{
 		HttpSubSessionOption: option,
 		conn:                 connection.New(option.Conn, option.ConnModOption),
-		sessionStat: BasicSessionStat{
-			Stat: StatSession{
-				SessionId:  option.Uk,
-				Protocol:   option.Protocol,
-				BaseType:   SessionBaseTypeSubStr,
-				StartTime:  ReadableNowTime(),
-				RemoteAddr: option.Conn.RemoteAddr().String(),
-			},
-		},
+		sessionStat:          NewBasicSessionStat(option.SessionType, ""),
 	}
 	return s
 }
@@ -97,7 +88,7 @@ func (session *HttpSubSession) Write(b []byte) {
 // ---------------------------------------------------------------------------------------------------------------------
 
 func (session *HttpSubSession) UniqueKey() string {
-	return session.Uk
+	return session.sessionStat.UniqueKey()
 }
 
 // ---------------------------------------------------------------------------------------------------------------------
@@ -114,13 +105,13 @@ func (session *HttpSubSession) AppName() string {
 
 func (session *HttpSubSession) StreamName() string {
 	var suffix string
-	switch session.Protocol {
-	case SessionProtocolFlvStr:
+	switch session.SessionType {
+	case SessionTypeFlvSub:
 		suffix = ".flv"
-	case SessionProtocolTsStr:
+	case SessionTypeTsSub:
 		suffix = ".ts"
 	default:
-		Log.Warnf("[%s] acquire stream name but protocol unknown.", session.Uk)
+		Log.Warnf("[%s] acquire stream name but protocol unknown.", session.UniqueKey())
 	}
 	return strings.TrimSuffix(session.UrlCtx.LastItemOfPath, suffix)
 }

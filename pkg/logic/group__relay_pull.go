@@ -115,10 +115,10 @@ func (group *Group) resetRelayPullSession() {
 
 func (group *Group) getStatPull() base.StatPull {
 	if group.pullProxy.rtmpSession != nil {
-		return base.StatSession2Pull(group.pullProxy.rtmpSession.GetStat())
+		return base.Session2StatPull(group.pullProxy.rtmpSession)
 	}
 	if group.pullProxy.rtspSession != nil {
-		return base.StatSession2Pull(group.pullProxy.rtspSession.GetStat())
+		return base.Session2StatPull(group.pullProxy.rtspSession)
 	}
 	return base.StatPull{}
 }

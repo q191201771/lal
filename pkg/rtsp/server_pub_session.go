@@ -21,7 +21,6 @@ type IPubSessionObserver interface {
 }
 
 type PubSession struct {
-	uniqueKey     string
 	urlCtx        base.UrlContext
 	cmdSession    *ServerCommandSession
 	baseInSession *BaseInSession
@@ -30,15 +29,13 @@ type PubSession struct {
 }
 
 func NewPubSession(urlCtx base.UrlContext, cmdSession *ServerCommandSession) *PubSession {
-	uk := base.GenUkRtspPubSession()
 	s := &PubSession{
-		uniqueKey:  uk,
 		urlCtx:     urlCtx,
 		cmdSession: cmdSession,
 	}
-	baseInSession := NewBaseInSession(uk, base.SessionBaseTypePubStr, s)
+	baseInSession := NewBaseInSession(base.SessionTypeRtspPub, s)
 	s.baseInSession = baseInSession
-	Log.Infof("[%s] lifecycle new rtsp PubSession. session=%p, streamName=%s", uk, s, urlCtx.LastItemOfPath)
+	Log.Infof("[%s] lifecycle new rtsp PubSession. session=%p, streamName=%s", s, urlCtx.LastItemOfPath)
 	return s
 }
 
@@ -59,7 +56,7 @@ func (session *PubSession) SetupWithChannel(uri string, rtpChannel, rtcpChannel 
 }
 
 func (session *PubSession) Dispose() error {
-	Log.Infof("[%s] lifecycle dispose rtsp PubSession. session=%p", session.uniqueKey, session)
+	Log.Infof("[%s] lifecycle dispose rtsp PubSession. session=%p", session.UniqueKey(), session)
 	e1 := session.cmdSession.Dispose()
 	e2 := session.baseInSession.Dispose()
 	return nazaerrors.CombineErrors(e1, e2)
@@ -90,7 +87,7 @@ func (session *PubSession) RawQuery() string {
 }
 
 func (session *PubSession) UniqueKey() string {
-	return session.uniqueKey
+	return session.baseInSession.UniqueKey()
 }
 
 // ----- ISessionStat --------------------------------------------------------------------------------------------------

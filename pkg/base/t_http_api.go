@@ -10,6 +10,37 @@ package base
 
 // 文档见： https://pengrl.com/lal/#/HTTPAPI
 
+// TODO(chef): refactor 重命名为t_http_an_api.go 202205
+
+// ----- request -------------------------------------------------------------------------------------------------------
+
+const (
+	PullRetryNumForever = -1
+	PullRetryNumNever   = 0
+
+	AutoStopPullAfterNoOutMsNever       = -1
+	AutoStopPullAfterNoOutMsImmediately = 0
+
+	RtspModeTcp = 0
+	RtspModeUdp = 1
+)
+
+type ApiCtrlStartRelayPullReq struct {
+	Url                      string `json:"url"`
+	StreamName               string `json:"stream_name"`
+	PullTimeoutMs            int    `json:"pull_timeout_ms"`
+	PullRetryNum             int    `json:"pull_retry_num"`
+	AutoStopPullAfterNoOutMs int    `json:"auto_stop_pull_after_no_out_ms"`
+	RtspMode                 int    `json:"rtsp_mode"`
+}
+
+type ApiCtrlKickSession struct {
+	StreamName string `json:"stream_name"`
+	SessionId  string `json:"session_id"`
+}
+
+// ----- response ------------------------------------------------------------------------------------------------------
+
 const (
 	ErrorCodeSucc = 0
 	DespSucc      = "succ"
@@ -31,15 +62,6 @@ const (
 type HttpResponseBasic struct {
 	ErrorCode int    `json:"error_code"`
 	Desp      string `json:"desp"`
-}
-
-type LalInfo struct {
-	ServerId      string `json:"server_id"`
-	BinInfo       string `json:"bin_info"`
-	LalVersion    string `json:"lal_version"`
-	ApiVersion    string `json:"api_version"`
-	NotifyVersion string `json:"notify_version"`
-	StartTime     string `json:"start_time"`
 }
 
 type ApiStatLalInfo struct {
@@ -72,31 +94,4 @@ type ApiCtrlStopRelayPull struct {
 	Data struct {
 		SessionId string `json:"session_id"`
 	} `json:"data"`
-}
-
-// ---------------------------------------------------------------------------------------------------------------------
-
-const (
-	PullRetryNumForever = -1
-	PullRetryNumNever   = 0
-
-	AutoStopPullAfterNoOutMsNever       = -1
-	AutoStopPullAfterNoOutMsImmediately = 0
-
-	RtspModeTcp = 0
-	RtspModeUdp = 1
-)
-
-type ApiCtrlStartRelayPullReq struct {
-	Url                      string `json:"url"`
-	StreamName               string `json:"stream_name"`
-	PullTimeoutMs            int    `json:"pull_timeout_ms"`
-	PullRetryNum             int    `json:"pull_retry_num"`
-	AutoStopPullAfterNoOutMs int    `json:"auto_stop_pull_after_no_out_ms"`
-	RtspMode                 int    `json:"rtsp_mode"`
-}
-
-type ApiCtrlKickSession struct {
-	StreamName string `json:"stream_name"`
-	SessionId  string `json:"session_id"`
 }

@@ -236,7 +236,7 @@ func (session *ServerCommandSession) handleAnnounce(requestCtx nazahttp.HttpReqM
 	}
 
 	session.pubSession = NewPubSession(urlCtx, session)
-	Log.Infof("[%s] link new PubSession. [%s]", session.uniqueKey, session.pubSession.uniqueKey)
+	Log.Infof("[%s] link new PubSession. [%s]", session.uniqueKey, session.pubSession.UniqueKey())
 	session.pubSession.InitWithSdp(sdpCtx)
 
 	if err = session.observer.OnNewRtspPubSession(session.pubSession); err != nil {
@@ -258,7 +258,7 @@ func (session *ServerCommandSession) handleDescribe(requestCtx nazahttp.HttpReqM
 	}
 
 	session.subSession = NewSubSession(urlCtx, session)
-	Log.Infof("[%s] link new SubSession. [%s]", session.uniqueKey, session.subSession.uniqueKey)
+	Log.Infof("[%s] link new SubSession. [%s]", session.uniqueKey, session.subSession.UniqueKey())
 	ok, rawSdp := session.observer.OnNewRtspSubSessionDescribe(session.subSession)
 	if !ok {
 		Log.Warnf("[%s] force close subSession.", session.uniqueKey)

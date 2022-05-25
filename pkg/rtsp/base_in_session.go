@@ -47,7 +47,6 @@ type IBaseInSessionObserver interface {
 }
 
 type BaseInSession struct {
-	uniqueKey  string // 使用上层Session的值
 	cmdSession IInterleavedPacketWriter
 
 	observer IBaseInSessionObserver
@@ -84,29 +83,21 @@ type BaseInSession struct {
 	dumpReadSr       base.LogDump
 }
 
-func NewBaseInSession(uniqueKey string, sessionBaseType string, cmdSession IInterleavedPacketWriter) *BaseInSession {
+func NewBaseInSession(sessionType base.SessionType, cmdSession IInterleavedPacketWriter) *BaseInSession {
 	s := &BaseInSession{
-		uniqueKey: uniqueKey,
-		sessionStat: base.BasicSessionStat{
-			Stat: base.StatSession{
-				SessionId: uniqueKey,
-				Protocol:  base.SessionProtocolRtspStr,
-				BaseType:  sessionBaseType,
-				StartTime: base.ReadableNowTime(),
-			},
-		},
+		sessionStat:      base.NewBasicSessionStat(sessionType, ""),
 		cmdSession:       cmdSession,
 		waitChan:         make(chan error, 1),
 		dumpReadAudioRtp: base.NewLogDump(Log, 1),
 		dumpReadVideoRtp: base.NewLogDump(Log, 1),
 		dumpReadSr:       base.NewLogDump(Log, 2),
 	}
-	Log.Infof("[%s] lifecycle new rtsp BaseInSession. session=%p", uniqueKey, s)
+	Log.Infof("[%s] lifecycle new rtsp BaseInSession. session=%p", s.UniqueKey(), s)
 	return s
 }
 
-func NewBaseInSessionWithObserver(uniqueKey string, sessionBaseType string, cmdSession IInterleavedPacketWriter, observer IBaseInSessionObserver) *BaseInSession {
-	s := NewBaseInSession(uniqueKey, sessionBaseType, cmdSession)
+func NewBaseInSessionWithObserver(sessionType base.SessionType, cmdSession IInterleavedPacketWriter, observer IBaseInSessionObserver) *BaseInSession {
+	s := NewBaseInSession(sessionType, cmdSession)
 	s.observer = observer
 	return s
 }
@@ -119,12 +110,12 @@ func (session *BaseInSession) InitWithSdp(sdpCtx sdp.LogicContext) {
 	if session.sdpCtx.IsAudioUnpackable() {
 		session.audioUnpacker = rtprtcp.DefaultRtpUnpackerFactory(session.sdpCtx.GetAudioPayloadTypeBase(), session.sdpCtx.AudioClockRate, unpackerItemMaxSize, session.onAvPacketUnpacked)
 	} else {
-		Log.Warnf("[%s] audio unpacker not support for this type yet. logicCtx=%+v", session.uniqueKey, session.sdpCtx)
+		Log.Warnf("[%s] audio unpacker not support for this type yet. logicCtx=%+v", session.UniqueKey(), session.sdpCtx)
 	}
 	if session.sdpCtx.IsVideoUnpackable() {
 		session.videoUnpacker = rtprtcp.DefaultRtpUnpackerFactory(session.sdpCtx.GetVideoPayloadTypeBase(), session.sdpCtx.VideoClockRate, unpackerItemMaxSize, session.onAvPacketUnpacked)
 	} else {
-		Log.Warnf("[%s] video unpacker not support this type yet. logicCtx=%+v", session.uniqueKey, session.sdpCtx)
+		Log.Warnf("[%s] video unpacker not support this type yet. logicCtx=%+v", session.UniqueKey(), session.sdpCtx)
 	}
 
 	session.audioRrProducer = rtprtcp.NewRrProducer(session.sdpCtx.AudioClockRate)
@@ -219,7 +210,7 @@ func (session *BaseInSession) HandleInterleavedPacket(b []byte, channel int) {
 	case session.videoRtcpChannel:
 		_ = session.handleRtcpPacket(b, nil)
 	default:
-		Log.Errorf("[%s] read interleaved packet but channel invalid. channel=%d", session.uniqueKey, channel)
+		Log.Errorf("[%s] read interleaved packet but channel invalid. channel=%d", session.UniqueKey(), channel)
 	}
 }
 
@@ -256,7 +247,7 @@ func (session *BaseInSession) IsAlive() (readAlive, writeAlive bool) {
 // ---------------------------------------------------------------------------------------------------------------------
 
 func (session *BaseInSession) UniqueKey() string {
-	return session.uniqueKey
+	return session.sessionStat.UniqueKey()
 }
 
 // callback by RTPUnpacker
@@ -282,7 +273,7 @@ func (session *BaseInSession) onReadRtpPacket(b []byte, rAddr *net.UDPAddr, err 
 		// TODO(chef):
 		// read udp [::]:30008: use of closed network connection
 		// 可以退出loop，看是在上层退还是下层退，但是要注意每次read都判断的开销
-		Log.Warnf("[%s] read udp packet failed. err=%+v", session.uniqueKey, err)
+		Log.Warnf("[%s] read udp packet failed. err=%+v", session.UniqueKey(), err)
 		return true
 	}
 
@@ -293,7 +284,7 @@ func (session *BaseInSession) onReadRtpPacket(b []byte, rAddr *net.UDPAddr, err 
 // callback by UDPConnection
 func (session *BaseInSession) onReadRtcpPacket(b []byte, rAddr *net.UDPAddr, err error) bool {
 	if err != nil {
-		Log.Warnf("[%s] read udp packet failed. err=%+v", session.uniqueKey, err)
+		Log.Warnf("[%s] read udp packet failed. err=%+v", session.UniqueKey(), err)
 		return true
 	}
 
@@ -306,7 +297,7 @@ func (session *BaseInSession) handleRtcpPacket(b []byte, rAddr *net.UDPAddr) err
 	session.sessionStat.AddReadBytes(len(b))
 
 	if len(b) <= 0 {
-		Log.Errorf("[%s] handleRtcpPacket but length invalid. len=%d", session.uniqueKey, len(b))
+		Log.Errorf("[%s] handleRtcpPacket but length invalid. len=%d", session.UniqueKey(), len(b))
 		return nazaerrors.Wrap(base.ErrRtsp)
 	}
 
@@ -316,7 +307,7 @@ func (session *BaseInSession) handleRtcpPacket(b []byte, rAddr *net.UDPAddr) err
 	case rtprtcp.RtcpPacketTypeSr:
 		sr := rtprtcp.ParseSr(b)
 		if session.dumpReadSr.ShouldDump() {
-			session.dumpReadSr.Outf("[%s] READ_RTCP. sr=%+v", session.uniqueKey, sr)
+			session.dumpReadSr.Outf("[%s] READ_RTCP. sr=%+v", session.UniqueKey(), sr)
 		}
 		var rrBuf []byte
 		switch sr.SenderSsrc {
@@ -353,7 +344,7 @@ func (session *BaseInSession) handleRtcpPacket(b []byte, rAddr *net.UDPAddr) err
 		}
 	default:
 		Log.Warnf("[%s] handleRtcpPacket but type unknown. type=%d, len=%d, hex=%s",
-			session.uniqueKey, b[1], len(b), hex.Dump(nazabytes.Prefix(b, 32)))
+			session.UniqueKey(), b[1], len(b), hex.Dump(nazabytes.Prefix(b, 32)))
 		return nazaerrors.Wrap(base.ErrRtsp)
 	}
 
@@ -364,19 +355,19 @@ func (session *BaseInSession) handleRtpPacket(b []byte) error {
 	session.sessionStat.AddReadBytes(len(b))
 
 	if len(b) < rtprtcp.RtpFixedHeaderLength {
-		Log.Errorf("[%s] handleRtpPacket but length invalid. len=%d", session.uniqueKey, len(b))
+		Log.Errorf("[%s] handleRtpPacket but length invalid. len=%d", session.UniqueKey(), len(b))
 		return nazaerrors.Wrap(base.ErrRtsp)
 	}
 
 	packetType := int(b[1] & 0x7F)
 	if !session.sdpCtx.IsPayloadTypeOrigin(packetType) {
-		Log.Errorf("[%s] handleRtpPacket but type invalid. type=%d", session.uniqueKey, packetType)
+		Log.Errorf("[%s] handleRtpPacket but type invalid. type=%d", session.UniqueKey(), packetType)
 		return nazaerrors.Wrap(base.ErrRtsp)
 	}
 
 	h, err := rtprtcp.ParseRtpHeader(b)
 	if err != nil {
-		Log.Errorf("[%s] handleRtpPacket invalid rtp packet. err=%+v", session.uniqueKey, err)
+		Log.Errorf("[%s] handleRtpPacket invalid rtp packet. err=%+v", session.UniqueKey(), err)
 		return err
 	}
 
@@ -388,7 +379,7 @@ func (session *BaseInSession) handleRtpPacket(b []byte) error {
 	if session.sdpCtx.IsAudioPayloadTypeOrigin(packetType) {
 		if session.dumpReadAudioRtp.ShouldDump() {
 			session.dumpReadAudioRtp.Outf("[%s] READ_RTP. audio, h=%+v, len=%d, hex=%s",
-				session.uniqueKey, h, len(b), hex.Dump(nazabytes.Prefix(b, 32)))
+				session.UniqueKey(), h, len(b), hex.Dump(nazabytes.Prefix(b, 32)))
 		}
 
 		session.audioSsrc.Store(h.Ssrc)
@@ -403,7 +394,7 @@ func (session *BaseInSession) handleRtpPacket(b []byte) error {
 	} else if session.sdpCtx.IsVideoPayloadTypeOrigin(packetType) {
 		if session.dumpReadVideoRtp.ShouldDump() {
 			session.dumpReadVideoRtp.Outf("[%s] READ_RTP. video, h=%+v, len=%d, hex=%s",
-				session.uniqueKey, h, len(b), hex.Dump(nazabytes.Prefix(b, 32)))
+				session.UniqueKey(), h, len(b), hex.Dump(nazabytes.Prefix(b, 32)))
 		}
 
 		session.videoSsrc.Store(h.Ssrc)
@@ -425,7 +416,7 @@ func (session *BaseInSession) handleRtpPacket(b []byte) error {
 func (session *BaseInSession) dispose(err error) error {
 	var retErr error
 	session.disposeOnce.Do(func() {
-		Log.Infof("[%s] lifecycle dispose rtsp BaseInSession. session=%p", session.uniqueKey, session)
+		Log.Infof("[%s] lifecycle dispose rtsp BaseInSession. session=%p", session.UniqueKey(), session)
 		var e1, e2, e3, e4 error
 		if session.audioRtpConn != nil {
 			e1 = session.audioRtpConn.Dispose()

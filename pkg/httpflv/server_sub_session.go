@@ -33,8 +33,7 @@ func NewSubSession(conn net.Conn, urlCtx base.UrlContext, isWebSocket bool, webs
 				option.WriteChanSize = SubSessionWriteChanSize
 				option.WriteTimeoutMs = SubSessionWriteTimeoutMs
 			},
-			Uk:           uk,
-			Protocol:     base.SessionProtocolFlvStr,
+			SessionType:  base.SessionTypeFlvSub,
 			UrlCtx:       urlCtx,
 			IsWebSocket:  isWebSocket,
 			WebSocketKey: websocketKey,

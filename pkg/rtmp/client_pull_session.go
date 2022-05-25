@@ -46,7 +46,7 @@ func NewPullSession(modOptions ...ModPullSessionOption) *PullSession {
 	}
 
 	return &PullSession{
-		core: NewClientSession(CstPullSession, func(option *ClientSessionOption) {
+		core: NewClientSession(base.SessionTypeRtmpPull, func(option *ClientSessionOption) {
 			option.DoTimeoutMs = opt.PullTimeoutMs
 			option.ReadAvTimeoutMs = opt.ReadAvTimeoutMs
 			option.ReadBufSize = opt.ReadBufSize
@@ -125,7 +125,7 @@ func (s *PullSession) RawQuery() string {
 
 // UniqueKey 文档请参考： interface IObject
 func (s *PullSession) UniqueKey() string {
-	return s.core.uniqueKey
+	return s.core.UniqueKey()
 }
 
 // ----- ISessionStat --------------------------------------------------------------------------------------------------
