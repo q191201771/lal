@@ -50,7 +50,9 @@ func (group *Group) OnSdp(sdpCtx sdp.LogicContext) {
 	group.mutex.Lock()
 	defer group.mutex.Unlock()
 	group.sdpCtx = &sdpCtx
-	group.rtsp2RtmpRemuxer.OnSdp(sdpCtx)
+	if group.rtsp2RtmpRemuxer != nil {
+		group.rtsp2RtmpRemuxer.OnSdp(sdpCtx)
+	}
 }
 
 // OnRtpPacket ...
@@ -64,7 +66,13 @@ func (group *Group) OnRtpPacket(pkt rtprtcp.RtpPacket) {
 func (group *Group) OnAvPacket(pkt base.AvPacket) {
 	group.mutex.Lock()
 	defer group.mutex.Unlock()
-	group.rtsp2RtmpRemuxer.OnAvPacket(pkt)
+
+	// 注意，由于rtsp pub的tcp命令连接和udp接收数据连接是并行的，
+	// 可能发生rtsp pub已经回调告知结束，数据依然回调的现象，
+	// 出于性能考虑，底层不判断，由上层按需判断
+	if group.rtsp2RtmpRemuxer != nil {
+		group.rtsp2RtmpRemuxer.OnAvPacket(pkt)
+	}
 }
 
 // ---------------------------------------------------------------------------------------------------------------------
