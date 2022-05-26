@@ -41,6 +41,10 @@ func TestAscContext(t *testing.T) {
 	assert.Equal(t, nil, err)
 	assert.Equal(t, goldenSh[2:], asc)
 
+	sf, err := ascCtx.GetSamplingFrequency()
+	assert.Equal(t, 48000, sf)
+	assert.Equal(t, nil, err)
+
 	// 使用Unpack构造
 	var ascCtx2 aac.AscContext
 	err = ascCtx2.Unpack(goldenSh[2:])
@@ -57,6 +61,17 @@ func TestAscContext(t *testing.T) {
 	assert.Equal(t, nil, err)
 	assert.Equal(t, goldenAsc2, ascCtx.Pack())
 
+	sf, err = ascCtx.GetSamplingFrequency()
+	assert.Equal(t, 44100, sf)
+	assert.Equal(t, nil, err)
+
+	// case
+	ascCtx, err = aac.NewAscContext([]byte{0x13, 0x90, 0x56, 0xe5, 0xa0})
+	assert.Equal(t, nil, err)
+	sf, err = ascCtx.GetSamplingFrequency()
+	assert.Equal(t, 22050, sf)
+	assert.Equal(t, nil, err)
+
 	// error case
 	_, err = aac.NewAscContext(nil)
 	assert.Equal(t, true, errors.Is(err, base.ErrShortBuffer))
@@ -64,9 +79,12 @@ func TestAscContext(t *testing.T) {
 	_, err = aac.MakeAscWithAdtsHeader(nil)
 	assert.Equal(t, true, errors.Is(err, base.ErrShortBuffer))
 
-	// case
-	ascCtx, err = aac.NewAscContext([]byte{0x13, 0x90, 0x56, 0xe5, 0xa0})
+	// error case
+	ascCtx, err = aac.NewAscContext([]byte{0xFF, 0xFF})
 	assert.Equal(t, nil, err)
+	sf, err = ascCtx.GetSamplingFrequency()
+	assert.Equal(t, -1, sf)
+	assert.IsNotNil(t, err)
 }
 
 func TestMakeAudioDataSeqHeader(t *testing.T) {
