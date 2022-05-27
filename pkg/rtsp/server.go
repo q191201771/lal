@@ -49,7 +49,7 @@ type IServerObserver interface {
 	OnDelRtspSubSession(session *SubSession)
 }
 
-type RtspServerAuthConfig struct {
+type ServerAuthConfig struct {
 	AuthEnable bool   `json:"auth_enable"`
 	AuthMethod int    `json:"auth_method"`
 	UserName   string `json:"username"`
@@ -61,10 +61,10 @@ type Server struct {
 	observer IServerObserver
 
 	ln   net.Listener
-	auth RtspServerAuthConfig
+	auth ServerAuthConfig
 }
 
-func NewServer(addr string, observer IServerObserver, auth RtspServerAuthConfig) *Server {
+func NewServer(addr string, observer IServerObserver, auth ServerAuthConfig) *Server {
 	return &Server{
 		addr:     addr,
 		observer: observer,

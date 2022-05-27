@@ -55,13 +55,13 @@ type ServerCommandSession struct {
 	prevConnStat connection.Stat
 	staleStat    *connection.Stat
 	stat         base.StatSession
-	auth         RtspServerAuthConfig
+	auth         ServerAuthConfig
 
 	pubSession *PubSession
 	subSession *SubSession
 }
 
-func NewServerCommandSession(observer IServerCommandSessionObserver, conn net.Conn, auth RtspServerAuthConfig) *ServerCommandSession {
+func NewServerCommandSession(observer IServerCommandSessionObserver, conn net.Conn, auth ServerAuthConfig) *ServerCommandSession {
 	uk := base.GenUkRtspServerCommandSession()
 	s := &ServerCommandSession{
 		uniqueKey: uk,
@@ -291,17 +291,18 @@ func (session *ServerCommandSession) handleDescribe(requestCtx nazahttp.HttpReqM
 
 func (session *ServerCommandSession) handleAuthorized(requestCtx nazahttp.HttpReqMsgCtx) (string, error) {
 	if requestCtx.Headers.Get(HeaderAuthorization) != "" {
-		auth_str := requestCtx.Headers.Get(HeaderAuthorization)
-		if strings.Contains(auth_str, AuthTypeBasic) {
+		authStr := requestCtx.Headers.Get(HeaderAuthorization)
+		if strings.Contains(authStr, AuthTypeBasic) {
 			// Basic 鉴权
-			auth_base64_client := strings.TrimLeft(auth_str, "Basic ")
+			authBase64Client := strings.TrimLeft(authStr, "Basic ")
 
 			authstr := fmt.Sprintf("%s:%s", session.auth.UserName, session.auth.PassWord)
-			auth_base64_server := base64.StdEncoding.EncodeToString([]byte(authstr))
-			if auth_base64_server == auth_base64_client {
+			authBase64Server := base64.StdEncoding.EncodeToString([]byte(authstr))
+			if authBase64Server == authBase64Client {
 				Log.Infof("[%s] Rtsp Basic auth success. uri=%s", session.uniqueKey, requestCtx.Uri)
 			} else {
-				err := fmt.Errorf("Rtsp Basic auth failed, auth:%s", auth_base64_client)
+				// TODO(chef): [refactor] 错误放入base/error.go中 202205
+				err := fmt.Errorf("rtsp basic auth failed, auth:%s", authBase64Client)
 				return "", err
 			}
 		} else {

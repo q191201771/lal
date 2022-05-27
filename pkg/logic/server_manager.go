@@ -126,7 +126,7 @@ Doc: %s
 		sm.rtmpServer = rtmp.NewServer(sm.config.RtmpConfig.Addr, sm)
 	}
 	if sm.config.RtspConfig.Enable {
-		sm.rtspServer = rtsp.NewServer(sm.config.RtspConfig.Addr, sm, sm.config.RtspConfig.RtspServerAuthConfig)
+		sm.rtspServer = rtsp.NewServer(sm.config.RtspConfig.Addr, sm, sm.config.RtspConfig.ServerAuthConfig)
 	}
 	if sm.config.HttpApiConfig.Enable {
 		sm.httpApiServer = NewHttpApiServer(sm.config.HttpApiConfig.Addr, sm)
