@@ -10,6 +10,7 @@ package rtsp
 
 import (
 	"bufio"
+	"encoding/base64"
 	"fmt"
 	"net"
 	"strings"
@@ -54,16 +55,18 @@ type ServerCommandSession struct {
 	prevConnStat connection.Stat
 	staleStat    *connection.Stat
 	stat         base.StatSession
+	auth         RtspServerAuthConfig
 
 	pubSession *PubSession
 	subSession *SubSession
 }
 
-func NewServerCommandSession(observer IServerCommandSessionObserver, conn net.Conn) *ServerCommandSession {
+func NewServerCommandSession(observer IServerCommandSessionObserver, conn net.Conn, auth RtspServerAuthConfig) *ServerCommandSession {
 	uk := base.GenUkRtspServerCommandSession()
 	s := &ServerCommandSession{
 		uniqueKey: uk,
 		observer:  observer,
+		auth:      auth,
 		conn: connection.New(conn, func(option *connection.Option) {
 			option.ReadBufSize = serverCommandSessionReadBufSize
 			option.WriteChanSize = serverCommandSessionWriteChanSize
@@ -251,6 +254,19 @@ func (session *ServerCommandSession) handleAnnounce(requestCtx nazahttp.HttpReqM
 func (session *ServerCommandSession) handleDescribe(requestCtx nazahttp.HttpReqMsgCtx) error {
 	Log.Infof("[%s] < R DESCRIBE", session.uniqueKey)
 
+	if session.auth.AuthEnable {
+		// 鉴权处理
+		authresp, err := session.handleAuthorized(requestCtx)
+		if err != nil {
+			return err
+		}
+
+		if authresp != "" {
+			_, err := session.conn.Write([]byte(authresp))
+			return err
+		}
+	}
+
 	urlCtx, err := base.ParseRtspUrl(requestCtx.Uri)
 	if err != nil {
 		Log.Errorf("[%s] parse presentation failed. uri=%s", session.uniqueKey, requestCtx.Uri)
@@ -271,6 +287,38 @@ func (session *ServerCommandSession) handleDescribe(requestCtx nazahttp.HttpReqM
 	resp := PackResponseDescribe(requestCtx.Headers.Get(HeaderCSeq), string(rawSdp))
 	_, err = session.conn.Write([]byte(resp))
 	return err
+}
+
+func (session *ServerCommandSession) handleAuthorized(requestCtx nazahttp.HttpReqMsgCtx) (string, error) {
+	if requestCtx.Headers.Get(HeaderAuthorization) != "" {
+		auth_str := requestCtx.Headers.Get(HeaderAuthorization)
+		if strings.Contains(auth_str, AuthTypeBasic) {
+			// Basic 鉴权
+			auth_base64_client := strings.TrimLeft(auth_str, "Basic ")
+
+			authstr := fmt.Sprintf("%s:%s", session.auth.UserName, session.auth.PassWord)
+			auth_base64_server := base64.StdEncoding.EncodeToString([]byte(authstr))
+			if auth_base64_server == auth_base64_client {
+				Log.Infof("[%s] Rtsp Basic auth success. uri=%s", session.uniqueKey, requestCtx.Uri)
+			} else {
+				err := fmt.Errorf("Rtsp Basic auth failed, auth:%s", auth_base64_client)
+				return "", err
+			}
+		} else {
+			err := fmt.Errorf("unsupport, auth method:%d", session.auth.AuthMethod)
+			return "", err
+		}
+	} else {
+		if session.auth.AuthMethod == 0 {
+			resp := PackResponseBasicAuthorized(requestCtx.Headers.Get(HeaderCSeq), AuthTypeBasic)
+			return resp, nil
+		} else {
+			err := fmt.Errorf("unsupport, auth method:%d", session.auth.AuthMethod)
+			return "", err
+		}
+	}
+
+	return "", nil
 }
 
 // 一次SETUP对应一路流（音频或视频）

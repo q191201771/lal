@@ -17,6 +17,7 @@ import (
 
 	"github.com/q191201771/lal/pkg/base"
 	"github.com/q191201771/lal/pkg/hls"
+	"github.com/q191201771/lal/pkg/rtsp"
 	"github.com/q191201771/naza/pkg/nazajson"
 	"github.com/q191201771/naza/pkg/nazalog"
 )
@@ -87,6 +88,7 @@ type RtspConfig struct {
 	Enable              bool   `json:"enable"`
 	Addr                string `json:"addr"`
 	OutWaitKeyFrameFlag bool   `json:"out_wait_key_frame_flag"`
+	rtsp.RtspServerAuthConfig
 }
 
 type RecordConfig struct {
