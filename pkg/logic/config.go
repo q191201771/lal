@@ -88,7 +88,7 @@ type RtspConfig struct {
 	Enable              bool   `json:"enable"`
 	Addr                string `json:"addr"`
 	OutWaitKeyFrameFlag bool   `json:"out_wait_key_frame_flag"`
-	rtsp.RtspServerAuthConfig
+	rtsp.ServerAuthConfig
 }
 
 type RecordConfig struct {
