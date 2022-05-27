@@ -11,12 +11,13 @@ package logic
 import (
 	"flag"
 	"fmt"
-	"github.com/q191201771/naza/pkg/nazalog"
 	"net/http"
 	"os"
 	"path/filepath"
 	"sync"
 	"time"
+
+	"github.com/q191201771/naza/pkg/nazalog"
 
 	"github.com/q191201771/naza/pkg/defertaskthread"
 
@@ -125,7 +126,7 @@ Doc: %s
 		sm.rtmpServer = rtmp.NewServer(sm.config.RtmpConfig.Addr, sm)
 	}
 	if sm.config.RtspConfig.Enable {
-		sm.rtspServer = rtsp.NewServer(sm.config.RtspConfig.Addr, sm)
+		sm.rtspServer = rtsp.NewServer(sm.config.RtspConfig.Addr, sm, sm.config.RtspConfig.RtspServerAuthConfig)
 	}
 	if sm.config.HttpApiConfig.Enable {
 		sm.httpApiServer = NewHttpApiServer(sm.config.HttpApiConfig.Addr, sm)

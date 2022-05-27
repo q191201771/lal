@@ -49,17 +49,26 @@ type IServerObserver interface {
 	OnDelRtspSubSession(session *SubSession)
 }
 
+type RtspServerAuthConfig struct {
+	AuthEnable bool   `json:"auth_enable"`
+	AuthMethod int    `json:"auth_method"`
+	UserName   string `json:"username"`
+	PassWord   string `json:"password"`
+}
+
 type Server struct {
 	addr     string
 	observer IServerObserver
 
-	ln net.Listener
+	ln   net.Listener
+	auth RtspServerAuthConfig
 }
 
-func NewServer(addr string, observer IServerObserver) *Server {
+func NewServer(addr string, observer IServerObserver, auth RtspServerAuthConfig) *Server {
 	return &Server{
 		addr:     addr,
 		observer: observer,
+		auth:     auth,
 	}
 }
 
@@ -116,7 +125,7 @@ func (s *Server) OnDelRtspSubSession(session *SubSession) {
 // ---------------------------------------------------------------------------------------------------------------------
 
 func (s *Server) handleTcpConnect(conn net.Conn) {
-	session := NewServerCommandSession(s, conn)
+	session := NewServerCommandSession(s, conn, s.auth)
 	s.observer.OnNewRtspSessionConnect(session)
 
 	err := session.RunLoop()
