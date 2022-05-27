@@ -14,6 +14,8 @@ package rtmp
 
 import (
 	"bytes"
+	"encoding/hex"
+	"github.com/q191201771/naza/pkg/nazabytes"
 	"io"
 
 	"github.com/q191201771/lal/pkg/base"
@@ -271,8 +273,8 @@ func (amf0) ReadObject(b []byte) (ObjectPairArray, int, error) {
 		}
 		vt := b[index]
 		switch vt {
-		case Amf0TypeMarkerString:
-			v, l, err := Amf0.ReadString(b[index:])
+		case Amf0TypeMarkerNumber:
+			v, l, err := Amf0.ReadNumber(b[index:])
 			if err != nil {
 				return nil, 0, err
 			}
@@ -285,15 +287,15 @@ func (amf0) ReadObject(b []byte) (ObjectPairArray, int, error) {
 			}
 			ops = append(ops, ObjectPair{k, v})
 			index += l
-		case Amf0TypeMarkerNumber:
-			v, l, err := Amf0.ReadNumber(b[index:])
+		case Amf0TypeMarkerString:
+			v, l, err := Amf0.ReadString(b[index:])
 			if err != nil {
 				return nil, 0, err
 			}
 			ops = append(ops, ObjectPair{k, v})
 			index += l
-		case Amf0TypeMarkerEcmaArray:
-			v, l, err := Amf0.ReadArray(b[index:])
+		case Amf0TypeMarkerObject:
+			v, l, err := Amf0.ReadObject(b[index:])
 			if err != nil {
 				return nil, 0, err
 			}
@@ -305,8 +307,15 @@ func (amf0) ReadObject(b []byte) (ObjectPairArray, int, error) {
 				return nil, 0, err
 			}
 			index += l
+		case Amf0TypeMarkerEcmaArray:
+			v, l, err := Amf0.ReadArray(b[index:])
+			if err != nil {
+				return nil, 0, err
+			}
+			ops = append(ops, ObjectPair{k, v})
+			index += l
 		default:
-			Log.Panicf("unknown type. vt=%d", vt)
+			Log.Panicf("unknown type. vt=%d, hex=%s", vt, hex.Dump(nazabytes.Prefix(b, 4096)))
 		}
 	}
 }
