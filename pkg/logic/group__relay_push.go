@@ -14,6 +14,8 @@ import (
 	"github.com/q191201771/lal/pkg/rtmp"
 )
 
+// TODO(chef): [refactor] 参照relay pull，整体重构一次relay push
+
 func (group *Group) AddRtmpPushSession(url string, session *rtmp.PushSession) {
 	Log.Debugf("[%s] [%s] add rtmp PushSession into group.", group.UniqueKey, session.UniqueKey())
 	group.mutex.Lock()

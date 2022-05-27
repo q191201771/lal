@@ -316,7 +316,8 @@ func (group *Group) OutSessionNum() int {
 
 	pushNum := 0
 	for _, item := range group.url2PushProxy {
-		if item.isPushing || item.pushSession != nil {
+		// TODO(chef): [refactor] 考虑只判断session是否为nil 202205
+		if item.isPushing && item.pushSession != nil {
 			pushNum++
 		}
 	}
@@ -371,7 +372,7 @@ func (group *Group) disposeInactiveSessions() {
 	}
 	for _, item := range group.url2PushProxy {
 		session := item.pushSession
-		if item.isPushing || session != nil {
+		if item.isPushing && session != nil {
 			if _, writeAlive := session.IsAlive(); !writeAlive {
 				Log.Warnf("[%s] session timeout. session=%s", group.UniqueKey, session.UniqueKey())
 				session.Dispose()
@@ -406,7 +407,7 @@ func (group *Group) updateAllSessionStat() {
 	}
 	for _, item := range group.url2PushProxy {
 		session := item.pushSession
-		if item.isPushing || session != nil {
+		if item.isPushing && session != nil {
 			session.UpdateStat(calcSessionStatIntervalSec)
 		}
 	}
@@ -425,7 +426,7 @@ func (group *Group) hasSubSession() bool {
 
 func (group *Group) hasPushSession() bool {
 	for _, item := range group.url2PushProxy {
-		if item.isPushing || item.pushSession != nil {
+		if item.isPushing && item.pushSession != nil {
 			return true
 		}
 	}
