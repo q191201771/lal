@@ -9,6 +9,7 @@
 package rtsp
 
 import (
+	"crypto/rand"
 	"encoding/base64"
 	"fmt"
 	"strings"
@@ -32,6 +33,45 @@ type Auth struct {
 	Realm     string
 	Nonce     string
 	Algorithm string
+	Uri       string
+	Response  string
+	Opaque    string
+	Stale     string
+}
+
+func (a *Auth) ParseAuthorization(authStr string) (err error) {
+	switch {
+	case strings.HasPrefix(authStr, "Basic "):
+		a.Typ = AuthTypeDigest
+		authBase64Str := strings.TrimLeft(authStr, "Basic ")
+
+		authInfo, err := base64.StdEncoding.DecodeString(authBase64Str)
+		if err != nil {
+			return err
+		}
+
+		tmp := strings.Split(string(authInfo), ":")
+		if len(tmp) != 2 {
+			return fmt.Errorf("invalid Authorization:%s", authStr)
+		}
+
+		a.Username, a.Password = tmp[0], tmp[1]
+
+	case strings.HasPrefix(authStr, "Digest "):
+		a.Typ = AuthTypeDigest
+
+		authDigestStr := strings.TrimLeft(authStr, "Digest ")
+		a.Username = a.getV(authDigestStr, `username="`)
+		a.Realm = a.getV(authDigestStr, `realm="`)
+		a.Nonce = a.getV(authDigestStr, `nonce="`)
+		a.Uri = a.getV(authDigestStr, `uri="`)
+		a.Algorithm = a.getV(authDigestStr, `algorithm="`)
+		a.Response = a.getV(authDigestStr, `response="`)
+		a.Opaque = a.getV(authDigestStr, `opaque="`)
+		a.Stale = a.getV(authDigestStr, `stale="`)
+	}
+
+	return nil
 }
 
 func (a *Auth) FeedWwwAuthenticate(auths []string, username, password string) {
@@ -94,6 +134,36 @@ func (a *Auth) MakeAuthorization(method, uri string) string {
 	return ""
 }
 
+func (a *Auth) MakeAuthenticate(method string) string {
+	switch method {
+	case AuthTypeBasic:
+		return fmt.Sprintf("%s realm=\"Lal Server\"")
+	case AuthTypeDigest:
+		return fmt.Sprintf("%s realm=\"Lal Server\", nonce=\"%s\"", method, a.nonce())
+	}
+	return ""
+}
+
+func (a *Auth) CheckAuthorization(method, username, password string) bool {
+	switch a.Typ {
+	case AuthTypeBasic:
+		if username == a.Username && password == a.Password {
+			return true
+		}
+	case AuthTypeDigest:
+		// The "response" field is computed as:
+		// md5(md5(<username>:<realm>:<password>):<nonce>:md5(<cmd>:<url>))
+
+		ha1 := nazamd5.Md5([]byte(fmt.Sprintf("%s:%s:%s", username, a.Realm, password)))
+		ha2 := nazamd5.Md5([]byte(fmt.Sprintf("%s:%s", method, a.Uri)))
+		response := nazamd5.Md5([]byte(fmt.Sprintf("%s:%s:%s", ha1, a.Nonce, ha2)))
+		if a.Response == response {
+			return true
+		}
+	}
+	return false
+}
+
 func (a *Auth) getV(s string, pre string) string {
 	b := strings.Index(s, pre)
 	if b == -1 {
@@ -104,4 +174,14 @@ func (a *Auth) getV(s string, pre string) string {
 		return ""
 	}
 	return s[b+len(pre) : b+len(pre)+e]
+}
+
+func (a *Auth) nonce() string {
+	k := make([]byte, 32)
+	for bytes := 0; bytes < len(k); {
+		n, _ := rand.Read(k[bytes:])
+		bytes += n
+	}
+
+	return nazamd5.Md5(k)
 }

@@ -77,10 +77,10 @@ var ResponseTeardownTmpl = "RTSP/1.0 200 OK\r\n" +
 	"CSeq: %s\r\n" +
 	"\r\n"
 
-var ResponseBasicAuthorizedTmpl = "RTSP/1.0 401 Unauthorized\r\n" +
+var ResponseAuthorizedTmpl = "RTSP/1.0 401 Unauthorized\r\n" +
 	"CSeq: %s\r\n" +
 	"Date: %s\r\n" +
-	"WWW-Authenticate: %s realm=\"Lal Server\"\r\n" +
+	"WWW-Authenticate: %s\r\n" +
 	"\r\n"
 
 func PackResponseOptions(cseq string) string {
@@ -115,9 +115,9 @@ func PackResponseTeardown(cseq string) string {
 	return fmt.Sprintf(ResponseTeardownTmpl, cseq)
 }
 
-func PackResponseBasicAuthorized(cseq, authMethod string) string {
+func PackResponseAuthorized(cseq, authenticate string) string {
 	date := time.Now().Format(time.RFC1123)
-	return fmt.Sprintf(ResponseBasicAuthorizedTmpl, cseq, date, authMethod)
+	return fmt.Sprintf(ResponseAuthorizedTmpl, cseq, date, authenticate)
 }
 
 // PackRequest @param body 可以为空

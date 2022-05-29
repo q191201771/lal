@@ -10,7 +10,6 @@ package rtsp
 
 import (
 	"bufio"
-	"encoding/base64"
 	"fmt"
 	"net"
 	"strings"
@@ -55,18 +54,19 @@ type ServerCommandSession struct {
 	prevConnStat connection.Stat
 	staleStat    *connection.Stat
 	stat         base.StatSession
-	auth         ServerAuthConfig
+	authConf     ServerAuthConfig
+	auth         Auth
 
 	pubSession *PubSession
 	subSession *SubSession
 }
 
-func NewServerCommandSession(observer IServerCommandSessionObserver, conn net.Conn, auth ServerAuthConfig) *ServerCommandSession {
+func NewServerCommandSession(observer IServerCommandSessionObserver, conn net.Conn, authConf ServerAuthConfig) *ServerCommandSession {
 	uk := base.GenUkRtspServerCommandSession()
 	s := &ServerCommandSession{
 		uniqueKey: uk,
 		observer:  observer,
-		auth:      auth,
+		authConf:  authConf,
 		conn: connection.New(conn, func(option *connection.Option) {
 			option.ReadBufSize = serverCommandSessionReadBufSize
 			option.WriteChanSize = serverCommandSessionWriteChanSize
@@ -254,7 +254,7 @@ func (session *ServerCommandSession) handleAnnounce(requestCtx nazahttp.HttpReqM
 func (session *ServerCommandSession) handleDescribe(requestCtx nazahttp.HttpReqMsgCtx) error {
 	Log.Infof("[%s] < R DESCRIBE", session.uniqueKey)
 
-	if session.auth.AuthEnable {
+	if session.authConf.AuthEnable {
 		// 鉴权处理
 		authresp, err := session.handleAuthorized(requestCtx)
 		if err != nil {
@@ -291,35 +291,37 @@ func (session *ServerCommandSession) handleDescribe(requestCtx nazahttp.HttpReqM
 
 func (session *ServerCommandSession) handleAuthorized(requestCtx nazahttp.HttpReqMsgCtx) (string, error) {
 	if requestCtx.Headers.Get(HeaderAuthorization) != "" {
-		authStr := requestCtx.Headers.Get(HeaderAuthorization)
-		if strings.Contains(authStr, AuthTypeBasic) {
-			// Basic 鉴权
-			authBase64Client := strings.TrimLeft(authStr, "Basic ")
+		authorization := requestCtx.Headers.Get(HeaderAuthorization)
+		session.auth.ParseAuthorization(authorization)
 
-			authstr := fmt.Sprintf("%s:%s", session.auth.UserName, session.auth.PassWord)
-			authBase64Server := base64.StdEncoding.EncodeToString([]byte(authstr))
-			if authBase64Server == authBase64Client {
-				Log.Infof("[%s] Rtsp Basic auth success. uri=%s", session.uniqueKey, requestCtx.Uri)
-			} else {
-				// TODO(chef): [refactor] 错误放入base/error.go中 202205
-				err := fmt.Errorf("rtsp basic auth failed, auth:%s", authBase64Client)
-				return "", err
+		// 解析出的鉴权方式需要与配置的鉴权方式一致,防止鉴权降级
+		if session.auth.Typ == AuthTypeBasic && session.authConf.AuthMethod == 0 ||
+			session.auth.Typ == AuthTypeDigest && session.authConf.AuthMethod == 1 {
+			if session.auth.CheckAuthorization(requestCtx.Method, session.authConf.UserName, session.authConf.PassWord) {
+				return "", nil
 			}
-		} else {
-			err := fmt.Errorf("unsupport, auth method:%d", session.auth.AuthMethod)
-			return "", err
 		}
+
+		// TODO(chef): [refactor] 错误放入base/error.go中 202205
+		err := fmt.Errorf("rtsp auth failed, auth:%s", authorization)
+		return "", err
 	} else {
-		if session.auth.AuthMethod == 0 {
-			resp := PackResponseBasicAuthorized(requestCtx.Headers.Get(HeaderCSeq), AuthTypeBasic)
+		if session.authConf.AuthMethod == 0 {
+			// Basic鉴权
+			authenticate := session.auth.MakeAuthenticate(AuthTypeBasic)
+			resp := PackResponseAuthorized(requestCtx.Headers.Get(HeaderCSeq), authenticate)
+			return resp, nil
+		} else if session.authConf.AuthMethod == 1 {
+			// Digest鉴权
+			authenticate := session.auth.MakeAuthenticate(AuthTypeDigest)
+			resp := PackResponseAuthorized(requestCtx.Headers.Get(HeaderCSeq), authenticate)
 			return resp, nil
 		} else {
-			err := fmt.Errorf("unsupport, auth method:%d", session.auth.AuthMethod)
+			// TODO(chef): [refactor] 错误放入base/error.go中 202205
+			err := fmt.Errorf("unsupport, auth method:%d", session.authConf.AuthMethod)
 			return "", err
 		}
 	}
-
-	return "", nil
 }
 
 // 一次SETUP对应一路流（音频或视频）
