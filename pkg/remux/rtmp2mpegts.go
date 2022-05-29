@@ -228,10 +228,10 @@ func (s *Rtmp2MpegtsRemuxer) feedVideo(msg base.RtmpMsg) {
 			} else if nalType == hevc.NaluTypeVps {
 				vps = nal
 				continue
-			} else if nalType == avc.NaluTypeSps {
+			} else if nalType == hevc.NaluTypeSps {
 				sps = nal
 				continue
-			} else if nalType == avc.NaluTypePps {
+			} else if nalType == hevc.NaluTypePps {
 				pps = nal
 				if len(vps) != 0 && len(sps) != 0 && len(pps) != 0 {
 					s.spspps = s.spspps[0:0]
