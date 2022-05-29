@@ -137,7 +137,7 @@ func (a *Auth) MakeAuthorization(method, uri string) string {
 func (a *Auth) MakeAuthenticate(method string) string {
 	switch method {
 	case AuthTypeBasic:
-		return fmt.Sprintf("%s realm=\"Lal Server\"")
+		return fmt.Sprintf("%s realm=\"Lal Server\"", method)
 	case AuthTypeDigest:
 		return fmt.Sprintf("%s realm=\"Lal Server\", nonce=\"%s\"", method, a.nonce())
 	}
