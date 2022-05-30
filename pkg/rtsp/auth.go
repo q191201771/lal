@@ -12,6 +12,7 @@ import (
 	"crypto/rand"
 	"encoding/base64"
 	"fmt"
+	"github.com/q191201771/lal/pkg/base"
 	"strings"
 
 	"github.com/q191201771/naza/pkg/nazamd5"
@@ -35,10 +36,12 @@ type Auth struct {
 	Algorithm string
 	Uri       string
 	Response  string
-	Opaque    string
-	Stale     string
+	Opaque    string // 暂时没用
+	Stale     string // 暂时没用
 }
 
+// ParseAuthorization 解析字段，server side使用
+//
 func (a *Auth) ParseAuthorization(authStr string) (err error) {
 	switch {
 	case strings.HasPrefix(authStr, "Basic "):
@@ -74,6 +77,8 @@ func (a *Auth) ParseAuthorization(authStr string) (err error) {
 	return nil
 }
 
+// FeedWwwAuthenticate 使用第一轮回复，client side使用
+//
 func (a *Auth) FeedWwwAuthenticate(auths []string, username, password string) {
 	a.Username = username
 	a.Password = password
@@ -115,7 +120,10 @@ func (a *Auth) FeedWwwAuthenticate(auths []string, username, password string) {
 	}
 }
 
-// MakeAuthorization 如果没有调用`FeedWwwAuthenticate`初始化过，则直接返回空字符串
+// MakeAuthorization 生成第二轮请求，client side使用
+//
+// 如果没有调用`FeedWwwAuthenticate`初始化过，则直接返回空字符串
+//
 func (a *Auth) MakeAuthorization(method, uri string) string {
 	if a.Username == "" {
 		return ""
@@ -134,16 +142,20 @@ func (a *Auth) MakeAuthorization(method, uri string) string {
 	return ""
 }
 
+// MakeAuthenticate 生成第一轮的回复，server side使用
+//
 func (a *Auth) MakeAuthenticate(method string) string {
 	switch method {
 	case AuthTypeBasic:
-		return fmt.Sprintf("%s realm=\"Lal Server\"", method)
+		return fmt.Sprintf("%s realm=\"%s\"", method, base.LalRtspRealm)
 	case AuthTypeDigest:
-		return fmt.Sprintf("%s realm=\"Lal Server\", nonce=\"%s\"", method, a.nonce())
+		return fmt.Sprintf("%s realm=\"%s\", nonce=\"%s\"", method, base.LalRtspRealm, a.nonce())
 	}
 	return ""
 }
 
+// CheckAuthorization 验证第二轮请求，server side使用
+//
 func (a *Auth) CheckAuthorization(method, username, password string) bool {
 	switch a.Typ {
 	case AuthTypeBasic:
@@ -163,6 +175,8 @@ func (a *Auth) CheckAuthorization(method, username, password string) bool {
 	}
 	return false
 }
+
+// ---------------------------------------------------------------------------------------------------------------------
 
 func (a *Auth) getV(s string, pre string) string {
 	b := strings.Index(s, pre)

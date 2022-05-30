@@ -565,7 +565,6 @@ func (session *ClientCommandSession) writeCmdReadResp(method, uri string, header
 		session.auth.FeedWwwAuthenticate(ctx.Headers.Values(HeaderWwwAuthenticate), session.urlCtx.Username, session.urlCtx.Password)
 	}
 
-	// TODO(chef): refactor never reach here？
 	err = nazaerrors.Wrap(base.ErrRtsp)
 	return
 }

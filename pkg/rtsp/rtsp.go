@@ -23,7 +23,6 @@ import (
 )
 
 // TODO chef
-// - lalserver接入pullrtsp，通过HTTP API的形式
 // - out缺少主动发送sr
 // - pull session回调有observer interface和on func回调两种方式，是否需要统一
 // - [refactor] BaseInSession和BaseOutSession有不少重复内容

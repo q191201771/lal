@@ -15,11 +15,20 @@ import "strings"
 // 另外，我们也在本文件提供另外一些信息
 // 并且将这些信息打入可执行文件、日志、各协议中的标准版本字段中
 
-// LalVersion 版本，该变量由外部脚本修改维护
+// LalVersion 整个lal工程的版本号。注意，该变量由外部脚本修改维护，不要手动在代码中修改
+//
 const LalVersion = "v0.29.1"
 
+// ConfVersion lalserver的配置文件的版本号
+//
+const ConfVersion = "v0.3.1"
+
+// HttpApiVersion lalserver的HTTP-API功能的版本号
+//
 const HttpApiVersion = "v0.3.3"
 
+// HttpNotifyVersion lalserver的HTTP-Notify功能的版本号
+//
 const HttpNotifyVersion = "v0.1.3"
 
 var (
@@ -80,6 +89,9 @@ var (
 
 	// LalPackSdp e.g. lal 0.12.3
 	LalPackSdp string
+
+	// LalRtspRealm e.g. lal
+	LalRtspRealm string
 )
 
 // - rtmp handshake random buf
@@ -133,4 +145,6 @@ func init() {
 	LalRtmpHandshakeWaterMark = LalFullInfo
 
 	LalPackSdp = LalLibraryName + " " + LalVersionDot
+
+	LalRtspRealm = LalLibraryName
 }
