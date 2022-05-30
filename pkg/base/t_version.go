@@ -21,7 +21,7 @@ const LalVersion = "v0.29.1"
 
 // ConfVersion lalserver的配置文件的版本号
 //
-const ConfVersion = "v0.3.1"
+const ConfVersion = "v0.3.2"
 
 // HttpApiVersion lalserver的HTTP-API功能的版本号
 //
