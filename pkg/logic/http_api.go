@@ -51,6 +51,7 @@ func (h *HttpApiServer) RunLoop() error {
 	mux.HandleFunc("/api/ctrl/start_relay_pull", h.ctrlStartRelayPullHandler)
 	mux.HandleFunc("/api/ctrl/stop_relay_pull", h.ctrlStopRelayPullHandler)
 	mux.HandleFunc("/api/ctrl/kick_session", h.ctrlKickSessionHandler)
+	mux.HandleFunc("/", h.notFoundHandler)
 
 	var srv http.Server
 	srv.Handler = mux
@@ -179,13 +180,20 @@ func (h *HttpApiServer) ctrlKickSessionHandler(w http.ResponseWriter, req *http.
 
 // ---------------------------------------------------------------------------------------------------------------------
 
+func (h *HttpApiServer) notFoundHandler(w http.ResponseWriter, req *http.Request) {
+	Log.Warnf("invalid http-api request. uri=%s, raddr=%s", req.RequestURI, req.RemoteAddr)
+}
+
 func feedback(v interface{}, w http.ResponseWriter) {
 	resp, _ := json.Marshal(v)
 	w.Header().Add("Server", base.LalHttpApiServer)
 	_, _ = w.Write(resp)
 }
 
-// TODO(chef): 搬到naza中
+// unmarshalRequestJsonBody
+//
+// TODO(chef): [refactor] 搬到naza中 202205
+//
 func unmarshalRequestJsonBody(r *http.Request, info interface{}, keyFieldList ...string) (nazajson.Json, error) {
 	body, err := ioutil.ReadAll(r.Body)
 	if err != nil {
