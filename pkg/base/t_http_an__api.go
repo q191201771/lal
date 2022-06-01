@@ -10,8 +10,6 @@ package base
 
 // 文档见： https://pengrl.com/lal/#/HTTPAPI
 
-// TODO(chef): refactor 重命名为t_http_an_api.go 202205
-
 // ----- request -------------------------------------------------------------------------------------------------------
 
 const (

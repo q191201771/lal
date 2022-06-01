@@ -15,17 +15,15 @@ import (
 	"github.com/q191201771/naza/pkg/connection"
 )
 
-// TODO(chef): refactor 更名为BasicHttpSubSession 202205
-
-type HttpSubSession struct {
-	HttpSubSessionOption
+type BasicHttpSubSession struct {
+	BasicHttpSubSessionOption
 
 	suffix      string
 	conn        connection.Connection
 	sessionStat BasicSessionStat
 }
 
-type HttpSubSessionOption struct {
+type BasicHttpSubSessionOption struct {
 	Conn          net.Conn
 	ConnModOption connection.ModOption
 	SessionType   SessionType
@@ -34,11 +32,11 @@ type HttpSubSessionOption struct {
 	WebSocketKey  string
 }
 
-func NewHttpSubSession(option HttpSubSessionOption) *HttpSubSession {
-	s := &HttpSubSession{
-		HttpSubSessionOption: option,
-		conn:                 connection.New(option.Conn, option.ConnModOption),
-		sessionStat:          NewBasicSessionStat(option.SessionType, ""),
+func NewBasicHttpSubSession(option BasicHttpSubSessionOption) *BasicHttpSubSession {
+	s := &BasicHttpSubSession{
+		BasicHttpSubSessionOption: option,
+		conn:                      connection.New(option.Conn, option.ConnModOption),
+		sessionStat:               NewBasicSessionStat(option.SessionType, ""),
 	}
 	return s
 }
@@ -47,19 +45,19 @@ func NewHttpSubSession(option HttpSubSessionOption) *HttpSubSession {
 // IServerSessionLifecycle interface
 // ---------------------------------------------------------------------------------------------------------------------
 
-func (session *HttpSubSession) RunLoop() error {
+func (session *BasicHttpSubSession) RunLoop() error {
 	buf := make([]byte, 128)
 	_, err := session.conn.Read(buf)
 	return err
 }
 
-func (session *HttpSubSession) Dispose() error {
+func (session *BasicHttpSubSession) Dispose() error {
 	return session.conn.Close()
 }
 
 // ---------------------------------------------------------------------------------------------------------------------
 
-func (session *HttpSubSession) WriteHttpResponseHeader(b []byte) {
+func (session *BasicHttpSubSession) WriteHttpResponseHeader(b []byte) {
 	if session.IsWebSocket {
 		session.write(UpdateWebSocketHeader(session.WebSocketKey))
 	} else {
@@ -67,7 +65,7 @@ func (session *HttpSubSession) WriteHttpResponseHeader(b []byte) {
 	}
 }
 
-func (session *HttpSubSession) Write(b []byte) {
+func (session *BasicHttpSubSession) Write(b []byte) {
 	if session.IsWebSocket {
 		wsHeader := WsHeader{
 			Fin:           true,
@@ -87,7 +85,7 @@ func (session *HttpSubSession) Write(b []byte) {
 // IObject interface
 // ---------------------------------------------------------------------------------------------------------------------
 
-func (session *HttpSubSession) UniqueKey() string {
+func (session *BasicHttpSubSession) UniqueKey() string {
 	return session.sessionStat.UniqueKey()
 }
 
@@ -95,15 +93,15 @@ func (session *HttpSubSession) UniqueKey() string {
 // ISessionUrlContext interface
 // ---------------------------------------------------------------------------------------------------------------------
 
-func (session *HttpSubSession) Url() string {
+func (session *BasicHttpSubSession) Url() string {
 	return session.UrlCtx.Url
 }
 
-func (session *HttpSubSession) AppName() string {
+func (session *BasicHttpSubSession) AppName() string {
 	return session.UrlCtx.PathWithoutLastItem
 }
 
-func (session *HttpSubSession) StreamName() string {
+func (session *BasicHttpSubSession) StreamName() string {
 	var suffix string
 	switch session.SessionType {
 	case SessionTypeFlvSub:
@@ -116,27 +114,27 @@ func (session *HttpSubSession) StreamName() string {
 	return strings.TrimSuffix(session.UrlCtx.LastItemOfPath, suffix)
 }
 
-func (session *HttpSubSession) RawQuery() string {
+func (session *BasicHttpSubSession) RawQuery() string {
 	return session.UrlCtx.RawQuery
 }
 
 // ----- ISessionStat --------------------------------------------------------------------------------------------------
 
-func (session *HttpSubSession) GetStat() StatSession {
+func (session *BasicHttpSubSession) GetStat() StatSession {
 	return session.sessionStat.GetStat()
 }
 
-func (session *HttpSubSession) UpdateStat(intervalSec uint32) {
+func (session *BasicHttpSubSession) UpdateStat(intervalSec uint32) {
 	session.sessionStat.UpdateStatWitchConn(session.conn, intervalSec)
 }
 
-func (session *HttpSubSession) IsAlive() (readAlive, writeAlive bool) {
+func (session *BasicHttpSubSession) IsAlive() (readAlive, writeAlive bool) {
 	return session.sessionStat.IsAliveWitchConn(session.conn)
 }
 
 // ---------------------------------------------------------------------------------------------------------------------
 
-func (session *HttpSubSession) write(b []byte) {
+func (session *BasicHttpSubSession) write(b []byte) {
 	// TODO(chef) handle write error
 	_, _ = session.conn.Write(b)
 }

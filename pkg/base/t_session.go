@@ -18,7 +18,7 @@ package base
 //
 // other:       rtmp.ClientSession, (rtmp.ServerSession)
 //              rtsp.BaseInSession, rtsp.BaseOutSession, rtsp.ClientCommandSession, rtsp.ServerCommandSession
-//              base.HttpSubSession
+//              base.BasicHttpSubSession
 
 // ---------------------------------------------------------------------------------------------------------------------
 

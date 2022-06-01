@@ -8,9 +8,7 @@
 
 package base
 
-// 文档见： https://pengrl.com/p/20101/
-
-// TODO(chef): refactor 重命名为t_http_an_notify.go 202205
+// 文档见： https://pengrl.com/lal/#/HTTPNotify
 
 type SessionEventCommonInfo struct {
 	ServerId string `json:"server_id"`

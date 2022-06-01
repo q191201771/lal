@@ -19,7 +19,7 @@ import (
 var flvHttpResponseHeader []byte
 
 type SubSession struct {
-	core                    *base.HttpSubSession
+	core                    *base.BasicHttpSubSession
 	IsFresh                 bool
 	ShouldWaitVideoKeyFrame bool
 }
@@ -27,7 +27,7 @@ type SubSession struct {
 func NewSubSession(conn net.Conn, urlCtx base.UrlContext, isWebSocket bool, websocketKey string) *SubSession {
 	uk := base.GenUkFlvSubSession()
 	s := &SubSession{
-		core: base.NewHttpSubSession(base.HttpSubSessionOption{
+		core: base.NewBasicHttpSubSession(base.BasicHttpSubSessionOption{
 			Conn: conn,
 			ConnModOption: func(option *connection.Option) {
 				option.WriteChanSize = SubSessionWriteChanSize

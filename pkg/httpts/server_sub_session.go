@@ -18,14 +18,14 @@ import (
 var tsHttpResponseHeader []byte
 
 type SubSession struct {
-	core               *base.HttpSubSession
+	core               *base.BasicHttpSubSession
 	IsFresh            bool
 	ShouldWaitBoundary bool
 }
 
 func NewSubSession(conn net.Conn, urlCtx base.UrlContext, isWebSocket bool, websocketKey string) *SubSession {
 	s := &SubSession{
-		core: base.NewHttpSubSession(base.HttpSubSessionOption{
+		core: base.NewBasicHttpSubSession(base.BasicHttpSubSessionOption{
 			Conn: conn,
 			ConnModOption: func(option *connection.Option) {
 				option.WriteChanSize = SubSessionWriteChanSize

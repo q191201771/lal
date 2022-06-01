@@ -24,8 +24,6 @@ import (
 	"github.com/q191201771/lal/pkg/sdp"
 )
 
-// TODO(chef): [refactor] 文件名修改为group__.go 202205
-
 type IGroupObserver interface {
 	CleanupHlsIfNeeded(appName string, streamName string, path string)
 
