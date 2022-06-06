@@ -87,6 +87,9 @@ func (h *HttpNotify) NotifyRtmpConnect(info base.RtmpConnectInfo) {
 	h.asyncPost(h.cfg.OnRtmpConnect, info)
 }
 
+func (h *HttpNotify) NotifyOnHlsMakeTs(info base.HlsMakeTsInfo) {
+	h.asyncPost(h.cfg.OnHlsMakeTs, info)
+}
 // ----- implement INotifyHandler interface ----------------------------------------------------------------------------
 
 func (h *HttpNotify) OnServerStart(info base.LalInfo) {
@@ -123,6 +126,10 @@ func (h *HttpNotify) OnRelayPullStop(info base.PullStopInfo) {
 
 func (h *HttpNotify) OnRtmpConnect(info base.RtmpConnectInfo) {
 	h.NotifyRtmpConnect(info)
+}
+
+func (h *HttpNotify) OnHlsMakeTs(info base.HlsMakeTsInfo) {
+	h.NotifyOnHlsMakeTs(info)
 }
 
 // ---------------------------------------------------------------------------------------------------------------------

@@ -78,7 +78,8 @@
     "on_relay_pull_start": "http://127.0.0.1:10101/on_relay_pull_start",
     "on_relay_pull_stop": "http://127.0.0.1:10101/on_relay_pull_stop",
     "on_rtmp_connect": "http://127.0.0.1:10101/on_rtmp_connect",
-    "on_server_start": "http://127.0.0.1:10101/on_server_start"
+    "on_server_start": "http://127.0.0.1:10101/on_server_start",
+    "on_hls_make_ts": "http://127.0.0.1:10101/on_hls_make_ts"
   },
   "simple_auth": {
     "key": "q191201771",
