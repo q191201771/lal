@@ -675,6 +675,7 @@ func (sm *ServerManager) OnHlsMakeTs(info base.HlsMakeTsInfo) {
 	info.ServerId = sm.config.ServerId
 	sm.option.NotifyHandler.OnHlsMakeTs(info)
 }
+
 // ---------------------------------------------------------------------------------------------------------------------
 
 func (sm *ServerManager) Config() *Config {

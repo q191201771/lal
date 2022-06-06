@@ -68,16 +68,17 @@ type RtmpConnectInfo struct {
 }
 
 type HlsMakeTsInfo struct {
-	Event          string `json:"event"`
-	StreamName     string `json:"stream_name"`
-	Cwd            string `json:"cwd"`
-	TsFile         string `json:"ts_file"`
-	LiveM3U8File   string `json:"live_m3u8_file"`
-	RecordM3U8File string `json:"record_m3u8_file"`
-	Id             int    `json:"id"`
-	Duration       float64    `json:"duration"`
-	ServerId       string `json:"server_id"`
+	Event          string  `json:"event"`
+	StreamName     string  `json:"stream_name"`
+	Cwd            string  `json:"cwd"`
+	TsFile         string  `json:"ts_file"`
+	LiveM3u8File   string  `json:"live_m3u8_file"`
+	RecordM3u8File string  `json:"record_m3u8_file"`
+	Id             int     `json:"id"`
+	Duration       float64 `json:"duration"`
+	ServerId       string  `json:"server_id"`
 }
+
 // ---------------------------------------------------------------------------------------------------------------------
 
 func Session2PubStartInfo(session ISession) PubStartInfo {

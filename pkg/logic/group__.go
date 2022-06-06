@@ -81,7 +81,6 @@ type Group struct {
 	stat base.StatGroup
 }
 
-
 func NewGroup(appName string, streamName string, config *Config, observer IGroupObserver) *Group {
 	uk := base.GenUkGroup()
 

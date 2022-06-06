@@ -21,9 +21,12 @@ import (
 
 type IMuxerObserver interface {
 	OnHlsMakeTs(info base.HlsMakeTsInfo)
+
 	// OnFragmentOpen
 	//
 	// 内部决定开启新的fragment切片，将该事件通知给上层
+	//
+	// TODO(chef): [refactor] 考虑用OnHlsMakeTs替代OnFragmentOpen 202206
 	//
 	OnFragmentOpen()
 }
@@ -292,18 +295,21 @@ func (m *Muxer) openFragment(ts uint64, discont bool) error {
 	frag.duration = 0
 
 	m.fragTs = ts
+
 	// nrm said: start fragment with audio to make iPhone happy
 	m.observer.OnFragmentOpen()
+
 	m.observer.OnHlsMakeTs(base.HlsMakeTsInfo{
 		Event:          "open",
 		StreamName:     m.streamName,
-		Cwd:            m.outPath,
+		Cwd:            base.GetWd(),
 		TsFile:         filenameWithPath,
-		LiveM3U8File:   m.playlistFilename,
-		RecordM3U8File: m.recordPlayListFilename,
+		LiveM3u8File:   m.playlistFilename,
+		RecordM3u8File: m.recordPlayListFilename,
 		Id:             id,
 		Duration:       frag.duration,
 	})
+
 	return nil
 }
 
@@ -345,10 +351,10 @@ func (m *Muxer) closeFragment(isLast bool) error {
 	m.observer.OnHlsMakeTs(base.HlsMakeTsInfo{
 		Event:          "close",
 		StreamName:     m.streamName,
-		Cwd:            m.outPath,
+		Cwd:            base.GetWd(),
 		TsFile:         PathStrategy.GetTsFileNameWithPath(m.outPath, currFrag.filename),
-		LiveM3U8File:   m.playlistFilename,
-		RecordM3U8File: m.recordPlayListFilename,
+		LiveM3u8File:   m.playlistFilename,
+		RecordM3u8File: m.recordPlayListFilename,
 		Id:             currFrag.id,
 		Duration:       currFrag.duration,
 	})

@@ -90,6 +90,7 @@ func (h *HttpNotify) NotifyRtmpConnect(info base.RtmpConnectInfo) {
 func (h *HttpNotify) NotifyOnHlsMakeTs(info base.HlsMakeTsInfo) {
 	h.asyncPost(h.cfg.OnHlsMakeTs, info)
 }
+
 // ----- implement INotifyHandler interface ----------------------------------------------------------------------------
 
 func (h *HttpNotify) OnServerStart(info base.LalInfo) {
