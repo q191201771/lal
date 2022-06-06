@@ -77,6 +77,7 @@ type INotifyHandler interface {
 	OnRelayPullStart(info base.PullStartInfo)
 	OnRelayPullStop(info base.PullStopInfo)
 	OnRtmpConnect(info base.RtmpConnectInfo)
+	OnHlsMakeTs(info base.HlsMakeTsInfo)
 }
 
 type Option struct {

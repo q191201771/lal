@@ -20,6 +20,7 @@ import (
 )
 
 type IMuxerObserver interface {
+	OnHlsMakeTs(info base.HlsMakeTsInfo)
 	// OnFragmentOpen
 	//
 	// 内部决定开启新的fragment切片，将该事件通知给上层
@@ -234,7 +235,6 @@ func (m *Muxer) updateFragment(ts uint64, boundary bool) error {
 				f.duration = duration
 			}
 		}
-
 		discont = false
 
 		// 已经有TS切片，切片时长没有达到设置的阈值，则不开启新的切片
@@ -292,10 +292,18 @@ func (m *Muxer) openFragment(ts uint64, discont bool) error {
 	frag.duration = 0
 
 	m.fragTs = ts
-
 	// nrm said: start fragment with audio to make iPhone happy
 	m.observer.OnFragmentOpen()
-
+	m.observer.OnHlsMakeTs(base.HlsMakeTsInfo{
+		Event:          "open",
+		StreamName:     m.streamName,
+		Cwd:            m.outPath,
+		TsFile:         filenameWithPath,
+		LiveM3U8File:   m.playlistFilename,
+		RecordM3U8File: m.recordPlayListFilename,
+		Id:             id,
+		Duration:       frag.duration,
+	})
 	return nil
 }
 
@@ -324,7 +332,6 @@ func (m *Muxer) closeFragment(isLast bool) error {
 	if m.config.CleanupMode == CleanupModeNever || m.config.CleanupMode == CleanupModeInTheEnd {
 		m.writeRecordPlaylist()
 	}
-
 	if m.config.CleanupMode == CleanupModeAsap {
 		frag := m.getDeleteFrag()
 		if frag.filename != "" {
@@ -334,7 +341,17 @@ func (m *Muxer) closeFragment(isLast bool) error {
 			}
 		}
 	}
-
+	currFrag := m.getClosedFrag()
+	m.observer.OnHlsMakeTs(base.HlsMakeTsInfo{
+		Event:          "close",
+		StreamName:     m.streamName,
+		Cwd:            m.outPath,
+		TsFile:         PathStrategy.GetTsFileNameWithPath(m.outPath, currFrag.filename),
+		LiveM3U8File:   m.playlistFilename,
+		RecordM3U8File: m.recordPlayListFilename,
+		Id:             currFrag.id,
+		Duration:       currFrag.duration,
+	})
 	return nil
 }
 

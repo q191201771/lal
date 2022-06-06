@@ -123,6 +123,7 @@ type HttpNotifyConfig struct {
 	OnRelayPullStart  string `json:"on_relay_pull_start"`
 	OnRelayPullStop   string `json:"on_relay_pull_stop"`
 	OnRtmpConnect     string `json:"on_rtmp_connect"`
+	OnHlsMakeTs 	  string `json:"on_hls_make_ts"`
 }
 
 type SimpleAuthConfig struct {

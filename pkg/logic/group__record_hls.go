@@ -22,7 +22,6 @@ func (group *Group) startHlsIfNeeded() {
 	if !group.config.HlsConfig.Enable && !group.config.HlsConfig.EnableHttps {
 		return
 	}
-
 	group.hlsMuxer = hls.NewMuxer(group.streamName, &group.config.HlsConfig.MuxerConfig, group)
 	group.hlsMuxer.Start()
 }
