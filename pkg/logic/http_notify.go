@@ -161,6 +161,6 @@ func (h *HttpNotify) asyncPost(url string, info interface{}) {
 
 func (h *HttpNotify) post(url string, info interface{}) {
 	if _, err := nazahttp.PostJson(url, info, h.client); err != nil {
-		Log.Errorf("http notify post error. err=%+v", err)
+		Log.Errorf("http notify post error. err=%+v, url=%s, info=%+v", err, url, info)
 	}
 }
