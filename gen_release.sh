@@ -1,5 +1,20 @@
 #!/usr/bin/env bash
 
+# linux, windows, macos, macos_arm, arm32, arm64
+#
+# name           GOOS    GOARCH
+# linux       -> linux   (amd64)
+# windows     -> windows (amd64)
+# macos       -> darwin  (amd64)
+# macos_arm64 -> darwin  arm64
+# arm32       -> (linux) arm
+# arm64       -> (linux) arm64
+
+NAMES=("linux" "windows" "macos" "macos_arm64" "arm32" "arm64")
+MAPPING_GOOS=("linux" "windows" "darwin" "darwin" "linux" "linux")
+MAPPING_GOARCH=( "amd64" "amd64" "amd64" "arm64" "arm" "arm64")
+
+
 #set -x
 
 ROOT_DIR=`pwd`
@@ -9,27 +24,29 @@ v=`git tag --sort=version:refname | tail -n 1`
 prefix=lal_${v}_
 
 rm -rf ${ROOT_DIR}/${OUT_DIR}
-mkdir -p ${ROOT_DIR}/${OUT_DIR}/${prefix}linux/bin
-mkdir -p ${ROOT_DIR}/${OUT_DIR}/${prefix}linux/conf
-mkdir -p ${ROOT_DIR}/${OUT_DIR}/${prefix}macos/bin
-mkdir -p ${ROOT_DIR}/${OUT_DIR}/${prefix}macos/conf
-mkdir -p ${ROOT_DIR}/${OUT_DIR}/${prefix}windows/bin
-mkdir -p ${ROOT_DIR}/${OUT_DIR}/${prefix}windows/conf
 
-echo ${v} >> ${ROOT_DIR}/${OUT_DIR}/${prefix}linux/README.txt
-echo ${v} >> ${ROOT_DIR}/${OUT_DIR}/${prefix}macos/README.txt
-echo ${v} >> ${ROOT_DIR}/${OUT_DIR}/${prefix}windows/README.txt
-echo 'github: https://github.com/q191201771/lal' >> ${ROOT_DIR}/${OUT_DIR}/${prefix}linux/README.txt
-echo 'github: https://github.com/q191201771/lal' >> ${ROOT_DIR}/${OUT_DIR}/${prefix}macos/README.txt
-echo 'github: https://github.com/q191201771/lal' >> ${ROOT_DIR}/${OUT_DIR}/${prefix}windows/README.txt
-echo 'doc: https://pengrl.com/lal' >> ${ROOT_DIR}/${OUT_DIR}/${prefix}linux/README.txt
-echo 'doc: https://pengrl.com/lal' >> ${ROOT_DIR}/${OUT_DIR}/${prefix}macos/README.txt
-echo 'doc: https://pengrl.com/lal' >> ${ROOT_DIR}/${OUT_DIR}/${prefix}windows/README.txt
+# 创建目录
+for name in ${NAMES[@]};
+do
+  mkdir -p ${ROOT_DIR}/${OUT_DIR}/${prefix}${name}/bin
+  mkdir -p ${ROOT_DIR}/${OUT_DIR}/${prefix}${name}/conf
+done
 
-cp conf/lalserver.conf.json conf/cert.pem conf/key.pem ${ROOT_DIR}/${OUT_DIR}/${prefix}linux/conf
-cp conf/lalserver.conf.json conf/cert.pem conf/key.pem ${ROOT_DIR}/${OUT_DIR}/${prefix}macos/conf
-cp conf/lalserver.conf.json conf/cert.pem conf/key.pem ${ROOT_DIR}/${OUT_DIR}/${prefix}windows/conf
+# README.txt
+for name in ${NAMES[@]};
+do
+  echo ${v} >> ${ROOT_DIR}/${OUT_DIR}/${prefix}${name}/README.txt
+  echo 'github: https://github.com/q191201771/lal ' >> ${ROOT_DIR}/${OUT_DIR}/${prefix}${name}/README.txt
+  echo 'doc: https://pengrl.com/lal ' >> ${ROOT_DIR}/${OUT_DIR}/${prefix}${name}/README.txt
+done
 
+# conf/
+for name in ${NAMES[@]};
+do
+  cp conf/lalserver.conf.json conf/cert.pem conf/key.pem ${ROOT_DIR}/${OUT_DIR}/${prefix}${name}/conf
+done
+
+# 编译不同架构和操作系统
 GitTag=`git tag --sort=version:refname | tail -n 1`
 GitCommitLog=`git log --pretty=oneline -n 1`
 # 将 log 原始字符串中的单引号替换成双引号
@@ -48,21 +65,18 @@ LDFlags=" \
 "
 
 export CGO_ENABLED=0
-export GOARCH=amd64
 
-echo "build linux..."
-export GOOS=linux
-cd ${ROOT_DIR}/app/lalserver && go build -ldflags "$LDFlags" -o ${ROOT_DIR}/${OUT_DIR}/${prefix}linux/bin/lalserver
+for i in "${!NAMES[@]}";
+do
+  printf "build %s(%s %s)...\n" "${NAMES[$i]}" "${MAPPING_GOOS[$i]}" "${MAPPING_GOARCH[$i]}"
+  export GOOS=${MAPPING_GOOS[$i]}
+  export GOARCH=${MAPPING_GOARCH[$i]}
+  cd ${ROOT_DIR}/app/lalserver && go build -ldflags "$LDFlags" -o ${ROOT_DIR}/${OUT_DIR}/${prefix}${NAMES[$i]}/bin/lalserver
+done
 
-echo "build macos..."
-export GOOS=darwin
-cd ${ROOT_DIR}/app/lalserver && go build -ldflags "$LDFlags" -o ${ROOT_DIR}/${OUT_DIR}/${prefix}macos/bin/lalserver
-
-echo "build windows..."
-export GOOS=windows
-cd ${ROOT_DIR}/app/lalserver && go build -ldflags "$LDFlags" -o ${ROOT_DIR}/${OUT_DIR}/${prefix}windows/bin/lalserver.exe
-
+# 打zip包
 cd ${ROOT_DIR}/${OUT_DIR}
-zip -r ${prefix}linux.zip ${prefix}linux
-zip -r ${prefix}macos.zip ${prefix}macos
-zip -r ${prefix}windows.zip ${prefix}windows
+for name in ${NAMES[@]};
+do
+  zip -r ${prefix}${name}.zip ${prefix}${name}
+done
