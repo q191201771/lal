@@ -9,6 +9,7 @@
 package rtmp
 
 import (
+	"github.com/q191201771/lal/pkg/base"
 	"net"
 )
 
@@ -81,12 +82,10 @@ func (server *Server) handleTcpConnect(conn net.Conn) {
 	if session.DisposeByObserverFlag {
 		return
 	}
-	switch session.t {
-	case ServerSessionTypeUnknown:
-	// noop
-	case ServerSessionTypePub:
+	switch session.sessionStat.BaseType() {
+	case base.SessionBaseTypePubStr:
 		server.observer.OnDelRtmpPubSession(session)
-	case ServerSessionTypeSub:
+	case base.SessionBaseTypeSubStr:
 		server.observer.OnDelRtmpSubSession(session)
 	}
 }

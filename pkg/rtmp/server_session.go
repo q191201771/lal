@@ -64,7 +64,6 @@ type ServerSession struct {
 	rawQuery               string //const after set
 
 	observer      IServerSessionObserver
-	t             ServerSessionType // TODO(chef): refactor 改用 sessionStat.Stat.BaseType 202205
 	hs            HandshakeServer
 	chunkComposer *ChunkComposer
 	packer        *MessagePacker
@@ -101,7 +100,6 @@ func NewServerSession(observer IServerSessionObserver, conn net.Conn) *ServerSes
 		}),
 		sessionStat:             base.NewBasicSessionStat(base.SessionTypeRtmpServerSession, conn.RemoteAddr().String()),
 		observer:                observer,
-		t:                       ServerSessionTypeUnknown,
 		chunkComposer:           NewChunkComposer(),
 		packer:                  NewMessagePacker(),
 		IsFresh:                 true,
@@ -218,7 +216,7 @@ func (s *ServerSession) doMsg(stream *Stream) error {
 	case base.RtmpTypeIdAudio:
 		fallthrough
 	case base.RtmpTypeIdVideo:
-		if s.t != ServerSessionTypePub {
+		if s.sessionStat.BaseType() != base.SessionBaseTypePubStr {
 			return nazaerrors.Wrap(base.ErrRtmpUnexpectedMsg)
 		}
 		s.avObserver.OnReadRtmpAvMsg(stream.toAvMsg())
@@ -244,7 +242,7 @@ func (s *ServerSession) doUserControl(stream *Stream) error {
 	return nil
 }
 func (s *ServerSession) doDataMessageAmf0(stream *Stream) error {
-	if s.t != ServerSessionTypePub {
+	if s.sessionStat.BaseType() != base.SessionBaseTypePubStr {
 		return nazaerrors.Wrap(base.ErrRtmpUnexpectedMsg)
 	}
 
@@ -420,7 +418,6 @@ func (s *ServerSession) doPublish(tid int, stream *Stream) (err error) {
 	// 回复完信令后修改 connection 的属性
 	s.modConnProps()
 
-	s.t = ServerSessionTypePub
 	s.sessionStat.SetBaseType(base.SessionBaseTypePubStr)
 	err = s.observer.OnNewRtmpPubSession(s)
 	if err != nil {
@@ -463,7 +460,6 @@ func (s *ServerSession) doPlay(tid int, stream *Stream) (err error) {
 	// 回复完信令后修改 connection 的属性
 	s.modConnProps()
 
-	s.t = ServerSessionTypeSub
 	s.sessionStat.SetBaseType(base.SessionBaseTypeSubStr)
 	err = s.observer.OnNewRtmpSubSession(s)
 	if err != nil {
@@ -475,10 +471,10 @@ func (s *ServerSession) doPlay(tid int, stream *Stream) (err error) {
 func (s *ServerSession) modConnProps() {
 	s.conn.ModWriteChanSize(wChanSize)
 
-	switch s.t {
-	case ServerSessionTypePub:
+	switch s.sessionStat.BaseType() {
+	case base.SessionBaseTypePubStr:
 		s.conn.ModReadTimeoutMs(serverSessionReadAvTimeoutMs)
-	case ServerSessionTypeSub:
+	case base.SessionBaseTypeSubStr:
 		s.conn.ModWriteTimeoutMs(serverSessionWriteAvTimeoutMs)
 	}
 }

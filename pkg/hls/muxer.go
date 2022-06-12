@@ -445,8 +445,7 @@ func (m *Muxer) writePlaylist(isLast bool) {
 }
 
 func (m *Muxer) ensureDir() {
-	//err := fslCtx.RemoveAll(m.outPath)
-	//Log.Assert(nil, err)
+	// 注意，如果路径已经存在，则啥也不干
 	err := fslCtx.MkdirAll(m.outPath, 0777)
 	Log.Assert(nil, err)
 }
