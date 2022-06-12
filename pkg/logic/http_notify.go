@@ -29,14 +29,18 @@ type PostTask struct {
 }
 
 type HttpNotify struct {
-	cfg       HttpNotifyConfig
+	cfg HttpNotifyConfig
+
+	serverId string
+
 	taskQueue chan PostTask
 	client    *http.Client
 }
 
-func NewHttpNotify(cfg HttpNotifyConfig) *HttpNotify {
+func NewHttpNotify(cfg HttpNotifyConfig, serverId string) *HttpNotify {
 	httpNotify := &HttpNotify{
 		cfg:       cfg,
+		serverId:  serverId,
 		taskQueue: make(chan PostTask, maxTaskLen),
 		client: &http.Client{
 			Timeout: time.Duration(notifyTimeoutSec) * time.Second,
@@ -52,42 +56,52 @@ func NewHttpNotify(cfg HttpNotifyConfig) *HttpNotify {
 // ---------------------------------------------------------------------------------------------------------------------
 
 func (h *HttpNotify) NotifyServerStart(info base.LalInfo) {
+	info.ServerId = h.serverId
 	h.asyncPost(h.cfg.OnServerStart, info)
 }
 
 func (h *HttpNotify) NotifyUpdate(info base.UpdateInfo) {
+	info.ServerId = h.serverId
 	h.asyncPost(h.cfg.OnUpdate, info)
 }
 
 func (h *HttpNotify) NotifyPubStart(info base.PubStartInfo) {
+	info.ServerId = h.serverId
 	h.asyncPost(h.cfg.OnPubStart, info)
 }
 
 func (h *HttpNotify) NotifyPubStop(info base.PubStopInfo) {
+	info.SessionId = h.serverId
 	h.asyncPost(h.cfg.OnPubStop, info)
 }
 
 func (h *HttpNotify) NotifySubStart(info base.SubStartInfo) {
+	info.ServerId = h.serverId
 	h.asyncPost(h.cfg.OnSubStart, info)
 }
 
 func (h *HttpNotify) NotifySubStop(info base.SubStopInfo) {
+	info.ServerId = h.serverId
 	h.asyncPost(h.cfg.OnSubStop, info)
 }
 
 func (h *HttpNotify) NotifyPullStart(info base.PullStartInfo) {
+	info.ServerId = h.serverId
 	h.asyncPost(h.cfg.OnRelayPullStart, info)
 }
 
 func (h *HttpNotify) NotifyPullStop(info base.PullStopInfo) {
+	info.ServerId = h.serverId
 	h.asyncPost(h.cfg.OnRelayPullStop, info)
 }
 
 func (h *HttpNotify) NotifyRtmpConnect(info base.RtmpConnectInfo) {
+	info.ServerId = h.serverId
 	h.asyncPost(h.cfg.OnRtmpConnect, info)
 }
 
 func (h *HttpNotify) NotifyOnHlsMakeTs(info base.HlsMakeTsInfo) {
+	info.ServerId = h.serverId
 	h.asyncPost(h.cfg.OnHlsMakeTs, info)
 }
 

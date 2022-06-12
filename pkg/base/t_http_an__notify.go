@@ -10,8 +10,16 @@ package base
 
 // 文档见： https://pengrl.com/lal/#/HTTPNotify
 
-type SessionEventCommonInfo struct {
+// EventCommonInfo 所有事件共有的字段
+//
+type EventCommonInfo struct {
 	ServerId string `json:"server_id"`
+}
+
+// SessionEventCommonInfo session相关的事件的共有的字段
+//
+type SessionEventCommonInfo struct {
+	EventCommonInfo
 
 	SessionId  string `json:"session_id"`
 	Protocol   string `json:"protocol"`
@@ -28,7 +36,7 @@ type SessionEventCommonInfo struct {
 }
 
 type UpdateInfo struct {
-	ServerId string `json:"server_id"`
+	EventCommonInfo
 
 	Groups []StatGroup `json:"groups"`
 }
@@ -58,7 +66,7 @@ type PullStopInfo struct {
 }
 
 type RtmpConnectInfo struct {
-	ServerId string `json:"server_id"`
+	EventCommonInfo
 
 	SessionId  string `json:"session_id"`
 	RemoteAddr string `json:"remote_addr"`
@@ -68,6 +76,8 @@ type RtmpConnectInfo struct {
 }
 
 type HlsMakeTsInfo struct {
+	EventCommonInfo
+
 	Event          string  `json:"event"`
 	StreamName     string  `json:"stream_name"`
 	Cwd            string  `json:"cwd"`
@@ -76,7 +86,6 @@ type HlsMakeTsInfo struct {
 	RecordM3u8File string  `json:"record_m3u8_file"`
 	Id             int     `json:"id"`
 	Duration       float64 `json:"duration"`
-	ServerId       string  `json:"server_id"`
 }
 
 // ---------------------------------------------------------------------------------------------------------------------

@@ -111,7 +111,7 @@ Doc: %s
 	}
 
 	if sm.option.NotifyHandler == nil {
-		sm.option.NotifyHandler = NewHttpNotify(sm.config.HttpNotifyConfig)
+		sm.option.NotifyHandler = NewHttpNotify(sm.config.HttpNotifyConfig, sm.config.ServerId)
 	}
 
 	if sm.config.HttpflvConfig.Enable || sm.config.HttpflvConfig.EnableHttps ||
@@ -244,7 +244,6 @@ func (sm *ServerManager) RunLoop() error {
 
 	uis := uint32(sm.config.HttpNotifyConfig.UpdateIntervalSec)
 	var updateInfo base.UpdateInfo
-	updateInfo.ServerId = sm.config.ServerId
 	updateInfo.Groups = sm.StatAllGroup()
 	sm.option.NotifyHandler.OnUpdate(updateInfo)
 
@@ -293,7 +292,6 @@ func (sm *ServerManager) RunLoop() error {
 
 			// 定时通过http notify发送group相关的信息
 			if uis != 0 && (tickCount%uis) == 0 {
-				updateInfo.ServerId = sm.config.ServerId
 				updateInfo.Groups = sm.StatAllGroup()
 				sm.option.NotifyHandler.OnUpdate(updateInfo)
 			}
@@ -358,7 +356,6 @@ func (sm *ServerManager) OnRtmpConnect(session *rtmp.ServerSession, opa rtmp.Obj
 	defer sm.mutex.Unlock()
 
 	var info base.RtmpConnectInfo
-	info.ServerId = sm.config.ServerId
 	info.SessionId = session.UniqueKey()
 	info.RemoteAddr = session.GetStat().RemoteAddr
 	info.App, _ = opa.FindString("app")
@@ -372,7 +369,6 @@ func (sm *ServerManager) OnNewRtmpPubSession(session *rtmp.ServerSession) error 
 	defer sm.mutex.Unlock()
 
 	info := base.Session2PubStartInfo(session)
-	info.ServerId = sm.config.ServerId
 
 	// 先做simple auth鉴权
 	if err := sm.simpleAuthCtx.OnPubStart(info); err != nil {
@@ -403,7 +399,6 @@ func (sm *ServerManager) OnDelRtmpPubSession(session *rtmp.ServerSession) {
 	group.DelRtmpPubSession(session)
 
 	info := base.Session2PubStopInfo(session)
-	info.ServerId = sm.config.ServerId
 	info.HasInSession = group.HasInSession()
 	info.HasOutSession = group.HasOutSession()
 	sm.option.NotifyHandler.OnPubStop(info)
@@ -414,7 +409,6 @@ func (sm *ServerManager) OnNewRtmpSubSession(session *rtmp.ServerSession) error 
 	defer sm.mutex.Unlock()
 
 	info := base.Session2SubStartInfo(session)
-	info.ServerId = sm.config.ServerId
 
 	if err := sm.simpleAuthCtx.OnSubStart(info); err != nil {
 		return err
@@ -442,7 +436,6 @@ func (sm *ServerManager) OnDelRtmpSubSession(session *rtmp.ServerSession) {
 	group.DelRtmpSubSession(session)
 
 	info := base.Session2SubStopInfo(session)
-	info.ServerId = sm.config.ServerId
 	info.HasInSession = group.HasInSession()
 	info.HasOutSession = group.HasOutSession()
 	sm.option.NotifyHandler.OnSubStop(info)
@@ -455,7 +448,6 @@ func (sm *ServerManager) OnNewHttpflvSubSession(session *httpflv.SubSession) err
 	defer sm.mutex.Unlock()
 
 	info := base.Session2SubStartInfo(session)
-	info.ServerId = sm.config.ServerId
 
 	if err := sm.simpleAuthCtx.OnSubStart(info); err != nil {
 		return err
@@ -483,7 +475,6 @@ func (sm *ServerManager) OnDelHttpflvSubSession(session *httpflv.SubSession) {
 	group.DelHttpflvSubSession(session)
 
 	info := base.Session2SubStopInfo(session)
-	info.ServerId = sm.config.ServerId
 	info.HasInSession = group.HasInSession()
 	info.HasOutSession = group.HasOutSession()
 	sm.option.NotifyHandler.OnSubStop(info)
@@ -494,7 +485,6 @@ func (sm *ServerManager) OnNewHttptsSubSession(session *httpts.SubSession) error
 	defer sm.mutex.Unlock()
 
 	info := base.Session2SubStartInfo(session)
-	info.ServerId = sm.config.ServerId
 
 	if err := sm.simpleAuthCtx.OnSubStart(info); err != nil {
 		return err
@@ -523,7 +513,6 @@ func (sm *ServerManager) OnDelHttptsSubSession(session *httpts.SubSession) {
 	group.DelHttptsSubSession(session)
 
 	info := base.Session2SubStopInfo(session)
-	info.ServerId = sm.config.ServerId
 	info.HasInSession = group.HasInSession()
 	info.HasOutSession = group.HasOutSession()
 	sm.option.NotifyHandler.OnSubStop(info)
@@ -544,7 +533,6 @@ func (sm *ServerManager) OnNewRtspPubSession(session *rtsp.PubSession) error {
 	defer sm.mutex.Unlock()
 
 	info := base.Session2PubStartInfo(session)
-	info.ServerId = sm.config.ServerId
 
 	if err := sm.simpleAuthCtx.OnPubStart(info); err != nil {
 		return err
@@ -573,7 +561,6 @@ func (sm *ServerManager) OnDelRtspPubSession(session *rtsp.PubSession) {
 	group.DelRtspPubSession(session)
 
 	info := base.Session2PubStopInfo(session)
-	info.ServerId = sm.config.ServerId
 	info.HasInSession = group.HasInSession()
 	info.HasOutSession = group.HasOutSession()
 	sm.option.NotifyHandler.OnPubStop(info)
@@ -591,7 +578,6 @@ func (sm *ServerManager) OnNewRtspSubSessionPlay(session *rtsp.SubSession) error
 	defer sm.mutex.Unlock()
 
 	info := base.Session2SubStartInfo(session)
-	info.ServerId = sm.config.ServerId
 
 	if err := sm.simpleAuthCtx.OnSubStart(info); err != nil {
 		return err
@@ -618,7 +604,6 @@ func (sm *ServerManager) OnDelRtspSubSession(session *rtsp.SubSession) {
 	group.DelRtspSubSession(session)
 
 	info := base.Session2SubStopInfo(session)
-	info.ServerId = sm.config.ServerId
 	info.HasInSession = group.HasInSession()
 	info.HasOutSession = group.HasOutSession()
 	sm.option.NotifyHandler.OnSubStop(info)
@@ -662,17 +647,14 @@ func (sm *ServerManager) CleanupHlsIfNeeded(appName string, streamName string, p
 }
 
 func (sm *ServerManager) OnRelayPullStart(info base.PullStartInfo) {
-	info.ServerId = sm.config.ServerId
 	sm.option.NotifyHandler.OnRelayPullStart(info)
 }
 
 func (sm *ServerManager) OnRelayPullStop(info base.PullStopInfo) {
-	info.ServerId = sm.config.ServerId
 	sm.option.NotifyHandler.OnRelayPullStop(info)
 }
 
 func (sm *ServerManager) OnHlsMakeTs(info base.HlsMakeTsInfo) {
-	info.ServerId = sm.config.ServerId
 	sm.option.NotifyHandler.OnHlsMakeTs(info)
 }
 
