@@ -161,6 +161,11 @@ func (ascCtx *AscContext) PackToAdtsHeader(out []byte, frameLength int) error {
 	// ID, Layer, protection_absent 1(4)
 	bw.WriteBits8(4, 0x1)
 	// 2(2)
+	// <ISO_IEC_14496-3.pdf>
+	// profile_ObjectType: The interpretation of this bitstream element depends on the value of the ID bit. If ID is
+	// equal to ‘1’ this field holds the same information as the profile field in the ADTS stream defined in ISO/IEC
+	// 13818-7. If ID is equal to ‘0’ this element denotes the MPEG-4 Audio Object Type according to the table
+	// defined in subclause 5.1.1.
 	bw.WriteBits8(2, ascCtx.AudioObjectType-1)
 	// 2(4)
 	bw.WriteBits8(4, ascCtx.SamplingFrequencyIndex)
@@ -243,6 +248,11 @@ func (ctx *AdtsHeaderContext) Unpack(adtsHeader []byte) error {
 	br := nazabits.NewBitReader(adtsHeader)
 	_ = br.SkipBits(16)
 	v, _ := br.ReadBits8(2)
+	// <ISO_IEC_14496-3.pdf>
+	// profile_ObjectType: The interpretation of this bitstream element depends on the value of the ID bit. If ID is
+	// equal to ‘1’ this field holds the same information as the profile field in the ADTS stream defined in ISO/IEC
+	// 13818-7. If ID is equal to ‘0’ this element denotes the MPEG-4 Audio Object Type according to the table
+	// defined in subclause 5.1.1.
 	ctx.AscCtx.AudioObjectType = v + 1
 	ctx.AscCtx.SamplingFrequencyIndex, _ = br.ReadBits8(4)
 	_ = br.SkipBits(1)
