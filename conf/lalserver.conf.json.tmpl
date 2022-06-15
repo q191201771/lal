@@ -1,6 +1,6 @@
 {
   "# doc of config": "https://pengrl.com/lal/#/ConfigBrief",
-  "conf_version": "v0.2.9",
+  "conf_version": "v0.3.3",
   "rtmp": {
     "enable": true,
     "addr": ":1935",
@@ -41,7 +41,11 @@
   "rtsp": {
     "enable": true,
     "addr": ":5544",
-    "out_wait_key_frame_flag": true
+    "out_wait_key_frame_flag": true,
+    "auth_enable": false,
+    "auth_method": 1,
+    "username": "q191201771",
+    "password": "pengrl"
   },
   "record": {
     "enable_flv": false,
@@ -54,7 +58,7 @@
     "addr_list":[
     ]
   },
-  "relay_pull": {
+  "static_relay_pull": {
     "enable": false,
     "addr": ""
   },
@@ -66,13 +70,16 @@
   "http_notify": {
     "enable": false,
     "update_interval_sec": 5,
-    "on_server_start": "http://127.0.0.1:10101/on_server_start",
     "on_update": "http://127.0.0.1:10101/on_update",
     "on_pub_start": "http://127.0.0.1:10101/on_pub_start",
     "on_pub_stop": "http://127.0.0.1:10101/on_pub_stop",
     "on_sub_start": "http://127.0.0.1:10101/on_sub_start",
     "on_sub_stop": "http://127.0.0.1:10101/on_sub_stop",
-    "on_rtmp_connect": "http://127.0.0.1:10101/on_rtmp_connect"
+    "on_relay_pull_start": "http://127.0.0.1:10101/on_relay_pull_start",
+    "on_relay_pull_stop": "http://127.0.0.1:10101/on_relay_pull_stop",
+    "on_rtmp_connect": "http://127.0.0.1:10101/on_rtmp_connect",
+    "on_server_start": "http://127.0.0.1:10101/on_server_start",
+    "on_hls_make_ts": "http://127.0.0.1:10101/on_hls_make_ts"
   },
   "simple_auth": {
     "key": "q191201771",
