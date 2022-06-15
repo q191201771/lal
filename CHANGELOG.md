@@ -1,3 +1,29 @@
+#### v0.30.0 (2022-06-15)
+
+[feat] HTTP-API：新增start/stop_relay_pull接口，支持rtmp和rtsp，支持设置超时时间，自动关闭，重试次数，rtsp类型等参数
+[feat] HTTP-API：kick_session接口支持踢掉pub/sub/pull类型的session
+[feat] HTTP-Notify：增加on_relay_pull_start和on_relay_pull_stop回调
+[feat] HTTP-Notify：增加hls生成ts文件的事件回调
+[feat] rtmp: client端支持rtmps加密传输
+[feat] rtmp: client端支持adobe auth验证
+[feat] rtsp: server端支持basic/digest auth验证
+[feat] lalserver: 运行参数-p可设置当前工作路径
+[feat] package gb28181: 大体完成ps协议解析
+[feat] 新增remux.Rtmp2AvPacketRemuxer，方便和ffmpeg库协作
+[fix] rtsp: 修复url path路径不存在时，url解析失败的问题
+[fix] rtmp: 解析amf, object中嵌套object导致崩溃
+[fix] rtmp: ChunkComposer的error日志中的对象写错导致崩溃
+[fix] 修复rtmp转ts时，265判断错误
+[fix] lalserver: 修复竞态条件下接收rtsp流崩溃的bug
+[fix] lalserver: relay push判空错误导致崩溃
+[chore] release发版时，增加arm32, arm64, macos arm对应的二进制文件
+[refactor] 新增package h2645
+[refactor] 将所有session的ISessionStat的实现聚合到BasicSessionStat
+[refactor] rename HttpSubSession -> BasicHttpSubSession
+[refactor] HTTP-API: 所有事件都包含的公共字段聚合到EventCommonInfo中
+[opt] aac: 补全AscContext.samplingFrequencyIndex采样率的取值
+[log] 访问非法HTTP-API路径时打印警告日志
+
 #### v0.29.1 (2022-05-03)
 
 - [feat] lalserver: 支持集成第三方协议的输入流 https://pengrl.com/#/customize_pub
