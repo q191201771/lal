@@ -1,4 +1,4 @@
-#### v0.30.0 (2022-06-15)
+#### v0.30.1 (2022-06-15)
 
 [feat] HTTP-API：新增start/stop_relay_pull接口，支持rtmp和rtsp，支持设置超时时间，自动关闭，重试次数，rtsp类型等参数
 [feat] HTTP-API：kick_session接口支持踢掉pub/sub/pull类型的session
