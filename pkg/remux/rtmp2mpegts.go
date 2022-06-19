@@ -58,10 +58,45 @@ type Rtmp2MpegtsRemuxer struct {
 	videoOut                []byte // Annexb
 	spspps                  []byte // Annexb 也可能是vps+sps+pps
 	ascCtx                  *aac.AscContext
-	audioCacheFrames        []byte // 缓存音频帧数据，注意，可能包含多个音频帧
-	audioCacheFirstFramePts uint64 // audioCacheFrames中第一个音频帧的时间戳 TODO chef: rename to DTS
 	audioCc                 uint8
 	videoCc                 uint8
+
+	// audioCacheFrames: 缓存音频packet数据，注意，可能包含多个音频packet
+	//
+	// audioCacheFirstFramePts: audioCacheFrames中第一个音频packet的时间戳
+	//
+	// 缓存（也即合并）多个packet并让他们使用第一个packet的时间戳，目的是为了还原单packet的精度。
+	//
+	// 比如，aac 48000的每帧数据时长为21.333，
+	// 由于rtmp的时间戳是整数（单位毫秒），所以它使用如下方式：
+	//  duration: 21, 21, 22
+	// timestamp: 0, 21, 42, 64
+	// 其中duration的第一个和第二个都少了0.33，第三个多了0.66，然后循环
+	// timestamp中0和64是对的，21和42是有误差的，然后循环。也即3个packet，timestamp恢复严格意义上的正确。
+	// 这个用整数类型毫秒单位没法避免。
+	//
+	// 当 * 90换算成mpegts的时间戳时，duration的小数部分的误差还是存在，
+	// 这将导致部分hls播放器（比如macOS的QuickTime）会出现声音效果不好的情况。
+	// 所以我们优化为将多个packet合并，使得原来每个packet之间出现异常的情况，缓解为缓存与缓存间可能出现异常的情况
+	//
+	// TODO(chef): 可按ffmpeg中av_rescale_delta的手段进行优化 202206
+	//
+	// 其大致思想是，当duration在一定范围内，使用timestamp*90；当duration超过一定范围，则直接用采样率换算得到的duration。
+	// 也即，迁移中方法是21或者22 * 90，后一种直接是21.33*90=1920
+	// int64_t av_rescale_delta(AVRational in_tb, int64_t in_ts,  AVRational fs_tb, int duration, int64_t *last, AVRational out_tb)
+	// in_tb    1000
+	// in_ts    dts
+	// fs_tb    48000
+	// duration 1024
+	// last
+	// out_tb   90000
+	//
+	// 但是ffmpeg的做法也有问题，就是每个packet都转ts，padding会比较多，导致ts码流变大
+	//
+	//TODO chef: rename to DTS
+	//
+	audioCacheFrames        []byte
+	audioCacheFirstFramePts uint64
 
 	opened bool
 }
