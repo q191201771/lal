@@ -25,8 +25,10 @@ import (
 // 读取chunk，并合并chunk，生成message返回给上层
 //
 type ChunkComposer struct {
-	peerChunkSize uint32
-	csid2stream   map[int]*Stream
+	peerChunkSize   uint32
+	reuseBufferFlag bool // TODO(chef): [fix] RtmpTypeIdAggregateMessage时，reuseBufferFlag==false的处理 202206
+
+	csid2stream map[int]*Stream
 }
 
 func NewChunkComposer() *ChunkComposer {
@@ -34,6 +36,10 @@ func NewChunkComposer() *ChunkComposer {
 		peerChunkSize: defaultChunkSize,
 		csid2stream:   make(map[int]*Stream),
 	}
+}
+
+func (c *ChunkComposer) SetReuseBufferFlag(val bool) {
+	c.reuseBufferFlag = val
 }
 
 func (c *ChunkComposer) SetPeerChunkSize(val uint32) {
@@ -254,7 +260,11 @@ func (c *ChunkComposer) RunLoop(reader io.Reader, cb OnCompleteMessage) error {
 					return err
 				}
 
-				stream.msg.Reset()
+				if c.reuseBufferFlag {
+					stream.msg.Reset()
+				} else {
+					stream.msg.ResetAndFree()
+				}
 			}
 		}
 

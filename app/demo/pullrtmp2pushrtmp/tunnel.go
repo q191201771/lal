@@ -214,6 +214,7 @@ func (t *Tunnel) Start() (ret ErrorCode) {
 
 	t.pullSession = rtmp.NewPullSession(func(option *rtmp.PullSessionOption) {
 		option.PullTimeoutMs = pullTimeoutMs
+		//option.ReuseReadMessageBufferFlag = false
 	}).WithOnReadRtmpAvMsg(func(msg base.RtmpMsg) {
 		m := msg.Clone()
 		t.rtmpMsgQ <- m

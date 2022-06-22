@@ -54,6 +54,7 @@ func (stream *Stream) toAvMsg() base.RtmpMsg {
 // ----- StreamMsg -----------------------------------------------------------------------------------------------------
 
 type StreamMsg struct {
+	// TODO(chef): [refactor] 考虑外部(chunk_composer)不要直接访问buff，封装一层 202206
 	buff *nazabytes.Buffer
 }
 
@@ -76,6 +77,10 @@ func (msg *StreamMsg) Skip(n uint32) {
 
 func (msg *StreamMsg) Reset() {
 	msg.buff.Reset()
+}
+
+func (msg *StreamMsg) ResetAndFree() {
+	msg.buff.ResetAndFree()
 }
 
 func (msg *StreamMsg) peekStringWithType() (string, error) {

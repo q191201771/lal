@@ -36,6 +36,7 @@ func main() {
   %s -i rtmp://127.0.0.1/live/test110 -o rtmp://127.0.0.1/live/test220
   %s -i rtmp://127.0.0.1/live/test110 -o rtmp://127.0.0.1/live/test220,rtmp://127.0.0.1/live/test330
 `, os.Args[0], os.Args[0])
+		base.OsExitAndWaitPressIfWindows(1)
 	}
 
 	ol := strings.Split(*o, ",")

@@ -19,22 +19,27 @@ type PullSession struct {
 }
 
 type PullSessionOption struct {
+	// PullTimeoutMs
+	//
 	// 从调用Pull函数，到接收音视频数据的前一步，也即收到服务端返回的rtmp play对应结果的信令的超时时间
 	// 如果为0，则没有超时时间
+	//
 	PullTimeoutMs int
 
-	ReadAvTimeoutMs      int
-	ReadBufSize          int // io层读取音视频数据时的缓冲大小，如果为0，则没有缓冲
-	HandshakeComplexFlag bool
-	PeerWinAckSize       int
+	ReadAvTimeoutMs            int
+	ReadBufSize                int // io层读取音视频数据时的缓冲大小，如果为0，则没有缓冲
+	HandshakeComplexFlag       bool
+	PeerWinAckSize             int
+	ReuseReadMessageBufferFlag bool // 接收Message时，是否复用内存块
 }
 
 var defaultPullSessionOption = PullSessionOption{
-	PullTimeoutMs:        10000,
-	ReadAvTimeoutMs:      0,
-	ReadBufSize:          0,
-	HandshakeComplexFlag: false,
-	PeerWinAckSize:       0,
+	PullTimeoutMs:              10000,
+	ReadAvTimeoutMs:            0,
+	ReadBufSize:                0,
+	HandshakeComplexFlag:       false,
+	PeerWinAckSize:             0,
+	ReuseReadMessageBufferFlag: true,
 }
 
 type ModPullSessionOption func(option *PullSessionOption)
@@ -52,6 +57,7 @@ func NewPullSession(modOptions ...ModPullSessionOption) *PullSession {
 			option.ReadBufSize = opt.ReadBufSize
 			option.HandshakeComplexFlag = opt.HandshakeComplexFlag
 			option.PeerWinAckSize = opt.PeerWinAckSize
+			option.ReuseReadMessageBufferFlag = opt.ReuseReadMessageBufferFlag
 		}),
 	}
 }
