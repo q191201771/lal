@@ -109,13 +109,16 @@ func NewClientSession(sessionType base.SessionType, modOptions ...ModClientSessi
 		hc = &HandshakeClientSimple{}
 	}
 
+	cc := NewChunkComposer()
+	cc.SetReuseBufferFlag(option.ReuseReadMessageBufferFlag)
+
 	s := &ClientSession{
 		onDoResult:                 defaultOnPullResult,
 		onReadRtmpAvMsg:            defaultOnReadRtmpAvMsg,
 		option:                     option,
 		doResultChan:               make(chan struct{}, 1),
 		packer:                     NewMessagePacker(),
-		chunkComposer:              NewChunkComposer(),
+		chunkComposer:              cc,
 		sessionStat:                base.NewBasicSessionStat(sessionType, ""),
 		debugLogReadUserCtrlMsgMax: 5,
 		hc:                         hc,
