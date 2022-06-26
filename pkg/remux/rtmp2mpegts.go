@@ -53,13 +53,13 @@ type IRtmp2MpegtsRemuxerObserver interface {
 type Rtmp2MpegtsRemuxer struct {
 	UniqueKey string
 
-	observer                IRtmp2MpegtsRemuxerObserver
-	filter                  *rtmp2MpegtsFilter
-	videoOut                []byte // Annexb
-	spspps                  []byte // Annexb 也可能是vps+sps+pps
-	ascCtx                  *aac.AscContext
-	audioCc                 uint8
-	videoCc                 uint8
+	observer IRtmp2MpegtsRemuxerObserver
+	filter   *rtmp2MpegtsFilter
+	videoOut []byte // Annexb
+	spspps   []byte // Annexb 也可能是vps+sps+pps
+	ascCtx   *aac.AscContext
+	audioCc  uint8
+	videoCc  uint8
 
 	// audioCacheFrames: 缓存音频packet数据，注意，可能包含多个音频packet
 	//
