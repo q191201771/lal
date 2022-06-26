@@ -50,6 +50,7 @@ func (group *Group) OnSdp(sdpCtx sdp.LogicContext) {
 	group.mutex.Lock()
 	defer group.mutex.Unlock()
 	group.sdpCtx = &sdpCtx
+	group.feedWaitRtspSubSessions()
 	if group.rtsp2RtmpRemuxer != nil {
 		group.rtsp2RtmpRemuxer.OnSdp(sdpCtx)
 	}
@@ -121,6 +122,7 @@ func (group *Group) onRtmpMsgFromRemux(msg base.RtmpMsg) {
 //
 func (group *Group) onSdpFromRemux(sdpCtx sdp.LogicContext) {
 	group.sdpCtx = &sdpCtx
+	group.feedWaitRtspSubSessions()
 }
 
 // onRtpPacketFromRemux ...
@@ -504,5 +506,13 @@ func (group *Group) writev2RtmpSubSessions(bs net.Buffers) {
 			continue
 		}
 		_ = session.Writev(bs)
+	}
+}
+
+// ---------------------------------------------------------------------------------------------------------------------
+
+func (group *Group) feedWaitRtspSubSessions() {
+	for session := range group.waitRtspSubSessionSet {
+		session.FeedSdp(*group.sdpCtx)
 	}
 }

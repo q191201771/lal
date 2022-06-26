@@ -61,23 +61,26 @@ func (group *Group) AddHttptsSubSession(session *httpts.SubSession) {
 }
 
 func (group *Group) HandleNewRtspSubSessionDescribe(session *rtsp.SubSession) (ok bool, sdp []byte) {
+	Log.Debugf("[%s] [%s] rtsp sub describe.", group.UniqueKey, session.UniqueKey())
+
 	group.mutex.Lock()
 	defer group.mutex.Unlock()
-	// TODO(chef): 应该有等待机制，而不是直接关闭
 	if group.sdpCtx == nil {
-		Log.Warnf("[%s] close rtsp subSession while describe but sdp not exist. [%s]",
-			group.UniqueKey, session.UniqueKey())
-		return false, nil
-	}
+		Log.Warnf("[%s] [%s] rtsp subSession describe but sdp not exist.", group.UniqueKey, session.UniqueKey())
 
+		group.waitRtspSubSessionSet[session] = struct{}{}
+
+		return true, nil
+	}
 	return true, group.sdpCtx.RawSdp
 }
 
 func (group *Group) HandleNewRtspSubSessionPlay(session *rtsp.SubSession) {
-	Log.Debugf("[%s] [%s] add rtsp SubSession into group.", group.UniqueKey, session.UniqueKey())
+	Log.Debugf("[%s] [%s] rtsp sub play.", group.UniqueKey, session.UniqueKey())
 
 	group.mutex.Lock()
 	defer group.mutex.Unlock()
+	delete(group.waitRtspSubSessionSet, session)
 	group.rtspSubSessionSet[session] = struct{}{}
 	if group.stat.VideoCodec == "" {
 		session.ShouldWaitVideoKeyFrame = false

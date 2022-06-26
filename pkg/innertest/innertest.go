@@ -13,6 +13,8 @@ import (
 	"io/ioutil"
 	"net/http"
 	"os"
+	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -118,6 +120,9 @@ func Entry(tt *testing.T) {
 }
 
 func entry() {
+	var entryWaitGroup sync.WaitGroup // 用于等待所有协程结束
+	entryWaitGroup.Add(4)
+
 	Log.Debugf("> innertest")
 
 	if _, err := os.Lstat(confFilename); err != nil {
@@ -132,6 +137,7 @@ func entry() {
 	httpflvPullTagCount.Store(0)
 	rtmpPullTagCount.Store(0)
 	httptsSize.Store(0)
+	rtspPullAvPacketCount.Store(0)
 	hls.Clock = mock.NewFakeClock()
 	hls.Clock.Set(time.Date(2022, 1, 16, 23, 24, 25, 0, time.UTC))
 	httpts.SubSessionWriteChanSize = 0
@@ -143,9 +149,6 @@ func entry() {
 	})
 	config := sm.Config()
 
-	//Log.Init(func(option *nazalog.Option) {
-	//	option.Level = nazalog.LevelLogNothing
-	//})
 	_ = os.RemoveAll(config.HlsConfig.OutPath)
 
 	go sm.RunLoop()
@@ -200,6 +203,7 @@ func entry() {
 		rtmpPullSession = rtmp.NewPullSession(func(option *rtmp.PullSessionOption) {
 			option.ReadAvTimeoutMs = 10000
 			option.ReadBufSize = 0
+			option.ReuseReadMessageBufferFlag = false
 		}).WithOnReadRtmpAvMsg(func(msg base.RtmpMsg) {
 			tag := remux.RtmpMsg2FlvTag(msg)
 			err := rtmpWriter.WriteTag(*tag)
@@ -210,6 +214,8 @@ func entry() {
 		Log.Assert(nil, err)
 		err = <-rtmpPullSession.WaitChan()
 		Log.Debug(err)
+
+		entryWaitGroup.Done()
 	}()
 
 	go func() {
@@ -225,6 +231,8 @@ func entry() {
 		Log.Assert(nil, err)
 		flvErr = <-httpflvPullSession.WaitChan()
 		Log.Debug(flvErr)
+
+		entryWaitGroup.Done()
 	}()
 
 	go func() {
@@ -232,25 +240,21 @@ func entry() {
 		_ = ioutil.WriteFile(wTsPullFileName, b, 0666)
 		assert.Equal(t, goldenHttptsLenList[mode], len(b))
 		assert.Equal(t, goldenHttptsMd5List[mode], nazamd5.Md5(b))
+
+		entryWaitGroup.Done()
 	}()
 	time.Sleep(100 * time.Millisecond)
 
-	// TODO(chef): [test] [2021.12.25] rtsp sub测试 由于rtsp sub不支持没有pub时sub，只能sub失败后重试，所以没有验证收到的数据
+	// TODO(chef): [test] rtsp sub没有验证收到的数据，因为即使是先sub，它还有一个数据到来后，才能完成信令交互的逻辑 202206
 	// TODO(chef): [perf] [2021.12.25] rtmp推rtsp拉的性能。开启rtsp pull后，rtmp pull的总时长增加了
 	go func() {
-		for {
-			rtspPullAvPacketCount.Store(0)
-			var rtspPullObserver RtspPullObserver
-			rtspPullSession = rtsp.NewPullSession(&rtspPullObserver, func(option *rtsp.PullSessionOption) {
-				option.PullTimeoutMs = 500
-			})
-			err := rtspPullSession.Pull(rtspPullUrl)
-			Log.Debug(err)
-			if rtspSdpCtx.RawSdp != nil {
-				break
-			}
-			time.Sleep(100 * time.Millisecond)
-		}
+		var rtspPullObserver RtspPullObserver
+		rtspPullSession = rtsp.NewPullSession(&rtspPullObserver, func(option *rtsp.PullSessionOption) {
+			option.PullTimeoutMs = 10000
+		})
+		err := rtspPullSession.Pull(rtspPullUrl)
+		assert.Equal(t, nil, err)
+		entryWaitGroup.Done()
 	}()
 
 	time.Sleep(100 * time.Millisecond)
@@ -284,7 +288,8 @@ func entry() {
 			break
 		}
 		nazalog.Debugf("%d(%d, %d) %d(%d)",
-			fileTagCount, httpflvPullTagCount.Load(), rtmpPullTagCount.Load(), goldenHttptsLenList[mode], httptsSize.Load())
+			fileTagCount, httpflvPullTagCount.Load(), rtmpPullTagCount.Load(),
+			goldenHttptsLenList[mode], httptsSize.Load())
 		time.Sleep(100 * time.Millisecond)
 	}
 
@@ -301,10 +306,13 @@ func entry() {
 	//_ = syscall.Kill(syscall.Getpid(), syscall.SIGUSR1)
 	sm.Dispose()
 
+	entryWaitGroup.Wait()
+
 	Log.Debugf("tag count. in=%d, out httpflv=%d, out rtmp=%d, out rtsp=%d",
 		fileTagCount, httpflvPullTagCount.Load(), rtmpPullTagCount.Load(), rtspPullAvPacketCount.Load())
 
 	compareFile()
+	assert.Equal(t, strings.ReplaceAll(goldenRtspSdpList[mode], "\n", "\r\n"), string(rtspSdpCtx.RawSdp))
 }
 
 func compareFile() {
@@ -596,5 +604,47 @@ innertest-1642375465000-6.ts
 #EXTINF:2.600,
 innertest-1642375465000-7.ts
 #EXT-X-ENDLIST
+`,
+}
+
+var goldenRtspSdpList = []string{
+	`v=0
+o=- 0 0 IN IP4 127.0.0.1
+s=No Name
+c=IN IP4 127.0.0.1
+t=0 0
+a=tool:lal 0.30.1
+m=video 0 RTP/AVP 96
+a=rtpmap:96 H264/90000
+a=fmtp:96 packetization-mode=1; sprop-parameter-sets=Z2QAFqyyAUBf8uAiAAADAAIAAAMAPB4sXJA=,aOvDyyLA; profile-level-id=640016
+a=control:streamid=0
+m=audio 0 RTP/AVP 97
+b=AS:128
+a=rtpmap:97 MPEG4-GENERIC/44100/2
+a=fmtp:97 profile-level-id=1;mode=AAC-hbr;sizelength=13;indexlength=3;indexdeltalength=3; config=121056e500
+a=control:streamid=1
+`,
+	`v=0
+o=- 0 0 IN IP4 127.0.0.1
+s=No Name
+c=IN IP4 127.0.0.1
+t=0 0
+a=tool:lal 0.30.1
+m=audio 0 RTP/AVP 97
+b=AS:128
+a=rtpmap:97 MPEG4-GENERIC/44100/2
+a=fmtp:97 profile-level-id=1;mode=AAC-hbr;sizelength=13;indexlength=3;indexdeltalength=3; config=121056e500
+a=control:streamid=0
+`,
+	`v=0
+o=- 0 0 IN IP4 127.0.0.1
+s=No Name
+c=IN IP4 127.0.0.1
+t=0 0
+a=tool:lal 0.30.1
+m=video 0 RTP/AVP 96
+a=rtpmap:96 H264/90000
+a=fmtp:96 packetization-mode=1; sprop-parameter-sets=Z2QAFqyyAUBf8uAiAAADAAIAAAMAPB4sXJA=,aOvDyyLA; profile-level-id=640016
+a=control:streamid=0
 `,
 }

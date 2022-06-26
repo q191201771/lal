@@ -9,11 +9,10 @@
 package rtsp
 
 import (
+	"github.com/q191201771/lal/pkg/base"
 	"github.com/q191201771/lal/pkg/rtprtcp"
 	"github.com/q191201771/lal/pkg/sdp"
 	"github.com/q191201771/naza/pkg/nazaerrors"
-
-	"github.com/q191201771/lal/pkg/base"
 	"github.com/q191201771/naza/pkg/nazanet"
 )
 
@@ -38,6 +37,14 @@ func NewSubSession(urlCtx base.UrlContext, cmdSession *ServerCommandSession) *Su
 	return s
 }
 
+// FeedSdp 供上层调用
+//
+func (session *SubSession) FeedSdp(sdpCtx sdp.LogicContext) {
+	session.cmdSession.FeedSdp(sdpCtx.RawSdp)
+}
+
+// InitWithSdp 供 ServerCommandSession 调用
+//
 func (session *SubSession) InitWithSdp(sdpCtx sdp.LogicContext) {
 	session.baseOutSession.InitWithSdp(sdpCtx)
 }

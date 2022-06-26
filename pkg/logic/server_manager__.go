@@ -308,6 +308,10 @@ func (sm *ServerManager) Dispose() {
 		sm.rtmpServer.Dispose()
 	}
 
+	if sm.rtspServer != nil {
+		sm.rtspServer.Dispose()
+	}
+
 	if sm.httpServerManager != nil {
 		sm.httpServerManager.Dispose()
 	}
@@ -569,27 +573,32 @@ func (sm *ServerManager) OnDelRtspPubSession(session *rtsp.PubSession) {
 func (sm *ServerManager) OnNewRtspSubSessionDescribe(session *rtsp.SubSession) (ok bool, sdp []byte) {
 	sm.mutex.Lock()
 	defer sm.mutex.Unlock()
+
+	info := base.Session2SubStartInfo(session)
+
+	if err := sm.simpleAuthCtx.OnSubStart(info); err != nil {
+		return false, nil
+	}
+
 	group := sm.getOrCreateGroup(session.AppName(), session.StreamName())
-	return group.HandleNewRtspSubSessionDescribe(session)
+	ok, sdp = group.HandleNewRtspSubSessionDescribe(session)
+	if !ok {
+		return
+	}
+
+	info.HasInSession = group.HasInSession()
+	info.HasOutSession = group.HasOutSession()
+
+	sm.option.NotifyHandler.OnSubStart(info)
+	return
 }
 
 func (sm *ServerManager) OnNewRtspSubSessionPlay(session *rtsp.SubSession) error {
 	sm.mutex.Lock()
 	defer sm.mutex.Unlock()
 
-	info := base.Session2SubStartInfo(session)
-
-	if err := sm.simpleAuthCtx.OnSubStart(info); err != nil {
-		return err
-	}
-
 	group := sm.getOrCreateGroup(session.AppName(), session.StreamName())
 	group.HandleNewRtspSubSessionPlay(session)
-
-	info.HasInSession = group.HasInSession()
-	info.HasOutSession = group.HasOutSession()
-
-	sm.option.NotifyHandler.OnSubStart(info)
 	return nil
 }
 
