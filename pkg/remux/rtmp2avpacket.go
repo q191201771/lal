@@ -14,6 +14,7 @@ import (
 )
 
 // TODO(chef): 该文件处于开发阶段，请不要直接使用
+// TODO(chef): 支持音频 202206
 
 // Rtmp2AvPacketRemuxer
 //
@@ -21,34 +22,53 @@ import (
 // - 将rtmp流中的视频转换成ffmpeg可解码的格式
 //
 type Rtmp2AvPacketRemuxer struct {
-	onAvPacket func(pkt base.AvPacket)
+	option     Rtmp2AvPacketRemuxerOption
+	onAvPacket func(pkt base.AvPacket, arg interface{})
 
 	spspps []byte // annexb格式
 }
 
+type Rtmp2AvPacketRemuxerOption struct {
+	// TODO(chef): impl me 202206
+	TryInPlaceFlag bool // 尝试在原有内存上直接修改
+}
+
+var defaultRtmp2AvPacketRemuxerOption = Rtmp2AvPacketRemuxerOption{
+	TryInPlaceFlag: false,
+}
+
 func NewRtmp2AvPacketRemuxer() *Rtmp2AvPacketRemuxer {
 	return &Rtmp2AvPacketRemuxer{
+		option:     defaultRtmp2AvPacketRemuxerOption,
 		onAvPacket: defaultOnAvPacket,
 	}
 }
 
-func (r *Rtmp2AvPacketRemuxer) WithOnAvPacket(onAvPacket func(pkt base.AvPacket)) *Rtmp2AvPacketRemuxer {
+func (r *Rtmp2AvPacketRemuxer) WithOption(modOption func(option *Rtmp2AvPacketRemuxerOption)) *Rtmp2AvPacketRemuxer {
+	modOption(&r.option)
+	return r
+}
+
+// WithOnAvPacket
+//
+// @param onAvPacket: pkt 内存由内部新申请，回调后内部不再使用
+//
+func (r *Rtmp2AvPacketRemuxer) WithOnAvPacket(onAvPacket func(pkt base.AvPacket, arg interface{})) *Rtmp2AvPacketRemuxer {
 	r.onAvPacket = onAvPacket
 	return r
 }
 
-func (r *Rtmp2AvPacketRemuxer) FeedRtmpMsg(msg base.RtmpMsg) error {
-	// TODO(chef): 音频
+func (r *Rtmp2AvPacketRemuxer) FeedRtmpMsg(msg base.RtmpMsg, arg interface{}) error {
 	switch msg.Header.MsgTypeId {
 	case base.RtmpTypeIdVideo:
-		return r.feedVideo(msg)
+		return r.feedVideo(msg, arg)
 	}
 	return nil
 }
 
 // ---------------------------------------------------------------------------------------------------------------------
 
-func (r *Rtmp2AvPacketRemuxer) feedVideo(msg base.RtmpMsg) error {
+func (r *Rtmp2AvPacketRemuxer) feedVideo(msg base.RtmpMsg, arg interface{}) error {
 	if len(msg.Payload) <= 5 {
 		return nil
 	}
@@ -124,7 +144,7 @@ func (r *Rtmp2AvPacketRemuxer) feedVideo(msg base.RtmpMsg) error {
 		} else {
 			pkt.PayloadType = base.AvPacketPtHevc
 		}
-		r.onAvPacket(pkt)
+		r.onAvPacket(pkt, arg)
 	}
 
 	return err
@@ -132,6 +152,6 @@ func (r *Rtmp2AvPacketRemuxer) feedVideo(msg base.RtmpMsg) error {
 
 // ---------------------------------------------------------------------------------------------------------------------
 
-func defaultOnAvPacket(pkt base.AvPacket) {
+func defaultOnAvPacket(pkt base.AvPacket, arg interface{}) {
 	// noop
 }
