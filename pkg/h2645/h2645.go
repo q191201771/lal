@@ -68,6 +68,10 @@ func IterateNaluAvcc(nals []byte, handler func(nal []byte)) error {
 	return avc.IterateNaluAvcc(nals, handler)
 }
 
+func IterateNaluStartCode(nalu []byte, start int) (pos, length int) {
+	return avc.IterateNaluStartCode(nalu, start)
+}
+
 func ParseNaluType(isH264 bool, v uint8) uint8 {
 	if isH264 {
 		return avc.ParseNaluType(v)

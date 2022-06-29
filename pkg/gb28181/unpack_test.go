@@ -9,9 +9,9 @@
 package gb28181
 
 import (
-	"bytes"
 	"encoding/hex"
 	"fmt"
+	"github.com/q191201771/naza/pkg/nazamd5"
 	"io/ioutil"
 	"os"
 	"testing"
@@ -66,7 +66,7 @@ var goldenRtpList = []string{
 }
 
 func TestPsUnpacker(t *testing.T) {
-	unpacker := NewPsUnpacker().WithCallbackFunc(nil, func(payload []byte, dts int64, pts int64) {
+	unpacker := NewPsUnpacker().WithOnVideo(func(payload []byte, dts int64, pts int64) {
 
 	})
 
@@ -74,7 +74,7 @@ func TestPsUnpacker(t *testing.T) {
 		nazalog.Debugf("%d", i)
 		b, _ := hex.DecodeString(item)
 		nazalog.Debugf("%s", hex.Dump(nazabytes.Prefix(b, 128)))
-		unpacker.FeedRtpPacket(b, 0)
+		unpacker.FeedRtpPacket(b)
 	}
 }
 
@@ -119,6 +119,7 @@ func TestPsUnpacker2(t *testing.T) {
 }
 
 func test1() {
+	nazalog.Debugf("[test1] > test1")
 	// 读取raw文件(包连在一起，不包含rtp header)，存取h264文件
 
 	b, err := ioutil.ReadFile("/tmp/udp.raw")
@@ -126,11 +127,10 @@ func test1() {
 
 	fp, err := os.Create("/tmp/udp.h264")
 	nazalog.Assert(nil, err)
-	defer fp.Close()
 
 	waitingSps := true
-	unpacker := NewPsUnpacker().WithCallbackFunc(nil, func(payload []byte, dts int64, pts int64) {
-		nazalog.Debugf("onVideo. length=%d", len(payload))
+	unpacker := NewPsUnpacker().WithOnVideo(func(payload []byte, dts int64, pts int64) {
+		nazalog.Debugf("[test1] onVideo. length=%d", len(payload))
 		if waitingSps {
 			if avc.ParseNaluType(payload[4]) == avc.NaluTypeSps {
 				waitingSps = false
@@ -141,6 +141,11 @@ func test1() {
 		_, _ = fp.Write(payload)
 	})
 	unpacker.FeedRtpBody(b, 0)
+
+	fp.Close()
+	out, err := ioutil.ReadFile("/tmp/udp.h264")
+	nazalog.Assert(nil, err)
+	nazalog.Assert("fd8dbe365152e212bf8cbabb7a99c1aa", nazamd5.Md5(out))
 }
 
 func test2() {
@@ -152,23 +157,28 @@ func test2() {
 	nazalog.Assert(nil, err)
 	defer fp.Close()
 
-	unpacker := NewPsUnpacker().WithCallbackFunc(nil, func(payload []byte, dts int64, pts int64) {
-		nazalog.Debugf("onVideo. length=%d", len(payload))
+	fp2, err := os.Create("/tmp/udp2.aac")
+	nazalog.Assert(nil, err)
+	defer fp2.Close()
+
+	unpacker := NewPsUnpacker().WithOnAudio(func(payload []byte, dts int64, pts int64) {
+		nazalog.Infof("[test2] onAudio. length=%d, dts=%d", len(payload), dts)
+		_, _ = fp2.Write(payload)
+	}).WithOnVideo(func(payload []byte, dts int64, pts int64) {
+		nazalog.Infof("[test2] onVideo. length=%d, dts=%d", len(payload), dts)
 		_, _ = fp.Write(payload)
 	})
 
-	for i := 1; ; i++ {
-		filename := fmt.Sprintf("/tmp/rtp-ps-video/%d.ps", i)
+	for i := 1; i < 1000; i++ {
+		filename := fmt.Sprintf("/tmp/rtp-h264-aac/%d.ps", i)
+		//filename := fmt.Sprintf("/tmp/rtp-ps-video/%d.ps", i)
 		b, err := ioutil.ReadFile(filename)
 		if err != nil {
+			nazalog.Errorf("%+v", err)
 			return
 		}
 
-		// to be continued.
-		// 这样解析是错误的，如果内部二进制有0a就过滤掉了，应该转成string再做\n去除操作
-		b = bytes.Join(bytes.Split(b, []byte{'\n'}), nil)
-		b = bytes.Join(bytes.Split(b, []byte{' '}), nil)
-		nazalog.Debugf("%s", hex.Dump(b))
-		unpacker.FeedRtpPacket(b, 0)
+		nazalog.Debugf("[test2] %d: %s", i, hex.EncodeToString(b))
+		unpacker.FeedRtpPacket(b)
 	}
 }

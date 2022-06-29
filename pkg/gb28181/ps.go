@@ -14,15 +14,17 @@ const (
 	psPackStartCodeProgramStreamMap = 0x01bc
 	psPackStartCodeAudioStream      = 0x01c0
 	psPackStartCodeVideoStream      = 0x01e0
-	psPackStartCodeHikStream        = 0x01bd
 
-	psPackStartCodePesPsd      = 0x01ff // program_stream_directory
-	psPackStartCodePesPadding  = 0x01be // padding_stream
+	// TODO(chef): 0x01f2, 0x01f8
 	psPackStartCodePesPrivate2 = 0x01bf // padding_stream_2
 	psPackStartCodePesEcm      = 0x01f0 // ECM_stream
 	psPackStartCodePesEmm      = 0x01f1 // EMM_stream
+	psPackStartCodePesPadding  = 0x01be // padding_stream
+	psPackStartCodePackEnd     = 0x01b9
 
-	psPackStartCodePackEnd = 0x01b9
+	psPackStartCodeHikStream = 0x01bd
+	psPackStartCodePesPsd    = 0x01ff // program_stream_directory
+
 )
 
 type PsStreamType int
