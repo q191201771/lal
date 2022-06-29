@@ -102,15 +102,9 @@ func PackHttpflvTag(t uint8, timestamp uint32, in []byte) []byte {
 	return out
 }
 
-func parseTagHeader(rawHeader []byte) TagHeader {
-	var h TagHeader
-	h.Type = rawHeader[0]
-	h.DataSize = bele.BeUint24(rawHeader[1:])
-	h.Timestamp = (uint32(rawHeader[7]) << 24) + bele.BeUint24(rawHeader[4:])
-	return h
-}
-
-func readTag(rd io.Reader) (tag Tag, err error) {
+// ReadTag 从`rd`中读取数据并解析至`tag`
+//
+func ReadTag(rd io.Reader) (tag Tag, err error) {
 	rawHeader := make([]byte, TagHeaderSize)
 	if _, err = io.ReadAtLeast(rd, rawHeader, TagHeaderSize); err != nil {
 		return
@@ -127,4 +121,12 @@ func readTag(rd io.Reader) (tag Tag, err error) {
 	}
 
 	return
+}
+
+func parseTagHeader(rawHeader []byte) TagHeader {
+	var h TagHeader
+	h.Type = rawHeader[0]
+	h.DataSize = bele.BeUint24(rawHeader[1:])
+	h.Timestamp = (uint32(rawHeader[7]) << 24) + bele.BeUint24(rawHeader[4:])
+	return h
 }

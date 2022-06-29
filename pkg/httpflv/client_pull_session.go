@@ -287,7 +287,7 @@ func (session *PullSession) readFlvHeader() ([]byte, error) {
 }
 
 func (session *PullSession) readTag() (Tag, error) {
-	return readTag(session.conn)
+	return ReadTag(session.conn)
 }
 
 func (session *PullSession) runReadLoop(onReadFlvTag OnReadFlvTag) {

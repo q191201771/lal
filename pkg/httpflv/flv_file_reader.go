@@ -36,7 +36,7 @@ func (ffr *FlvFileReader) ReadTag() (Tag, error) {
 		_, _ = ffr.ReadFlvHeader()
 	}
 
-	return readTag(ffr.fp)
+	return ReadTag(ffr.fp)
 }
 
 func (ffr *FlvFileReader) Dispose() {
