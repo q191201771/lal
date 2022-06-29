@@ -152,8 +152,14 @@ func (amf0) WriteObject(writer io.Writer, opa ObjectPairArray) error {
 			if err := Amf0.WriteString(writer, opa[i].Value.(string)); err != nil {
 				return err
 			}
-		case int:
-			if err := Amf0.WriteNumber(writer, float64(opa[i].Value.(int))); err != nil {
+		case int, float64:
+			var numberVal float64
+			if intval, ok := opa[i].Value.(int); ok {
+				numberVal = float64(intval)
+			} else if floatVal, ok := opa[i].Value.(float64); ok {
+				numberVal = floatVal
+			}
+			if err := Amf0.WriteNumber(writer, numberVal); err != nil {
 				return err
 			}
 		case bool:
