@@ -59,8 +59,10 @@ func (s *PushSession) Push(rawUrl string) error {
 	return s.core.Do(rawUrl)
 }
 
-// 发送数据
-// 注意，业务方需将数据打包成rtmp chunk格式后，再调用该函数发送
+// Write 发送数据
+//
+// @param msg: 注意，`msg`数据应该是已经打包成rtmp chunk格式的数据。这里的数据就对应socket发送的数据，内部不会再修改数据内容。
+//
 func (s *PushSession) Write(msg []byte) error {
 	return s.core.Write(msg)
 }

@@ -50,7 +50,7 @@ var Amf0TypeMarkerObjectEndBytes = []byte{0, 0, Amf0TypeMarkerObjectEnd}
 
 type ObjectPair struct {
 	Key   string
-	Value interface{}
+	Value interface{} // TODO(chef): [perf] 考虑换成泛型 202206
 }
 
 type ObjectPairArray []ObjectPair
