@@ -13,6 +13,7 @@
 NAMES=("linux" "windows" "macos" "macos_arm64" "arm32" "arm64")
 MAPPING_GOOS=("linux" "windows" "darwin" "darwin" "linux" "linux")
 MAPPING_GOARCH=( "amd64" "amd64" "amd64" "arm64" "arm" "arm64")
+MAPPING_EXE=("lalserver" "lalserver.exe" "lalserver" "lalserver" "lalserver" "lalserver")
 
 
 #set -x
@@ -71,7 +72,7 @@ do
   printf "build %s(%s %s)...\n" "${NAMES[$i]}" "${MAPPING_GOOS[$i]}" "${MAPPING_GOARCH[$i]}"
   export GOOS=${MAPPING_GOOS[$i]}
   export GOARCH=${MAPPING_GOARCH[$i]}
-  cd ${ROOT_DIR}/app/lalserver && go build -ldflags "$LDFlags" -o ${ROOT_DIR}/${OUT_DIR}/${prefix}${NAMES[$i]}/bin/lalserver
+  cd ${ROOT_DIR}/app/lalserver && go build -ldflags "$LDFlags" -o ${ROOT_DIR}/${OUT_DIR}/${prefix}${NAMES[$i]}/bin/${MAPPING_EXE[$i]}
 done
 
 # 打zip包
