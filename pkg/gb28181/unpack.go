@@ -23,10 +23,6 @@ import (
 	"github.com/q191201771/naza/pkg/nazalog"
 )
 
-// TODO(chef): gb28181 package处于开发中阶段，请不使用
-// TODO(chef): [opt] rtp排序 202206
-// TODO(chef): [test] 保存rtp数据，用于回放分析 202206
-
 type onAudioFn func(payload []byte, dts int64, pts int64)
 type onVideoFn func(payload []byte, dts int64, pts int64)
 
@@ -109,6 +105,8 @@ func (p *PsUnpacker) FeedRtpPacket(rtpPacket []byte) error {
 		return err
 	}
 
+	nazalog.Debugf("h=%+v", h)
+
 	p.FeedRtpBody(rtpPacket[rtprtcp.RtpFixedHeaderLength:], h.Timestamp)
 	return nil
 }
@@ -118,17 +116,11 @@ func (p *PsUnpacker) FeedRtpPacket(rtpPacket []byte) error {
 // 注意，pes 没有pts时使用外部传入，rtpBody 需要传入两个ps header之间的数据
 //
 func (p *PsUnpacker) FeedRtpBody(rtpBody []byte, rtpts uint32) {
-	//p.buf.Reset()
+	nazalog.Debugf("> FeedRtpBody. len=%d, prev buf=%d", len(rtpBody), p.buf.Len())
 	p.buf.Write(rtpBody)
 	// ISO/IEC iso13818-1
 	//
 	// 2.5 Program Stream bitstream requirements
-	//
-	// 2.5.3.5 System header
-	// Table 2-32 - Program Stream system header
-	//
-	// 2.5.4 Program Stream map
-	// Table 2-35 - Program Stream map
 	//
 	// TODO(chef): [fix] 有些没做有效长度判断
 	for p.buf.Len() != 0 {
@@ -136,34 +128,27 @@ func (p *PsUnpacker) FeedRtpBody(rtpBody []byte, rtpts uint32) {
 		i := 0
 		code := bele.BeUint32(rb[i:])
 		i += 4
+
+		var consumed int
 		switch code {
 		case psPackStartCodePackHeader:
 			nazalog.Debugf("----------pack header----------")
-			consumed := parsePackHeader(rb, i)
-			if consumed < 0 {
-				return
-			}
-			p.buf.Skip(i + consumed)
+			consumed = parsePackHeader(rb, i)
 		case psPackStartCodeSystemHeader:
 			nazalog.Debugf("----------system header----------")
-			p.skipPackStreamBody(rb, i)
+			// 2.5.3.5 System header
+			// Table 2-32 - Program Stream system header
+			//
+			consumed = parsePackStreamBody(rb, i)
 		case psPackStartCodeProgramStreamMap:
 			nazalog.Debugf("----------program stream map----------")
-			p.parsePsm(rb, i)
+			consumed = p.parsePsm(rb, i)
 		case psPackStartCodeAudioStream:
 			nazalog.Debugf("----------audio stream----------")
-			consumed := p.parseAvStream(int(code), rtpts, rb, i)
-			if consumed < 0 {
-				return
-			}
-			p.buf.Skip(i + consumed)
+			consumed = p.parseAvStream(int(code), rtpts, rb, i)
 		case psPackStartCodeVideoStream:
 			nazalog.Debugf("----------video stream----------")
-			consumed := p.parseAvStream(int(code), rtpts, rb, i)
-			if consumed < 0 {
-				return
-			}
-			p.buf.Skip(i + consumed)
+			consumed = p.parseAvStream(int(code), rtpts, rb, i)
 		case psPackStartCodePesPrivate2:
 			fallthrough
 		case psPackStartCodePesEcm:
@@ -173,32 +158,38 @@ func (p *PsUnpacker) FeedRtpBody(rtpBody []byte, rtpts uint32) {
 		case psPackStartCodePesPadding:
 			fallthrough
 		case psPackStartCodePackEnd:
-			nazalog.Errorf("skip. %s", hex.Dump(nazabytes.Prefix(rb[i-4:], 32)))
-			p.buf.Skip(i)
+			nazalog.Errorf("----------skip----------. %s", hex.Dump(nazabytes.Prefix(rb[i-4:], 32)))
+			consumed = 0
 		case psPackStartCodeHikStream:
-			fallthrough
+			nazalog.Debugf("----------hik stream----------")
+			consumed = parsePackStreamBody(rb, i)
 		case psPackStartCodePesPsd:
 			fallthrough
 		default:
-			nazalog.Errorf("default. %s", hex.Dump(nazabytes.Prefix(rb[i-4:], 32)))
-			p.skipPackStreamBody(rb, i)
-			return
-
+			nazalog.Errorf("----------default----------. %s", hex.Dump(nazabytes.Prefix(rb[i-4:], 32)))
+			consumed = parsePackStreamBody(rb, i)
 		}
-	}
-}
-func (p *PsUnpacker) skipPackStreamBody(rb []byte, index int) {
-	consumed := parsePackStreamBody(rb, index)
-	if consumed != -1 {
-		p.buf.Skip(index + consumed)
+
+		if consumed < 0 {
+			if code != psPackStartCodeVideoStream {
+				nazalog.Warnf("consumed failed. code=%d, buf=%s", code, hex.Dump(nazabytes.Prefix(rb[i-4:], 32)))
+			}
+			return
+		}
+		p.buf.Skip(i + consumed)
+		nazalog.Debugf("skip. %d", i+consumed)
 	}
 }
 
-func (p *PsUnpacker) parsePsm(rb []byte, index int) {
+func (p *PsUnpacker) parsePsm(rb []byte, index int) int {
+	// 2.5.4 Program Stream map
+	// Table 2-35 - Program Stream map
+	//
+
 	i := index
 
 	if len(rb[i:]) < 6 {
-		return
+		return -1
 	}
 
 	// skip program_stream_map_length
@@ -214,7 +205,7 @@ func (p *PsUnpacker) parsePsm(rb []byte, index int) {
 	i += 2
 
 	if len(rb[i:]) < l+2 {
-		return
+		return -1
 	}
 
 	i += l
@@ -225,7 +216,7 @@ func (p *PsUnpacker) parsePsm(rb []byte, index int) {
 	i += 2
 
 	if len(rb[i:]) < esml+4 {
-		return
+		return -1
 	}
 
 	for esml > 0 {
@@ -246,8 +237,8 @@ func (p *PsUnpacker) parsePsm(rb []byte, index int) {
 	}
 	// skip
 	i += 4
-	nazalog.Debugf("CHEFERASEME i=%d, esml=%d, %s", i, esml, hex.Dump(nazabytes.Prefix(p.buf.Bytes(), 128)))
-	p.buf.Skip(i)
+
+	return i - index
 }
 
 func (p *PsUnpacker) parseAvStream(code int, rtpts uint32, rb []byte, index int) int {
@@ -255,6 +246,9 @@ func (p *PsUnpacker) parseAvStream(code int, rtpts uint32, rb []byte, index int)
 
 	// 注意，由于length是两字节，所以存在一个帧分成多个pes包的情况
 	length := int(bele.BeUint16(rb[i:]))
+	if length == 65535 {
+		nazalog.Warnf("CHEFGREPME length=%d", length)
+	}
 	i += 2
 
 	nazalog.Debugf("parseAvStream. code=%d, expected=%d, actual=%d", code, length, len(rb)-i)

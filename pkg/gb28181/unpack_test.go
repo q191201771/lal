@@ -170,15 +170,15 @@ func test2() {
 	})
 
 	for i := 1; i < 1000; i++ {
-		filename := fmt.Sprintf("/tmp/rtp-h264-aac/%d.ps", i)
-		//filename := fmt.Sprintf("/tmp/rtp-ps-video/%d.ps", i)
+		//filename := fmt.Sprintf("/tmp/rtp-h264-aac/%d.ps", i)
+		filename := fmt.Sprintf("/tmp/rtp-ps-video/%d.ps", i)
 		b, err := ioutil.ReadFile(filename)
 		if err != nil {
 			nazalog.Errorf("%+v", err)
 			return
 		}
 
-		nazalog.Debugf("[test2] %d: %s", i, hex.EncodeToString(b))
+		nazalog.Debugf("[test2] %d: %s", i, hex.EncodeToString(b[12:]))
 		unpacker.FeedRtpPacket(b)
 	}
 }

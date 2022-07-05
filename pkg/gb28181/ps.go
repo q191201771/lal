@@ -41,17 +41,21 @@ const (
 )
 
 const psBufInitSize = 4096
+
 const (
 	PsHeaderlen     int = 14
 	SysHeaderlen    int = 18
 	SysMapHeaderLen int = 24
 	PesHeaderLen    int = 19
 )
+
 const (
 	MaxPesLen = 0xFFFF
 )
+
 const (
 	StreamIdVideo = 0xe0
 	StreamIdAudio = 0xc0
 )
+
 const adtsMinLen = 7
