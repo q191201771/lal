@@ -70,7 +70,10 @@ func (unpacker *RtpUnpackerAac) TryUnpackOne(list *RtpPacketList) (unpackedFlag 
 
 	aus := parseAu(b)
 
+	// 只有一个描述
 	if len(aus) == 1 {
+
+		// 描述的音频帧完整的在当前的rtp packet中，没有跨越到下个rtp packet
 		if aus[0].size <= uint32(len(b[aus[0].pos:])) {
 			// one complete access unit
 			var outPkt base.AvPacket
@@ -111,6 +114,7 @@ func (unpacker *RtpUnpackerAac) TryUnpackOne(list *RtpPacketList) (unpackedFlag 
 				return false, 0
 			}
 
+			// 注意，非第一个fragment，也会包含au，au的size和第一个fragment里au的size应该相等
 			b = p.Packet.Raw[p.Packet.Header.payloadOffset:]
 			aus := parseAu(b)
 			if len(aus) != 1 {
@@ -166,11 +170,13 @@ func (unpacker *RtpUnpackerAac) TryUnpackOne(list *RtpPacketList) (unpackedFlag 
 }
 
 type au struct {
-	size uint32
-	pos  uint32
+	size uint32 // 该音频帧的大小
+	pos  uint32 // 相对rtp body的位置
 }
 
 func parseAu(b []byte) (ret []au) {
+	// TODO(chef): [fix] 解析b时，没有判断长度有效性 202207
+
 	// AU Header Section
 	var auHeadersLength uint32
 	auHeadersLength = uint32(b[0])<<8 + uint32(b[1])
