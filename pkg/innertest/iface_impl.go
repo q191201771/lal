@@ -17,11 +17,11 @@ import (
 	"github.com/q191201771/lal/pkg/remux"
 	"github.com/q191201771/lal/pkg/rtmp"
 	"github.com/q191201771/lal/pkg/rtsp"
+	"github.com/q191201771/naza/pkg/connection"
 )
 
-// TODO(chef):
-// 规范检查
-// 1. 所有interface以I开头
+// TODO(chef): 检查所有 interface是否以I开头 202207
+// TODO(chef): 增加 gb28181.PubSession 202207
 
 var (
 	_ base.ISession = &rtmp.ServerSession{}
@@ -189,3 +189,5 @@ var _ rtsp.IInterleavedPacketWriter = &rtsp.PubSession{}
 var _ rtsp.IInterleavedPacketWriter = &rtsp.SubSession{}
 var _ rtsp.IInterleavedPacketWriter = &rtsp.ClientCommandSession{}
 var _ rtsp.IInterleavedPacketWriter = &rtsp.ServerCommandSession{}
+
+var _ base.IStatable = connection.New(nil)

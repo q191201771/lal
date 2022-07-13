@@ -8,11 +8,10 @@
 
 package rtprtcp
 
-
 type RtpUnpackContainer struct {
 	unpackerProtocol IRtpUnpackerProtocol
 
-	list         RtpPacketList
+	list RtpPacketList
 }
 
 func NewRtpUnpackContainer(maxSize int, unpackerProtocol IRtpUnpackerProtocol) *RtpUnpackContainer {

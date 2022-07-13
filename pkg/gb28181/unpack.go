@@ -11,12 +11,9 @@ package gb28181
 import (
 	"bytes"
 	"encoding/hex"
+	"github.com/q191201771/lal/pkg/base"
 	"github.com/q191201771/lal/pkg/h2645"
 	"github.com/q191201771/lal/pkg/rtprtcp"
-
-	"github.com/q191201771/lal/pkg/hevc"
-
-	"github.com/q191201771/lal/pkg/avc"
 
 	"github.com/q191201771/naza/pkg/bele"
 	"github.com/q191201771/naza/pkg/nazabits"
@@ -24,40 +21,28 @@ import (
 	"github.com/q191201771/naza/pkg/nazalog"
 )
 
-type onAudioFn func(payload []byte, dts int64, pts int64)
-type onVideoFn func(payload []byte, dts int64, pts int64)
-
-type IPsUnpackerObserver interface {
-	OnAudio(payload []byte, dts int64, pts int64)
-
-	// OnVideo
-	//
-	// @param payload: annexb格式
-	//
-	OnVideo(payload []byte, dts int64, pts int64)
-}
-
-// PsUnpacker 解析ps(Progream Stream)流
+// PsUnpacker 解析ps(Program Stream)流
 //
 type PsUnpacker struct {
 	list     rtprtcp.RtpPacketList
 	buf      *nazabytes.Buffer
-	videoBuf []byte
 	audioBuf []byte
+	videoBuf []byte
 
-	videoStreamType byte
-	audioStreamType byte
+	audioStreamType  uint8
+	videoStreamType  uint8
+	audioPayloadType base.AvPacketPt
+	videoPayloadType base.AvPacketPt
 
-	preVideoPts int64
 	preAudioPts int64
-	preVideoDts int64
+	preVideoPts int64
 	preAudioDts int64
+	preVideoDts int64
 
-	preVideoRtpts int64
 	preAudioRtpts int64
+	preVideoRtpts int64
 
-	onAudio onAudioFn
-	onVideo onVideoFn
+	onAvPacket base.OnAvPacketFunc
 }
 
 func NewPsUnpacker() *PsUnpacker {
@@ -67,34 +52,16 @@ func NewPsUnpacker() *PsUnpacker {
 		preAudioPts:   -1,
 		preVideoRtpts: -1,
 		preAudioRtpts: -1,
-		onAudio:       defaultOnAudio,
-		onVideo:       defaultOnVideo,
+		onAvPacket:    defaultOnAvPacket,
 	}
 	p.list.InitMaxSize(maxUnpackRtpListSize)
 
 	return p
 }
 
-// WithOnAudio
-//
-// TODO(chef): [refactor] 使用AvPacket 202206
-//
-func (p *PsUnpacker) WithOnAudio(onAudio func(payload []byte, dts int64, pts int64)) *PsUnpacker {
-	p.onAudio = onAudio
+func (p *PsUnpacker) WithOnAvPacket(onAvPacket base.OnAvPacketFunc) *PsUnpacker {
+	p.onAvPacket = onAvPacket
 	return p
-}
-
-func (p *PsUnpacker) WithOnVideo(onVideo func(payload []byte, dts int64, pts int64)) *PsUnpacker {
-	p.onVideo = onVideo
-	return p
-}
-
-func (p *PsUnpacker) VideoStreamType() byte {
-	return p.videoStreamType
-}
-
-func (p *PsUnpacker) AudioStreamType() byte {
-	return p.audioStreamType
 }
 
 // FeedRtpPacket
@@ -289,8 +256,24 @@ func (p *PsUnpacker) parsePsm(rb []byte, index int) int {
 		// elementary_stream_info_length
 		if streamId >= 0xe0 && streamId <= 0xef {
 			p.videoStreamType = streamType
+
+			switch p.videoStreamType {
+			case StreamTypeH264:
+				p.videoPayloadType = base.AvPacketPtAvc
+			case StreamTypeH265:
+				p.videoPayloadType = base.AvPacketPtHevc
+			default:
+				p.videoPayloadType = base.AvPacketPtUnknown
+			}
 		} else if streamId >= 0xc0 && streamId <= 0xdf {
 			p.audioStreamType = streamType
+
+			switch p.audioStreamType {
+			case StreamTypeAAC:
+				p.audioPayloadType = base.AvPacketPtAac
+			default:
+				p.audioPayloadType = base.AvPacketPtUnknown
+			}
 		}
 		esil := int(bele.BeUint16(rb[i:]))
 		nazalog.Debugf("streamType=%d, streamId=%d, esil=%d", streamType, streamId, esil)
@@ -350,7 +333,12 @@ func (p *PsUnpacker) parseAvStream(code int, rtpts uint32, rb []byte, index int)
 						// noop
 					} else {
 						if p.preAudioRtpts != int64(rtpts) {
-							p.onAudio(p.audioBuf, p.preAudioDts, p.preAudioPts)
+							p.onAvPacket(&base.AvPacket{
+								PayloadType: p.audioPayloadType,
+								Timestamp:   p.preAudioDts,
+								Pts:         p.preAudioPts,
+								Payload:     p.audioBuf,
+							})
 							p.audioBuf = nil
 						} else {
 							// noop
@@ -361,7 +349,12 @@ func (p *PsUnpacker) parseAvStream(code int, rtpts uint32, rb []byte, index int)
 				}
 			} else {
 				if pts != p.preAudioPts && p.preAudioPts >= 0 {
-					p.onAudio(p.audioBuf, p.preAudioDts, p.preAudioPts)
+					p.onAvPacket(&base.AvPacket{
+						PayloadType: p.audioPayloadType,
+						Timestamp:   p.preAudioDts,
+						Pts:         p.preAudioPts,
+						Payload:     p.audioBuf,
+					})
 					p.audioBuf = nil
 				} else {
 					// noop
@@ -487,12 +480,14 @@ func (p *PsUnpacker) iterateNaluByStartCode(code int, pts, dts int64) {
 			nalu = p.videoBuf[startPos:]
 		}
 		startPos = nextPos
-		if p.videoStreamType == StreamTypeH265 {
-			nazalog.Debugf("Video code=%d, length=%d,pts=%d, dts=%d, type=%s", code, len(nalu), pts, dts, hevc.ParseNaluTypeReadable(nalu[preLeading]))
-		} else {
-			nazalog.Debugf("Video code=%d, length=%d,pts=%d, dts=%d, type=%s", code, len(nalu), pts, dts, avc.ParseNaluTypeReadable(nalu[preLeading]))
-		}
-		p.onVideo(nalu, dts, pts)
+
+		p.onAvPacket(&base.AvPacket{
+			PayloadType: p.videoPayloadType,
+			Timestamp:   dts,
+			Pts:         pts,
+			Payload:     nalu,
+		})
+
 		if nextPos >= 0 {
 			preLeading = leading
 		}
@@ -576,9 +571,6 @@ func readPts(b []byte) (fb uint8, pts int64) {
 	return
 }
 
-func defaultOnAudio(payload []byte, dts int64, pts int64) {
-	// noop
-}
-func defaultOnVideo(payload []byte, dts int64, pts int64) {
-	// noop
+func defaultOnAvPacket(packet *base.AvPacket) {
+
 }

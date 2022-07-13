@@ -135,9 +135,13 @@ func (s *ServerSession) Flush() error {
 	return s.conn.Flush()
 }
 
+// ----- IServerSessionLifecycle ---------------------------------------------------------------------------------------
+
 func (s *ServerSession) Dispose() error {
 	return s.dispose(nil)
 }
+
+// ----- ISessionUrlContext --------------------------------------------------------------------------------------------
 
 func (s *ServerSession) Url() string {
 	return s.url
@@ -154,6 +158,8 @@ func (s *ServerSession) StreamName() string {
 func (s *ServerSession) RawQuery() string {
 	return s.rawQuery
 }
+
+// ----- IObject -------------------------------------------------------------------------------------------------------
 
 func (s *ServerSession) UniqueKey() string {
 	return s.sessionStat.UniqueKey()

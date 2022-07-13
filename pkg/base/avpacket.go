@@ -14,6 +14,8 @@ import (
 	"github.com/q191201771/naza/pkg/nazabytes"
 )
 
+// ---------------------------------------------------------------------------------------------------------------------
+
 type AvPacketPt int
 
 const (
@@ -37,10 +39,14 @@ func (a AvPacketPt) ReadableString() string {
 	return ""
 }
 
+// ---------------------------------------------------------------------------------------------------------------------
+
 // AvPacket
 //
 // 不同场景使用时，字段含义可能不同。
 // 使用AvPacket的地方，应注明各字段的含义。
+//
+//
 //
 type AvPacket struct {
 	PayloadType AvPacketPt
@@ -58,6 +64,10 @@ func (packet *AvPacket) IsVideo() bool {
 }
 
 func (packet *AvPacket) DebugString() string {
-	return fmt.Sprintf("[%p] type=%s, timestamp=%d, len=%d, payload=%s",
-		packet, packet.PayloadType.ReadableString(), packet.Timestamp, len(packet.Payload), hex.Dump(nazabytes.Prefix(packet.Payload, 32)))
+	return fmt.Sprintf("[%p] type=%s, timestamp=%d, pts=%d, len=%d, payload=%s",
+		packet, packet.PayloadType.ReadableString(), packet.Timestamp, packet.Pts, len(packet.Payload), hex.Dump(nazabytes.Prefix(packet.Payload, 32)))
 }
+
+// ---------------------------------------------------------------------------------------------------------------------
+
+type OnAvPacketFunc func(packet *AvPacket)

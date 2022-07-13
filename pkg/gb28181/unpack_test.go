@@ -10,7 +10,7 @@ package gb28181
 
 import (
 	"encoding/hex"
-	"fmt"
+	"github.com/q191201771/lal/pkg/base"
 	"github.com/q191201771/naza/pkg/nazamd5"
 	"io/ioutil"
 	"os"
@@ -66,9 +66,7 @@ var goldenRtpList = []string{
 }
 
 func TestPsUnpacker(t *testing.T) {
-	unpacker := NewPsUnpacker().WithOnVideo(func(payload []byte, dts int64, pts int64) {
-
-	})
+	unpacker := NewPsUnpacker()
 
 	for i, item := range goldenRtpList {
 		nazalog.Debugf("%d", i)
@@ -129,16 +127,20 @@ func test1() {
 	nazalog.Assert(nil, err)
 
 	waitingSps := true
-	unpacker := NewPsUnpacker().WithOnVideo(func(payload []byte, dts int64, pts int64) {
-		nazalog.Debugf("[test1] onVideo. length=%d", len(payload))
+	unpacker := NewPsUnpacker().WithOnAvPacket(func(packet *base.AvPacket) {
+		if !packet.IsVideo() {
+			return
+		}
+
+		nazalog.Debugf("[test1] onVideo. length=%d", len(packet.Payload))
 		if waitingSps {
-			if avc.ParseNaluType(payload[4]) == avc.NaluTypeSps {
+			if avc.ParseNaluType(packet.Payload[4]) == avc.NaluTypeSps {
 				waitingSps = false
 			} else {
 				return
 			}
 		}
-		_, _ = fp.Write(payload)
+		_, _ = fp.Write(packet.Payload)
 	})
 	unpacker.FeedRtpBody(b, 0)
 
@@ -146,39 +148,4 @@ func test1() {
 	out, err := ioutil.ReadFile("/tmp/udp.h264")
 	nazalog.Assert(nil, err)
 	nazalog.Assert("fd8dbe365152e212bf8cbabb7a99c1aa", nazamd5.Md5(out))
-}
-
-func test2() {
-	// 一个udp包一个文件，按行分隔，hex stream格式如下
-	// 8060 0000 0000 0000 0beb c567 0000 01ba
-	// 46ab 1ea9 4401 0139 9ffe ffff 0094 ab0d
-
-	fp, err := os.Create("/tmp/udp2.h264")
-	nazalog.Assert(nil, err)
-	defer fp.Close()
-
-	fp2, err := os.Create("/tmp/udp2.aac")
-	nazalog.Assert(nil, err)
-	defer fp2.Close()
-
-	unpacker := NewPsUnpacker().WithOnAudio(func(payload []byte, dts int64, pts int64) {
-		nazalog.Infof("[test2] onAudio. length=%d, dts=%d", len(payload), dts)
-		_, _ = fp2.Write(payload)
-	}).WithOnVideo(func(payload []byte, dts int64, pts int64) {
-		nazalog.Infof("[test2] onVideo. length=%d, dts=%d", len(payload), dts)
-		_, _ = fp.Write(payload)
-	})
-
-	for i := 1; i < 1000; i++ {
-		//filename := fmt.Sprintf("/tmp/rtp-h264-aac/%d.ps", i)
-		filename := fmt.Sprintf("/tmp/rtp-ps-video/%d.ps", i)
-		b, err := ioutil.ReadFile(filename)
-		if err != nil {
-			nazalog.Errorf("%+v", err)
-			return
-		}
-
-		nazalog.Debugf("[test2] %d: %s", i, hex.EncodeToString(b[12:]))
-		unpacker.FeedRtpPacket(b)
-	}
 }

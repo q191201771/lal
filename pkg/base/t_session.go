@@ -38,12 +38,14 @@ const (
 	SessionTypeFlvSub            SessionType = SessionProtocolFlv<<8 | SessionBaseTypeSub
 	SessionTypeFlvPull           SessionType = SessionProtocolFlv<<8 | SessionBaseTypePull
 	SessionTypeTsSub             SessionType = SessionProtocolTs<<8 | SessionBaseTypeSub
+	SessionTypePsPub             SessionType = SessionProtocolPs<<8 | SessionBaseTypePub
 
 	SessionProtocolCustomize = 1
 	SessionProtocolRtmp      = 2
 	SessionProtocolRtsp      = 3
 	SessionProtocolFlv       = 4
 	SessionProtocolTs        = 5
+	SessionProtocolPs        = 6
 
 	SessionBaseTypePubSub = 1
 	SessionBaseTypePub    = 2
@@ -56,6 +58,7 @@ const (
 	SessionProtocolRtspStr      = "RTSP"
 	SessionProtocolFlvStr       = "FLV"
 	SessionProtocolTsStr        = "TS"
+	SessionProtocolPsStr        = "PS"
 
 	SessionBaseTypePubSubStr = "PUBSUB"
 	SessionBaseTypePubStr    = "PUB"
@@ -63,38 +66,6 @@ const (
 	SessionBaseTypePushStr   = "PUSH"
 	SessionBaseTypePullStr   = "PULL"
 )
-
-//func (protocol SessionProtocol) Stringify() string {
-//	switch protocol {
-//	case SessionProtocolCustomize:
-//		return SessionProtocolCustomizeStr
-//	case SessionProtocolRtmp:
-//		return SessionProtocolRtmpStr
-//	case SessionProtocolRtsp:
-//		return SessionProtocolRtspStr
-//	case SessionProtocolFlv:
-//		return SessionProtocolFlvStr
-//	case SessionProtocolTs:
-//		return SessionProtocolTsStr
-//	}
-//	return "INVALID"
-//}
-//
-//func (typ SessionBaseType) Stringify() string {
-//	switch typ {
-//	case SessionBaseTypePubSub:
-//		return SessionBaseTypePubSubStr
-//	case SessionBaseTypePub:
-//		return SessionBaseTypePubStr
-//	case SessionBaseTypeSub:
-//		return SessionBaseTypeSubStr
-//	case SessionBaseTypePush:
-//		return SessionBaseTypePushStr
-//	case SessionBaseTypePull:
-//		return SessionBaseTypePullStr
-//	}
-//	return "INVALID"
-//}
 
 type ISession interface {
 	ISessionUrlContext
@@ -217,13 +188,6 @@ type IObject interface {
 	//
 	UniqueKey() string
 }
-
-//type ISessionType interface {
-//	Protocol() string
-//	BaseType() string
-//
-//	//UniqueKey() string
-//}
 
 // TODO chef: rtmp.ClientSession修改为BaseClientSession更好些
 

@@ -27,17 +27,15 @@ const (
 
 )
 
-type PsStreamType int
-
 const (
-	StreamTypeH264    PsStreamType = 0x1b
-	StreamTypeH265                 = 0x24
-	StreamTypeAAC                  = 0x0f
-	StreamTypeG711A                = 0x90 //PCMA
-	StreamTypeG7221                = 0x92
-	StreamTypeG7231                = 0x93
-	StreamTypeG729                 = 0x99
-	StreamTypeUnknown              = -1
+	StreamTypeH264    uint8 = 0x1b
+	StreamTypeH265          = 0x24
+	StreamTypeAAC           = 0x0f
+	StreamTypeG711A         = 0x90 //PCMA
+	StreamTypeG7221         = 0x92
+	StreamTypeG7231         = 0x93
+	StreamTypeG729          = 0x99
+	StreamTypeUnknown       = -1
 )
 
 const psBufInitSize = 4096

@@ -13,6 +13,10 @@ import (
 	"github.com/q191201771/naza/pkg/nazalog"
 )
 
+type IStatable interface {
+	GetStat() connection.Stat // TODO(chef): [refactor] 考虑为 nazanet.UdpConnection 实现这个接口
+}
+
 // BasicSessionStat
 //
 // 包含两部分功能：
@@ -76,6 +80,10 @@ func NewBasicSessionStat(sessionType SessionType, remoteAddr string) BasicSessio
 		s.stat.SessionId = GenUkFlvSubSession()
 		s.stat.BaseType = SessionBaseTypeSubStr
 		s.stat.Protocol = SessionProtocolFlvStr
+	case SessionTypePsPub:
+		s.stat.SessionId = GenUkPsPubSession()
+		s.stat.BaseType = SessionBaseTypePubStr
+		s.stat.Protocol = SessionProtocolPsStr
 	}
 	return s
 }
@@ -102,7 +110,7 @@ func (s *BasicSessionStat) UpdateStat(intervalSec uint32) {
 	s.updateStat(s.currConnStat.ReadBytesSum.Load(), s.currConnStat.WroteBytesSum.Load(), s.stat.BaseType, intervalSec)
 }
 
-func (s *BasicSessionStat) UpdateStatWitchConn(conn connection.Connection, intervalSec uint32) {
+func (s *BasicSessionStat) UpdateStatWitchConn(conn IStatable, intervalSec uint32) {
 	currStat := conn.GetStat()
 	s.updateStat(currStat.ReadBytesSum, currStat.WroteBytesSum, s.stat.BaseType, intervalSec)
 }
@@ -113,7 +121,7 @@ func (s *BasicSessionStat) GetStat() StatSession {
 	return s.stat
 }
 
-func (s *BasicSessionStat) GetStatWithConn(conn connection.Connection) StatSession {
+func (s *BasicSessionStat) GetStatWithConn(conn IStatable) StatSession {
 	connStat := conn.GetStat()
 	s.stat.ReadBytesSum = connStat.ReadBytesSum
 	s.stat.WroteBytesSum = connStat.WroteBytesSum
@@ -124,7 +132,7 @@ func (s *BasicSessionStat) IsAlive() (readAlive, writeAlive bool) {
 	return s.isAlive(s.currConnStat.ReadBytesSum.Load(), s.currConnStat.WroteBytesSum.Load())
 }
 
-func (s *BasicSessionStat) IsAliveWitchConn(conn connection.Connection) (readAlive, writeAlive bool) {
+func (s *BasicSessionStat) IsAliveWitchConn(conn IStatable) (readAlive, writeAlive bool) {
 	currStat := conn.GetStat()
 	return s.isAlive(currStat.ReadBytesSum, currStat.WroteBytesSum)
 }

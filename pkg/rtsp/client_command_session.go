@@ -229,7 +229,7 @@ func (session *ClientCommandSession) doContext(ctx context.Context, rawUrl strin
 
 	select {
 	case <-ctx.Done():
-		_ = session.dispose(nil)
+		_ = session.dispose(ctx.Err())
 		return ctx.Err()
 	case err := <-errChan:
 		if err != nil {

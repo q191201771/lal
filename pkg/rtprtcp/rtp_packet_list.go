@@ -1,3 +1,11 @@
+// Copyright 2022, Chef.  All rights reserved.
+// https://github.com/q191201771/lal
+//
+// Use of this source code is governed by a MIT-style license
+// that can be found in the License file.
+//
+// Author: Chef (191201771@qq.com)
+
 package rtprtcp
 
 type RtpPacketListItem struct {
@@ -22,7 +30,6 @@ type RtpPacketList struct {
 
 	maxSize int
 }
-
 
 // IsStale 是否过期
 //
@@ -111,7 +118,6 @@ func (l *RtpPacketList) IsFirstSequential() bool {
 
 	return SubSeq(first.Packet.Header.Seq, l.unpackedSeq) == 1
 }
-
 
 // SetUnpackedSeq 设置最新的合成帧成功的包序号
 //
