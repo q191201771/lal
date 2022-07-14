@@ -701,7 +701,9 @@ func (sm *ServerManager) serveHls(writer http.ResponseWriter, req *http.Request)
 		return
 	}
 	if urlCtx.GetFileType() == "m3u8" {
-		if err = sm.simpleAuthCtx.OnHls(urlCtx.GetFilenameWithoutType(), urlCtx.RawQuery); err != nil {
+		// TODO(chef): [refactor] 需要整理，这里使用 hls.PathStrategy 不太好 202207
+		streamName := hls.PathStrategy.GetRequestInfo(urlCtx, sm.config.HlsConfig.OutPath).StreamName
+		if err = sm.simpleAuthCtx.OnHls(streamName, urlCtx.RawQuery); err != nil {
 			Log.Errorf("simple auth failed. err=%+v", err)
 			return
 		}
