@@ -192,6 +192,13 @@ func (packer *MessagePacker) writePublish(writer io.Writer, appName string, stre
 	_ = Amf0.WriteNumber(packer.b, float64(tidClientPublish))
 	_ = Amf0.WriteNull(packer.b)
 	_ = Amf0.WriteString(packer.b, streamName)
+
+	// <spec-rtmp_specification_1.0.pdf>
+	// 7.2.2.6.  publish
+	//
+	// Type of publishing.
+	// Set to "live": Live data is published without recording it in a file.
+	//
 	_ = Amf0.WriteString(packer.b, "live")
 
 	return packer.ChunkAndWrite(writer, csidOverStream, base.RtmpTypeIdCommandMessageAmf0, streamid)
