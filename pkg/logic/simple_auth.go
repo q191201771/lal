@@ -83,6 +83,6 @@ func (s *SimpleAuthCtx) check(streamName string, urlParam string) error {
 	}
 
 	Log.Warnf("[%p] SimpleAuthCtx::check failed, se=%s, key=%s, streamName=%s, v=%s, urlParam=%s",
-		s, se, s.config.Key, v, streamName, v, urlParam)
+		s, se, s.config.Key, streamName, v, urlParam)
 	return base.ErrSimpleAuthFailed
 }
