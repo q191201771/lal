@@ -15,8 +15,10 @@ package rtmp
 import (
 	"bytes"
 	"encoding/hex"
+	"fmt"
 	"github.com/q191201771/naza/pkg/nazabytes"
 	"io"
+	"strings"
 
 	"github.com/q191201771/lal/pkg/base"
 	"github.com/q191201771/naza/pkg/nazaerrors"
@@ -47,6 +49,8 @@ const (
 )
 
 var Amf0TypeMarkerObjectEndBytes = []byte{0, 0, Amf0TypeMarkerObjectEnd}
+
+// ---------------------------------------------------------------------------------------------------------------------
 
 type ObjectPair struct {
 	Key   string
@@ -86,11 +90,19 @@ func (o ObjectPairArray) FindNumber(key string) (int, error) {
 	return -1, base.ErrAmfNotExist
 }
 
+func (o ObjectPairArray) DebugString() string {
+	var b strings.Builder
+	for _, v := range o {
+		b.WriteString(fmt.Sprintf("%s: %+v\n", v.Key, v.Value))
+	}
+	return b.String()
+}
+
+// ---------------------------------------------------------------------------------------------------------------------
+
 type amf0 struct{}
 
 var Amf0 amf0
-
-// ----------------------------------------------------------------------------
 
 func (amf0) WriteNumber(writer io.Writer, val float64) error {
 	if _, err := writer.Write([]byte{Amf0TypeMarkerNumber}); err != nil {
