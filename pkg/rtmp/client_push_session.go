@@ -64,6 +64,8 @@ func (s *PushSession) Push(rawUrl string) error {
 // @param msg: 注意，`msg`数据应该是已经打包成rtmp chunk格式的数据。这里的数据就对应socket发送的数据，内部不会再修改数据内容。
 //
 func (s *PushSession) Write(msg []byte) error {
+	// TODO(chef): [opt] 使用Write函数时确保metadata有@SetDataFrame 202207
+
 	return s.core.Write(msg)
 }
 

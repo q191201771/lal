@@ -10,6 +10,7 @@ package rtmp
 
 import (
 	"bytes"
+	"github.com/q191201771/naza/pkg/nazabytes"
 
 	"github.com/q191201771/lal/pkg/base"
 )
@@ -30,6 +31,53 @@ func ParseMetadata(b []byte) (ObjectPairArray, error) {
 	}
 	opa, _, err := Amf0.ReadObjectOrArray(b[pos:])
 	return opa, err
+}
+
+// TODO(chef): [test] MetadataEnsureWithSetDataFrame 这两个函数增加单元测试 202207
+
+// MetadataEnsureWithSetDataFrame
+//
+// 确保metadata中包含@setDataFrame
+//
+// 注意，返回的内存块可能是参数`b`的内存块，也可能是新申请的独立内存块
+//
+func MetadataEnsureWithSetDataFrame(b []byte) ([]byte, error) {
+	pos := 0
+	v, l, err := Amf0.ReadString(b[pos:])
+	if err != nil {
+		return nil, err
+	}
+	pos += l
+	if v == "@setDataFrame" {
+		return b, nil
+	}
+
+	buf := nazabytes.NewBuffer(16 + len(b)) // 16=1+2+13 @setDataFrame
+	if err = Amf0.WriteString(buf, "@setDataFrame"); err != nil {
+		return nil, err
+	}
+	_, err = buf.Write(b)
+	return buf.Bytes(), err
+}
+
+// MetadataEnsureWithoutSetDataFrame
+//
+// 确保metadata中不包含@setDataFrame
+//
+// 注意，返回的内存块可能是参数`b`的内存块，也可能是新申请的独立内存块
+//
+func MetadataEnsureWithoutSetDataFrame(b []byte) ([]byte, error) {
+	pos := 0
+	v, l, err := Amf0.ReadString(b[pos:])
+	if err != nil {
+		return nil, err
+	}
+	pos += l
+	if v != "@setDataFrame" {
+		return b, nil
+	}
+
+	return b[pos:], nil
 }
 
 // BuildMetadata spec-video_file_format_spec_v10.pdf

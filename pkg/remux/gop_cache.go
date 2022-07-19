@@ -55,9 +55,10 @@ type GopCache struct {
 	t         string
 	uniqueKey string
 
-	Metadata       []byte
-	VideoSeqHeader []byte
-	AacSeqHeader   []byte
+	MetadataEnsureWithSetDataFrame    []byte
+	MetadataEnsureWithoutSetDataFrame []byte
+	VideoSeqHeader                    []byte
+	AacSeqHeader                      []byte
 
 	gopRing      []Gop
 	gopRingFirst int
@@ -90,11 +91,14 @@ type LazyGet func() []byte
 //
 // @param lg: 内部可能持有lg返回的内存块
 //
-func (gc *GopCache) Feed(msg base.RtmpMsg, lg LazyGet) {
+func (gc *GopCache) Feed(msg base.RtmpMsg, lg LazyGet, lg2 LazyGet) {
+	// TODO(chef): [refactor] 重构lg两个参数这种方式 202207
+
 	switch msg.Header.MsgTypeId {
 	case base.RtmpTypeIdMetadata:
-		gc.Metadata = lg()
-		Log.Debugf("[%s] cache %s metadata. size:%d", gc.uniqueKey, gc.t, len(gc.Metadata))
+		gc.MetadataEnsureWithSetDataFrame = lg()
+		gc.MetadataEnsureWithoutSetDataFrame = lg()
+		Log.Debugf("[%s] cache %s metadata. size:%d", gc.uniqueKey, gc.t, len(gc.MetadataEnsureWithSetDataFrame))
 		return
 	case base.RtmpTypeIdAudio:
 		if msg.IsAacSeqHeader() {
@@ -133,7 +137,8 @@ func (gc *GopCache) GetGopDataAt(pos int) [][]byte {
 }
 
 func (gc *GopCache) Clear() {
-	gc.Metadata = nil
+	gc.MetadataEnsureWithSetDataFrame = nil
+	gc.MetadataEnsureWithoutSetDataFrame = nil
 	gc.VideoSeqHeader = nil
 	gc.AacSeqHeader = nil
 	gc.gopRingLast = 0

@@ -11,6 +11,8 @@ package remux
 import (
 	"github.com/q191201771/lal/pkg/base"
 	"github.com/q191201771/lal/pkg/httpflv"
+	"github.com/q191201771/lal/pkg/rtmp"
+	"github.com/q191201771/naza/pkg/nazalog"
 )
 
 // RtmpMsg2FlvTag @return 返回的内存块为新申请的独立内存块
@@ -36,8 +38,25 @@ func (l *LazyRtmpMsg2FlvTag) Init(msg base.RtmpMsg) {
 	l.msg = msg
 }
 
-func (l *LazyRtmpMsg2FlvTag) Get() []byte {
+func (l *LazyRtmpMsg2FlvTag) GetOriginal() []byte {
 	if l.tag == nil {
+		l.tag = RtmpMsg2FlvTag(l.msg).Raw
+	}
+	return l.tag
+}
+
+func (l *LazyRtmpMsg2FlvTag) GetEnsureWithSetDataFrame() []byte {
+	nazalog.Errorf("LazyRtmpMsg2FlvTag::GetEnsureWithSetDataFrame() is not implemented")
+	return l.GetOriginal()
+}
+
+func (l *LazyRtmpMsg2FlvTag) GetEnsureWithoutSetDataFrame() []byte {
+	if l.tag == nil {
+		b, err := rtmp.MetadataEnsureWithoutSetDataFrame(l.msg.Payload)
+		if err != nil {
+			b = l.msg.Payload
+		}
+		l.msg.Payload = b
 		l.tag = RtmpMsg2FlvTag(l.msg).Raw
 	}
 	return l.tag

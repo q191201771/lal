@@ -9,6 +9,8 @@
 package logic
 
 import (
+	"github.com/q191201771/lal/pkg/rtmp"
+	"github.com/q191201771/naza/pkg/nazalog"
 	"net"
 
 	"github.com/q191201771/lal/pkg/mpegts"
@@ -149,10 +151,17 @@ func (group *Group) OnFragmentOpen() {
 // @param msg 调用结束后，内部不持有msg.Payload内存块
 //
 func (group *Group) broadcastByRtmpMsg(msg base.RtmpMsg) {
+	// TODO(chef): [refactor] 依赖lazy的out越来越多，可以考虑去掉lazy，将lazy逻辑直接写在开头处，比如if x != nil || len(y) > 0 202207
+
 	var (
 		lcd    remux.LazyRtmpChunkDivider
 		lrm2ft remux.LazyRtmpMsg2FlvTag
 	)
+
+	if msg.Header.MsgTypeId == base.RtmpTypeIdMetadata {
+		m, err := rtmp.ParseMetadata(msg.Payload)
+		nazalog.Debugf("[%s] metadata. err=%+v, len=%d, value=%s", group.UniqueKey, err, len(m), m.DebugString())
+	}
 
 	// # 数据有效性检查
 	if len(msg.Payload) == 0 {
@@ -209,9 +218,9 @@ func (group *Group) broadcastByRtmpMsg(msg base.RtmpMsg) {
 	for session := range group.rtmpSubSessionSet {
 		if session.IsFresh {
 			// TODO chef: 头信息和full gop也可以在SubSession刚加入时发送
-			if group.rtmpGopCache.Metadata != nil {
+			if group.rtmpGopCache.MetadataEnsureWithoutSetDataFrame != nil {
 				Log.Debugf("[%s] [%s] write metadata", group.UniqueKey, session.UniqueKey())
-				_ = session.Write(group.rtmpGopCache.Metadata)
+				_ = session.Write(group.rtmpGopCache.MetadataEnsureWithoutSetDataFrame)
 			}
 			if group.rtmpGopCache.VideoSeqHeader != nil {
 				Log.Debugf("[%s] [%s] write vsh", group.UniqueKey, session.UniqueKey())
@@ -259,9 +268,9 @@ func (group *Group) broadcastByRtmpMsg(msg base.RtmpMsg) {
 	// ## 转发本次数据
 	if len(group.rtmpSubSessionSet) > 0 {
 		if group.rtmpMergeWriter == nil {
-			group.write2RtmpSubSessions(lcd.Get())
+			group.write2RtmpSubSessions(lcd.GetEnsureWithoutSetDataFrame())
 		} else {
-			group.rtmpMergeWriter.Write(lcd.Get())
+			group.rtmpMergeWriter.Write(lcd.GetEnsureWithoutSetDataFrame())
 		}
 	}
 
@@ -273,8 +282,8 @@ func (group *Group) broadcastByRtmpMsg(msg base.RtmpMsg) {
 			}
 
 			if v.pushSession.IsFresh {
-				if group.rtmpGopCache.Metadata != nil {
-					_ = v.pushSession.Write(group.rtmpGopCache.Metadata)
+				if group.rtmpGopCache.MetadataEnsureWithSetDataFrame != nil {
+					_ = v.pushSession.Write(group.rtmpGopCache.MetadataEnsureWithSetDataFrame)
 				}
 				if group.rtmpGopCache.VideoSeqHeader != nil {
 					_ = v.pushSession.Write(group.rtmpGopCache.VideoSeqHeader)
@@ -291,15 +300,15 @@ func (group *Group) broadcastByRtmpMsg(msg base.RtmpMsg) {
 				v.pushSession.IsFresh = false
 			}
 
-			_ = v.pushSession.Write(lcd.Get())
+			_ = v.pushSession.Write(lcd.GetEnsureWithSetDataFrame())
 		}
 	}
 
 	// # 广播。遍历所有 httpflv sub session，转发数据
 	for session := range group.httpflvSubSessionSet {
 		if session.IsFresh {
-			if group.httpflvGopCache.Metadata != nil {
-				session.Write(group.httpflvGopCache.Metadata)
+			if group.httpflvGopCache.MetadataEnsureWithoutSetDataFrame != nil {
+				session.Write(group.httpflvGopCache.MetadataEnsureWithoutSetDataFrame)
 			}
 			if group.httpflvGopCache.VideoSeqHeader != nil {
 				session.Write(group.httpflvGopCache.VideoSeqHeader)
@@ -324,27 +333,27 @@ func (group *Group) broadcastByRtmpMsg(msg base.RtmpMsg) {
 		// 是否在等待关键帧
 		if session.ShouldWaitVideoKeyFrame {
 			if msg.IsVideoKeyNalu() {
-				session.Write(lrm2ft.Get())
+				session.Write(lrm2ft.GetEnsureWithoutSetDataFrame())
 				session.ShouldWaitVideoKeyFrame = false
 			}
 		} else {
-			session.Write(lrm2ft.Get())
+			session.Write(lrm2ft.GetEnsureWithoutSetDataFrame())
 		}
 	}
 
 	// # 录制flv文件
 	if group.recordFlv != nil {
-		if err := group.recordFlv.WriteRaw(lrm2ft.Get()); err != nil {
+		if err := group.recordFlv.WriteRaw(lrm2ft.GetEnsureWithoutSetDataFrame()); err != nil {
 			Log.Errorf("[%s] record flv write error. err=%+v", group.UniqueKey, err)
 		}
 	}
 
 	// # 缓存关键信息，以及gop
 	if group.config.RtmpConfig.Enable {
-		group.rtmpGopCache.Feed(msg, lcd.Get)
+		group.rtmpGopCache.Feed(msg, lcd.GetEnsureWithSetDataFrame, lcd.GetEnsureWithoutSetDataFrame)
 	}
 	if group.config.HttpflvConfig.Enable {
-		group.httpflvGopCache.Feed(msg, lrm2ft.Get)
+		group.httpflvGopCache.Feed(msg, lrm2ft.GetEnsureWithSetDataFrame, lrm2ft.GetEnsureWithoutSetDataFrame)
 	}
 
 	// # 记录stat
