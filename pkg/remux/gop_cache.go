@@ -87,28 +87,34 @@ func NewGopCache(t string, uniqueKey string, gopNum int) *GopCache {
 
 type LazyGet func() []byte
 
+func (gc *GopCache) SetMetadata(w []byte, wo []byte) {
+	// TODO(chef): [refactor] 将metadata等缓存逻辑从GopCache中移除 202207
+
+	gc.MetadataEnsureWithSetDataFrame = w
+	gc.MetadataEnsureWithoutSetDataFrame = wo
+	Log.Debugf("[%s] cache %s metadata. size:%d", gc.uniqueKey, gc.t, len(gc.MetadataEnsureWithSetDataFrame))
+}
+
 // Feed
 //
 // @param lg: 内部可能持有lg返回的内存块
 //
-func (gc *GopCache) Feed(msg base.RtmpMsg, lg LazyGet, lg2 LazyGet) {
+func (gc *GopCache) Feed(msg base.RtmpMsg, b []byte) {
 	// TODO(chef): [refactor] 重构lg两个参数这种方式 202207
 
 	switch msg.Header.MsgTypeId {
 	case base.RtmpTypeIdMetadata:
-		gc.MetadataEnsureWithSetDataFrame = lg()
-		gc.MetadataEnsureWithoutSetDataFrame = lg()
-		Log.Debugf("[%s] cache %s metadata. size:%d", gc.uniqueKey, gc.t, len(gc.MetadataEnsureWithSetDataFrame))
+		// noop
 		return
 	case base.RtmpTypeIdAudio:
 		if msg.IsAacSeqHeader() {
-			gc.AacSeqHeader = lg()
+			gc.AacSeqHeader = b
 			Log.Debugf("[%s] cache %s aac seq header. size:%d", gc.uniqueKey, gc.t, len(gc.AacSeqHeader))
 			return
 		}
 	case base.RtmpTypeIdVideo:
 		if msg.IsVideoKeySeqHeader() {
-			gc.VideoSeqHeader = lg()
+			gc.VideoSeqHeader = b
 			Log.Debugf("[%s] cache %s video seq header. size:%d", gc.uniqueKey, gc.t, len(gc.VideoSeqHeader))
 			return
 		}
@@ -116,9 +122,9 @@ func (gc *GopCache) Feed(msg base.RtmpMsg, lg LazyGet, lg2 LazyGet) {
 
 	if gc.gopSize > 1 {
 		if msg.IsVideoKeyNalu() {
-			gc.feedNewGop(msg, lg())
+			gc.feedNewGop(msg, b)
 		} else {
-			gc.feedLastGop(msg, lg())
+			gc.feedLastGop(msg, b)
 		}
 	}
 }

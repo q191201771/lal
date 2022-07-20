@@ -42,19 +42,17 @@ func ParseMetadata(b []byte) (ObjectPairArray, error) {
 // 注意，返回的内存块可能是参数`b`的内存块，也可能是新申请的独立内存块
 //
 func MetadataEnsureWithSetDataFrame(b []byte) ([]byte, error) {
-	pos := 0
-	v, l, err := Amf0.ReadString(b[pos:])
+	v, _, err := Amf0.ReadString(b)
 	if err != nil {
-		return nil, err
+		return b, err
 	}
-	pos += l
 	if v == "@setDataFrame" {
 		return b, nil
 	}
 
 	buf := nazabytes.NewBuffer(16 + len(b)) // 16=1+2+13 @setDataFrame
 	if err = Amf0.WriteString(buf, "@setDataFrame"); err != nil {
-		return nil, err
+		return b, err
 	}
 	_, err = buf.Write(b)
 	return buf.Bytes(), err
@@ -70,7 +68,7 @@ func MetadataEnsureWithoutSetDataFrame(b []byte) ([]byte, error) {
 	pos := 0
 	v, l, err := Amf0.ReadString(b[pos:])
 	if err != nil {
-		return nil, err
+		return b, err
 	}
 	pos += l
 	if v != "@setDataFrame" {

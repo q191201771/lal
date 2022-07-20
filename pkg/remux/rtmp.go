@@ -11,7 +11,6 @@ package remux
 import (
 	"github.com/q191201771/lal/pkg/base"
 	"github.com/q191201771/lal/pkg/rtmp"
-	"github.com/q191201771/naza/pkg/nazalog"
 )
 
 // MakeDefaultRtmpHeader
@@ -36,60 +35,60 @@ func MakeDefaultRtmpHeader(in base.RtmpHeader) (out base.RtmpHeader) {
 	return
 }
 
-// ---------------------------------------------------------------------------------------------------------------------
-
-// LazyRtmpChunkDivider 在必要时，有且仅有一次做切分成chunk的操作
+//// ---------------------------------------------------------------------------------------------------------------------
 //
-type LazyRtmpChunkDivider struct {
-	message []byte
-	header  *base.RtmpHeader
-	chunks  []byte
-}
-
-func (lcd *LazyRtmpChunkDivider) Init(message []byte, header *base.RtmpHeader) {
-	lcd.message = message
-	lcd.header = header
-}
-
-func (lcd *LazyRtmpChunkDivider) GetOriginal() []byte {
-	if lcd.chunks == nil {
-		lcd.chunks = rtmp.Message2Chunks(lcd.message, lcd.header)
-	}
-	return lcd.chunks
-}
-
-func (lcd *LazyRtmpChunkDivider) GetEnsureWithSetDataFrame() []byte {
-	if lcd.chunks == nil {
-		var msg []byte
-		var err error
-		if lcd.header.MsgTypeId == base.RtmpTypeIdMetadata {
-			msg, err = rtmp.MetadataEnsureWithSetDataFrame(lcd.message)
-			if err != nil {
-				nazalog.Errorf("[%p] rtmp.MetadataEnsureWithSetDataFrame failed. error=%+v", lcd, err)
-				msg = lcd.message
-			}
-		} else {
-			msg = lcd.message
-		}
-		lcd.chunks = rtmp.Message2Chunks(msg, lcd.header)
-	}
-	return lcd.chunks
-}
-
-func (lcd *LazyRtmpChunkDivider) GetEnsureWithoutSetDataFrame() []byte {
-	if lcd.chunks == nil {
-		var msg []byte
-		var err error
-		if lcd.header.MsgTypeId == base.RtmpTypeIdMetadata {
-			msg, err = rtmp.MetadataEnsureWithoutSetDataFrame(lcd.message)
-			if err != nil {
-				nazalog.Errorf("[%p] rtmp.MetadataEnsureWithoutSetDataFrame failed. error=%+v", lcd, err)
-				msg = lcd.message
-			}
-		} else {
-			msg = lcd.message
-		}
-		lcd.chunks = rtmp.Message2Chunks(msg, lcd.header)
-	}
-	return lcd.chunks
-}
+//// LazyRtmpChunkDivider 在必要时，有且仅有一次做切分成chunk的操作
+////
+//type LazyRtmpChunkDivider struct {
+//	message []byte
+//	header  *base.RtmpHeader
+//	chunks  []byte
+//}
+//
+//func (lcd *LazyRtmpChunkDivider) Init(message []byte, header *base.RtmpHeader) {
+//	lcd.message = message
+//	lcd.header = header
+//}
+//
+//func (lcd *LazyRtmpChunkDivider) GetOriginal() []byte {
+//	if lcd.chunks == nil {
+//		lcd.chunks = rtmp.Message2Chunks(lcd.message, lcd.header)
+//	}
+//	return lcd.chunks
+//}
+//
+//func (lcd *LazyRtmpChunkDivider) GetEnsureWithSetDataFrame() []byte {
+//	if lcd.chunks == nil {
+//		var msg []byte
+//		var err error
+//		if lcd.header.MsgTypeId == base.RtmpTypeIdMetadata {
+//			msg, err = rtmp.MetadataEnsureWithSetDataFrame(lcd.message)
+//			if err != nil {
+//				nazalog.Errorf("[%p] rtmp.MetadataEnsureWithSetDataFrame failed. error=%+v", lcd, err)
+//				msg = lcd.message
+//			}
+//		} else {
+//			msg = lcd.message
+//		}
+//		lcd.chunks = rtmp.Message2Chunks(msg, lcd.header)
+//	}
+//	return lcd.chunks
+//}
+//
+//func (lcd *LazyRtmpChunkDivider) GetEnsureWithoutSetDataFrame() []byte {
+//	if lcd.chunks == nil {
+//		var msg []byte
+//		var err error
+//		if lcd.header.MsgTypeId == base.RtmpTypeIdMetadata {
+//			msg, err = rtmp.MetadataEnsureWithoutSetDataFrame(lcd.message)
+//			if err != nil {
+//				nazalog.Errorf("[%p] rtmp.MetadataEnsureWithoutSetDataFrame failed. error=%+v", lcd, err)
+//				msg = lcd.message
+//			}
+//		} else {
+//			msg = lcd.message
+//		}
+//		lcd.chunks = rtmp.Message2Chunks(msg, lcd.header)
+//	}
+//	return lcd.chunks
+//}

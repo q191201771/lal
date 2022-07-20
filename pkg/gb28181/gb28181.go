@@ -13,8 +13,11 @@ import (
 	"github.com/q191201771/naza/pkg/nazalog"
 )
 
-// TODO(chef): gb28181 package处于开发中阶段，请不使用
-// TODO(chef): [opt] rtp排序 202206
+// TODO(chef): [feat] http api start_rtp_pub 202207
+// TODO(chef): [feat] http api stop_rtp_pub 202207
+// TODO(chef): [feat] http api /api/stat/all_rtp_pub，不过这个可以用已有的all_group代替 202207
+// TODO(chef): [feat] pub接入group 202207
+// TODO(chef): [feat] 超时自动关闭 202207
 // TODO(chef): [test] 保存rtp数据，用于回放分析 202206
 // TODO(chef): [perf] 优化ps解析，内存块 202207
 
