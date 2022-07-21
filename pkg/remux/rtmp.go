@@ -35,60 +35,52 @@ func MakeDefaultRtmpHeader(in base.RtmpHeader) (out base.RtmpHeader) {
 	return
 }
 
-//// ---------------------------------------------------------------------------------------------------------------------
+// ---------------------------------------------------------------------------------------------------------------------
+
+// LazyRtmpChunkDivider 在必要时，有且仅有一次做切分成chunk的操作
 //
-//// LazyRtmpChunkDivider 在必要时，有且仅有一次做切分成chunk的操作
-////
-//type LazyRtmpChunkDivider struct {
-//	message []byte
-//	header  *base.RtmpHeader
-//	chunks  []byte
-//}
-//
-//func (lcd *LazyRtmpChunkDivider) Init(message []byte, header *base.RtmpHeader) {
-//	lcd.message = message
-//	lcd.header = header
-//}
-//
-//func (lcd *LazyRtmpChunkDivider) GetOriginal() []byte {
-//	if lcd.chunks == nil {
-//		lcd.chunks = rtmp.Message2Chunks(lcd.message, lcd.header)
-//	}
-//	return lcd.chunks
-//}
-//
-//func (lcd *LazyRtmpChunkDivider) GetEnsureWithSetDataFrame() []byte {
-//	if lcd.chunks == nil {
-//		var msg []byte
-//		var err error
-//		if lcd.header.MsgTypeId == base.RtmpTypeIdMetadata {
-//			msg, err = rtmp.MetadataEnsureWithSetDataFrame(lcd.message)
-//			if err != nil {
-//				nazalog.Errorf("[%p] rtmp.MetadataEnsureWithSetDataFrame failed. error=%+v", lcd, err)
-//				msg = lcd.message
-//			}
-//		} else {
-//			msg = lcd.message
-//		}
-//		lcd.chunks = rtmp.Message2Chunks(msg, lcd.header)
-//	}
-//	return lcd.chunks
-//}
-//
-//func (lcd *LazyRtmpChunkDivider) GetEnsureWithoutSetDataFrame() []byte {
-//	if lcd.chunks == nil {
-//		var msg []byte
-//		var err error
-//		if lcd.header.MsgTypeId == base.RtmpTypeIdMetadata {
-//			msg, err = rtmp.MetadataEnsureWithoutSetDataFrame(lcd.message)
-//			if err != nil {
-//				nazalog.Errorf("[%p] rtmp.MetadataEnsureWithoutSetDataFrame failed. error=%+v", lcd, err)
-//				msg = lcd.message
-//			}
-//		} else {
-//			msg = lcd.message
-//		}
-//		lcd.chunks = rtmp.Message2Chunks(msg, lcd.header)
-//	}
-//	return lcd.chunks
-//}
+type LazyRtmpChunkDivider struct {
+	msg              base.RtmpMsg
+	chunksWithSdf    []byte
+	chunksWithoutSdf []byte
+}
+
+func (lcd *LazyRtmpChunkDivider) Init(msg base.RtmpMsg) {
+	lcd.msg = msg
+}
+
+func (lcd *LazyRtmpChunkDivider) GetEnsureWithSdf() []byte {
+	if lcd.chunksWithSdf == nil {
+		var msg []byte
+		if lcd.msg.Header.MsgTypeId == base.RtmpTypeIdMetadata {
+			msg2 := lcd.msg.Clone()
+			msg2.Payload, _ = rtmp.MetadataEnsureWithSdf(msg2.Payload)
+			msg2.Header.MsgLen = uint32(len(msg2.Payload))
+			msg2.Header = MakeDefaultRtmpHeader(msg2.Header)
+			lcd.chunksWithSdf = rtmp.Message2Chunks(msg2.Payload, &msg2.Header)
+		} else {
+			msg = lcd.msg.Payload
+			h := MakeDefaultRtmpHeader(lcd.msg.Header)
+			lcd.chunksWithSdf = rtmp.Message2Chunks(msg, &h)
+		}
+	}
+	return lcd.chunksWithSdf
+}
+
+func (lcd *LazyRtmpChunkDivider) GetEnsureWithoutSdf() []byte {
+	if lcd.chunksWithoutSdf == nil {
+		var msg []byte
+		if lcd.msg.Header.MsgTypeId == base.RtmpTypeIdMetadata {
+			msg2 := lcd.msg.Clone()
+			msg2.Payload, _ = rtmp.MetadataEnsureWithoutSdf(msg2.Payload)
+			msg2.Header.MsgLen = uint32(len(msg2.Payload))
+			msg2.Header = MakeDefaultRtmpHeader(msg2.Header)
+			lcd.chunksWithoutSdf = rtmp.Message2Chunks(msg2.Payload, &msg2.Header)
+		} else {
+			msg = lcd.msg.Payload
+			h := MakeDefaultRtmpHeader(lcd.msg.Header)
+			lcd.chunksWithoutSdf = rtmp.Message2Chunks(msg, &h)
+		}
+	}
+	return lcd.chunksWithoutSdf
+}

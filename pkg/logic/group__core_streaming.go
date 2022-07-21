@@ -161,46 +161,13 @@ func (group *Group) broadcastByRtmpMsg(msg base.RtmpMsg) {
 	}
 
 	var (
-		rtmpChunks4Sub  []byte
-		rtmpChunks4Push []byte
-
-		flv4Sub []byte
+		lazyRtmpChunkDivider remux.LazyRtmpChunkDivider
+		lazyRtmpMsg2FlvTag   remux.LazyRtmpMsg2FlvTag
 	)
 
-	needRtmp := len(group.rtmpSubSessionSet) != 0 ||
-		group.config.RelayPushConfig.Enable ||
-		(group.config.RtmpConfig.Enable && group.config.RtmpConfig.GopNum > 0)
-
-	needFlv := len(group.httpflvSubSessionSet) != 0 ||
-		(group.config.HttpflvConfig.Enable && group.config.HttpflvConfig.GopNum > 0) ||
-		group.config.RecordConfig.EnableFlv
-
-	// 目的有两个：1 rtmp按需切片 2 处理metadata的@setDataFrame
-	if needRtmp {
-		// 设置好用于发送的 rtmp 头部信息
-		currHeader := remux.MakeDefaultRtmpHeader(msg.Header)
-
-		if msg.Header.MsgTypeId == base.RtmpTypeIdMetadata {
-			metadataWithOutSDF, _ := rtmp.MetadataEnsureWithoutSetDataFrame(msg.Clone().Payload)
-			rtmpChunks4Sub = rtmp.Message2Chunks(metadataWithOutSDF, &currHeader)
-
-			metadataWithSDF, _ := rtmp.MetadataEnsureWithSetDataFrame(msg.Clone().Payload)
-			rtmpChunks4Push = rtmp.Message2Chunks(metadataWithSDF, &currHeader)
-		} else {
-			rtmpChunks4Sub = rtmp.Message2Chunks(msg.Payload, &currHeader)
-			rtmpChunks4Push = rtmpChunks4Sub
-		}
-	}
-
-	if needFlv {
-		if msg.Header.MsgTypeId == base.RtmpTypeIdMetadata {
-			msg2 := msg.Clone()
-			msg2.Payload, _ = rtmp.MetadataEnsureWithoutSetDataFrame(msg2.Payload)
-			flv4Sub = remux.RtmpMsg2FlvTag(msg2).Raw
-		} else {
-			flv4Sub = remux.RtmpMsg2FlvTag(msg).Raw
-		}
-	}
+	// 设置好用于发送的 rtmp 头部信息
+	lazyRtmpChunkDivider.Init(msg)
+	lazyRtmpMsg2FlvTag.Init(msg)
 
 	// # 数据有效性检查
 	if len(msg.Payload) == 0 {
@@ -298,9 +265,9 @@ func (group *Group) broadcastByRtmpMsg(msg base.RtmpMsg) {
 	// ## 转发本次数据
 	if len(group.rtmpSubSessionSet) > 0 {
 		if group.rtmpMergeWriter == nil {
-			group.write2RtmpSubSessions(rtmpChunks4Sub)
+			group.write2RtmpSubSessions(lazyRtmpChunkDivider.GetEnsureWithoutSdf())
 		} else {
-			group.rtmpMergeWriter.Write(rtmpChunks4Sub)
+			group.rtmpMergeWriter.Write(lazyRtmpChunkDivider.GetEnsureWithoutSdf())
 		}
 	}
 
@@ -330,7 +297,7 @@ func (group *Group) broadcastByRtmpMsg(msg base.RtmpMsg) {
 				v.pushSession.IsFresh = false
 			}
 
-			_ = v.pushSession.Write(rtmpChunks4Push)
+			_ = v.pushSession.Write(lazyRtmpChunkDivider.GetEnsureWithSdf())
 		}
 	}
 
@@ -363,32 +330,33 @@ func (group *Group) broadcastByRtmpMsg(msg base.RtmpMsg) {
 		// 是否在等待关键帧
 		if session.ShouldWaitVideoKeyFrame {
 			if msg.IsVideoKeyNalu() {
-				session.Write(flv4Sub)
+				session.Write(lazyRtmpMsg2FlvTag.GetEnsureWithoutSdf())
 				session.ShouldWaitVideoKeyFrame = false
 			}
 		} else {
-			session.Write(flv4Sub)
+			session.Write(lazyRtmpMsg2FlvTag.GetEnsureWithoutSdf())
 		}
 	}
 
 	// # 录制flv文件
 	if group.recordFlv != nil {
-		if err := group.recordFlv.WriteRaw(flv4Sub); err != nil {
+		if err := group.recordFlv.WriteRaw(lazyRtmpMsg2FlvTag.GetEnsureWithoutSdf()); err != nil {
 			Log.Errorf("[%s] record flv write error. err=%+v", group.UniqueKey, err)
 		}
 	}
 
 	// # 缓存关键信息，以及gop
 	if group.config.RtmpConfig.Enable {
-		group.rtmpGopCache.Feed(msg, rtmpChunks4Sub)
+		group.rtmpGopCache.Feed(msg, lazyRtmpChunkDivider.GetEnsureWithoutSdf())
 		if msg.Header.MsgTypeId == base.RtmpTypeIdMetadata {
-			group.rtmpGopCache.SetMetadata(rtmpChunks4Push, rtmpChunks4Sub)
+			group.rtmpGopCache.SetMetadata(lazyRtmpChunkDivider.GetEnsureWithSdf(), lazyRtmpChunkDivider.GetEnsureWithoutSdf())
 		}
 	}
 	if group.config.HttpflvConfig.Enable {
-		group.httpflvGopCache.Feed(msg, flv4Sub)
+		group.httpflvGopCache.Feed(msg, lazyRtmpMsg2FlvTag.GetEnsureWithoutSdf())
 		if msg.Header.MsgTypeId == base.RtmpTypeIdMetadata {
-			group.httpflvGopCache.SetMetadata(flv4Sub, flv4Sub)
+			// 注意，因为withSdf实际上用不上，而且我们也没实现，所以全部用without了
+			group.httpflvGopCache.SetMetadata(lazyRtmpMsg2FlvTag.GetEnsureWithoutSdf(), lazyRtmpMsg2FlvTag.GetEnsureWithoutSdf())
 		}
 	}
 

@@ -11,6 +11,8 @@ package remux
 import (
 	"github.com/q191201771/lal/pkg/base"
 	"github.com/q191201771/lal/pkg/httpflv"
+	"github.com/q191201771/lal/pkg/rtmp"
+	"github.com/q191201771/naza/pkg/nazalog"
 )
 
 // RtmpMsg2FlvTag @return 返回的内存块为新申请的独立内存块
@@ -23,40 +25,35 @@ func RtmpMsg2FlvTag(msg base.RtmpMsg) *httpflv.Tag {
 	return &tag
 }
 
-//// ---------------------------------------------------------------------------------------------------------------------
+// -------------------------------------------------------------------------------------------------------------------
+
+// LazyRtmpMsg2FlvTag 在必要时，有且仅有一次做转换操作
 //
-//// LazyRtmpMsg2FlvTag 在必要时，有且仅有一次做转换操作
-////
-//type LazyRtmpMsg2FlvTag struct {
-//	msg base.RtmpMsg
-//	tag []byte
-//}
-//
-//func (l *LazyRtmpMsg2FlvTag) Init(msg base.RtmpMsg) {
-//	l.msg = msg
-//}
-//
-//func (l *LazyRtmpMsg2FlvTag) GetOriginal() []byte {
-//	if l.tag == nil {
-//		l.tag = RtmpMsg2FlvTag(l.msg).Raw
-//	}
-//	return l.tag
-//}
-//
-//func (l *LazyRtmpMsg2FlvTag) GetEnsureWithSetDataFrame() []byte {
-//	// TODO(chef): [refactor] 这个函数实际上用不上 202207
-//	//nazalog.Errorf("LazyRtmpMsg2FlvTag::GetEnsureWithSetDataFrame() is not implemented")
-//	return l.GetOriginal()
-//}
-//
-//func (l *LazyRtmpMsg2FlvTag) GetEnsureWithoutSetDataFrame() []byte {
-//	if l.tag == nil {
-//		b, err := rtmp.MetadataEnsureWithoutSetDataFrame(l.msg.Payload)
-//		if err != nil {
-//			b = l.msg.Payload
-//		}
-//		l.msg.Payload = b
-//		l.tag = RtmpMsg2FlvTag(l.msg).Raw
-//	}
-//	return l.tag
-//}
+type LazyRtmpMsg2FlvTag struct {
+	msg base.RtmpMsg
+	//tagWithSdf []byte
+	tagWithoutSdf []byte
+}
+
+func (l *LazyRtmpMsg2FlvTag) Init(msg base.RtmpMsg) {
+	l.msg = msg
+}
+
+func (l *LazyRtmpMsg2FlvTag) GetEnsureWithSdf() []byte {
+	// TODO(chef): [refactor] 这个函数目前没有实际用途 202207
+	nazalog.Errorf("LazyRtmpMsg2FlvTag::GetEnsureWithSdf() is not implemented")
+	return l.GetEnsureWithoutSdf()
+}
+
+func (l *LazyRtmpMsg2FlvTag) GetEnsureWithoutSdf() []byte {
+	if l.tagWithoutSdf == nil {
+		if l.msg.Header.MsgTypeId == base.RtmpTypeIdMetadata {
+			msg2 := l.msg.Clone()
+			msg2.Payload, _ = rtmp.MetadataEnsureWithoutSdf(msg2.Payload)
+			l.tagWithoutSdf = RtmpMsg2FlvTag(msg2).Raw
+		} else {
+			l.tagWithoutSdf = RtmpMsg2FlvTag(l.msg).Raw
+		}
+	}
+	return l.tagWithoutSdf
+}
