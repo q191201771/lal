@@ -45,12 +45,14 @@ func (h *HttpApiServer) Listen() (err error) {
 func (h *HttpApiServer) RunLoop() error {
 	mux := http.NewServeMux()
 
-	mux.HandleFunc("/api/stat/lal_info", h.statLalInfoHandler)
 	mux.HandleFunc("/api/stat/group", h.statGroupHandler)
 	mux.HandleFunc("/api/stat/all_group", h.statAllGroupHandler)
+	mux.HandleFunc("/api/stat/lal_info", h.statLalInfoHandler)
+
 	mux.HandleFunc("/api/ctrl/start_relay_pull", h.ctrlStartRelayPullHandler)
 	mux.HandleFunc("/api/ctrl/stop_relay_pull", h.ctrlStopRelayPullHandler)
 	mux.HandleFunc("/api/ctrl/kick_session", h.ctrlKickSessionHandler)
+	mux.HandleFunc("/api/ctrl/start_rtp_pub", h.ctrlStartRtpPubHandler)
 	mux.HandleFunc("/", h.notFoundHandler)
 
 	var srv http.Server
@@ -160,11 +162,11 @@ func (h *HttpApiServer) ctrlStopRelayPullHandler(w http.ResponseWriter, req *htt
 
 func (h *HttpApiServer) ctrlKickSessionHandler(w http.ResponseWriter, req *http.Request) {
 	var v base.HttpResponseBasic
-	var info base.ApiCtrlKickSession
+	var info base.ApiCtrlKickSessionReq
 
 	_, err := unmarshalRequestJsonBody(req, &info, "stream_name", "session_id")
 	if err != nil {
-		Log.Warnf("http api kick out session error. err=%+v", err)
+		Log.Warnf("http api kick session error. err=%+v", err)
 		v.ErrorCode = base.ErrorCodeParamMissing
 		v.Desp = base.DespParamMissing
 		feedback(v, w)
@@ -174,6 +176,26 @@ func (h *HttpApiServer) ctrlKickSessionHandler(w http.ResponseWriter, req *http.
 	Log.Infof("http api kick out session. req info=%+v", info)
 
 	resp := h.sm.CtrlKickSession(info)
+	feedback(resp, w)
+	return
+}
+
+func (h *HttpApiServer) ctrlStartRtpPubHandler(w http.ResponseWriter, req *http.Request) {
+	var v base.ApiCtrlStartRtpPub
+	var info base.ApiCtrlStartRtpPubReq
+
+	_, err := unmarshalRequestJsonBody(req, &info, "stream_name")
+	if err != nil {
+		Log.Warnf("http api start rtp pub error. err=%+v", err)
+		v.ErrorCode = base.ErrorCodeParamMissing
+		v.Desp = base.DespParamMissing
+		feedback(v, w)
+		return
+	}
+
+	Log.Infof("http api start rtp pub. req info=%+v", info)
+
+	resp := h.sm.CtrlStartRtpPub(info)
 	feedback(resp, w)
 	return
 }

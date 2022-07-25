@@ -380,7 +380,7 @@ func getAllHttpApi(addr string) {
 	Log.Assert(nil, err)
 	Log.Debugf("%s", string(b))
 
-	var ackos base.ApiCtrlKickSession
+	var ackos base.ApiCtrlKickSessionReq
 	b, err = httpPost(fmt.Sprintf("http://%s/api/ctrl/kick_session", addr), &ackos)
 	Log.Assert(nil, err)
 	Log.Debugf("%s", string(b))

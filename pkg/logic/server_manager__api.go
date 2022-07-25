@@ -115,7 +115,7 @@ func (sm *ServerManager) CtrlStopRelayPull(streamName string) (ret base.ApiCtrlS
 //
 // TODO(chef): refactor 不要返回http结果，返回error吧
 //
-func (sm *ServerManager) CtrlKickSession(info base.ApiCtrlKickSession) (ret base.HttpResponseBasic) {
+func (sm *ServerManager) CtrlKickSession(info base.ApiCtrlKickSessionReq) (ret base.HttpResponseBasic) {
 	sm.mutex.Lock()
 	defer sm.mutex.Unlock()
 	g := sm.getGroup("", info.StreamName)
@@ -133,5 +133,10 @@ func (sm *ServerManager) CtrlKickSession(info base.ApiCtrlKickSession) (ret base
 
 	ret.ErrorCode = base.ErrorCodeSucc
 	ret.Desp = base.DespSucc
+	return
+}
+
+func (sm *ServerManager) CtrlStartRtpPub(info base.ApiCtrlStartRtpPubReq) (ret base.ApiCtrlStartRtpPub) {
+	// to be continued
 	return
 }
