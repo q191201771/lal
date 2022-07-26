@@ -267,6 +267,20 @@ func ParseSpsPpsFromSeqHeader(payload []byte) (sps, pps []byte, err error) {
 	return
 }
 
+// BuildSpsPps2Annexb
+//
+// 根据sps pps构建payload
+//
+//
+func BuildSpsPps2Annexb(sps, pps []byte) []byte {
+	var ret []byte
+	ret = append(ret, NaluStartCode4...)
+	ret = append(ret, sps...)
+	ret = append(ret, NaluStartCode4...)
+	ret = append(ret, pps...)
+	return ret
+}
+
 // ParseSpsPpsFromSeqHeaderWithoutMalloc
 //
 // 从AVCC格式的Seq Header中得到SPS和PPS内存块
