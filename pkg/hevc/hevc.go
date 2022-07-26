@@ -172,6 +172,24 @@ func VpsSpsPpsSeqHeader2Annexb(payload []byte) ([]byte, error) {
 	return ret, nil
 }
 
+func BuildVpsSpsPps2Annexb(vps, sps, pps []byte) ([]byte, error) {
+	ctx := newContext()
+	if err := ParseVps(vps, ctx); err != nil {
+		return nil, err
+	}
+	if err := ParseSps(sps, ctx); err != nil {
+		return nil, err
+	}
+	var ret []byte
+	ret = append(ret, NaluStartCode4...)
+	ret = append(ret, vps...)
+	ret = append(ret, NaluStartCode4...)
+	ret = append(ret, sps...)
+	ret = append(ret, NaluStartCode4...)
+	ret = append(ret, pps...)
+	return ret, nil
+}
+
 // ParseVpsSpsPpsFromSeqHeader
 //
 // 见func ParseVpsSpsPpsFromSeqHeaderWithoutMalloc

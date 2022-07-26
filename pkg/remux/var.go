@@ -10,4 +10,7 @@ package remux
 
 import "github.com/q191201771/naza/pkg/nazalog"
 
-var Log = nazalog.GetGlobalLogger()
+var (
+	AvPacket2RtmpRemuxerAddSpsPps2KeyFrameFlag = false
+	Log                                        = nazalog.GetGlobalLogger()
+)
