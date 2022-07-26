@@ -100,64 +100,35 @@ func (r *AvPacket2RtmpRemuxer) InitWithAvConfig(asc, vps, sps, pps []byte) {
 		return
 	}
 
-	if !AvPacket2RtmpRemuxerAddSpsPps2KeyFrameFlag {
-		if r.audioType != base.AvPacketPtUnknown {
-			bAsh, err = aac.MakeAudioDataSeqHeaderWithAsc(asc)
+	if r.audioType != base.AvPacketPtUnknown {
+		bAsh, err = aac.MakeAudioDataSeqHeaderWithAsc(asc)
+		if err != nil {
+			Log.Errorf("build aac seq header failed. err=%+v", err)
+			return
+		}
+	}
+	if r.videoType != base.AvPacketPtUnknown {
+		if r.videoType == base.AvPacketPtHevc {
+			bVsh, err = hevc.BuildSeqHeaderFromVpsSpsPps(vps, sps, pps)
 			if err != nil {
-				Log.Errorf("build aac seq header failed. err=%+v", err)
+				Log.Errorf("build hevc seq header failed. err=%+v", err)
+				return
+			}
+		} else {
+			bVsh, err = avc.BuildSeqHeaderFromSpsPps(sps, pps)
+			if err != nil {
+				Log.Errorf("build avc seq header failed. err=%+v", err)
 				return
 			}
 		}
-		if r.videoType != base.AvPacketPtUnknown {
-			if r.videoType == base.AvPacketPtHevc {
-				bVsh, err = hevc.BuildSeqHeaderFromVpsSpsPps(vps, sps, pps)
-				if err != nil {
-					Log.Errorf("build hevc seq header failed. err=%+v", err)
-					return
-				}
-			} else {
-				bVsh, err = avc.BuildSeqHeaderFromSpsPps(sps, pps)
-				if err != nil {
-					Log.Errorf("build avc seq header failed. err=%+v", err)
-					return
-				}
-			}
-		}
+	}
 
-		if r.audioType != base.AvPacketPtUnknown {
-			r.emitRtmpAvMsg(true, bAsh, 0)
-		}
+	if r.audioType != base.AvPacketPtUnknown {
+		r.emitRtmpAvMsg(true, bAsh, 0)
+	}
 
-		if r.videoType != base.AvPacketPtUnknown {
-			r.emitRtmpAvMsg(false, bVsh, 0)
-		}
-	} else {
-		// 通过FeedAvPacket 传入 合并到关键帧
-		if r.audioType != base.AvPacketPtUnknown {
-			r.FeedAvPacket(base.AvPacket{
-				PayloadType: base.AvPacketPtAac,
-				Payload:     asc,
-			})
-		}
-		if r.videoType != base.AvPacketPtUnknown {
-			if r.videoType == base.AvPacketPtHevc {
-				payload, err := hevc.BuildVpsSpsPps2Annexb(vps, sps, pps)
-				if err != nil {
-					Log.Errorf("build hevc seq header failed. err=%+v", err)
-					return
-				}
-				r.FeedAvPacket(base.AvPacket{
-					PayloadType: base.AvPacketPtHevc,
-					Payload:     payload,
-				})
-			} else {
-				r.FeedAvPacket(base.AvPacket{
-					PayloadType: base.AvPacketPtAvc,
-					Payload:     avc.BuildSpsPps2Annexb(sps, pps),
-				})
-			}
-		}
-
+	if r.videoType != base.AvPacketPtUnknown {
+		r.emitRtmpAvMsg(false, bVsh, 0)
 	}
 }
 
