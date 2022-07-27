@@ -11,6 +11,7 @@ package h2645
 import (
 	"github.com/q191201771/lal/pkg/avc"
 	"github.com/q191201771/lal/pkg/hevc"
+	"github.com/q191201771/naza/pkg/bele"
 )
 
 // TODO(chef): 逐渐将package avc, hevc迁移到package h2645，这个package处于开发阶段，如果内容不全，请使用package avc, hevc
@@ -88,4 +89,26 @@ func SeqHeader2Annexb(isH264 bool, payload []byte) ([]byte, error) {
 
 func H265IsIrapNalu(typ uint8) bool {
 	return hevc.IsIrapNalu(typ)
+}
+
+func JoinNaluAvcc(naluList ...[]byte) []byte {
+	n := len(naluList)
+	if n == 0 {
+		return nil
+	}
+	n *= 4
+	for _, item := range naluList {
+		n += len(item)
+	}
+	ret := make([]byte, n)
+
+	pos := 0
+	for _, item := range naluList {
+		bele.BePutUint32(ret[pos:], uint32(len(item)))
+		pos += 4
+		copy(ret[pos:], item)
+		pos += len(item)
+	}
+
+	return ret
 }

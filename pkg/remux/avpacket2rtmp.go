@@ -187,23 +187,24 @@ func (r *AvPacket2RtmpRemuxer) FeedAvPacket(pkt base.AvPacket) {
 							continue
 						}
 						r.emitRtmpAvMsg(false, bVsh, pkt.Timestamp)
-						if !AvPacket2RtmpRemuxerAddSpsPps2KeyFrameFlag {
-							r.clearVideoSeqHeader()
-						}
+						//if !AvPacket2RtmpRemuxerAddSpsPps2KeyFrameFlag {
+						//	r.clearVideoSeqHeader()
+						//}
+						r.clearVideoSeqHeader()
 					}
 				} else {
 					// 重组实际数据
 
 					if t == avc.NaluTypeIdrSlice {
-						if AvPacket2RtmpRemuxerAddSpsPps2KeyFrameFlag {
-							// 关键帧 组合sps vps与数据帧
-							nal = append(append(avc.BuildSpsPps2Annexb(r.sps, r.pps)[4:], hevc.NaluStartCode4...), nal...)
-							// 考虑feed时 无sps 与pps数据
-							if len(pkt.Payload) < len(nal) {
-								maxLength = len(nal) + pos
-								payload = make([]byte, maxLength)
-							}
-						}
+						//if AvPacket2RtmpRemuxerAddSpsPps2KeyFrameFlag {
+						//	// 关键帧 组合sps vps与数据帧
+						//	nal = append(append(avc.BuildSpsPps2Annexb(r.sps, r.pps)[4:], hevc.NaluStartCode4...), nal...)
+						//	// 考虑feed时 无sps 与pps数据
+						//	if len(pkt.Payload) < len(nal) {
+						//		maxLength = len(nal) + pos
+						//		payload = make([]byte, maxLength)
+						//	}
+						//}
 						payload[0] = base.RtmpAvcKeyFrame
 					} else {
 						payload[0] = base.RtmpAvcInterFrame
@@ -231,25 +232,26 @@ func (r *AvPacket2RtmpRemuxer) FeedAvPacket(pkt base.AvPacket) {
 							continue
 						}
 						r.emitRtmpAvMsg(false, bVsh, pkt.Timestamp)
-						if !AvPacket2RtmpRemuxerAddSpsPps2KeyFrameFlag {
-							r.clearVideoSeqHeader()
-						}
+						//if !AvPacket2RtmpRemuxerAddSpsPps2KeyFrameFlag {
+						//	r.clearVideoSeqHeader()
+						//}
+						r.clearVideoSeqHeader()
 					}
 				} else {
 					if hevc.IsIrapNalu(t) {
-						if AvPacket2RtmpRemuxerAddSpsPps2KeyFrameFlag {
-							// 关键帧 组合vps sps pps与数据帧
-							annexb, err := hevc.BuildVpsSpsPps2Annexb(r.vps, r.sps, r.pps)
-							if err != nil {
-								Log.Errorf("build hevc vps sps pps data failed. err=%+v", err)
-							}
-							nal = append(append(annexb[4:], hevc.NaluStartCode4...), nal...)
-							// 考虑feed时 无sps 与pps数据
-							if len(pkt.Payload) < len(nal) {
-								maxLength = len(nal) + pos
-								payload = make([]byte, maxLength)
-							}
-						}
+						//if AvPacket2RtmpRemuxerAddSpsPps2KeyFrameFlag {
+						//	// 关键帧 组合vps sps pps与数据帧
+						//	annexb, err := hevc.BuildVpsSpsPps2Annexb(r.vps, r.sps, r.pps)
+						//	if err != nil {
+						//		Log.Errorf("build hevc vps sps pps data failed. err=%+v", err)
+						//	}
+						//	nal = append(append(annexb[4:], hevc.NaluStartCode4...), nal...)
+						//	// 考虑feed时 无sps 与pps数据
+						//	if len(pkt.Payload) < len(nal) {
+						//		maxLength = len(nal) + pos
+						//		payload = make([]byte, maxLength)
+						//	}
+						//}
 						payload[0] = base.RtmpHevcKeyFrame
 					} else {
 						payload[0] = base.RtmpHevcInterFrame

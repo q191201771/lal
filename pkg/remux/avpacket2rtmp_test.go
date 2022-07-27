@@ -19,7 +19,9 @@ import (
 // #85
 func TestCase1(t *testing.T) {
 	ps := []string{
+		// sps
 		"0000002c67640032ad84010c20086100430802184010c200843b5014005ad370101014000003000400000300ca100002",
+		// pps
 		"0000000468ee3cb0",
 	}
 	golden := []base.AvPacket{
@@ -47,9 +49,13 @@ func TestCase1(t *testing.T) {
 
 func TestCase2(t *testing.T) {
 	ps := []string{
+		// vps
 		"0000001840010c01ffff016000000300b0000003000003007bac0901",
+		// sps
 		"00000024420101016000000300b0000003000003007ba003c08010e58dae4914bf37010101008001",
+		// pps
 		"0000000c4401c0f2c68d03b240000003",
+		// 非关键帧
 		"0000000c4e01e504ebc3000080000003",
 	}
 	golden := []base.AvPacket{

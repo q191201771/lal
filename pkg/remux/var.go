@@ -11,11 +11,11 @@ package remux
 import "github.com/q191201771/naza/pkg/nazalog"
 
 var (
-	Log                                        = nazalog.GetGlobalLogger()
+	Log = nazalog.GetGlobalLogger()
 
-	// AvPacket2RtmpRemuxerAddSpsPps2KeyFrameFlag https://github.com/q191201771/lal/issues/205
+	//AvPacket2RtmpRemuxerAddSpsPps2KeyFrameFlag = false
+
+	// RtspRemuxerAddSpsPps2KeyFrameFlag https://github.com/q191201771/lal/issues/205
 	//
-	AvPacket2RtmpRemuxerAddSpsPps2KeyFrameFlag = false
-
 	RtspRemuxerAddSpsPps2KeyFrameFlag = false
 )

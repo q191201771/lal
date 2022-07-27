@@ -10,6 +10,7 @@ package remux
 
 import (
 	"encoding/hex"
+	"github.com/q191201771/lal/pkg/h2645"
 	"math/rand"
 	"time"
 
@@ -186,24 +187,10 @@ func (r *Rtmp2RtspRemuxer) remux(msg base.RtmpMsg) {
 			payload := msg.Payload[5:]
 			if RtspRemuxerAddSpsPps2KeyFrameFlag {
 				if msg.IsAvcKeyNalu() && r.sps != nil && r.pps != nil {
-					payload = make([]byte, 0, 12+len(r.sps)+len(r.pps)+len(msg.Payload[5:]))
-					payload = append(payload, avc.NaluStartCode4...)
-					payload = append(payload, r.sps...)
-					payload = append(payload, avc.NaluStartCode4...)
-					payload = append(payload, r.pps...)
-					payload = append(payload, avc.NaluStartCode4...)
-					payload = append(payload, msg.Payload[5:]...)
+					payload = h2645.JoinNaluAvcc(r.sps, r.pps, msg.Payload[9:])
 				}
 				if msg.IsHevcKeyNalu() && r.vps != nil && r.sps != nil && r.pps != nil {
-					payload = make([]byte, 0, 16+len(r.vps)+len(r.sps)+len(r.pps)+len(msg.Payload[5:]))
-					payload = append(payload, avc.NaluStartCode4...)
-					payload = append(payload, r.vps...)
-					payload = append(payload, avc.NaluStartCode4...)
-					payload = append(payload, r.sps...)
-					payload = append(payload, avc.NaluStartCode4...)
-					payload = append(payload, r.pps...)
-					payload = append(payload, avc.NaluStartCode4...)
-					payload = append(payload, msg.Payload[5:]...)
+					payload = h2645.JoinNaluAvcc(r.vps, r.sps, r.pps, msg.Payload[9:])
 				}
 			}
 
