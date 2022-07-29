@@ -9,6 +9,7 @@
 package base_test
 
 import (
+	"fmt"
 	"testing"
 
 	"github.com/q191201771/lal/pkg/base"
@@ -188,28 +189,8 @@ func TestParseUrl(t *testing.T) {
 }
 
 func TestParseRtmpUrl(t *testing.T) {
-	golden := map[string]base.UrlContext{
-		// 其他测试见ParseUrl
-		"rtmp://127.0.0.1/test110": {
-			Url:                   "rtmp://127.0.0.1/test110",
-			Scheme:                "rtmp",
-			StdHost:               "127.0.0.1",
-			HostWithPort:          "127.0.0.1:1935",
-			Host:                  "127.0.0.1",
-			Port:                  1935,
-			PathWithRawQuery:      "/test110",
-			Path:                  "/test110",
-			PathWithoutLastItem:   "test110",
-			LastItemOfPath:        "",
-			RawQuery:              "",
-			RawUrlWithoutUserInfo: "rtmp://127.0.0.1/test110",
-		},
-	}
-	for k, v := range golden {
-		ctx, err := base.ParseRtmpUrl(k)
-		assert.Equal(t, nil, err)
-		assert.Equal(t, v, ctx, k)
-	}
+	//testParseRtmpUrlCase1(t)
+	testParseRtmpUrlCase2(t)
 }
 
 func TestParseRtspUrl(t *testing.T) {
@@ -255,4 +236,62 @@ func TestParseRtspUrl(t *testing.T) {
 		assert.Equal(t, nil, err)
 		assert.Equal(t, v, ctx, k)
 	}
+}
+
+func testParseRtmpUrlCase1(t *testing.T) {
+	golden := map[string]base.UrlContext{
+		// 特殊case，其他测试见ParseUrl
+		"rtmp://127.0.0.1/test110": {
+			Url:                   "rtmp://127.0.0.1/test110",
+			Scheme:                "rtmp",
+			StdHost:               "127.0.0.1",
+			HostWithPort:          "127.0.0.1:1935",
+			Host:                  "127.0.0.1",
+			Port:                  1935,
+			PathWithRawQuery:      "/test110",
+			Path:                  "/test110",
+			PathWithoutLastItem:   "test110",
+			LastItemOfPath:        "",
+			RawQuery:              "",
+			RawUrlWithoutUserInfo: "rtmp://127.0.0.1/test110",
+		},
+	}
+	for k, v := range golden {
+		ctx, err := base.ParseRtmpUrl(k)
+		assert.Equal(t, nil, err)
+		assert.Equal(t, v, ctx, k)
+	}
+}
+
+func testParseRtmpUrlCase2(t *testing.T) {
+	// TODO(chef): [refactor] 抽象一个解析rtmp url的接口，让业务方有手段自己实现 202207
+	var appNameFn = func(ctx base.UrlContext) string {
+		return ctx.PathWithoutLastItem
+	}
+
+	var tcUrlFn = func(ctx base.UrlContext) string {
+		return fmt.Sprintf("%s://%s/%s", ctx.Scheme, ctx.StdHost, ctx.PathWithoutLastItem)
+	}
+
+	var streamNameWithRawQueryFn = func(ctx base.UrlContext) string {
+		if ctx.RawQuery == "" {
+			return ctx.LastItemOfPath
+		}
+		return fmt.Sprintf("%s?%s", ctx.LastItemOfPath, ctx.RawQuery)
+	}
+
+	url := "rtmp://xxx.com:1935/vyun?vhost=thirdVhost?token=88F4/lss_7"
+	//url := "rtmp://rs.live.vhou.net/vhall?vhost=thirdVhost?token=2A317D14t25690"
+	ctx, err := base.ParseRtmpUrl(url)
+	assert.Equal(t, nil, err)
+	assert.Equal(t, "vyun?vhost=thirdVhost?token=88F4", appNameFn(ctx))
+	assert.Equal(t, "rtmp://xxx.com:1935/vyun?vhost=thirdVhost?token=88F4", tcUrlFn(ctx))
+	assert.Equal(t, "lss_7", streamNameWithRawQueryFn(ctx))
+
+	url = "rtmp://xxx.net/vhall?vhost=thirdVhost?token=2A317D14t25690/138521921"
+	ctx, err = base.ParseRtmpUrl(url)
+	assert.Equal(t, nil, err)
+	assert.Equal(t, "vhall?vhost=thirdVhost?token=2A317D14t25690", appNameFn(ctx))
+	assert.Equal(t, "rtmp://xxx.net/vhall?vhost=thirdVhost?token=2A317D14t25690", tcUrlFn(ctx))
+	assert.Equal(t, "138521921", streamNameWithRawQueryFn(ctx))
 }

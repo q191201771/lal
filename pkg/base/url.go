@@ -167,6 +167,7 @@ func ParseRtmpUrl(rawUrl string) (ctx UrlContext, err error) {
 		return ctx, fmt.Errorf("%w. url=%s", ErrInvalidUrl, rawUrl)
 	}
 
+	// 处理特殊case，具体见 testParseRtmpUrlCase1
 	// 注意，使用ffmpeg推流时，会把`rtmp://127.0.0.1/test110`中的test110作为appName(streamName则为空)
 	// 这种其实已不算十分合法的rtmp url了
 	// 我们这里也处理一下，和ffmpeg保持一致
@@ -175,6 +176,24 @@ func ParseRtmpUrl(rawUrl string) (ctx UrlContext, err error) {
 		ctx.PathWithoutLastItem = ctx.LastItemOfPath
 		ctx.LastItemOfPath = tmp
 	}
+
+	// 处理特殊case, 具体见 testParseRtmpUrlCase2
+	//
+	// PathWithRawQuery:/vyun?vhost=thirdVhost?token=88F4/lss_7
+	//
+	// Path:/vyun-----------------------------------------------> /vyun?vhost=thirdVhost?token=88F4/lss_7
+	// PathWithoutLastItem:vyun---------------------------------> vyun?vhost=thirdVhost?token=88F4
+	// LastItemOfPath:------------------------------------------> lss_7
+	// RawQuery:vhost=thirdVhost?token=88F4/lss_7---------------> 空
+	//
+	if strings.Count(ctx.PathWithRawQuery, "?") > 1 {
+		index := strings.LastIndexByte(ctx.PathWithRawQuery, '/')
+		ctx.Path = ctx.PathWithRawQuery
+		ctx.PathWithoutLastItem = ctx.PathWithRawQuery[1:index]
+		ctx.LastItemOfPath = ctx.PathWithRawQuery[index+1:]
+		ctx.RawQuery = ""
+	}
+
 	return
 }
 
