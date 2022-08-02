@@ -33,7 +33,7 @@ import (
 // OnReadRtmpAvMsg
 //
 // 输入rtmp数据.
-// 来自 rtmp.ServerSession(Pub), rtmp.PullSession, CustomizePubSessionContext, (remux.DummyAudioFilter) 的回调.
+// 来自 rtmp.ServerSession(Pub), rtmp.PullSession, CustomizePubSessionContext(remux.AvPacket2RtmpRemuxer), (remux.DummyAudioFilter) 的回调.
 //
 func (group *Group) OnReadRtmpAvMsg(msg base.RtmpMsg) {
 	group.mutex.Lock()
@@ -75,6 +75,23 @@ func (group *Group) OnAvPacket(pkt base.AvPacket) {
 	// 出于性能考虑，底层不判断，由上层按需判断
 	if group.rtsp2RtmpRemuxer != nil {
 		group.rtsp2RtmpRemuxer.OnAvPacket(pkt)
+	}
+}
+
+// ---------------------------------------------------------------------------------------------------------------------
+
+// OnAvPacketFromPsPubSession
+//
+// 来自 gb28181.PubSession 的回调.
+//
+func (group *Group) OnAvPacketFromPsPubSession(pkt *base.AvPacket) {
+	// TODO(chef): [refactor] 统一所有回调，AvPacket和*AvPacket 202208
+
+	group.mutex.Lock()
+	defer group.mutex.Unlock()
+
+	if group.rtsp2RtmpRemuxer != nil {
+		group.rtsp2RtmpRemuxer.OnAvPacket(*pkt)
 	}
 }
 

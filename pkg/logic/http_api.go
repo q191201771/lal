@@ -184,13 +184,20 @@ func (h *HttpApiServer) ctrlStartRtpPubHandler(w http.ResponseWriter, req *http.
 	var v base.ApiCtrlStartRtpPub
 	var info base.ApiCtrlStartRtpPubReq
 
-	_, err := unmarshalRequestJsonBody(req, &info, "stream_name")
+	j, err := unmarshalRequestJsonBody(req, &info, "stream_name")
 	if err != nil {
 		Log.Warnf("http api start rtp pub error. err=%+v", err)
 		v.ErrorCode = base.ErrorCodeParamMissing
 		v.Desp = base.DespParamMissing
 		feedback(v, w)
 		return
+	}
+
+	if !j.Exist("port") {
+		info.Port = 0
+	}
+	if !j.Exist("timeout_ms") {
+		info.TimeoutMs = 10000
 	}
 
 	Log.Infof("http api start rtp pub. req info=%+v", info)

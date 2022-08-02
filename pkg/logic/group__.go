@@ -10,6 +10,7 @@ package logic
 
 import (
 	"encoding/json"
+	"github.com/q191201771/lal/pkg/gb28181"
 	"strings"
 	"sync"
 
@@ -23,6 +24,43 @@ import (
 	"github.com/q191201771/lal/pkg/rtsp"
 	"github.com/q191201771/lal/pkg/sdp"
 )
+
+// ---------------------------------------------------------------------------------------------------------------------
+// 输入流需要做的事情
+// TODO(chef): [refactor] 考虑抽象出通用接口 202208
+//
+// checklist表格
+// | .                                           | rtmp pub | ps pub |
+// | 添加到group中                                | Y        | Y      |
+// | 到输出流的转换路径关系                         | Y        | Y      |
+// | 删除                                        | Y        |
+// | group.Dispose()时销毁                        | Y        |
+// | group.GetStat()时获取信息                     | Y        |
+// | group.KickSession()时踢出                    | Y        |
+// | group.disposeInactiveSessions()检查超时并清理 | Y        |
+// | group.updateAllSessionStat()更新信息         | Y        |
+// | group.hasPubSession()                       | Y        |
+// | group.inSessionUniqueKey()                  | Y        |
+
+// ---------------------------------------------------------------------------------------------------------------------
+// 输入流到输出流的转换路径关系
+//
+// customizePubSession.WithOnRtmpMsg -> [dummyAudioFilter] -> OnReadRtmpAvMsg -> rtmp2RtspRemuxer -> rtsp
+//                                                                            -> rtmp
+//                                                                            -> http-flv, ts, hls
+//
+// ---------------------------------------------------------------------------------------------------------------------
+// rtmpPubSession 和customizePubSession一样，省略
+//
+// ---------------------------------------------------------------------------------------------------------------------
+// rtspPubSession -> OnRtpPacket -> rtsp
+//                -> OnAvPacket -> rtsp2RtmpRemuxer -> onRtmpMsgFromRemux -> broadcastByRtmpMsg -> rtmp
+//                                                                                              -> http-flv, ts, hls
+//
+// ---------------------------------------------------------------------------------------------------------------------
+// psPubSession -> OnAvPacketFromPsPubSession -> rtsp2RtmpRemuxer -> onRtmpMsgFromRemux -> broadcastByRtmpMsg -> rtmp2RtspRemuxer -> rtsp
+//                                                                                                            -> rtmp
+//                                                                                                            -> http-flv, ts, hls
 
 type IGroupObserver interface {
 	CleanupHlsIfNeeded(appName string, streamName string, path string)
@@ -45,18 +83,22 @@ type Group struct {
 	rtmpPubSession      *rtmp.ServerSession
 	rtspPubSession      *rtsp.PubSession
 	customizePubSession *CustomizePubSessionContext
-	rtsp2RtmpRemuxer    *remux.AvPacket2RtmpRemuxer
+	psPubSession        *gb28181.PubSession
+	rtsp2RtmpRemuxer    *remux.AvPacket2RtmpRemuxer // TODO(chef): [refactor] 重命名为avPacket2RtmpRemuxer，因为除了rtsp，customize pub和gb28181 pub都是 202208
 	rtmp2RtspRemuxer    *remux.Rtmp2RtspRemuxer
 	rtmp2MpegtsRemuxer  *remux.Rtmp2MpegtsRemuxer
 	// pull
 	pullProxy *pullProxy
 	// rtmp pub使用
 	dummyAudioFilter *remux.DummyAudioFilter
+	// ps pub使用
+	psPubTimeoutSec            uint32 // 超时时间
+	psPubPrevInactiveCheckTick uint32 // 上次检查时间
 	// rtmp sub使用
 	rtmpGopCache *remux.GopCache
 	// httpflv sub使用
 	httpflvGopCache *remux.GopCache
-	// httpts使用
+	// httpts sub使用
 	httptsGopCache *remux.GopCacheMpegts
 	// rtsp使用
 	sdpCtx *sdp.LogicContext
@@ -132,9 +174,7 @@ func (group *Group) Tick(tickCount uint32) {
 	group.startPushIfNeeded()
 
 	// 定时关闭没有数据的session
-	if tickCount%checkSessionAliveIntervalSec == 0 {
-		group.disposeInactiveSessions()
-	}
+	group.disposeInactiveSessions(tickCount)
 
 	// 定时计算session bitrate
 	if tickCount%calcSessionStatIntervalSec == 0 {
@@ -348,7 +388,13 @@ func (group *Group) OutSessionNum() int {
 //
 // TODO chef: [refactor] 梳理和naza.Connection超时重复部分
 //
-func (group *Group) disposeInactiveSessions() {
+func (group *Group) disposeInactiveSessions(tickCount uint32) {
+	// to be continued
+
+	if tickCount%checkSessionAliveIntervalSec != 0 {
+		return
+	}
+
 	if group.rtmpPubSession != nil {
 		if readAlive, _ := group.rtmpPubSession.IsAlive(); !readAlive {
 			Log.Warnf("[%s] session timeout. session=%s", group.UniqueKey, group.rtmpPubSession.UniqueKey())

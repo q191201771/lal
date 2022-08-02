@@ -71,6 +71,7 @@ func (group *Group) startPushIfNeeded() {
 		return
 	}
 	// 没有pub发布者
+	// TODO(chef): [refactor] 判断所有pub是否存在的方式 202208
 	if group.rtmpPubSession == nil && group.rtspPubSession == nil {
 		return
 	}

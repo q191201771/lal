@@ -9,6 +9,8 @@
 package logic
 
 import (
+	"fmt"
+	"github.com/q191201771/lal/pkg/gb28181"
 	"time"
 
 	"github.com/q191201771/lal/pkg/base"
@@ -103,6 +105,34 @@ func (group *Group) AddRtspPubSession(session *rtsp.PubSession) error {
 	session.SetObserver(group)
 
 	return nil
+}
+
+func (group *Group) StartRtpPub(req base.ApiCtrlStartRtpPubReq) {
+	group.mutex.Lock()
+	defer group.mutex.Unlock()
+
+	if group.hasInSession() {
+		// TODO(chef): [fix] 处理已经有输入session的情况 202207
+	}
+
+	pubSession := gb28181.NewPubSession().WithStreamName(req.StreamName).WithOnAvPacket(group.OnAvPacketFromPsPubSession)
+
+	Log.Debugf("[%s] [%s] add RTP PubSession into group.", group.UniqueKey, pubSession.UniqueKey())
+
+	group.psPubSession = pubSession
+	group.addIn()
+
+	if group.shouldStartRtspRemuxer() {
+		group.rtmp2RtspRemuxer = remux.NewRtmp2RtspRemuxer(
+			group.onSdpFromRemux,
+			group.onRtpPacketFromRemux,
+		)
+	}
+
+	go func() {
+		addr := fmt.Sprintf(":%d", req.Port)
+		pubSession.RunLoop(addr)
+	}()
 }
 
 func (group *Group) AddRtmpPullSession(session *rtmp.PullSession) error {
@@ -235,7 +265,7 @@ func (group *Group) delCustomizePubSession(sessionCtx ICustomizePubSessionContex
 
 	if sessionCtx != group.customizePubSession {
 		Log.Warnf("[%s] del rtmp pub session but not match. del session=%s, group session=%p",
-			group.UniqueKey, sessionCtx.UniqueKey(), group.rtmpPubSession)
+			group.UniqueKey, sessionCtx.UniqueKey(), group.customizePubSession)
 		return
 	}
 

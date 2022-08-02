@@ -137,6 +137,12 @@ func (sm *ServerManager) CtrlKickSession(info base.ApiCtrlKickSessionReq) (ret b
 }
 
 func (sm *ServerManager) CtrlStartRtpPub(info base.ApiCtrlStartRtpPubReq) (ret base.ApiCtrlStartRtpPub) {
-	// to be continued
+	sm.mutex.Lock()
+	defer sm.mutex.Unlock()
+
+	// 注意，如果group不存在，我们依然relay pull
+	g := sm.getOrCreateGroup("", info.StreamName)
+	g.StartRtpPub(info)
+
 	return
 }
