@@ -9,8 +9,8 @@
 package gb28181
 
 import (
-	"encoding/hex"
 	"fmt"
+	"github.com/q191201771/lal/pkg/aac"
 	"github.com/q191201771/lal/pkg/base"
 	"github.com/q191201771/naza/pkg/nazalog"
 	"github.com/q191201771/naza/pkg/nazanet"
@@ -21,6 +21,24 @@ import (
 )
 
 func TestPubSession(t *testing.T) {
+	// 重放业务方的流
+	// 步骤：
+	// 1. 业务方提供的lalserver录制下来的dump file
+	// 2. 启动lalserver
+	// 3. 调用HTTP API
+	// 4. 执行该测试
+	//testDumpFile("127.0.0.1:10002", "/tmp/test.psdata")
+
+	// 读取一大堆.ps文件，并使用udp发送到`addr`地址（外部的，比如外部自己启动lalserver）
+	// 步骤：
+	// 1. 启动lalserver
+	// 2. 调用HTTP API
+	// 3. 执行该测试
+	//helpUdpSend("127.0.0.1:10002")
+
+	// 读取一大堆.ps文件，并使用udp发送到`addr`地址（内部启动了PubSession做接收）
+	// 步骤：
+	// 1. 执行该测试
 	//testPubSession()
 }
 
@@ -45,6 +63,8 @@ func testPubSession() {
 	session := NewPubSession().WithOnAvPacket(func(packet *base.AvPacket) {
 		nazalog.Infof("[test2] onAvPacket. packet=%s", packet.DebugString())
 		if packet.IsAudio() {
+			aac.NewAdtsHeaderContext(packet.Payload)
+
 			_, _ = fp2.Write(packet.Payload)
 		} else if packet.IsVideo() {
 			_, _ = fp.Write(packet.Payload)
@@ -54,22 +74,47 @@ func testPubSession() {
 	go func() {
 		time.Sleep(100 * time.Millisecond)
 
-		conn, err := nazanet.NewUdpConnection(func(option *nazanet.UdpConnectionOption) {
-			option.RAddr = addr
-		})
-		nazalog.Assert(nil, err)
-
-		for i := 1; i < 1000; i++ {
-			//filename := fmt.Sprintf("/tmp/rtp-h264-aac/%d.ps", i)
-			filename := fmt.Sprintf("/tmp/rtp-ps-video/%d.ps", i)
-			b, err := ioutil.ReadFile(filename)
-			nazalog.Assert(nil, err)
-			nazalog.Debugf("[test] %d: %s", i, hex.EncodeToString(b[12:]))
-
-			conn.Write(b)
-		}
+		helpUdpSend(addr)
 	}()
 
 	runErr := session.RunLoop(addr)
 	nazalog.Assert(nil, runErr)
+}
+
+func helpUdpSend(addr string) {
+	conn, err := nazanet.NewUdpConnection(func(option *nazanet.UdpConnectionOption) {
+		option.RAddr = addr
+	})
+	nazalog.Assert(nil, err)
+	for i := 1; i < 10000; i++ {
+		filename := fmt.Sprintf("/tmp/rtp-h264-aac/%d.ps", i)
+		//filename := fmt.Sprintf("/tmp/rtp-ps-video/%d.ps", i)
+		b, err := ioutil.ReadFile(filename)
+		nazalog.Assert(nil, err)
+		//nazalog.Debugf("[test] %d: %s", i, hex.EncodeToString(b[12:]))
+
+		conn.Write(b)
+	}
+}
+
+func testDumpFile(addr string, filename string) {
+	conn, err := nazanet.NewUdpConnection(func(option *nazanet.UdpConnectionOption) {
+		option.RAddr = addr
+	})
+	nazalog.Assert(nil, err)
+
+	df := base.NewDumpFile()
+	err = df.OpenToRead(filename)
+	nazalog.Assert(nil, err)
+
+	for {
+		m, err := df.ReadOneMessage()
+		if err != nil {
+			nazalog.Errorf("%+v", err)
+			break
+		}
+		nazalog.Debugf("%s", m.DebugString())
+
+		conn.Write(m.Body)
+	}
 }

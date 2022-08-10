@@ -11,6 +11,7 @@ package gb28181
 import (
 	"encoding/hex"
 	"github.com/q191201771/lal/pkg/base"
+	"github.com/q191201771/lal/pkg/hevc"
 	"github.com/q191201771/naza/pkg/nazamd5"
 	"io/ioutil"
 	"os"
@@ -111,16 +112,15 @@ var hevcNalu = []byte{
 
 func TestPsUnpacker2(t *testing.T) {
 	// 解析别人提供的一些测试数据，开发阶段用
-
 	//test1()
-	//test2()
 }
 
 func test1() {
 	nazalog.Debugf("[test1] > test1")
 	// 读取raw文件(包连在一起，不包含rtp header)，存取h264文件
 
-	b, err := ioutil.ReadFile("/tmp/udp.raw")
+	//b, err := ioutil.ReadFile("/tmp/udp.raw")
+	b, err := ioutil.ReadFile("/Volumes/T7/new/avfile/ka_at_13sec.ps")
 	nazalog.Assert(nil, err)
 
 	fp, err := os.Create("/tmp/udp.h264")
@@ -132,12 +132,20 @@ func test1() {
 			return
 		}
 
-		nazalog.Debugf("[test1] onVideo. length=%d", len(packet.Payload))
+		nazalog.Debugf("[test1] onVideo. %s, %s", hevc.ParseNaluTypeReadable(packet.Payload[4]), packet.DebugString())
 		if waitingSps {
-			if avc.ParseNaluType(packet.Payload[4]) == avc.NaluTypeSps {
-				waitingSps = false
-			} else {
-				return
+			if packet.PayloadType == base.AvPacketPtAvc {
+				if avc.ParseNaluType(packet.Payload[4]) == avc.NaluTypeSps {
+					waitingSps = false
+				} else {
+					return
+				}
+			} else if packet.PayloadType == base.AvPacketPtHevc {
+				if hevc.ParseNaluType(packet.Payload[4]) == hevc.NaluTypeSps {
+					waitingSps = false
+				} else {
+					return
+				}
 			}
 		}
 		_, _ = fp.Write(packet.Payload)

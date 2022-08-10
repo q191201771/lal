@@ -59,6 +59,15 @@ func NewPsUnpacker() *PsUnpacker {
 	return p
 }
 
+// WithOnAvPacket
+//
+// @param onAvPacket: 回调函数中 base.AvPacket 字段说明：
+// 	PayloadType AvPacketPt 见 base.AvPacketPt
+//	Timestamp   int64      dts，单位毫秒
+//	Pts         int64      pts，单位毫秒
+//	Payload     []byte     对于视频，h264和h265是AnnexB格式
+//                         对于音频，AAC是前面携带adts的格式
+//
 func (p *PsUnpacker) WithOnAvPacket(onAvPacket base.OnAvPacketFunc) *PsUnpacker {
 	p.onAvPacket = onAvPacket
 	return p
@@ -71,14 +80,14 @@ func (p *PsUnpacker) WithOnAvPacket(onAvPacket base.OnAvPacketFunc) *PsUnpacker 
 // @param b: rtp包，注意，包含rtp包头部分
 //
 func (p *PsUnpacker) FeedRtpPacket(b []byte) error {
-	nazalog.Debugf("> FeedRtpPacket. len=%d", len(b))
+	//nazalog.Debugf("> FeedRtpPacket. len=%d", len(b))
 
 	ipkt, err := rtprtcp.ParseRtpPacket(b)
 	if err != nil {
 		return err
 	}
 
-	nazalog.Debugf("h=%+v", ipkt.Header)
+	//nazalog.Debugf("h=%+v", ipkt.Header)
 
 	var isStartPositionFn = func(pkt rtprtcp.RtpPacket) bool {
 		body := pkt.Body()
@@ -144,7 +153,7 @@ func (p *PsUnpacker) FeedRtpPacket(b []byte) error {
 // FeedRtpBody 注意，传入的数据应该是连续的，属于完整帧的
 //
 func (p *PsUnpacker) FeedRtpBody(rtpBody []byte, rtpts uint32) {
-	nazalog.Debugf("> FeedRtpBody. len=%d, prev buf=%d", len(rtpBody), p.buf.Len())
+	//nazalog.Debugf("> FeedRtpBody. len=%d, prev buf=%d", len(rtpBody), p.buf.Len())
 	p.buf.Write(rtpBody)
 	// ISO/IEC iso13818-1
 	//
@@ -160,28 +169,28 @@ func (p *PsUnpacker) FeedRtpBody(rtpBody []byte, rtpts uint32) {
 		var consumed int
 		switch code {
 		case psPackStartCodePackHeader:
-			nazalog.Debugf("----------pack header----------")
+			//nazalog.Debugf("----------pack header----------")
 			consumed = parsePackHeader(rb, i)
 		case psPackStartCodeSystemHeader:
-			nazalog.Debugf("----------system header----------")
+			//nazalog.Debugf("----------system header----------")
 			// 2.5.3.5 System header
 			// Table 2-32 - Program Stream system header
 			//
 			consumed = parsePackStreamBody(rb, i)
 		case psPackStartCodeProgramStreamMap:
-			nazalog.Debugf("----------program stream map----------")
+			//nazalog.Debugf("----------program stream map----------")
 			consumed = p.parsePsm(rb, i)
 		case psPackStartCodeAudioStream:
-			nazalog.Debugf("----------audio stream----------")
+			//nazalog.Debugf("----------audio stream----------")
 			consumed = p.parseAvStream(int(code), rtpts, rb, i)
 		case psPackStartCodeVideoStream:
-			nazalog.Debugf("----------video stream----------")
+			//nazalog.Debugf("----------video stream----------")
 			consumed = p.parseAvStream(int(code), rtpts, rb, i)
 		case psPackStartCodePackEnd:
 			nazalog.Errorf("----------skip----------. %s", hex.Dump(nazabytes.Prefix(rb[i-4:], 32)))
 			consumed = 0
 		case psPackStartCodeHikStream:
-			nazalog.Debugf("----------hik stream----------")
+			//nazalog.Debugf("----------hik stream----------")
 			consumed = parsePackStreamBody(rb, i)
 		case psPackStartCodePesPrivate2:
 			fallthrough
@@ -206,7 +215,7 @@ func (p *PsUnpacker) FeedRtpBody(rtpBody []byte, rtpts uint32) {
 			return
 		}
 		p.buf.Skip(i + consumed)
-		nazalog.Debugf("skip. %d", i+consumed)
+		//nazalog.Debugf("skip. %d", i+consumed)
 	}
 }
 
@@ -241,7 +250,7 @@ func (p *PsUnpacker) parsePsm(rb []byte, index int) int {
 
 	// elementary_stream_map_length
 	esml := int(bele.BeUint16(rb[i:]))
-	nazalog.Debugf("l=%d, esml=%d", l, esml)
+	//nazalog.Debugf("l=%d, esml=%d", l, esml)
 	i += 2
 
 	if len(rb[i:]) < esml+4 {
@@ -276,7 +285,7 @@ func (p *PsUnpacker) parsePsm(rb []byte, index int) int {
 			}
 		}
 		esil := int(bele.BeUint16(rb[i:]))
-		nazalog.Debugf("streamType=%d, streamId=%d, esil=%d", streamType, streamId, esil)
+		//nazalog.Debugf("streamType=%d, streamId=%d, esil=%d", streamType, streamId, esil)
 		i += 2 + esil
 		esml = esml - 4 - esil
 	}
@@ -296,7 +305,7 @@ func (p *PsUnpacker) parseAvStream(code int, rtpts uint32, rb []byte, index int)
 	}
 	i += 2
 
-	nazalog.Debugf("parseAvStream. code=%d, expected=%d, actual=%d", code, length, len(rb)-i)
+	//nazalog.Debugf("parseAvStream. code=%d, expected=%d, actual=%d", code, length, len(rb)-i)
 
 	if len(rb)-i < length {
 		return -1
@@ -321,12 +330,12 @@ func (p *PsUnpacker) parseAvStream(code int, rtpts uint32, rb []byte, index int)
 
 	i += phdl
 
-	nazalog.Debugf("parseAvStream. code=%d, length=%d, pts=%d, dts=%d", code, length, pts, dts)
+	//nazalog.Debugf("parseAvStream. code=%d, length=%d, pts=%d, dts=%d", code, length, pts, dts)
 
 	if code == psPackStartCodeAudioStream {
 		// 注意，处理音频的逻辑和处理视频的类似，参考处理视频的注释
 		if p.audioStreamType == StreamTypeAAC {
-			nazalog.Debugf("audio code=%d, length=%d, ptsDtsFlag=%d, phdl=%d, pts=%d, dts=%d,type=%d", code, length, ptsDtsFlag, phdl, pts, dts, p.audioStreamType)
+			//nazalog.Debugf("audio code=%d, length=%d, ptsDtsFlag=%d, phdl=%d, pts=%d, dts=%d,type=%d", code, length, ptsDtsFlag, phdl, pts, dts, p.audioStreamType)
 			if pts == -1 {
 				if p.preAudioPts == -1 {
 					if p.preAudioRtpts == -1 {
@@ -335,8 +344,8 @@ func (p *PsUnpacker) parseAvStream(code int, rtpts uint32, rb []byte, index int)
 						if p.preAudioRtpts != int64(rtpts) {
 							p.onAvPacket(&base.AvPacket{
 								PayloadType: p.audioPayloadType,
-								Timestamp:   p.preAudioDts,
-								Pts:         p.preAudioPts,
+								Timestamp:   p.preAudioDts / 90,
+								Pts:         p.preAudioPts / 90,
 								Payload:     p.audioBuf,
 							})
 							p.audioBuf = nil
@@ -351,8 +360,8 @@ func (p *PsUnpacker) parseAvStream(code int, rtpts uint32, rb []byte, index int)
 				if pts != p.preAudioPts && p.preAudioPts >= 0 {
 					p.onAvPacket(&base.AvPacket{
 						PayloadType: p.audioPayloadType,
-						Timestamp:   p.preAudioDts,
-						Pts:         p.preAudioPts,
+						Timestamp:   p.preAudioDts / 90,
+						Pts:         p.preAudioPts / 90,
 						Payload:     p.audioBuf,
 					})
 					p.audioBuf = nil
@@ -483,8 +492,8 @@ func (p *PsUnpacker) iterateNaluByStartCode(code int, pts, dts int64) {
 
 		p.onAvPacket(&base.AvPacket{
 			PayloadType: p.videoPayloadType,
-			Timestamp:   dts,
-			Pts:         pts,
+			Timestamp:   dts / 90,
+			Pts:         pts / 90,
 			Payload:     nalu,
 		})
 
@@ -572,5 +581,5 @@ func readPts(b []byte) (fb uint8, pts int64) {
 }
 
 func defaultOnAvPacket(packet *base.AvPacket) {
-
+	// noop
 }

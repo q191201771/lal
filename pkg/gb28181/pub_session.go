@@ -20,10 +20,11 @@ type PubSession struct {
 
 	streamName string
 
-	conn        *nazanet.UdpConnection
-	sessionStat base.BasicSessionStat
+	hookOnReadUdpPacket nazanet.OnReadUdpPacket
 
 	disposeOnce sync.Once
+	conn        *nazanet.UdpConnection
+	sessionStat base.BasicSessionStat
 }
 
 func NewPubSession() *PubSession {
@@ -33,6 +34,10 @@ func NewPubSession() *PubSession {
 	}
 }
 
+// WithOnAvPacket 设置音视频的回调
+//
+//  @param onAvPacket 见 PsUnpacker.WithOnAvPacket 的注释
+//
 func (session *PubSession) WithOnAvPacket(onAvPacket base.OnAvPacketFunc) *PubSession {
 	session.unpacker.WithOnAvPacket(onAvPacket)
 	return session
@@ -43,15 +48,48 @@ func (session *PubSession) WithStreamName(streamName string) *PubSession {
 	return session
 }
 
+// WithHookReadUdpPacket
+//
+// 将udp接收数据返回给上层。
+// 注意，底层的解析逻辑依然走。
+// 可以用这个方式来截取数据进行调试。
+//
+func (session *PubSession) WithHookReadUdpPacket(fn nazanet.OnReadUdpPacket) *PubSession {
+	session.hookOnReadUdpPacket = fn
+	return session
+}
+
+// RunLoop
+//
+// @param addr: 如果为空，则内部选择一个可用的地址
+//
 func (session *PubSession) RunLoop(addr string) error {
+	var uconn *net.UDPConn
 	var err error
+
+	if addr == "" {
+		uconn, _, err = defaultUdpConnPoll.Acquire()
+		if err != nil {
+			return err
+		}
+	}
+
 	session.conn, err = nazanet.NewUdpConnection(func(option *nazanet.UdpConnectionOption) {
 		option.LAddr = addr
+		option.Conn = uconn
 	})
 	if err != nil {
 		return err
 	}
 	err = session.conn.RunLoop(func(b []byte, raddr *net.UDPAddr, err error) bool {
+		if len(b) == 0 && err != nil {
+			return false
+		}
+
+		if session.hookOnReadUdpPacket != nil {
+			session.hookOnReadUdpPacket(b, raddr, err)
+		}
+
 		session.sessionStat.AddReadBytes(len(b))
 		session.unpacker.FeedRtpPacket(b)
 		return true
@@ -112,12 +150,10 @@ func (session *PubSession) IsAlive() (readAlive, writeAlive bool) {
 
 // ---------------------------------------------------------------------------------------------------------------------
 
-// ---------------------------------------------------------------------------------------------------------------------
-
 func (session *PubSession) dispose(err error) error {
 	var retErr error
 	session.disposeOnce.Do(func() {
-		Log.Infof("[%s] lifecycle dispose rtmp ServerSession. err=%+v", session.UniqueKey(), err)
+		Log.Infof("[%s] lifecycle dispose gb28181 PubSession. err=%+v", session.UniqueKey(), err)
 		if session.conn == nil {
 			retErr = base.ErrSessionNotStarted
 			return

@@ -11,6 +11,8 @@ package logic
 import (
 	"fmt"
 	"github.com/q191201771/lal/pkg/gb28181"
+	"github.com/q191201771/naza/pkg/nazalog"
+	"net"
 	"time"
 
 	"github.com/q191201771/lal/pkg/base"
@@ -116,11 +118,31 @@ func (group *Group) StartRtpPub(req base.ApiCtrlStartRtpPubReq) {
 	}
 
 	pubSession := gb28181.NewPubSession().WithStreamName(req.StreamName).WithOnAvPacket(group.OnAvPacketFromPsPubSession)
+	if req.DebugDumpPacket != "" {
+		group.psPubDumpFile = base.NewDumpFile()
+		if err := group.psPubDumpFile.OpenToWrite(req.DebugDumpPacket); err != nil {
+			Log.Errorf("%+v", err)
+		}
+	}
+	pubSession.WithHookReadUdpPacket(func(b []byte, raddr *net.UDPAddr, err error) bool {
+		if group.psPubDumpFile != nil {
+			group.psPubDumpFile.Write(b)
+		}
+		return true
+	})
 
 	Log.Debugf("[%s] [%s] add RTP PubSession into group.", group.UniqueKey, pubSession.UniqueKey())
 
 	group.psPubSession = pubSession
+	group.psPubTimeoutSec = uint32(req.TimeoutMs / 1000)
 	group.addIn()
+
+	group.rtsp2RtmpRemuxer = remux.NewAvPacket2RtmpRemuxer()
+	group.rtsp2RtmpRemuxer.WithOption(func(option *base.AvPacketStreamOption) {
+		option.VideoFormat = base.AvPacketStreamVideoFormatAnnexb
+		option.AudioFormat = base.AvPacketStreamAudioFormatAdtsAac
+	})
+	group.rtsp2RtmpRemuxer.WithOnRtmpMsg(group.onRtmpMsgFromRemux)
 
 	if group.shouldStartRtspRemuxer() {
 		group.rtmp2RtspRemuxer = remux.NewRtmp2RtspRemuxer(
@@ -130,8 +152,13 @@ func (group *Group) StartRtpPub(req base.ApiCtrlStartRtpPubReq) {
 	}
 
 	go func() {
-		addr := fmt.Sprintf(":%d", req.Port)
-		pubSession.RunLoop(addr)
+		var addr string
+		if req.Port != 0 {
+			addr = fmt.Sprintf(":%d", req.Port)
+		}
+		err := pubSession.RunLoop(addr)
+		nazalog.Debugf("[%s] [%s] ps PubSession run loop exit, err=%v", group.UniqueKey, pubSession.UniqueKey(), err)
+		group.DelPsPubSession(pubSession)
 	}()
 }
 
@@ -204,6 +231,12 @@ func (group *Group) AddRtspPullSession(session *rtsp.PullSession) error {
 
 // ---------------------------------------------------------------------------------------------------------------------
 
+func (group *Group) DelPsPubSession(session *gb28181.PubSession) {
+	group.mutex.Lock()
+	defer group.mutex.Unlock()
+	group.delPsPubSession(session)
+}
+
 func (group *Group) DelCustomizePubSession(sessionCtx ICustomizePubSessionContext) {
 	group.mutex.Lock()
 	defer group.mutex.Unlock()
@@ -259,6 +292,18 @@ func (group *Group) DelRtspPullSession(session *rtsp.PullSession) {
 }
 
 // ---------------------------------------------------------------------------------------------------------------------
+
+func (group *Group) delPsPubSession(session *gb28181.PubSession) {
+	Log.Debugf("[%s] [%s] del ps PubSession from group.", group.UniqueKey, session.UniqueKey())
+
+	if session != group.psPubSession {
+		Log.Warnf("[%s] del ps pub session but not match. del session=%s, group session=%p",
+			group.UniqueKey, session.UniqueKey(), group.customizePubSession)
+		return
+	}
+
+	group.delIn()
+}
 
 func (group *Group) delCustomizePubSession(sessionCtx ICustomizePubSessionContext) {
 	Log.Debugf("[%s] [%s] del rtmp PubSession from group.", group.UniqueKey, sessionCtx.UniqueKey())
@@ -338,10 +383,15 @@ func (group *Group) delIn() {
 	group.rtmpPubSession = nil
 	group.rtspPubSession = nil
 	group.customizePubSession = nil
+	group.psPubSession = nil
 	group.rtsp2RtmpRemuxer = nil
 	group.rtmp2RtspRemuxer = nil
 	group.dummyAudioFilter = nil
 
+	if group.psPubDumpFile != nil {
+		group.psPubDumpFile.Close()
+		group.psPubDumpFile = nil
+	}
 	group.rtmpGopCache.Clear()
 	group.httpflvGopCache.Clear()
 	group.httptsGopCache.Clear()

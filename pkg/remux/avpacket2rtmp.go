@@ -21,9 +21,11 @@ import (
 
 // AvPacket2RtmpRemuxer AvPacket转换为RTMP
 //
-// 目前AvPacket来自
-// - RTSP的sdp以及rtp的合帧包
-// - 业务方通过接口向lalserver输入的流
+// 目前AvPacket来自:
+//
+// - RTSP: sdp以及rtp的合帧包
+// - gb28181 ps: rtp的合帧包
+// - customize: 业务方通过接口向lalserver输入的流
 // - 理论上也支持webrtc，后续接入webrtc时再验证
 //
 type AvPacket2RtmpRemuxer struct {
@@ -37,6 +39,8 @@ type AvPacket2RtmpRemuxer struct {
 	vps []byte // 从AvPacket数据中获取
 	sps []byte
 	pps []byte
+
+	hasAdts2Asc bool
 }
 
 func NewAvPacket2RtmpRemuxer() *AvPacket2RtmpRemuxer {
@@ -47,6 +51,10 @@ func NewAvPacket2RtmpRemuxer() *AvPacket2RtmpRemuxer {
 	}
 }
 
+// WithOption
+//
+// TODO(chef): [refactor] 返回*AvPacket2RtmpRemuxer 202208
+//
 func (r *AvPacket2RtmpRemuxer) WithOption(modOption func(option *base.AvPacketStreamOption)) {
 	modOption(&r.option)
 }
@@ -138,7 +146,7 @@ func (r *AvPacket2RtmpRemuxer) InitWithAvConfig(asc, vps, sps, pps []byte) {
 //
 // @param pkt:
 //
-//  - 如果是aac，格式是裸数据，不需要adts头
+//  - 如果是aac，格式是裸数据或带adts头，具体取决于前面的配置
 //  - 如果是h264，格式是avcc或Annexb，具体取决于前面的配置
 //
 //  内部不持有该内存块
@@ -271,13 +279,34 @@ func (r *AvPacket2RtmpRemuxer) FeedAvPacket(pkt base.AvPacket) {
 		}
 
 	case base.AvPacketPtAac:
-		length := len(pkt.Payload) + 2
-		payload := make([]byte, length)
-		// TODO(chef) 处理此处的魔数0xAF
-		payload[0] = 0xAF
-		payload[1] = base.RtmpAacPacketTypeRaw
-		copy(payload[2:], pkt.Payload)
-		r.emitRtmpAvMsg(true, payload, pkt.Timestamp)
+		if r.option.AudioFormat == base.AvPacketStreamAudioFormatRawAac {
+			length := len(pkt.Payload) + 2
+			payload := make([]byte, length)
+			// TODO(chef) 处理此处的魔数0xAF
+			payload[0] = 0xAF
+			payload[1] = base.RtmpAacPacketTypeRaw
+			copy(payload[2:], pkt.Payload)
+			r.emitRtmpAvMsg(true, payload, pkt.Timestamp)
+		} else if r.option.AudioFormat == base.AvPacketStreamAudioFormatAdtsAac {
+			if !r.hasAdts2Asc {
+				adts, err := aac.MakeAudioDataSeqHeaderWithAdtsHeader(pkt.Payload)
+				if err != nil {
+					Log.Errorf("%+v", err)
+				}
+
+				r.emitRtmpAvMsg(true, adts, pkt.Timestamp)
+
+				r.hasAdts2Asc = true
+			}
+
+			length := len(pkt.Payload) - 5 // -7+2
+			payload := make([]byte, length)
+			payload[0] = 0xAF
+			payload[1] = base.RtmpAacPacketTypeRaw
+			copy(payload[7:], pkt.Payload)
+			r.emitRtmpAvMsg(true, payload, pkt.Timestamp)
+		}
+
 	default:
 		Log.Warnf("unsupported packet. type=%d", pkt.PayloadType)
 	}

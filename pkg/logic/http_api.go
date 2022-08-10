@@ -197,7 +197,7 @@ func (h *HttpApiServer) ctrlStartRtpPubHandler(w http.ResponseWriter, req *http.
 		info.Port = 0
 	}
 	if !j.Exist("timeout_ms") {
-		info.TimeoutMs = 10000
+		info.TimeoutMs = 60000
 	}
 
 	Log.Infof("http api start rtp pub. req info=%+v", info)

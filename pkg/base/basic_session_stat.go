@@ -149,6 +149,8 @@ func (s *BasicSessionStat) UniqueKey() string {
 
 // ---------------------------------------------------------------------------------------------------------------------
 
+// updateStat 根据两次调用间隔计算bitrate
+//
 func (s *BasicSessionStat) updateStat(readBytesSum, wroteBytesSum uint64, typ string, intervalSec uint32) {
 	rDiff := readBytesSum - s.prevConnStat.ReadBytesSum
 	s.stat.ReadBitrate = int(rDiff * 8 / 1024 / uint64(intervalSec))
@@ -168,6 +170,8 @@ func (s *BasicSessionStat) updateStat(readBytesSum, wroteBytesSum uint64, typ st
 	s.prevConnStat.WroteBytesSum = wroteBytesSum
 }
 
+// isAlive 根据两次调用间隔计算是否存活
+//
 func (s *BasicSessionStat) isAlive(readBytesSum, wroteBytesSum uint64) (readAlive, writeAlive bool) {
 	if s.staleStat == nil {
 		s.staleStat = new(connection.Stat)

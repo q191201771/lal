@@ -33,13 +33,13 @@ import (
 // | .                                           | rtmp pub | ps pub |
 // | 添加到group中                                | Y        | Y      |
 // | 到输出流的转换路径关系                         | Y        | Y      |
-// | 删除                                        | Y        |
+// | 删除                                        | Y        | Y      |
+// | group.hasPubSession()                       | Y        | Y      |
+// | group.disposeInactiveSessions()检查超时并清理 | Y        | Y      |
 // | group.Dispose()时销毁                        | Y        |
 // | group.GetStat()时获取信息                     | Y        |
 // | group.KickSession()时踢出                    | Y        |
-// | group.disposeInactiveSessions()检查超时并清理 | Y        |
 // | group.updateAllSessionStat()更新信息         | Y        |
-// | group.hasPubSession()                       | Y        |
 // | group.inSessionUniqueKey()                  | Y        |
 
 // ---------------------------------------------------------------------------------------------------------------------
@@ -93,7 +93,8 @@ type Group struct {
 	dummyAudioFilter *remux.DummyAudioFilter
 	// ps pub使用
 	psPubTimeoutSec            uint32 // 超时时间
-	psPubPrevInactiveCheckTick uint32 // 上次检查时间
+	psPubPrevInactiveCheckTick int64  // 上次检查时间
+	psPubDumpFile              *base.DumpFile
 	// rtmp sub使用
 	rtmpGopCache *remux.GopCache
 	// httpflv sub使用
@@ -136,15 +137,16 @@ func NewGroup(appName string, streamName string, config *Config, observer IGroup
 		stat: base.StatGroup{
 			StreamName: streamName,
 		},
-		exitChan:              make(chan struct{}, 1),
-		rtmpSubSessionSet:     make(map[*rtmp.ServerSession]struct{}),
-		httpflvSubSessionSet:  make(map[*httpflv.SubSession]struct{}),
-		httptsSubSessionSet:   make(map[*httpts.SubSession]struct{}),
-		rtspSubSessionSet:     make(map[*rtsp.SubSession]struct{}),
-		waitRtspSubSessionSet: make(map[*rtsp.SubSession]struct{}),
-		rtmpGopCache:          remux.NewGopCache("rtmp", uk, config.RtmpConfig.GopNum),
-		httpflvGopCache:       remux.NewGopCache("httpflv", uk, config.HttpflvConfig.GopNum),
-		httptsGopCache:        remux.NewGopCacheMpegts(uk, config.HttptsConfig.GopNum),
+		exitChan:                   make(chan struct{}, 1),
+		rtmpSubSessionSet:          make(map[*rtmp.ServerSession]struct{}),
+		httpflvSubSessionSet:       make(map[*httpflv.SubSession]struct{}),
+		httptsSubSessionSet:        make(map[*httpts.SubSession]struct{}),
+		rtspSubSessionSet:          make(map[*rtsp.SubSession]struct{}),
+		waitRtspSubSessionSet:      make(map[*rtsp.SubSession]struct{}),
+		rtmpGopCache:               remux.NewGopCache("rtmp", uk, config.RtmpConfig.GopNum),
+		httpflvGopCache:            remux.NewGopCache("httpflv", uk, config.HttpflvConfig.GopNum),
+		httptsGopCache:             remux.NewGopCacheMpegts(uk, config.HttptsConfig.GopNum),
+		psPubPrevInactiveCheckTick: -1,
 	}
 
 	g.initRelayPushByConfig()
@@ -389,7 +391,25 @@ func (group *Group) OutSessionNum() int {
 // TODO chef: [refactor] 梳理和naza.Connection超时重复部分
 //
 func (group *Group) disposeInactiveSessions(tickCount uint32) {
-	// to be continued
+	if group.psPubSession != nil {
+		if group.psPubTimeoutSec == 0 {
+			// noop
+			// 没有超时逻辑
+		} else {
+			if group.psPubPrevInactiveCheckTick == -1 ||
+				tickCount-uint32(group.psPubPrevInactiveCheckTick) >= group.psPubTimeoutSec {
+
+				if readAlive, _ := group.psPubSession.IsAlive(); !readAlive {
+					Log.Warnf("[%s] session timeout. session=%s", group.UniqueKey, group.psPubSession.UniqueKey())
+					group.psPubSession.Dispose()
+				}
+
+				group.psPubPrevInactiveCheckTick = int64(tickCount)
+			}
+		}
+	}
+
+	// 以下都是以 checkSessionAliveIntervalSec 为间隔的清理逻辑
 
 	if tickCount%checkSessionAliveIntervalSec != 0 {
 		return
@@ -487,7 +507,8 @@ func (group *Group) updateAllSessionStat() {
 }
 
 func (group *Group) hasPubSession() bool {
-	return group.rtmpPubSession != nil || group.rtspPubSession != nil || group.customizePubSession != nil
+	return group.rtmpPubSession != nil || group.rtspPubSession != nil || group.customizePubSession != nil ||
+		group.psPubSession != nil
 }
 
 func (group *Group) hasSubSession() bool {
