@@ -58,6 +58,7 @@ const (
 	DespSessionNotFound      = "session not found"
 
 	ErrorCodeStartRelayPullFail = 2001
+	ErrorCodeListenUdpPortFail  = 2002
 )
 
 // HttpResponseBasic

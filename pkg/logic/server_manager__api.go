@@ -142,7 +142,7 @@ func (sm *ServerManager) CtrlStartRtpPub(info base.ApiCtrlStartRtpPubReq) (ret b
 
 	// 注意，如果group不存在，我们依然relay pull
 	g := sm.getOrCreateGroup("", info.StreamName)
-	g.StartRtpPub(info)
+	ret = g.StartRtpPub(info)
 
 	return
 }

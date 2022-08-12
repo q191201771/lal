@@ -9,7 +9,6 @@
 package logic
 
 import (
-	"fmt"
 	"github.com/q191201771/lal/pkg/gb28181"
 	"github.com/q191201771/naza/pkg/nazalog"
 	"net"
@@ -109,7 +108,7 @@ func (group *Group) AddRtspPubSession(session *rtsp.PubSession) error {
 	return nil
 }
 
-func (group *Group) StartRtpPub(req base.ApiCtrlStartRtpPubReq) {
+func (group *Group) StartRtpPub(req base.ApiCtrlStartRtpPubReq) (ret base.ApiCtrlStartRtpPub) {
 	group.mutex.Lock()
 	defer group.mutex.Unlock()
 
@@ -117,13 +116,14 @@ func (group *Group) StartRtpPub(req base.ApiCtrlStartRtpPubReq) {
 		// TODO(chef): [fix] 处理已经有输入session的情况 202207
 	}
 
-	pubSession := gb28181.NewPubSession().WithStreamName(req.StreamName).WithOnAvPacket(group.OnAvPacketFromPsPubSession)
 	if req.DebugDumpPacket != "" {
 		group.psPubDumpFile = base.NewDumpFile()
 		if err := group.psPubDumpFile.OpenToWrite(req.DebugDumpPacket); err != nil {
 			Log.Errorf("%+v", err)
 		}
 	}
+
+	pubSession := gb28181.NewPubSession().WithStreamName(req.StreamName).WithOnAvPacket(group.OnAvPacketFromPsPubSession)
 	pubSession.WithHookReadUdpPacket(func(b []byte, raddr *net.UDPAddr, err error) bool {
 		if group.psPubDumpFile != nil {
 			group.psPubDumpFile.Write(b)
@@ -151,15 +151,27 @@ func (group *Group) StartRtpPub(req base.ApiCtrlStartRtpPubReq) {
 		)
 	}
 
+	port, err := pubSession.Listen(req.Port)
+	if err != nil {
+		group.delPsPubSession(pubSession)
+
+		ret.ErrorCode = base.ErrorCodeListenUdpPortFail
+		ret.Desp = err.Error()
+		return
+	}
+
 	go func() {
-		var addr string
-		if req.Port != 0 {
-			addr = fmt.Sprintf(":%d", req.Port)
-		}
-		err := pubSession.RunLoop(addr)
-		nazalog.Debugf("[%s] [%s] ps PubSession run loop exit, err=%v", group.UniqueKey, pubSession.UniqueKey(), err)
+		runErr := pubSession.RunLoop()
+		nazalog.Debugf("[%s] [%s] ps PubSession run loop exit, err=%v", group.UniqueKey, pubSession.UniqueKey(), runErr)
 		group.DelPsPubSession(pubSession)
 	}()
+
+	ret.ErrorCode = base.ErrorCodeSucc
+	ret.Desp = base.DespSucc
+	ret.Data.SessionId = pubSession.UniqueKey()
+	ret.Data.StreamName = pubSession.StreamName()
+	ret.Data.Port = port
+	return
 }
 
 func (group *Group) AddRtmpPullSession(session *rtmp.PullSession) error {

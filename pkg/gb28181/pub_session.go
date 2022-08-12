@@ -9,6 +9,7 @@
 package gb28181
 
 import (
+	"fmt"
 	"github.com/q191201771/lal/pkg/base"
 	"github.com/q191201771/naza/pkg/nazanet"
 	"net"
@@ -59,29 +60,37 @@ func (session *PubSession) WithHookReadUdpPacket(fn nazanet.OnReadUdpPacket) *Pu
 	return session
 }
 
-// RunLoop
+// Listen
 //
-// @param addr: 如果为空，则内部选择一个可用的地址
+// 注意，当`port`参数为0时，内部会自动选择一个可用端口监听，并通过返回值返回该端口
 //
-func (session *PubSession) RunLoop(addr string) error {
-	var uconn *net.UDPConn
+func (session *PubSession) Listen(port int) (int, error) {
 	var err error
+	var uconn *net.UDPConn
+	var addr string
 
-	if addr == "" {
+	if port == 0 {
 		uconn, _, err = defaultUdpConnPoll.Acquire()
 		if err != nil {
-			return err
+			return -1, err
 		}
+
+		port = uconn.LocalAddr().(*net.UDPAddr).Port
+	} else {
+		addr = fmt.Sprintf(":%d", port)
 	}
 
 	session.conn, err = nazanet.NewUdpConnection(func(option *nazanet.UdpConnectionOption) {
 		option.LAddr = addr
 		option.Conn = uconn
 	})
-	if err != nil {
-		return err
-	}
-	err = session.conn.RunLoop(func(b []byte, raddr *net.UDPAddr, err error) bool {
+	return port, err
+}
+
+// RunLoop ...
+//
+func (session *PubSession) RunLoop() error {
+	err := session.conn.RunLoop(func(b []byte, raddr *net.UDPAddr, err error) bool {
 		if len(b) == 0 && err != nil {
 			return false
 		}
