@@ -15,5 +15,8 @@ COPY --from=builder /go/src/github.com/q191201771/lal/conf/lalserver.conf.json /
 COPY --from=builder /go/src/github.com/q191201771/lal/conf/cert.pem /lal/conf/cert.pem
 COPY --from=builder /go/src/github.com/q191201771/lal/conf/key.pem /lal/conf/key.pem
 
+RUN apt update -y
+RUN apt install ca-certificates -y
+
 WORKDIR /lal
 CMD ["sh","-c","./bin/lalserver -c conf/lalserver.conf.json"]
