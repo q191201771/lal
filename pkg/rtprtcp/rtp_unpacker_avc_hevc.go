@@ -9,10 +9,12 @@
 package rtprtcp
 
 import (
+	"encoding/hex"
 	"github.com/q191201771/lal/pkg/avc"
 	"github.com/q191201771/lal/pkg/base"
 	"github.com/q191201771/lal/pkg/hevc"
 	"github.com/q191201771/naza/pkg/bele"
+	"github.com/q191201771/naza/pkg/nazabytes"
 )
 
 type RtpUnpackerAvcHevc struct {
@@ -59,19 +61,26 @@ func (unpacker *RtpUnpackerAvcHevc) TryUnpackOne(list *RtpPacketList) (unpackedF
 		unpacker.onAvPacket(pkt)
 		return true, first.Packet.Header.Seq
 
-	case PositionTypeStapa:
+	case PositionTypeStapa, PositionTypeAp:
+		skip := uint32(1)
+		if first.Packet.positionType == PositionTypeStapa {
+			skip = 1
+		} else if first.Packet.positionType == PositionTypeAp {
+			skip = 2
+		}
+
 		var pkt base.AvPacket
 		pkt.PayloadType = unpacker.payloadType
 		pkt.Timestamp = int64(first.Packet.Header.Timestamp / uint32(unpacker.clockRate/1000))
 
-		// 跳过首字节，并且将多nalu前的2字节长度，替换成4字节长度
-		buf := first.Packet.Raw[first.Packet.Header.payloadOffset+1:]
+		// 跳过前面的字节，并且将多nalu前的2字节长度，替换成4字节长度
+		buf := first.Packet.Raw[first.Packet.Header.payloadOffset+skip:]
 
 		// 使用两次遍历，第一次遍历找出总大小，第二次逐个拷贝，目的是使得内存块一次就申请好，不用动态扩容造成额外性能开销
 		totalSize := 0
 		for i := 0; i != len(buf); {
 			if len(buf)-i < 2 {
-				Log.Errorf("invalid STAP-A packet.")
+				Log.Errorf("invalid STAP-A packet. len(buf)=%d, i=%d", len(buf), i)
 				return false, 0
 			}
 			naluSize := int(bele.BeUint16(buf[i:]))
@@ -261,7 +270,8 @@ func calcPositionIfNeededAvc(pkt *RtpPacket) {
 	} else if outerNaluType == NaluTypeAvcStapa {
 		pkt.positionType = PositionTypeStapa
 	} else {
-		Log.Errorf("unknown nalu type. outerNaluType=%d", outerNaluType)
+		Log.Errorf("unknown nalu type. outerNaluType=%d(%d), header=%+v, len=%d, raw=%s",
+			b[0], outerNaluType, pkt.Header, len(pkt.Raw), hex.Dump(nazabytes.Prefix(pkt.Raw, 128)))
 	}
 
 	return
@@ -323,9 +333,11 @@ func calcPositionIfNeededHevc(pkt *RtpPacket) {
 
 		pkt.positionType = PositionTypeFuaMiddle
 		return
+	} else if outerNaluType == NaluTypeHevcAp {
+		pkt.positionType = PositionTypeAp
+		return
 	}
 
-	// TODO chef: 没有实现 AP 48
-	Log.Errorf("unknown nalu type. outerNaluType=%d(%d), header=%+v, len=%d",
-		b[0], outerNaluType, pkt.Header, len(pkt.Raw))
+	Log.Errorf("unknown nalu type. outerNaluType=%d(%d), header=%+v, len=%d, raw=%s",
+		b[0], outerNaluType, pkt.Header, len(pkt.Raw), hex.Dump(nazabytes.Prefix(pkt.Raw, 128)))
 }

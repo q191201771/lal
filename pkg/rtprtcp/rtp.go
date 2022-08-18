@@ -8,6 +8,8 @@
 
 package rtprtcp
 
+// h264的格式：
+//
 // rfc3984 5.2.  Common Structure of the RTP Payload Format
 // Table 1.  Summary of NAL unit types and their payload structures
 //
@@ -22,13 +24,19 @@ package rtprtcp
 // 28     FU-A      Fragmentation unit                 5.8
 // 29     FU-B      Fragmentation unit                 5.8
 // 30-31  undefined                                    -
+//
+// h265的格式：
+//
+// rfc7798
+// 4.4.2.  Aggregation Packets (APs)
+// 4.4.3.  Fragmentation Units
 
 const (
 	NaluTypeAvcSingleMax = 23
 	NaluTypeAvcStapa     = 24 // one packet, multiple nals
 	NaluTypeAvcFua       = 28
 
-	// NaluTypeHevcFua TODO(chef): hevc有stapa格式吗
+	NaluTypeHevcAp  = 48
 	NaluTypeHevcFua = 49
 )
 

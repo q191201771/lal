@@ -43,7 +43,8 @@ const (
 	PositionTypeFuaStart  uint8 = 2
 	PositionTypeFuaMiddle uint8 = 3
 	PositionTypeFuaEnd    uint8 = 4
-	PositionTypeStapa     uint8 = 5
+	PositionTypeStapa     uint8 = 5 // 1个rtp包包含多个帧，目前供h264的stapa使用
+	PositionTypeAp        uint8 = 6 // 1个rtp包包含多个帧，目前供h265的ap使用
 )
 
 type RtpHeader struct {
