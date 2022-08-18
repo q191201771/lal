@@ -36,11 +36,11 @@ import (
 // | 删除                                        | Y        | Y      |
 // | group.hasPubSession()                       | Y        | Y      |
 // | group.disposeInactiveSessions()检查超时并清理 | Y        | Y      |
-// | group.Dispose()时销毁                        | Y        |
-// | group.GetStat()时获取信息                     | Y        |
-// | group.KickSession()时踢出                    | Y        |
-// | group.updateAllSessionStat()更新信息         | Y        |
-// | group.inSessionUniqueKey()                  | Y        |
+// | group.Dispose()时销毁                        | Y        | Y      |
+// | group.GetStat()时获取信息                     | Y        | Y      |
+// | group.KickSession()时踢出                    | Y        | Y      |
+// | group.updateAllSessionStat()更新信息         | Y        | Y      |
+// | group.inSessionUniqueKey()                  | Y        | Y      |
 
 // ---------------------------------------------------------------------------------------------------------------------
 // 输入流到输出流的转换路径关系
@@ -198,6 +198,9 @@ func (group *Group) Dispose() {
 	if group.rtspPubSession != nil {
 		group.rtspPubSession.Dispose()
 	}
+	if group.psPubSession != nil {
+		group.psPubSession.Dispose()
+	}
 
 	for session := range group.rtmpSubSessionSet {
 		session.Dispose()
@@ -243,6 +246,8 @@ func (group *Group) GetStat(maxsub int) base.StatGroup {
 		group.stat.StatPub = base.Session2StatPub(group.rtmpPubSession)
 	} else if group.rtspPubSession != nil {
 		group.stat.StatPub = base.Session2StatPub(group.rtspPubSession)
+	} else if group.psPubSession != nil {
+		group.stat.StatPub = base.Session2StatPub(group.psPubSession)
 	} else {
 		group.stat.StatPub = base.StatPub{}
 	}
@@ -312,6 +317,11 @@ func (group *Group) KickSession(sessionId string) bool {
 	} else if strings.HasPrefix(sessionId, base.UkPreRtspPubSession) {
 		if group.rtspPubSession != nil && group.rtspPubSession.UniqueKey() == sessionId {
 			group.rtspPubSession.Dispose()
+			return true
+		}
+	} else if strings.HasPrefix(sessionId, base.UkPrePsPubSession) {
+		if group.psPubSession != nil && group.psPubSession.UniqueKey() == sessionId {
+			group.psPubSession.Dispose()
 			return true
 		}
 	} else if strings.HasPrefix(sessionId, base.UkPreFlvSubSession) {
@@ -480,6 +490,9 @@ func (group *Group) updateAllSessionStat() {
 	if group.rtspPubSession != nil {
 		group.rtspPubSession.UpdateStat(calcSessionStatIntervalSec)
 	}
+	if group.psPubSession != nil {
+		group.psPubSession.UpdateStat(calcSessionStatIntervalSec)
+	}
 
 	group.updatePullSessionStat()
 
@@ -550,6 +563,9 @@ func (group *Group) inSessionUniqueKey() string {
 	}
 	if group.rtspPubSession != nil {
 		return group.rtspPubSession.UniqueKey()
+	}
+	if group.psPubSession != nil {
+		return group.psPubSession.UniqueKey()
 	}
 	return group.pullSessionUniqueKey()
 }

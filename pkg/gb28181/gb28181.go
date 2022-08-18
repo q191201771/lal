@@ -18,7 +18,6 @@ import (
 // TODO(chef): [feat] http api /api/stat/all_rtp_pub，不过这个可以用已有的all_group代替 202207
 // TODO(chef): [perf] 优化ps解析，内存块 202207
 // TODO(chef): [opt] avpkt转rtmp时，可能需要接一个缓存队列 202208
-// TODO(chef): [opt] 端口被占用时，HTTP API返回错误 202208
 
 var (
 	Log = nazalog.GetGlobalLogger()
