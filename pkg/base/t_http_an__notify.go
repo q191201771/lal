@@ -33,6 +33,9 @@ type SessionEventCommonInfo struct {
 
 	HasInSession  bool `json:"has_in_session"`
 	HasOutSession bool `json:"has_out_session"`
+
+	ReadBytesSum  uint64 `json:"read_bytes_sum"`
+	WroteBytesSum uint64 `json:"wrote_bytes_sum"`
 }
 
 type UpdateInfo struct {
@@ -141,5 +144,7 @@ func session2EventCommonInfo(session ISession) SessionEventCommonInfo {
 	info.StreamName = session.StreamName()
 	info.Url = session.Url()
 	info.UrlParam = session.RawQuery()
+	info.ReadBytesSum = stat.ReadBytesSum
+	info.WroteBytesSum = stat.WroteBytesSum
 	return info
 }
