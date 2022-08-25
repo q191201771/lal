@@ -118,9 +118,9 @@ func (session *ServerCommandSession) UpdateStat(intervalSec uint32) {
 
 	currStat := session.conn.GetStat()
 	rDiff := currStat.ReadBytesSum - session.prevConnStat.ReadBytesSum
-	session.stat.Bitrate = int(rDiff * 8 / 1024 / uint64(intervalSec))
+	session.stat.BitrateKbits = int(rDiff * 8 / 1024 / uint64(intervalSec))
 	wDiff := currStat.WroteBytesSum - session.prevConnStat.WroteBytesSum
-	session.stat.Bitrate = int(wDiff * 8 / 1024 / uint64(intervalSec))
+	session.stat.BitrateKbits = int(wDiff * 8 / 1024 / uint64(intervalSec))
 	session.prevConnStat = currStat
 }
 

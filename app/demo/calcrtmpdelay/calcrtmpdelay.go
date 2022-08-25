@@ -121,12 +121,12 @@ func main() {
 			switch pullType {
 			case PullTypeRtmp:
 				rtmpPullSession.UpdateStat(5)
-				pullBitrate = rtmpPullSession.GetStat().Bitrate
+				pullBitrate = rtmpPullSession.GetStat().BitrateKbits
 			case PullTypeHttpflv:
 				httpflvPullSession.UpdateStat(5)
-				pullBitrate = httpflvPullSession.GetStat().Bitrate
+				pullBitrate = httpflvPullSession.GetStat().BitrateKbits
 			}
-			nazalog.Debugf("stat bitrate. push=%+v, pull=%+v", pushSession.GetStat().Bitrate, pullBitrate)
+			nazalog.Debugf("stat bitrate. push=%+v, pull=%+v", pushSession.GetStat().BitrateKbits, pullBitrate)
 		}
 	}()
 

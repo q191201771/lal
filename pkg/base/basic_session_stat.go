@@ -153,15 +153,15 @@ func (s *BasicSessionStat) UniqueKey() string {
 //
 func (s *BasicSessionStat) updateStat(readBytesSum, wroteBytesSum uint64, typ string, intervalSec uint32) {
 	rDiff := readBytesSum - s.prevConnStat.ReadBytesSum
-	s.stat.ReadBitrate = int(rDiff * 8 / 1024 / uint64(intervalSec))
+	s.stat.ReadBitrateKbits = int(rDiff * 8 / 1024 / uint64(intervalSec))
 	wDiff := wroteBytesSum - s.prevConnStat.WroteBytesSum
-	s.stat.WriteBitrate = int(wDiff * 8 / 1024 / uint64(intervalSec))
+	s.stat.WriteBitrateKbits = int(wDiff * 8 / 1024 / uint64(intervalSec))
 
 	switch typ {
 	case SessionBaseTypePubStr, SessionBaseTypePullStr:
-		s.stat.Bitrate = s.stat.ReadBitrate
+		s.stat.BitrateKbits = s.stat.ReadBitrateKbits
 	case SessionBaseTypeSubStr, SessionBaseTypePushStr:
-		s.stat.Bitrate = s.stat.WriteBitrate
+		s.stat.BitrateKbits = s.stat.WriteBitrateKbits
 	default:
 		nazalog.Errorf("invalid session base type. type=%s", typ)
 	}
