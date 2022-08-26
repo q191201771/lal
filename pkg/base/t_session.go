@@ -154,7 +154,7 @@ type ISessionStat interface {
 	//
 	// 获取session状态
 	//
-	// @return 注意，结构体中的`Bitrate`的值由最近一次`func UpdateStat`调用计算决定，其他值为当前最新值
+	// @return 注意，结构体中的`BitrateKbits`的值由最近一次`func UpdateStat`调用计算决定，其他值为当前最新值
 	//
 	GetStat() StatSession
 
