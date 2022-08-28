@@ -303,7 +303,7 @@ func (r *AvPacket2RtmpRemuxer) FeedAvPacket(pkt base.AvPacket) {
 			payload := make([]byte, length)
 			payload[0] = 0xAF
 			payload[1] = base.RtmpAacPacketTypeRaw
-			copy(payload[7:], pkt.Payload)
+			copy(payload[2:], pkt.Payload[7:])
 			r.emitRtmpAvMsg(true, payload, pkt.Timestamp)
 		}
 
