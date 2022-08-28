@@ -21,7 +21,7 @@ GitTag=`git tag --sort=version:refname | tail -n 1`
 echo "newest version in git tag: " $GitTag
 
 # 源码中的版本号
-FileVersion=`cat pkg/base/version.go | grep 'const LalVersion' | awk -F\" '{print $2}'`
+FileVersion=`cat pkg/base/t_version.go | grep 'const LalVersion' | awk -F\" '{print $2}'`
 echo "newest version in version.go: " $FileVersion
 
 # CHANGELOG.md和源码中的不一致，更新源码，并提交修改
