@@ -169,7 +169,7 @@ func (r *AvPacket2RtmpRemuxer) FeedAvPacket(pkt base.AvPacket) {
 		}
 
 		pos := 5
-		maxLength := len(pkt.Payload) + pos
+		maxLength := len(pkt.Payload) + pos + len(nals)*4
 		payload := make([]byte, maxLength)
 
 		for _, nal := range nals {
