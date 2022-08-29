@@ -23,9 +23,11 @@ const (
 
 const (
 	tidClientConnect      = 1
-	tidClientCreateStream = 2
+	tidClientReleaseStream = 2
+	tidClientFcPublish = 3
+	tidClientCreateStream = 4
 	tidClientPlay         = 3
-	tidClientPublish      = 3
+	tidClientPublish      = 5
 )
 
 // basic header 3 | message header 11 | extended ts 4

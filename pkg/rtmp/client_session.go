@@ -534,6 +534,8 @@ func (s *ClientSession) doOnStatusMessage(stream *Stream, tid int) error {
 	switch s.sessionStat.BaseType() {
 	case base.SessionBaseTypePushStr:
 		switch code {
+		case "NetStream.Play.Start":
+			fallthrough
 		case "NetStream.Publish.Start":
 			Log.Infof("[%s] < R onStatus('NetStream.Publish.Start').", s.UniqueKey())
 			s.notifyDoResultSucc()
@@ -572,6 +574,14 @@ func (s *ClientSession) doResultMessage(stream *Stream, tid int) error {
 		case "NetConnection.Connect.Success":
 			Log.Infof("[%s] < R _result(\"NetConnection.Connect.Success\").", s.UniqueKey())
 			Log.Infof("[%s] > W createStream().", s.UniqueKey())
+			if err := s.packer.writeReleaseStream(s.conn,s.streamNameWithRawQuery()); err != nil {
+				return err
+			}
+			if s.sessionStat.BaseType()==base.SessionBaseTypePushStr{
+				if err := s.packer.writeFcPublish(s.conn,s.streamNameWithRawQuery()); err != nil {
+					return err
+				}
+			}
 			if err := s.packer.writeCreateStream(s.conn); err != nil {
 				return err
 			}

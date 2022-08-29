@@ -151,6 +151,17 @@ func (packer *MessagePacker) writeConnectResult(writer io.Writer, tid int, objec
 	return packer.ChunkAndWrite(writer, csidOverConnection, base.RtmpTypeIdCommandMessageAmf0, 0)
 }
 
+func (packer *MessagePacker) writeReleaseStream(writer io.Writer,streamName string) error {
+	packer.b.ModWritePos(12)
+
+	// 25 = 15 + 9 + 1
+	_ = Amf0.WriteString(packer.b, "releaseStream")
+	_ = Amf0.WriteNumber(packer.b, float64(tidClientReleaseStream))
+	_ = Amf0.WriteNull(packer.b)
+	_ = Amf0.WriteString(packer.b, streamName)
+
+	return packer.ChunkAndWrite(writer, csidOverConnection, base.RtmpTypeIdCommandMessageAmf0, 0)
+}
 func (packer *MessagePacker) writeCreateStream(writer io.Writer) error {
 	packer.b.ModWritePos(12)
 
@@ -184,7 +195,16 @@ func (packer *MessagePacker) writePlay(writer io.Writer, streamName string, stre
 
 	return packer.ChunkAndWrite(writer, csidOverStream, base.RtmpTypeIdCommandMessageAmf0, streamid)
 }
+func (packer *MessagePacker) writeFcPublish(writer io.Writer,  streamName string) error {
+	packer.b.ModWritePos(12)
 
+	_ = Amf0.WriteString(packer.b, "FCPublish")
+	_ = Amf0.WriteNumber(packer.b, float64(tidClientFcPublish))
+	_ = Amf0.WriteNull(packer.b)
+	_ = Amf0.WriteString(packer.b, streamName)
+
+	return packer.ChunkAndWrite(writer, csidOverStream, base.RtmpTypeIdCommandMessageAmf0, 0)
+}
 func (packer *MessagePacker) writePublish(writer io.Writer, appName string, streamName string, streamid int) error {
 	packer.b.ModWritePos(12)
 
