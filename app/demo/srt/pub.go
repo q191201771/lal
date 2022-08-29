@@ -3,6 +3,7 @@ package main
 import (
 	"bufio"
 	"context"
+	"errors"
 	ts "github.com/asticode/go-astits"
 	"github.com/haivision/srtgo"
 	"github.com/q191201771/lal/pkg/aac"
@@ -14,8 +15,9 @@ import (
 
 type Publisher struct {
 	ctx           context.Context
+	srv           *Server
 	ss            logic.ICustomizePubSessionContext
-	streamID      string
+	streamName    string
 	streamUser    string
 	demuxer       *ts.Demuxer
 	pkts          map[uint16]*base.AvPacket
@@ -27,10 +29,11 @@ type Publisher struct {
 	subscribers   []*Subscriber
 }
 
-func NewPublisher(ctx context.Context, host, user string, socket *srtgo.SrtSocket) *Publisher {
+func NewPublisher(ctx context.Context, host, user string, socket *srtgo.SrtSocket, srv *Server) *Publisher {
 	pub := &Publisher{
 		ctx:           ctx,
-		streamID:      host,
+		srv:           srv,
+		streamName:    host,
 		streamUser:    user,
 		pkts:          make(map[uint16]*base.AvPacket),
 		pmts:          make(map[uint16]*ts.PMTData),
@@ -54,7 +57,13 @@ func (p *Publisher) Run() {
 			if err == ts.ErrNoMorePackets {
 				break
 			}
-			log.Fatalf("%v", err)
+
+			if errors.Is(err, srtgo.EConnLost) {
+				log.Printf("stream [%s] disconnected", p.streamName)
+				p.srv.Remove(p.streamName, p.ss)
+				break
+			}
+
 		}
 
 		if d.PAT != nil {

@@ -11,12 +11,15 @@ import (
 	"log"
 	"net"
 	"strings"
+	"sync"
+	"time"
 )
 
 type Server struct {
 	addr       string
 	port       uint16
 	lalServer  logic.ILalServer
+	mu         sync.Mutex
 	publishers map[string]*Publisher
 }
 
@@ -79,8 +82,7 @@ func (s *Server) Handle(ctx context.Context, socket *srtgo.SrtSocket, addr *net.
 	switch streamid.Mode {
 	case "publish", "PUBLISH":
 		// make a new publisher
-		publisher := NewPublisher(ctx, streamid.Host, streamid.User, socket)
-		s.publishers[streamid.Host] = publisher
+		publisher := NewPublisher(ctx, streamid.Host, streamid.User, socket, s)
 
 		session, err := s.lalServer.AddCustomizePubSession(streamid.Host)
 		if err != nil {
@@ -94,6 +96,7 @@ func (s *Server) Handle(ctx context.Context, socket *srtgo.SrtSocket, addr *net.
 		}
 
 		publisher.SetSession(session)
+		s.Register(streamid.Host, publisher)
 		go publisher.Run()
 	case "play", "PLAY", "subscribe", "SUBSCRIBE":
 		// make a new subscriber
@@ -134,4 +137,22 @@ func (s *Server) listenCallback(socket *srtgo.SrtSocket, version int, addr *net.
 	}
 
 	return true
+}
+
+func (s *Server) Register(host string, publisher *Publisher) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	s.publishers[host] = publisher
+}
+
+func (s *Server) Remove(host string, ss logic.ICustomizePubSessionContext) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	time.Sleep(5 * time.Second)
+	s.lalServer.DelCustomizePubSession(ss)
+	if _, ok := s.publishers[host]; ok {
+		delete(s.publishers, host)
+	}
 }
