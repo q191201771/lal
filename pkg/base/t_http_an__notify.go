@@ -34,6 +34,7 @@ type SessionEventCommonInfo struct {
 	HasInSession  bool `json:"has_in_session"`
 	HasOutSession bool `json:"has_out_session"`
 
+	// TODO(chef): [opt] 这两个字段，实际需求出发点是有业务方需要在stop事件做流量统计，但是现在的实现为所有session事件都添加了，是否合适 202208
 	ReadBytesSum  uint64 `json:"read_bytes_sum"`
 	WroteBytesSum uint64 `json:"wrote_bytes_sum"`
 }

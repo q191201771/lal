@@ -90,6 +90,8 @@ func (group *Group) OnAvPacketFromPsPubSession(pkt *base.AvPacket) {
 	group.mutex.Lock()
 	defer group.mutex.Unlock()
 
+	//Log.Debugf("Group::OnAvPacketFromPsPubSession. pkt=%s", pkt.DebugString())
+
 	if group.rtsp2RtmpRemuxer != nil {
 		group.rtsp2RtmpRemuxer.OnAvPacket(*pkt)
 	}
@@ -168,6 +170,8 @@ func (group *Group) OnFragmentOpen() {
 // @param msg 调用结束后，内部不持有msg.Payload内存块
 //
 func (group *Group) broadcastByRtmpMsg(msg base.RtmpMsg) {
+	//Log.Debugf("> broadcastByRtmpMsg. %s", msg.DebugString())
+
 	if msg.Header.MsgLen != uint32(len(msg.Payload)) {
 		Log.Errorf("[%s] diff. msgLen=%d, payload len=%d, %+v", group.UniqueKey, msg.Header.MsgLen, len(msg.Payload), msg.Header)
 	}

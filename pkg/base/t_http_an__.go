@@ -43,13 +43,12 @@ type StatGroup struct {
 }
 
 type StatSession struct {
-	SessionId string `json:"session_id"`
-	Protocol  string `json:"protocol"`
-	BaseType  string `json:"base_type"`
+	SessionId  string `json:"session_id"`
+	Protocol   string `json:"protocol"`
+	BaseType   string `json:"base_type"`
+	RemoteAddr string `json:"remote_addr"`
 
 	StartTime string `json:"start_time"`
-
-	RemoteAddr string `json:"remote_addr"`
 
 	ReadBytesSum      uint64 `json:"read_bytes_sum"`
 	WroteBytesSum     uint64 `json:"wrote_bytes_sum"`
