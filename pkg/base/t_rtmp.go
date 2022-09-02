@@ -8,7 +8,12 @@
 
 package base
 
-import "github.com/q191201771/naza/pkg/bele"
+import (
+	"encoding/hex"
+	"fmt"
+	"github.com/q191201771/naza/pkg/bele"
+	"github.com/q191201771/naza/pkg/nazabytes"
+)
 
 const (
 	// RtmpTypeIdAudio spec-rtmp_specification_1.0.pdf
@@ -142,4 +147,9 @@ func (msg RtmpMsg) Dts() uint32 {
 //
 func (msg RtmpMsg) Pts() uint32 {
 	return msg.Header.TimestampAbs + bele.BeUint24(msg.Payload[2:])
+}
+
+func (msg RtmpMsg) DebugString() string {
+	return fmt.Sprintf("type=%d,len=%d,dts=%d, payload=%s",
+		msg.Header.MsgTypeId, msg.Header.MsgLen, msg.Header.TimestampAbs, hex.Dump(nazabytes.Prefix(msg.Payload, 64)))
 }

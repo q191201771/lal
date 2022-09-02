@@ -8,6 +8,12 @@
 
 package mpegts
 
+import (
+	"encoding/hex"
+	"fmt"
+	"github.com/q191201771/naza/pkg/nazabytes"
+)
+
 // Frame 帧数据，用于打包成mpegts格式的数据
 //
 type Frame struct {
@@ -237,6 +243,11 @@ func (frame *Frame) Pack() []byte {
 	}
 
 	return buf[:packetPosAtBuf]
+}
+
+func (frame *Frame) DebugString() string {
+	return fmt.Sprintf("sid=%d, dts=%d, pts=%d, cc=%d, key=%t, len=%d, payload=%s",
+		frame.Sid, frame.Dts, frame.Pts, frame.Cc, frame.Key, len(frame.Raw), hex.Dump(nazabytes.Prefix(frame.Raw, 8)))
 }
 
 // ----- private -------------------------------------------------------------------------------------------------------
