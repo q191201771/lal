@@ -153,13 +153,13 @@ func (m *Muxer) FeedPatPmt(b []byte) {
 }
 
 func (m *Muxer) FeedMpegts(tsPackets []byte, frame *mpegts.Frame, boundary bool) {
+	//Log.Debugf("> FeedMpegts. boundary=%v, frame=%p, sid=%d", boundary, frame, frame.Sid)
 	if frame.Sid == mpegts.StreamIdAudio {
 		// TODO(chef): 为什么音频用pts，视频用dts
 		if err := m.updateFragment(frame.Pts, boundary); err != nil {
 			Log.Errorf("[%s] update fragment error. err=%+v", m.UniqueKey, err)
 			return
 		}
-		// TODO(chef): 有updateFragment的返回值判断，这里的判断可以考虑删除
 		if !m.opened {
 			Log.Warnf("[%s] FeedMpegts A not opened. boundary=%t", m.UniqueKey, boundary)
 			return
@@ -170,8 +170,8 @@ func (m *Muxer) FeedMpegts(tsPackets []byte, frame *mpegts.Frame, boundary bool)
 			Log.Errorf("[%s] update fragment error. err=%+v", m.UniqueKey, err)
 			return
 		}
-		// TODO(chef): 有updateFragment的返回值判断，这里的判断可以考虑删除
 		if !m.opened {
+			// 走到这，可能是第一个包并且boundary为false
 			Log.Warnf("[%s] FeedMpegts V not opened. boundary=%t, key=%t", m.UniqueKey, boundary, frame.Key)
 			return
 		}

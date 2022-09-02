@@ -187,7 +187,7 @@ func (ascCtx *AscContext) PackToAdtsHeader(out []byte, frameLength int) error {
 func (ascCtx *AscContext) GetSamplingFrequency() (int, error) {
 	// 临时日志，观察不常见的采样率
 	switch ascCtx.SamplingFrequencyIndex {
-	case AscSamplingFrequencyIndex48000, AscSamplingFrequencyIndex44100, AscSamplingFrequencyIndex22050:
+	case AscSamplingFrequencyIndex48000, AscSamplingFrequencyIndex44100, AscSamplingFrequencyIndex22050, AscSamplingFrequencyIndex16000:
 		// noop
 	default:
 		nazalog.Warnf("unusual sampling frequency. ascCtx=%+v", ascCtx)

@@ -17,6 +17,7 @@ import (
 	"github.com/q191201771/lal/pkg/mpegts"
 	"github.com/q191201771/naza/pkg/bele"
 	"github.com/q191201771/naza/pkg/nazabytes"
+	"math"
 )
 
 const (
@@ -53,13 +54,17 @@ type IRtmp2MpegtsRemuxerObserver interface {
 type Rtmp2MpegtsRemuxer struct {
 	UniqueKey string
 
-	observer IRtmp2MpegtsRemuxerObserver
-	filter   *rtmp2MpegtsFilter
-	videoOut []byte // Annexb
-	spspps   []byte // Annexb 也可能是vps+sps+pps
-	ascCtx   *aac.AscContext
-	audioCc  uint8
-	videoCc  uint8
+	observer      IRtmp2MpegtsRemuxerObserver
+	filter        *rtmp2MpegtsFilter
+	videoOut      []byte // Annexb
+	spspps        []byte // Annexb 也可能是vps+sps+pps
+	ascCtx        *aac.AscContext
+	audioCc       uint8
+	videoCc       uint8
+	basicAudioDts uint64
+	basicAudioPts uint64
+	basicVideoDts uint64
+	basicVideoPts uint64
 
 	// audioCacheFrames: 缓存音频packet数据，注意，可能包含多个音频packet
 	//
@@ -104,8 +109,12 @@ type Rtmp2MpegtsRemuxer struct {
 func NewRtmp2MpegtsRemuxer(observer IRtmp2MpegtsRemuxerObserver) *Rtmp2MpegtsRemuxer {
 	uk := base.GenUkRtmp2MpegtsRemuxer()
 	r := &Rtmp2MpegtsRemuxer{
-		UniqueKey: uk,
-		observer:  observer,
+		UniqueKey:     uk,
+		observer:      observer,
+		basicAudioDts: math.MaxUint64,
+		basicAudioPts: math.MaxUint64,
+		basicVideoDts: math.MaxUint64,
+		basicVideoPts: math.MaxUint64,
 	}
 	r.audioCacheFrames = nil
 	r.videoOut = make([]byte, initialVideoOutBufferSize)
@@ -191,7 +200,7 @@ func (s *Rtmp2MpegtsRemuxer) feedVideo(msg base.RtmpMsg) {
 
 	// 将数据转换成Annexb
 
-	// 如果是sps pps，缓存住，然后直接返回
+	// 如果是seq header sps pps，缓存住，然后直接返回
 	var err error
 	if msg.IsAvcKeySeqHeader() {
 		if s.spspps, err = avc.SpsPpsSeqHeader2Annexb(msg.Payload); err != nil {
@@ -228,8 +237,6 @@ func (s *Rtmp2MpegtsRemuxer) feedVideo(msg base.RtmpMsg) {
 			nalType = hevc.ParseNaluType(nal[0])
 		}
 
-		//Log.Debugf("[%s] naltype=%d, len=%d(%d), cts=%d, key=%t.", s.UniqueKey, nalType, nalBytes, len(msg.Payload), cts, msg.IsVideoKeyNalu())
-
 		// 处理 sps pps aud
 		//
 		// aud 过滤掉，我们有自己的添加aud的逻辑
@@ -258,6 +265,10 @@ func (s *Rtmp2MpegtsRemuxer) feedVideo(msg base.RtmpMsg) {
 				continue
 			}
 		} else if codecId == base.RtmpCodecIdHevc {
+			if nalType == hevc.NaluTypeSei || nalType == hevc.NaluTypeSeiSuffix {
+				// TODO(chef): [opt] 考虑缓存下来，放到关键帧前面 202208
+				continue
+			}
 			if nalType == hevc.NaluTypeAud {
 				continue
 			} else if nalType == hevc.NaluTypeVps {
@@ -335,6 +346,11 @@ func (s *Rtmp2MpegtsRemuxer) feedVideo(msg base.RtmpMsg) {
 		}
 
 		s.videoOut = append(s.videoOut, nal...)
+	} // for loop
+
+	if len(s.videoOut) == 0 {
+		// 比如只有SEI nal或者非seq header的msg只有sps, pps, vps
+		return
 	}
 
 	dts := uint64(msg.Header.TimestampAbs) * 90
@@ -430,6 +446,9 @@ func (s *Rtmp2MpegtsRemuxer) resetVideoOutBuffer() {
 }
 
 func (s *Rtmp2MpegtsRemuxer) onFrame(frame *mpegts.Frame) {
+	s.adjustDtsPts(frame)
+	//Log.Debugf("Rtmp2MpegtsRemuxer::onFrame, frame=%s", frame.DebugString())
+
 	var boundary bool
 
 	if frame.Sid == mpegts.StreamIdAudio {
@@ -453,4 +472,36 @@ func (s *Rtmp2MpegtsRemuxer) onFrame(frame *mpegts.Frame) {
 	packets := frame.Pack()
 
 	s.observer.OnTsPackets(packets, frame, boundary)
+}
+
+func (s *Rtmp2MpegtsRemuxer) adjustDtsPts(frame *mpegts.Frame) {
+	// TODO(chef): [refactor] 后续考虑独立成单独的filter，并且考虑在rtmp msg上做这个逻辑 202208
+	// TODO(chef): [fix] b帧回退的情况，以及是否出现比base还小的情况 202208
+	if frame.Sid == mpegts.StreamIdAudio {
+		if s.basicAudioDts == math.MaxUint64 {
+			s.basicAudioDts = frame.Dts
+		}
+		if s.basicAudioPts == math.MaxUint64 {
+			s.basicAudioPts = frame.Pts
+		}
+		frame.Dts = subSafe(frame.Dts, s.basicAudioDts)
+		frame.Pts = subSafe(frame.Pts, s.basicAudioPts)
+	} else if frame.Sid == mpegts.StreamIdVideo {
+		if s.basicVideoDts == math.MaxUint64 {
+			s.basicVideoDts = frame.Dts
+		}
+		if s.basicVideoPts == math.MaxUint64 {
+			s.basicVideoPts = frame.Pts
+		}
+		frame.Dts = subSafe(frame.Dts, s.basicVideoDts)
+		frame.Pts = subSafe(frame.Pts, s.basicVideoPts)
+	}
+}
+
+func subSafe(a, b uint64) uint64 {
+	if a >= b {
+		return a - b
+	}
+	Log.Warnf("subSafe. a=%d, b=%d", a, b)
+	return 0
 }

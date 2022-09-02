@@ -103,6 +103,7 @@ func (q *rtmp2MpegtsFilter) drain() {
 	for i := range q.data {
 		q.observer.onPop(q.data[i])
 	}
+
 	q.data = nil
 
 	q.done = true

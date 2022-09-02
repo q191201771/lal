@@ -190,8 +190,8 @@ func (p *PsUnpacker) FeedRtpBody(rtpBody []byte, rtpts uint32) {
 			nazalog.Errorf("----------skip----------. %s", hex.Dump(nazabytes.Prefix(rb[i-4:], 32)))
 			consumed = 0
 		case psPackStartCodeHikStream:
-			//nazalog.Debugf("----------hik stream----------")
 			consumed = parsePackStreamBody(rb, i)
+			//nazalog.Debugf("----------hik stream----------consumed=%d", consumed)
 		case psPackStartCodePesPrivate2:
 			fallthrough
 		case psPackStartCodePesEcm:
@@ -209,8 +209,10 @@ func (p *PsUnpacker) FeedRtpBody(rtpBody []byte, rtpts uint32) {
 		}
 
 		if consumed < 0 {
-			if code != psPackStartCodeVideoStream {
-				nazalog.Warnf("consumed failed. code=%d, buf=%s", code, hex.Dump(nazabytes.Prefix(rb[i-4:], 32)))
+			// 消费失败并不一定是数据有问题，可能是数据不完整需要等待下一个rtp包
+			if code != psPackStartCodeVideoStream && code != psPackStartCodeHikStream {
+				nazalog.Warnf("consumed failed. code=%d, len=(%d,%d), i=%d, buf=%s",
+					code, len(rtpBody), len(rb), i, hex.Dump(nazabytes.Prefix(rb[i-4:], 128)))
 			}
 			return
 		}
@@ -455,11 +457,13 @@ func parsePackStreamBody(rb []byte, index int) int {
 	i := index
 
 	if len(rb) < i+2 {
+		nazalog.Warnf("needed=%d, actual=%d", i+2, len(rb))
 		return -1
 	}
 	l := int(bele.BeUint16(rb[i:]))
 	i += 2 + l
 	if len(rb) < i {
+		nazalog.Warnf("needed=%d, actual=%d", i, len(rb))
 		return -1
 	}
 
