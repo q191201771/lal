@@ -71,7 +71,7 @@ func (h *HttpNotify) NotifyPubStart(info base.PubStartInfo) {
 }
 
 func (h *HttpNotify) NotifyPubStop(info base.PubStopInfo) {
-	info.SessionId = h.serverId
+	info.ServerId = h.serverId
 	h.asyncPost(h.cfg.OnPubStop, info)
 }
 
