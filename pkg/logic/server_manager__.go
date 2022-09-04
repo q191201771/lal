@@ -621,7 +621,15 @@ func (sm *ServerManager) OnDelRtspSubSession(session *rtsp.SubSession) {
 // ----- implement IGroupCreator interface -----------------------------------------------------------------------------
 
 func (sm *ServerManager) CreateGroup(appName string, streamName string) *Group {
-	return NewGroup(appName, streamName, sm.config, sm)
+	var config *Config
+	if sm.option.ModConfigGroupCreator != nil {
+		cloneConfig := *sm.config
+		sm.option.ModConfigGroupCreator(appName, streamName, &cloneConfig)
+		config = &cloneConfig
+	} else {
+		config = sm.config
+	}
+	return NewGroup(appName, streamName, config, sm)
 }
 
 // ----- implement IGroupObserver interface -----------------------------------------------------------------------------

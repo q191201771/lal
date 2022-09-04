@@ -93,6 +93,12 @@ type Option struct {
 	// 注意，如果业务方实现了自己的事件监听，则lal server内部不再走http notify的逻辑（也即二选一）。
 	//
 	NotifyHandler INotifyHandler
+
+	// ModConfigGroupCreator
+	// This func help us modify the group configuration base on appName or streamName
+	// so that group can have it own configuration (configuration can be in other source like db)
+	// It will help us reduce resource usage if we just want some specific group record flv or hls...
+	ModConfigGroupCreator ModConfigGroupCreator
 }
 
 var defaultOption = Option{
