@@ -99,6 +99,10 @@ type Option struct {
 	// so that group can have it own configuration (configuration can be in other source like db)
 	// It will help us reduce resource usage if we just want some specific group record flv or hls...
 	ModConfigGroupCreator ModConfigGroupCreator
+
+	// Authentication
+	// This interface make authenticate customizable so that we can implement any authenticate strategy like jwt...
+	Authentication IAuthentication
 }
 
 var defaultOption = Option{
