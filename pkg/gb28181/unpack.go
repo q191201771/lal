@@ -86,7 +86,13 @@ func (p *PsUnpacker) FeedRtpPacket(b []byte) error {
 	if err != nil {
 		return err
 	}
-
+	//如果是第一帧判断一下数据是否符合
+    if p.buf.Len()==0{
+		body := ipkt.Body()
+		if !(len(body) > 4 && bytes.Compare(body, []byte{0, 0, 1}) == 0){
+			return ErrGb28181
+		}
+	}
 	//nazalog.Debugf("h=%+v", ipkt.Header)
 
 	var isStartPositionFn = func(pkt rtprtcp.RtpPacket) bool {
@@ -130,10 +136,12 @@ func (p *PsUnpacker) FeedRtpPacket(b []byte) error {
 			for p.list.Size > 0 {
 				curr := p.list.PeekFirst()
 				if rtprtcp.SubSeq(curr.Header.Seq, prev.Header.Seq) != 1 {
+					p.list.SetUnpackedSeq(curr.Header.Seq-1)
 					break
 				}
 
 				if isStartPositionFn(curr) {
+					p.list.SetUnpackedSeq(curr.Header.Seq-1)
 					break
 				}
 
