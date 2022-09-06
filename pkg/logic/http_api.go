@@ -216,6 +216,7 @@ func (h *HttpApiServer) notFoundHandler(w http.ResponseWriter, req *http.Request
 func feedback(v interface{}, w http.ResponseWriter) {
 	resp, _ := json.Marshal(v)
 	w.Header().Add("Server", base.LalHttpApiServer)
+	w.Header().Add("content-type", "application/json")
 	_, _ = w.Write(resp)
 }
 
