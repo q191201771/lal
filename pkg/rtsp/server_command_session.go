@@ -420,6 +420,13 @@ func (session *ServerCommandSession) handleRecord(requestCtx nazahttp.HttpReqMsg
 
 func (session *ServerCommandSession) handlePlay(requestCtx nazahttp.HttpReqMsgCtx) error {
 	Log.Infof("[%s] < R PLAY", session.uniqueKey)
+
+	// 没有收到前面的信令，直接收到Play信令
+	if session.subSession == nil {
+		Log.Errorf("[%s] handlePlay but subSession not exist.", session.uniqueKey)
+		return base.ErrRtsp
+	}
+
 	// TODO(chef): [opt] 上层关闭，可以考虑回复非200状态码再关闭
 	if err := session.observer.OnNewRtspSubSessionPlay(session.subSession); err != nil {
 		return err
