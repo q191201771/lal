@@ -12,6 +12,7 @@ import (
 	"encoding/hex"
 	"github.com/q191201771/lal/pkg/base"
 	"github.com/q191201771/lal/pkg/hevc"
+	"github.com/q191201771/naza/pkg/nazabits"
 	"github.com/q191201771/naza/pkg/nazamd5"
 	"io/ioutil"
 	"os"
@@ -113,6 +114,7 @@ var hevcNalu = []byte{
 func TestPsUnpacker2(t *testing.T) {
 	// 解析别人提供的一些测试数据，开发阶段用
 	//test1()
+	test2()
 }
 
 func test1() {
@@ -156,4 +158,43 @@ func test1() {
 	out, err := ioutil.ReadFile("/tmp/udp.h264")
 	nazalog.Assert(nil, err)
 	nazalog.Assert("fd8dbe365152e212bf8cbabb7a99c1aa", nazamd5.Md5(out))
+}
+func test2() {
+	// 读取raw文件(包连在一起，包含rtp header及一个uint16长度)，存取h265文件
+	b, err := ioutil.ReadFile("/Volumes/T7/new/avfile/0901150011.rtp")
+	nazalog.Assert(nil, err)
+
+	fp, err := os.Create("/tmp/0240130078.h265")
+	nazalog.Assert(nil, err)
+
+	waitingSps := true
+	unpacker := NewPsUnpacker().WithOnAvPacket(func(packet *base.AvPacket) {
+		if !packet.IsVideo() {
+			return
+		}
+
+		nazalog.Debugf("[test1] onVideo. length=%d", len(packet.Payload))
+		if waitingSps {
+			if hevc.ParseNaluType(packet.Payload[4]) == hevc.NaluTypeSps {
+				waitingSps = false
+			} else {
+				return
+			}
+		}
+		_, _ = fp.Write(packet.Payload)
+	})
+	br := nazabits.NewBitReader(b)
+	for {
+		len, err := br.ReadBits16(16)
+		if err != nil {
+			break
+		}
+		buf, err := br.ReadBytes(uint(len))
+		if err != nil {
+			break
+		}
+		unpacker.FeedRtpPacket(buf)
+	}
+
+	fp.Close()
 }

@@ -89,7 +89,7 @@ func (p *PsUnpacker) FeedRtpPacket(b []byte) error {
 	//如果是第一帧判断一下数据是否符合
 	if p.buf.Len() == 0 {
 		body := ipkt.Body()
-		if !(len(body) > 4 && bytes.Compare(body, []byte{0, 0, 1}) == 0) {
+		if !(len(body) > 4 && bytes.Compare(body[0:3], []byte{0, 0, 1}) == 0) {
 			return ErrGb28181
 		}
 	}
@@ -97,7 +97,7 @@ func (p *PsUnpacker) FeedRtpPacket(b []byte) error {
 
 	var isStartPositionFn = func(pkt rtprtcp.RtpPacket) bool {
 		body := pkt.Body()
-		return len(body) > 4 && bytes.Compare(body, []byte{0, 0, 1}) == 0
+		return len(body) > 4 && bytes.Compare(body[0:3], []byte{0, 0, 1}) == 0
 	}
 
 	// 处理丢包、乱序、重复
