@@ -136,6 +136,7 @@ func NewGroup(appName string, streamName string, config *Config, observer IGroup
 		observer:   observer,
 		stat: base.StatGroup{
 			StreamName: streamName,
+			AppName: appName,
 		},
 		exitChan:                   make(chan struct{}, 1),
 		rtmpSubSessionSet:          make(map[*rtmp.ServerSession]struct{}),

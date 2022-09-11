@@ -33,6 +33,7 @@ type LalInfo struct {
 
 type StatGroup struct {
 	StreamName  string    `json:"stream_name"`
+	AppName     string    `json:"app_name"`
 	AudioCodec  string    `json:"audio_codec"`
 	VideoCodec  string    `json:"video_codec"`
 	VideoWidth  int       `json:"video_width"`
