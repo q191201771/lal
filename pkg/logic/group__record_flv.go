@@ -32,6 +32,7 @@ func (group *Group) startRecordFlvIfNeeded(nowUnix int64) {
 		Log.Errorf("[%s] record flv open file failed. filename=%s, err=%+v",
 			group.UniqueKey, filenameWithPath, err)
 		group.recordFlv = nil
+		return
 	}
 	if err := group.recordFlv.WriteFlvHeader(); err != nil {
 		Log.Errorf("[%s] record flv write flv header failed. filename=%s, err=%+v",
