@@ -14,6 +14,8 @@ type IGroupCreator interface {
 	CreateGroup(appName, streamName string) *Group
 }
 
+type ModConfigGroupCreator func(appName, streamName string, baseConfig *Config)
+
 // IGroupManager
 //
 // 封装管理Group的容器

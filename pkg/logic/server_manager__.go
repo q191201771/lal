@@ -54,7 +54,6 @@ type ServerManager struct {
 	mutex        sync.Mutex
 	groupManager IGroupManager
 
-	simpleAuthCtx *SimpleAuthCtx
 }
 
 func NewServerManager(modOption ...ModOption) *ServerManager {
@@ -136,7 +135,9 @@ Doc: %s
 		sm.pprofServer = &http.Server{Addr: sm.config.PprofConfig.Addr, Handler: nil}
 	}
 
-	sm.simpleAuthCtx = NewSimpleAuthCtx(sm.config.SimpleAuthConfig)
+	if sm.option.Authentication == nil {
+		sm.option.Authentication = NewSimpleAuthCtx(sm.config.SimpleAuthConfig)
+	}
 
 	return sm
 }
@@ -375,7 +376,7 @@ func (sm *ServerManager) OnNewRtmpPubSession(session *rtmp.ServerSession) error 
 	info := base.Session2PubStartInfo(session)
 
 	// 先做simple auth鉴权
-	if err := sm.simpleAuthCtx.OnPubStart(info); err != nil {
+	if err := sm.option.Authentication.OnPubStart(info); err != nil {
 		return err
 	}
 
@@ -414,7 +415,7 @@ func (sm *ServerManager) OnNewRtmpSubSession(session *rtmp.ServerSession) error 
 
 	info := base.Session2SubStartInfo(session)
 
-	if err := sm.simpleAuthCtx.OnSubStart(info); err != nil {
+	if err := sm.option.Authentication.OnSubStart(info); err != nil {
 		return err
 	}
 
@@ -453,7 +454,7 @@ func (sm *ServerManager) OnNewHttpflvSubSession(session *httpflv.SubSession) err
 
 	info := base.Session2SubStartInfo(session)
 
-	if err := sm.simpleAuthCtx.OnSubStart(info); err != nil {
+	if err := sm.option.Authentication.OnSubStart(info); err != nil {
 		return err
 	}
 
@@ -490,7 +491,7 @@ func (sm *ServerManager) OnNewHttptsSubSession(session *httpts.SubSession) error
 
 	info := base.Session2SubStartInfo(session)
 
-	if err := sm.simpleAuthCtx.OnSubStart(info); err != nil {
+	if err := sm.option.Authentication.OnSubStart(info); err != nil {
 		return err
 	}
 
@@ -538,7 +539,7 @@ func (sm *ServerManager) OnNewRtspPubSession(session *rtsp.PubSession) error {
 
 	info := base.Session2PubStartInfo(session)
 
-	if err := sm.simpleAuthCtx.OnPubStart(info); err != nil {
+	if err := sm.option.Authentication.OnPubStart(info); err != nil {
 		return err
 	}
 
@@ -576,7 +577,7 @@ func (sm *ServerManager) OnNewRtspSubSessionDescribe(session *rtsp.SubSession) (
 
 	info := base.Session2SubStartInfo(session)
 
-	if err := sm.simpleAuthCtx.OnSubStart(info); err != nil {
+	if err := sm.option.Authentication.OnSubStart(info); err != nil {
 		return false, nil
 	}
 
@@ -621,7 +622,15 @@ func (sm *ServerManager) OnDelRtspSubSession(session *rtsp.SubSession) {
 // ----- implement IGroupCreator interface -----------------------------------------------------------------------------
 
 func (sm *ServerManager) CreateGroup(appName string, streamName string) *Group {
-	return NewGroup(appName, streamName, sm.config, sm)
+	var config *Config
+	if sm.option.ModConfigGroupCreator != nil {
+		cloneConfig := *sm.config
+		sm.option.ModConfigGroupCreator(appName, streamName, &cloneConfig)
+		config = &cloneConfig
+	} else {
+		config = sm.config
+	}
+	return NewGroup(appName, streamName, config, sm)
 }
 
 // ----- implement IGroupObserver interface -----------------------------------------------------------------------------
@@ -703,7 +712,7 @@ func (sm *ServerManager) serveHls(writer http.ResponseWriter, req *http.Request)
 	if urlCtx.GetFileType() == "m3u8" {
 		// TODO(chef): [refactor] 需要整理，这里使用 hls.PathStrategy 不太好 202207
 		streamName := hls.PathStrategy.GetRequestInfo(urlCtx, sm.config.HlsConfig.OutPath).StreamName
-		if err = sm.simpleAuthCtx.OnHls(streamName, urlCtx.RawQuery); err != nil {
+		if err = sm.option.Authentication.OnHls(streamName, urlCtx.RawQuery); err != nil {
 			Log.Errorf("simple auth failed. err=%+v", err)
 			return
 		}
