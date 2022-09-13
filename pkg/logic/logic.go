@@ -94,6 +94,8 @@ type Option struct {
 	//
 	NotifyHandler INotifyHandler
 
+	// TODO(chef): [refactor] 考虑用INotifyHandler实现ModConfigGroupCreator和IAuthentication 202209
+
 	// ModConfigGroupCreator
 	// This func help us modify the group configuration base on appName or streamName
 	// so that group can have it own configuration (configuration can be in other source like db)
