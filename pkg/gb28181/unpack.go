@@ -116,7 +116,7 @@ func (p *PsUnpacker) FeedRtpPacket(b []byte) error {
 
 			opkt := p.list.PopFirst()
 			p.list.SetUnpackedSeq(opkt.Header.Seq)
-
+            Log.Infof("rtp sep:%d;timestamp:%d",opkt.Header.Seq,opkt.Header.Timestamp)
 			p.FeedRtpBody(opkt.Body(), opkt.Header.Timestamp)
 		} else {
 			// 不是顺序的，如果还没达到容器阈值，就先缓存在容器中，直接退出了
