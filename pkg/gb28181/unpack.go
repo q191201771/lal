@@ -86,12 +86,18 @@ func (p *PsUnpacker) FeedRtpPacket(b []byte) error {
 	if err != nil {
 		return err
 	}
-
+	//如果是第一帧判断一下数据是否符合
+	if p.buf.Len() == 0 {
+		body := ipkt.Body()
+		if !(len(body) > 4 && bytes.Compare(body[0:3], []byte{0, 0, 1}) == 0) {
+			return ErrGb28181
+		}
+	}
 	//nazalog.Debugf("h=%+v", ipkt.Header)
 
 	var isStartPositionFn = func(pkt rtprtcp.RtpPacket) bool {
 		body := pkt.Body()
-		return len(body) > 4 && bytes.Compare(body, []byte{0, 0, 1}) == 0
+		return len(body) > 4 && bytes.Compare(body[0:3], []byte{0, 0, 1}) == 0
 	}
 
 	// 处理丢包、乱序、重复
@@ -110,7 +116,7 @@ func (p *PsUnpacker) FeedRtpPacket(b []byte) error {
 
 			opkt := p.list.PopFirst()
 			p.list.SetUnpackedSeq(opkt.Header.Seq)
-
+            Log.Infof("rtp sep:%d;timestamp:%d",opkt.Header.Seq,opkt.Header.Timestamp)
 			p.FeedRtpBody(opkt.Body(), opkt.Header.Timestamp)
 		} else {
 			// 不是顺序的，如果还没达到容器阈值，就先缓存在容器中，直接退出了
@@ -134,6 +140,7 @@ func (p *PsUnpacker) FeedRtpPacket(b []byte) error {
 				}
 
 				if isStartPositionFn(curr) {
+					p.list.SetUnpackedSeq(curr.Header.Seq - 1)
 					break
 				}
 
