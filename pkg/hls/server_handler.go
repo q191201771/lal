@@ -31,9 +31,10 @@ type ServerHandler struct {
 	sessionMap     map[string]*SubSession
 	mutex          sync.Mutex
 	sessionTimeout time.Duration
+	sessionHashKey string
 }
 
-func NewServerHandler(outPath, urlPattern string, sessionTimeoutMs int, observer IHlsServerHandlerObserver) *ServerHandler {
+func NewServerHandler(outPath, urlPattern, sessionHashKey string, sessionTimeoutMs int, observer IHlsServerHandlerObserver) *ServerHandler {
 	if strings.HasPrefix(urlPattern, "/") {
 		urlPattern = urlPattern[1:]
 	}
@@ -46,6 +47,7 @@ func NewServerHandler(outPath, urlPattern string, sessionTimeoutMs int, observer
 		urlPattern:     urlPattern,
 		sessionMap:     make(map[string]*SubSession),
 		sessionTimeout: time.Duration(sessionTimeoutMs) * time.Millisecond,
+		sessionHashKey: sessionHashKey,
 	}
 	go sh.runLoop()
 	return sh
@@ -119,10 +121,10 @@ func (s *ServerHandler) ServeHTTPWithUrlCtx(resp http.ResponseWriter, urlCtx bas
 	return
 }
 
-func (s *ServerHandler) keepSessionAlive(sessionId string) error {
+func (s *ServerHandler) keepSessionAlive(sessionIdHash string) error {
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
-	session := s.sessionMap[sessionId]
+	session := s.sessionMap[sessionIdHash]
 	if session == nil {
 		return base.ErrHlsSessionNotFound
 	}
@@ -133,16 +135,16 @@ func (s *ServerHandler) keepSessionAlive(sessionId string) error {
 func (s *ServerHandler) createSubSession(urlCtx base.UrlContext) (*SubSession, error) {
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
-	session := NewSubSession(urlCtx, s.urlPattern, s.sessionTimeout)
-	s.sessionMap[session.UniqueKey()] = session
+	session := NewSubSession(urlCtx, s.urlPattern, s.sessionHashKey, s.sessionTimeout)
+	s.sessionMap[session.sessionIdHash] = session
 	err := s.observer.OnNewHlsSubSession(session)
 	return session, err
 }
 
-func (s *ServerHandler) onSubSessionExpired(sessionId string, session *SubSession) {
+func (s *ServerHandler) onSubSessionExpired(sessionIdHash string, session *SubSession) {
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
-	delete(s.sessionMap, sessionId)
+	delete(s.sessionMap, sessionIdHash)
 	s.observer.OnDelHlsSubSession(session)
 }
 
@@ -151,9 +153,9 @@ func (s *ServerHandler) handleSubSession(urlCtx base.UrlContext) (redirectUrl st
 	if err != nil {
 		return "", errors.New("parse url err")
 	}
-	sessionId := urlParsed.Query().Get("session_id")
-	if sessionId != "" {
-		err = s.keepSessionAlive(sessionId)
+	sessionIdHash := urlParsed.Query().Get("session_id")
+	if sessionIdHash != "" {
+		err = s.keepSessionAlive(sessionIdHash)
 		if err != nil {
 			return "", err
 		}
@@ -163,7 +165,7 @@ func (s *ServerHandler) handleSubSession(urlCtx base.UrlContext) (redirectUrl st
 			return "", err
 		}
 		query := urlParsed.Query()
-		query.Set("session_id", session.UniqueKey())
+		query.Set("session_id", session.sessionIdHash)
 		urlParsed.RawQuery = query.Encode()
 		return urlParsed.String(), nil
 	}
@@ -171,9 +173,9 @@ func (s *ServerHandler) handleSubSession(urlCtx base.UrlContext) (redirectUrl st
 }
 
 func (s *ServerHandler) clearExpireSession() {
-	for sessionId, session := range s.sessionMap {
+	for sessionIdHash, session := range s.sessionMap {
 		if session.IsExpired() {
-			s.onSubSessionExpired(sessionId, session)
+			s.onSubSessionExpired(sessionIdHash, session)
 		}
 	}
 }

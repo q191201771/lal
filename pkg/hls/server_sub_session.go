@@ -2,6 +2,7 @@ package hls
 
 import (
 	"github.com/q191201771/lal/pkg/base"
+	"github.com/q191201771/naza/pkg/nazamd5"
 	"strings"
 	"time"
 )
@@ -13,13 +14,14 @@ type SubSession struct {
 	hlsUrlPattern   string
 	appName         string
 	timeout         time.Duration
+	sessionIdHash   string // Because session.UniqueKey() too easy to guess so that we need to hash it with a key to prevent client guess session id
 }
 
 func (s *SubSession) UniqueKey() string {
 	return s.stat.SessionId
 }
 
-func NewSubSession(urlCtx base.UrlContext, hlsUrlPattern string, timeout time.Duration) *SubSession {
+func NewSubSession(urlCtx base.UrlContext, hlsUrlPattern, sessionHashKey string, timeout time.Duration) *SubSession {
 	if strings.HasPrefix(hlsUrlPattern, "/") {
 		hlsUrlPattern = hlsUrlPattern[1:]
 	}
@@ -33,6 +35,7 @@ func NewSubSession(urlCtx base.UrlContext, hlsUrlPattern string, timeout time.Du
 		SessionId: base.GenUkHlsSubSession(),
 		Protocol:  base.SessionProtocolHlsStr,
 	}
+	session.sessionIdHash = nazamd5.Md5([]byte(session.stat.SessionId + sessionHashKey))
 	return session
 }
 

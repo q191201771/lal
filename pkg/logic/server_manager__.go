@@ -53,7 +53,6 @@ type ServerManager struct {
 
 	mutex        sync.Mutex
 	groupManager IGroupManager
-
 }
 
 func NewServerManager(modOption ...ModOption) *ServerManager {
@@ -118,7 +117,7 @@ Doc: %s
 		sm.config.HlsConfig.Enable || sm.config.HlsConfig.EnableHttps {
 		sm.httpServerManager = base.NewHttpServerManager()
 		sm.httpServerHandler = NewHttpServerHandler(sm)
-		sm.hlsServerHandler = hls.NewServerHandler(sm.config.HlsConfig.OutPath, sm.config.HlsConfig.UrlPattern, sm.config.HlsConfig.SessionTimeoutMs, sm)
+		sm.hlsServerHandler = hls.NewServerHandler(sm.config.HlsConfig.OutPath, sm.config.HlsConfig.UrlPattern, sm.config.HlsConfig.SessionHashKey, sm.config.HlsConfig.SessionTimeoutMs, sm)
 	}
 
 	if sm.config.RtmpConfig.Enable {
@@ -656,7 +655,6 @@ func (sm *ServerManager) OnDelHlsSubSession(session *hls.SubSession) {
 	info.HasOutSession = group.HasOutSession()
 	sm.option.NotifyHandler.OnSubStop(info)
 }
-
 
 // ----- implement IGroupCreator interface -----------------------------------------------------------------------------
 

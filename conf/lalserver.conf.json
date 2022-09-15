@@ -31,7 +31,8 @@
     "delete_threshold": 6,
     "cleanup_mode": 1,
     "use_memory_as_disk_flag": false,
-    "session_timeout_ms": 10000
+    "session_timeout_ms": 30000,
+    "session_hash_key": "something_secret"
   },
   "httpts": {
     "enable": true,
