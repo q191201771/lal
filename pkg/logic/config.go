@@ -80,6 +80,7 @@ type HlsConfig struct {
 
 	UseMemoryAsDiskFlag bool `json:"use_memory_as_disk_flag"`
 	hls.MuxerConfig
+	SessionTimeoutMs    int `json:"session_timeout_ms"`
 }
 
 type RtspConfig struct {

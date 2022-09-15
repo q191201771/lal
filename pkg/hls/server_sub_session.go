@@ -8,29 +8,30 @@ import (
 
 type SubSession struct {
 	LastRequestTime time.Time
-	urlCtx base.UrlContext
-	stat base.StatSession
-	hlsUrlPattern string
-	appName string
+	urlCtx          base.UrlContext
+	stat            base.StatSession
+	hlsUrlPattern   string
+	appName         string
+	timeout         time.Duration
 }
 
 func (s *SubSession) UniqueKey() string {
 	return s.stat.SessionId
 }
 
-func NewSubSession(urlCtx base.UrlContext, hlsUrlPattern string) *SubSession {
+func NewSubSession(urlCtx base.UrlContext, hlsUrlPattern string, timeout time.Duration) *SubSession {
 	if strings.HasPrefix(hlsUrlPattern, "/") {
 		hlsUrlPattern = hlsUrlPattern[1:]
 	}
 	session := &SubSession{
 		LastRequestTime: time.Now(),
-		urlCtx: urlCtx,
-		hlsUrlPattern: hlsUrlPattern,
+		urlCtx:          urlCtx,
+		hlsUrlPattern:   hlsUrlPattern,
+		timeout:         timeout,
 	}
 	session.stat = base.StatSession{
 		SessionId: base.GenUkHlsSubSession(),
-		Protocol: base.SessionProtocolHlsStr,
-
+		Protocol:  base.SessionProtocolHlsStr,
 	}
 	return session
 }
@@ -71,7 +72,7 @@ func (s *SubSession) IsAlive() (readAlive, writeAlive bool) {
 }
 
 func (s *SubSession) IsExpired() bool {
-	return s.LastRequestTime.Add(30 * time.Second).Before(time.Now())
+	return s.LastRequestTime.Add(s.timeout).Before(time.Now())
 }
 
 func (s *SubSession) KeepAlive() {

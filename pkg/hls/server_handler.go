@@ -25,22 +25,27 @@ type IHlsServerHandlerObserver interface {
 }
 
 type ServerHandler struct {
-	outPath string
-	observer IHlsServerHandlerObserver
-	urlPattern string
-	sessionMap map[string]*SubSession
-	mutex sync.Mutex
+	outPath        string
+	observer       IHlsServerHandlerObserver
+	urlPattern     string
+	sessionMap     map[string]*SubSession
+	mutex          sync.Mutex
+	sessionTimeout time.Duration
 }
 
-func NewServerHandler(outPath, urlPattern string, observer IHlsServerHandlerObserver) *ServerHandler {
+func NewServerHandler(outPath, urlPattern string, sessionTimeoutMs int, observer IHlsServerHandlerObserver) *ServerHandler {
 	if strings.HasPrefix(urlPattern, "/") {
 		urlPattern = urlPattern[1:]
 	}
+	if sessionTimeoutMs == 0 {
+		sessionTimeoutMs = 30000
+	}
 	sh := &ServerHandler{
-		outPath: outPath,
-		observer: observer,
-		urlPattern: urlPattern,
-		sessionMap: make(map[string]*SubSession),
+		outPath:        outPath,
+		observer:       observer,
+		urlPattern:     urlPattern,
+		sessionMap:     make(map[string]*SubSession),
+		sessionTimeout: time.Duration(sessionTimeoutMs) * time.Millisecond,
 	}
 	go sh.runLoop()
 	return sh
@@ -114,7 +119,6 @@ func (s *ServerHandler) ServeHTTPWithUrlCtx(resp http.ResponseWriter, urlCtx bas
 	return
 }
 
-
 func (s *ServerHandler) keepSessionAlive(sessionId string) error {
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
@@ -129,7 +133,7 @@ func (s *ServerHandler) keepSessionAlive(sessionId string) error {
 func (s *ServerHandler) createSubSession(urlCtx base.UrlContext) (*SubSession, error) {
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
-	session := NewSubSession(urlCtx, s.urlPattern)
+	session := NewSubSession(urlCtx, s.urlPattern, s.sessionTimeout)
 	s.sessionMap[session.UniqueKey()] = session
 	err := s.observer.OnNewHlsSubSession(session)
 	return session, err
@@ -148,7 +152,7 @@ func (s *ServerHandler) handleSubSession(urlCtx base.UrlContext) (redirectUrl st
 		return "", errors.New("parse url err")
 	}
 	sessionId := urlParsed.Query().Get("session_id")
-	if sessionId != ""  {
+	if sessionId != "" {
 		err = s.keepSessionAlive(sessionId)
 		if err != nil {
 			return "", err
