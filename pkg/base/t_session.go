@@ -39,6 +39,7 @@ const (
 	SessionTypeFlvPull           SessionType = SessionProtocolFlv<<8 | SessionBaseTypePull
 	SessionTypeTsSub             SessionType = SessionProtocolTs<<8 | SessionBaseTypeSub
 	SessionTypePsPub             SessionType = SessionProtocolPs<<8 | SessionBaseTypePub
+	SessionTypeHlsSub            SessionType = SessionProtocolHls<<8 | SessionBaseTypeSub
 
 	SessionProtocolCustomize = 1
 	SessionProtocolRtmp      = 2
@@ -46,6 +47,7 @@ const (
 	SessionProtocolFlv       = 4
 	SessionProtocolTs        = 5
 	SessionProtocolPs        = 6
+	SessionProtocolHls       = 7
 
 	SessionBaseTypePubSub = 1
 	SessionBaseTypePub    = 2
@@ -59,6 +61,7 @@ const (
 	SessionProtocolFlvStr       = "FLV"
 	SessionProtocolTsStr        = "TS"
 	SessionProtocolPsStr        = "PS"
+	SessionProtocolHlsStr       = "HLS"
 
 	SessionBaseTypePubSubStr = "PUBSUB"
 	SessionBaseTypePubStr    = "PUB"

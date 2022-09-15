@@ -9,6 +9,7 @@
 package logic
 
 import (
+	"github.com/q191201771/lal/pkg/hls"
 	"github.com/q191201771/lal/pkg/httpflv"
 	"github.com/q191201771/lal/pkg/httpts"
 	"github.com/q191201771/lal/pkg/rtmp"
@@ -56,6 +57,17 @@ func (group *Group) AddHttptsSubSession(session *httpts.SubSession) {
 	group.mutex.Lock()
 	defer group.mutex.Unlock()
 	group.httptsSubSessionSet[session] = struct{}{}
+
+	group.addSub()
+}
+
+// AddHlsSubSession ...
+func (group *Group) AddHlsSubSession(session *hls.SubSession) {
+	Log.Debugf("[%s] [%s] add hls SubSession into group.", group.UniqueKey, session.UniqueKey())
+
+	group.mutex.Lock()
+	defer group.mutex.Unlock()
+	group.hlsSubSessionSet[session] = struct{}{}
 
 	group.addSub()
 }
@@ -113,6 +125,12 @@ func (group *Group) DelRtspSubSession(session *rtsp.SubSession) {
 	group.delRtspSubSession(session)
 }
 
+func (group *Group) DelHlsSubSession(session *hls.SubSession) {
+	group.mutex.Lock()
+	defer group.mutex.Unlock()
+	group.delHlsSubSession(session)
+}
+
 // ---------------------------------------------------------------------------------------------------------------------
 
 func (group *Group) delRtmpSubSession(session *rtmp.ServerSession) {
@@ -133,6 +151,11 @@ func (group *Group) delHttptsSubSession(session *httpts.SubSession) {
 func (group *Group) delRtspSubSession(session *rtsp.SubSession) {
 	Log.Debugf("[%s] [%s] del rtsp SubSession from group.", group.UniqueKey, session.UniqueKey())
 	delete(group.rtspSubSessionSet, session)
+}
+
+func (group *Group) delHlsSubSession(session *hls.SubSession) {
+	Log.Debugf("[%s] [%s] del hls SubSession from group.", group.UniqueKey, session.UniqueKey())
+	delete(group.hlsSubSessionSet, session)
 }
 
 // ---------------------------------------------------------------------------------------------------------------------

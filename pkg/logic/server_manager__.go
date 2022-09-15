@@ -118,7 +118,7 @@ Doc: %s
 		sm.config.HlsConfig.Enable || sm.config.HlsConfig.EnableHttps {
 		sm.httpServerManager = base.NewHttpServerManager()
 		sm.httpServerHandler = NewHttpServerHandler(sm)
-		sm.hlsServerHandler = hls.NewServerHandler(sm.config.HlsConfig.OutPath)
+		sm.hlsServerHandler = hls.NewServerHandler(sm.config.HlsConfig.OutPath, sm.config.HlsConfig.UrlPattern, sm)
 	}
 
 	if sm.config.RtmpConfig.Enable {
@@ -618,6 +618,45 @@ func (sm *ServerManager) OnDelRtspSubSession(session *rtsp.SubSession) {
 	info.HasOutSession = group.HasOutSession()
 	sm.option.NotifyHandler.OnSubStop(info)
 }
+
+func (sm *ServerManager) OnNewHlsSubSession(session *hls.SubSession) error {
+	sm.mutex.Lock()
+	defer sm.mutex.Unlock()
+
+	info := base.Session2SubStartInfo(session)
+
+	if err := sm.option.Authentication.OnSubStart(info); err != nil {
+		return err
+	}
+
+	group := sm.getOrCreateGroup(session.AppName(), session.StreamName())
+	group.AddHlsSubSession(session)
+
+	info.HasInSession = group.HasInSession()
+	info.HasOutSession = group.HasOutSession()
+
+	sm.option.NotifyHandler.OnSubStart(info)
+
+	return nil
+}
+
+func (sm *ServerManager) OnDelHlsSubSession(session *hls.SubSession) {
+	sm.mutex.Lock()
+	defer sm.mutex.Unlock()
+
+	group := sm.getGroup(session.AppName(), session.StreamName())
+	if group == nil {
+		return
+	}
+
+	group.DelHlsSubSession(session)
+
+	info := base.Session2SubStopInfo(session)
+	info.HasInSession = group.HasInSession()
+	info.HasOutSession = group.HasOutSession()
+	sm.option.NotifyHandler.OnSubStop(info)
+}
+
 
 // ----- implement IGroupCreator interface -----------------------------------------------------------------------------
 

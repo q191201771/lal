@@ -111,6 +111,7 @@ type Group struct {
 	httptsSubSessionSet   map[*httpts.SubSession]struct{}
 	rtspSubSessionSet     map[*rtsp.SubSession]struct{}
 	waitRtspSubSessionSet map[*rtsp.SubSession]struct{}
+	hlsSubSessionSet      map[*hls.SubSession]struct{}
 	// push
 	pushEnable    bool
 	url2PushProxy map[string]*pushProxy
@@ -144,6 +145,7 @@ func NewGroup(appName string, streamName string, config *Config, observer IGroup
 		httptsSubSessionSet:        make(map[*httpts.SubSession]struct{}),
 		rtspSubSessionSet:          make(map[*rtsp.SubSession]struct{}),
 		waitRtspSubSessionSet:      make(map[*rtsp.SubSession]struct{}),
+		hlsSubSessionSet:           make(map[*hls.SubSession]struct{}),
 		rtmpGopCache:               remux.NewGopCache("rtmp", uk, config.RtmpConfig.GopNum),
 		httpflvGopCache:            remux.NewGopCache("httpflv", uk, config.HttpflvConfig.GopNum),
 		httptsGopCache:             remux.NewGopCacheMpegts(uk, config.HttptsConfig.GopNum),
@@ -530,7 +532,8 @@ func (group *Group) hasSubSession() bool {
 		len(group.httpflvSubSessionSet) != 0 ||
 		len(group.httptsSubSessionSet) != 0 ||
 		len(group.rtspSubSessionSet) != 0 ||
-		len(group.waitRtspSubSessionSet) != 0
+		len(group.waitRtspSubSessionSet) != 0 ||
+		len(group.hlsSubSessionSet) != 0
 }
 
 func (group *Group) hasPushSession() bool {

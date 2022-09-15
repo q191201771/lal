@@ -9,19 +9,41 @@
 package hls
 
 import (
+	"errors"
 	"net/http"
+	"net/url"
+	"strings"
+	"sync"
+	"time"
 
 	"github.com/q191201771/lal/pkg/base"
 )
 
-type ServerHandler struct {
-	outPath string
+type IHlsServerHandlerObserver interface {
+	OnNewHlsSubSession(session *SubSession) error
+	OnDelHlsSubSession(session *SubSession)
 }
 
-func NewServerHandler(outPath string) *ServerHandler {
-	return &ServerHandler{
-		outPath: outPath,
+type ServerHandler struct {
+	outPath string
+	observer IHlsServerHandlerObserver
+	urlPattern string
+	sessionMap map[string]*SubSession
+	mutex sync.Mutex
+}
+
+func NewServerHandler(outPath, urlPattern string, observer IHlsServerHandlerObserver) *ServerHandler {
+	if strings.HasPrefix(urlPattern, "/") {
+		urlPattern = urlPattern[1:]
 	}
+	sh := &ServerHandler{
+		outPath: outPath,
+		observer: observer,
+		urlPattern: urlPattern,
+		sessionMap: make(map[string]*SubSession),
+	}
+	go sh.runLoop()
+	return sh
 }
 
 func (s *ServerHandler) ServeHTTP(resp http.ResponseWriter, req *http.Request) {
@@ -30,6 +52,25 @@ func (s *ServerHandler) ServeHTTP(resp http.ResponseWriter, req *http.Request) {
 		Log.Errorf("parse url. err=%+v", err)
 		return
 	}
+	if urlCtx.GetFileType() == "m3u8" {
+		redirectUrl, err := s.handleSubSession(urlCtx)
+		if err != nil {
+			Log.Warnf("handle hlsSubSession. err=%+v", err)
+			return
+		}
+		if redirectUrl != "" {
+			if redirectUrl != urlCtx.Url {
+				resp.Header().Add("Cache-Control", "no-cache")
+				resp.Header().Add("Access-Control-Allow-Origin", "*")
+				http.Redirect(resp, req, redirectUrl, http.StatusFound)
+				return
+			} else {
+				resp.WriteHeader(http.StatusBadRequest)
+				return
+			}
+		}
+	}
+
 	s.ServeHTTPWithUrlCtx(resp, urlCtx)
 }
 
@@ -71,6 +112,73 @@ func (s *ServerHandler) ServeHTTPWithUrlCtx(resp http.ResponseWriter, urlCtx bas
 
 	_, _ = resp.Write(content)
 	return
+}
+
+
+func (s *ServerHandler) keepSessionAlive(sessionId string) error {
+	s.mutex.Lock()
+	defer s.mutex.Unlock()
+	session := s.sessionMap[sessionId]
+	if session == nil {
+		return base.ErrHlsSessionNotFound
+	}
+	session.KeepAlive()
+	return nil
+}
+
+func (s *ServerHandler) createSubSession(urlCtx base.UrlContext) (*SubSession, error) {
+	s.mutex.Lock()
+	defer s.mutex.Unlock()
+	session := NewSubSession(urlCtx, s.urlPattern)
+	s.sessionMap[session.UniqueKey()] = session
+	err := s.observer.OnNewHlsSubSession(session)
+	return session, err
+}
+
+func (s *ServerHandler) onSubSessionExpired(sessionId string, session *SubSession) {
+	s.mutex.Lock()
+	defer s.mutex.Unlock()
+	delete(s.sessionMap, sessionId)
+	s.observer.OnDelHlsSubSession(session)
+}
+
+func (s *ServerHandler) handleSubSession(urlCtx base.UrlContext) (redirectUrl string, err error) {
+	urlParsed, err := url.Parse(urlCtx.Url)
+	if err != nil {
+		return "", errors.New("parse url err")
+	}
+	sessionId := urlParsed.Query().Get("session_id")
+	if sessionId != ""  {
+		err = s.keepSessionAlive(sessionId)
+		if err != nil {
+			return "", err
+		}
+	} else {
+		session, err := s.createSubSession(urlCtx)
+		if err != nil {
+			return "", err
+		}
+		query := urlParsed.Query()
+		query.Set("session_id", session.UniqueKey())
+		urlParsed.RawQuery = query.Encode()
+		return urlParsed.String(), nil
+	}
+	return "", nil
+}
+
+func (s *ServerHandler) clearExpireSession() {
+	for sessionId, session := range s.sessionMap {
+		if session.IsExpired() {
+			s.onSubSessionExpired(sessionId, session)
+		}
+	}
+}
+
+func (s *ServerHandler) runLoop() {
+	ticker := time.NewTicker(1 * time.Second)
+	for range ticker.C {
+		s.clearExpireSession()
+	}
 }
 
 // m3u8文件用这个也行
