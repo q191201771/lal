@@ -8,6 +8,8 @@
 
 package rtprtcp
 
+import "github.com/q191201771/naza/pkg/nazalog"
+
 type RtpPacketListItem struct {
 	Packet RtpPacket
 	Next   *RtpPacketListItem
@@ -25,8 +27,8 @@ type RtpPacketList struct {
 	Head RtpPacketListItem // 哨兵，自身不存放rtp包，第一个rtp包存在在head.next中
 	Size int               // 实际元素个数
 
-	unpackedFlag bool   // 是否成功合成过的标志
-	unpackedSeq  uint16 // 成功合成的最后一个seq号，注意，主动丢弃的不算
+	doneSeqFlag bool   // 如果为false，则说明我们是初始化阶段，还不知道需要的packet的seq是多少
+	doneSeq     uint16 // 已处理的seq号，之后我们需要seq+1的packet
 
 	maxSize int
 }
@@ -34,13 +36,12 @@ type RtpPacketList struct {
 // IsStale 是否过期
 //
 func (l *RtpPacketList) IsStale(seq uint16) bool {
-	// 从来没有合成成功过
-	if !l.unpackedFlag {
+	if !l.doneSeqFlag {
 		return false
 	}
 
 	// 序号太小
-	return CompareSeq(seq, l.unpackedSeq) <= 0
+	return CompareSeq(seq, l.doneSeq) <= 0
 }
 
 // Insert 插入有序链表，并去重
@@ -101,10 +102,11 @@ func (l *RtpPacketList) InitMaxSize(maxSize int) {
 // Full 是否已经满了
 //
 func (l *RtpPacketList) Full() bool {
+	nazalog.Debugf("%d %d", l.Size, l.maxSize)
 	return l.Size >= l.maxSize
 }
 
-// IsFirstSequential 第一个包和最后一个合帧成功的包相比，是否是连续的
+// IsFirstSequential 第一个包是否是需要的（与之前已处理的是连续的）
 //
 func (l *RtpPacketList) IsFirstSequential() bool {
 	first := l.Head.Next
@@ -112,16 +114,16 @@ func (l *RtpPacketList) IsFirstSequential() bool {
 		return false
 	}
 
-	if !l.unpackedFlag {
+	if !l.doneSeqFlag {
 		return true
 	}
 
-	return SubSeq(first.Packet.Header.Seq, l.unpackedSeq) == 1
+	return SubSeq(first.Packet.Header.Seq, l.doneSeq) == 1
 }
 
-// SetUnpackedSeq 设置最新的合成帧成功的包序号
+// SetDoneSeq 设置已处理的包序号，比如已经成功合成了，或者主动丢弃到该位置结束丢弃了
 //
-func (l *RtpPacketList) SetUnpackedSeq(seq uint16) {
-	l.unpackedFlag = true
-	l.unpackedSeq = seq
+func (l *RtpPacketList) SetDoneSeq(seq uint16) {
+	l.doneSeqFlag = true
+	l.doneSeq = seq
 }

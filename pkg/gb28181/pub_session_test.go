@@ -140,5 +140,7 @@ func testPushFile(addr string, filename string) {
 		nazalog.Debugf("%s", m.DebugString())
 
 		conn.Write(m.Body)
+
+		time.Sleep(10 * time.Millisecond)
 	}
 }
