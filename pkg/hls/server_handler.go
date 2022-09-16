@@ -9,7 +9,7 @@
 package hls
 
 import (
-	"errors"
+	"bytes"
 	"net/http"
 	"net/url"
 	"strings"
@@ -59,10 +59,33 @@ func (s *ServerHandler) ServeHTTP(resp http.ResponseWriter, req *http.Request) {
 		Log.Errorf("parse url. err=%+v", err)
 		return
 	}
-	if urlCtx.GetFileType() == "m3u8" {
-		redirectUrl, err := s.handleSubSession(req, urlCtx)
+
+	s.ServeHTTPWithUrlCtx(resp, req, urlCtx)
+}
+
+func (s *ServerHandler) ServeHTTPWithUrlCtx(resp http.ResponseWriter, req *http.Request, urlCtx base.UrlContext) {
+	//Log.Debugf("%+v", req)
+
+	urlObj, _ := url.Parse(urlCtx.Url)
+
+	// TODO chef:
+	// - check appname in URI path
+
+	filename := urlCtx.LastItemOfPath
+	filetype := urlCtx.GetFileType()
+
+	// handle session
+	sessionIdHash := urlObj.Query().Get("session_id")
+	if filetype == "ts" && sessionIdHash != "" {
+		err := s.keepSessionAlive(sessionIdHash)
 		if err != nil {
-			Log.Warnf("handle hlsSubSession. err=%+v", err)
+			Log.Warnf("keepSessionAlive failed. session[%s] err=%+v", sessionIdHash, err)
+			return
+		}
+	} else if filetype == "m3u8" {
+		redirectUrl, err := s.handleSubSession(sessionIdHash, urlObj, req, urlCtx)
+		if err != nil {
+			Log.Warnf("handle hlsSubSession[%s]. err=%+v", sessionIdHash, err)
 			return
 		}
 		if redirectUrl != "" {
@@ -77,18 +100,6 @@ func (s *ServerHandler) ServeHTTP(resp http.ResponseWriter, req *http.Request) {
 			}
 		}
 	}
-
-	s.ServeHTTPWithUrlCtx(resp, urlCtx)
-}
-
-func (s *ServerHandler) ServeHTTPWithUrlCtx(resp http.ResponseWriter, urlCtx base.UrlContext) {
-	//Log.Debugf("%+v", req)
-
-	// TODO chef:
-	// - check appname in URI path
-
-	filename := urlCtx.LastItemOfPath
-	filetype := urlCtx.GetFileType()
 
 	ri := PathStrategy.GetRequestInfo(urlCtx, s.outPath)
 	//Log.Debugf("%+v", ri)
@@ -110,6 +121,9 @@ func (s *ServerHandler) ServeHTTPWithUrlCtx(resp http.ResponseWriter, urlCtx bas
 	case "m3u8":
 		resp.Header().Add("Content-Type", "application/x-mpegurl")
 		resp.Header().Add("Server", base.LalHlsM3u8Server)
+		if sessionIdHash != "" {
+			content = bytes.ReplaceAll(content, []byte(".ts"), []byte(".ts?session_id="+sessionIdHash))
+		}
 	case "ts":
 		resp.Header().Add("Content-Type", "video/mp2t")
 		resp.Header().Add("Server", base.LalHlsTsServer)
@@ -148,12 +162,7 @@ func (s *ServerHandler) onSubSessionExpired(sessionIdHash string, session *SubSe
 	s.observer.OnDelHlsSubSession(session)
 }
 
-func (s *ServerHandler) handleSubSession(req *http.Request, urlCtx base.UrlContext) (redirectUrl string, err error) {
-	urlParsed, err := url.Parse(urlCtx.Url)
-	if err != nil {
-		return "", errors.New("parse url err")
-	}
-	sessionIdHash := urlParsed.Query().Get("session_id")
+func (s *ServerHandler) handleSubSession(sessionIdHash string, urlObj *url.URL, req *http.Request, urlCtx base.UrlContext) (redirectUrl string, err error) {
 	if sessionIdHash != "" {
 		err = s.keepSessionAlive(sessionIdHash)
 		if err != nil {
@@ -164,10 +173,10 @@ func (s *ServerHandler) handleSubSession(req *http.Request, urlCtx base.UrlConte
 		if err != nil {
 			return "", err
 		}
-		query := urlParsed.Query()
+		query := urlObj.Query()
 		query.Set("session_id", session.sessionIdHash)
-		urlParsed.RawQuery = query.Encode()
-		return urlParsed.String(), nil
+		urlObj.RawQuery = query.Encode()
+		return urlObj.String(), nil
 	}
 	return "", nil
 }
