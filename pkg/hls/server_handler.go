@@ -60,7 +60,7 @@ func (s *ServerHandler) ServeHTTP(resp http.ResponseWriter, req *http.Request) {
 		return
 	}
 	if urlCtx.GetFileType() == "m3u8" {
-		redirectUrl, err := s.handleSubSession(urlCtx)
+		redirectUrl, err := s.handleSubSession(req, urlCtx)
 		if err != nil {
 			Log.Warnf("handle hlsSubSession. err=%+v", err)
 			return
@@ -132,10 +132,10 @@ func (s *ServerHandler) keepSessionAlive(sessionIdHash string) error {
 	return nil
 }
 
-func (s *ServerHandler) createSubSession(urlCtx base.UrlContext) (*SubSession, error) {
+func (s *ServerHandler) createSubSession(req *http.Request, urlCtx base.UrlContext) (*SubSession, error) {
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
-	session := NewSubSession(urlCtx, s.urlPattern, s.sessionHashKey, s.sessionTimeout)
+	session := NewSubSession(req, urlCtx, s.urlPattern, s.sessionHashKey, s.sessionTimeout)
 	s.sessionMap[session.sessionIdHash] = session
 	err := s.observer.OnNewHlsSubSession(session)
 	return session, err
@@ -148,7 +148,7 @@ func (s *ServerHandler) onSubSessionExpired(sessionIdHash string, session *SubSe
 	s.observer.OnDelHlsSubSession(session)
 }
 
-func (s *ServerHandler) handleSubSession(urlCtx base.UrlContext) (redirectUrl string, err error) {
+func (s *ServerHandler) handleSubSession(req *http.Request, urlCtx base.UrlContext) (redirectUrl string, err error) {
 	urlParsed, err := url.Parse(urlCtx.Url)
 	if err != nil {
 		return "", errors.New("parse url err")
@@ -160,7 +160,7 @@ func (s *ServerHandler) handleSubSession(urlCtx base.UrlContext) (redirectUrl st
 			return "", err
 		}
 	} else {
-		session, err := s.createSubSession(urlCtx)
+		session, err := s.createSubSession(req, urlCtx)
 		if err != nil {
 			return "", err
 		}

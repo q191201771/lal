@@ -3,6 +3,7 @@ package hls
 import (
 	"github.com/q191201771/lal/pkg/base"
 	"github.com/q191201771/naza/pkg/nazamd5"
+	"net/http"
 	"strings"
 	"time"
 )
@@ -21,7 +22,7 @@ func (s *SubSession) UniqueKey() string {
 	return s.stat.SessionId
 }
 
-func NewSubSession(urlCtx base.UrlContext, hlsUrlPattern, sessionHashKey string, timeout time.Duration) *SubSession {
+func NewSubSession(req *http.Request, urlCtx base.UrlContext, hlsUrlPattern, sessionHashKey string, timeout time.Duration) *SubSession {
 	if strings.HasPrefix(hlsUrlPattern, "/") {
 		hlsUrlPattern = hlsUrlPattern[1:]
 	}
@@ -31,10 +32,13 @@ func NewSubSession(urlCtx base.UrlContext, hlsUrlPattern, sessionHashKey string,
 		hlsUrlPattern:   hlsUrlPattern,
 		timeout:         timeout,
 	}
-	session.stat = base.StatSession{
-		SessionId: base.GenUkHlsSubSession(),
-		Protocol:  base.SessionProtocolHlsStr,
-	}
+	// stat
+	session.stat.SessionId = base.GenUkHlsSubSession()
+	session.stat.Protocol = base.SessionProtocolHlsStr
+	session.stat.BaseType = base.SessionBaseTypeSubStr
+	session.stat.RemoteAddr = req.RemoteAddr
+	session.stat.StartTime = time.Now().String()
+
 	session.sessionIdHash = nazamd5.Md5([]byte(session.stat.SessionId + sessionHashKey))
 	return session
 }
