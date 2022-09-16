@@ -131,14 +131,25 @@ func (s *ServerHandler) ServeHTTPWithUrlCtx(resp http.ResponseWriter, req *http.
 	resp.Header().Add("Cache-Control", "no-cache")
 	resp.Header().Add("Access-Control-Allow-Origin", "*")
 
+	if sessionIdHash != "" {
+		session := s.getSubSession(sessionIdHash)
+		if session != nil {
+			session.AddWroteBytesSum(uint64(len(content)))
+		}
+	}
+
 	_, _ = resp.Write(content)
 	return
+}
+
+func (s *ServerHandler) getSubSession(sessionIdHash string) *SubSession {
+	return s.sessionMap[sessionIdHash]
 }
 
 func (s *ServerHandler) keepSessionAlive(sessionIdHash string) error {
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
-	session := s.sessionMap[sessionIdHash]
+	session := s.getSubSession(sessionIdHash)
 	if session == nil {
 		return base.ErrHlsSessionNotFound
 	}

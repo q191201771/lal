@@ -124,6 +124,8 @@ type Group struct {
 	rtmpMergeWriter *base.MergeWriter // TODO(chef): 后面可以在业务层加一个定时Flush
 	//
 	stat base.StatGroup
+
+	hlsCalcSessionStatIntervalSec uint32
 }
 
 func NewGroup(appName string, streamName string, config *Config, observer IGroupObserver) *Group {
@@ -139,17 +141,18 @@ func NewGroup(appName string, streamName string, config *Config, observer IGroup
 			StreamName: streamName,
 			AppName:    appName,
 		},
-		exitChan:                   make(chan struct{}, 1),
-		rtmpSubSessionSet:          make(map[*rtmp.ServerSession]struct{}),
-		httpflvSubSessionSet:       make(map[*httpflv.SubSession]struct{}),
-		httptsSubSessionSet:        make(map[*httpts.SubSession]struct{}),
-		rtspSubSessionSet:          make(map[*rtsp.SubSession]struct{}),
-		waitRtspSubSessionSet:      make(map[*rtsp.SubSession]struct{}),
-		hlsSubSessionSet:           make(map[*hls.SubSession]struct{}),
-		rtmpGopCache:               remux.NewGopCache("rtmp", uk, config.RtmpConfig.GopNum),
-		httpflvGopCache:            remux.NewGopCache("httpflv", uk, config.HttpflvConfig.GopNum),
-		httptsGopCache:             remux.NewGopCacheMpegts(uk, config.HttptsConfig.GopNum),
-		psPubPrevInactiveCheckTick: -1,
+		exitChan:                      make(chan struct{}, 1),
+		rtmpSubSessionSet:             make(map[*rtmp.ServerSession]struct{}),
+		httpflvSubSessionSet:          make(map[*httpflv.SubSession]struct{}),
+		httptsSubSessionSet:           make(map[*httpts.SubSession]struct{}),
+		rtspSubSessionSet:             make(map[*rtsp.SubSession]struct{}),
+		waitRtspSubSessionSet:         make(map[*rtsp.SubSession]struct{}),
+		hlsSubSessionSet:              make(map[*hls.SubSession]struct{}),
+		rtmpGopCache:                  remux.NewGopCache("rtmp", uk, config.RtmpConfig.GopNum),
+		httpflvGopCache:               remux.NewGopCache("httpflv", uk, config.HttpflvConfig.GopNum),
+		httptsGopCache:                remux.NewGopCacheMpegts(uk, config.HttptsConfig.GopNum),
+		psPubPrevInactiveCheckTick:    -1,
+		hlsCalcSessionStatIntervalSec: uint32(config.HlsConfig.FragmentDurationMs/1000) * 10,
 	}
 
 	g.initRelayPushByConfig()
@@ -183,6 +186,14 @@ func (group *Group) Tick(tickCount uint32) {
 	// 定时计算session bitrate
 	if tickCount%calcSessionStatIntervalSec == 0 {
 		group.updateAllSessionStat()
+	}
+
+	// because hls make multiple separate http request to get stream content and gap between request base on hls segment duration
+	// if we update every 5s can cause bitrateKbit equal to 0 if within 5s do not have any ts http request is make
+	if tickCount%group.hlsCalcSessionStatIntervalSec == 0 {
+		for session := range group.hlsSubSessionSet {
+			session.UpdateStat(group.hlsCalcSessionStatIntervalSec)
+		}
 	}
 }
 

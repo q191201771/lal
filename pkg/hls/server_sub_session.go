@@ -2,6 +2,7 @@ package hls
 
 import (
 	"github.com/q191201771/lal/pkg/base"
+	"github.com/q191201771/naza/pkg/connection"
 	"github.com/q191201771/naza/pkg/nazamd5"
 	"net/http"
 	"strings"
@@ -11,11 +12,14 @@ import (
 type SubSession struct {
 	LastRequestTime time.Time
 	urlCtx          base.UrlContext
-	stat            base.StatSession
 	hlsUrlPattern   string
 	appName         string
 	timeout         time.Duration
 	sessionIdHash   string // Because session.UniqueKey() too easy to guess so that we need to hash it with a key to prevent client guess session id
+
+	stat     base.StatSession
+	prevStat connection.Stat
+	currStat connection.StatAtomic
 }
 
 func (s *SubSession) UniqueKey() string {
@@ -63,11 +67,20 @@ func (s *SubSession) RawQuery() string {
 }
 
 func (s *SubSession) UpdateStat(intervalSec uint32) {
-	// TODO implement hls update stat
+	wroteBytesSum := s.currStat.WroteBytesSum.Load()
+	wDiff := wroteBytesSum - s.prevStat.WroteBytesSum
+	s.stat.WriteBitrateKbits = int(wDiff * 8 / 1024 / uint64(intervalSec))
+	s.stat.BitrateKbits = s.stat.WriteBitrateKbits
+	s.prevStat.WroteBytesSum = wroteBytesSum
 	return
 }
 
+func (s *SubSession) AddWroteBytesSum(wbs uint64) {
+	s.currStat.WroteBytesSum.Add(wbs)
+}
+
 func (s *SubSession) GetStat() base.StatSession {
+	s.stat.WroteBytesSum = s.currStat.WroteBytesSum.Load()
 	return s.stat
 }
 
