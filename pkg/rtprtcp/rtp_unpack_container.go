@@ -84,7 +84,7 @@ func (r *RtpUnpackContainer) tryUnpackOneSequential() bool {
 func (r *RtpUnpackContainer) tryUnpackOne() bool {
 	unpackedFlag, unpackedSeq := r.unpackerProtocol.TryUnpackOne(&r.list)
 	if unpackedFlag {
-		r.list.SetUnpackedSeq(unpackedSeq)
+		r.list.SetDoneSeq(unpackedSeq)
 	}
 	return unpackedFlag
 }

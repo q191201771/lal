@@ -86,14 +86,8 @@ func (p *PsUnpacker) FeedRtpPacket(b []byte) error {
 	if err != nil {
 		return err
 	}
-	//如果是第一帧判断一下数据是否符合
-	if p.buf.Len() == 0 {
-		body := ipkt.Body()
-		if !(len(body) > 4 && bytes.Compare(body[0:3], []byte{0, 0, 1}) == 0) {
-			return ErrGb28181
-		}
-	}
-	//nazalog.Debugf("h=%+v", ipkt.Header)
+
+	//nazalog.Debugf("FeedRtpPacket. h=%+v", ipkt.Header)
 
 	var isStartPositionFn = func(pkt rtprtcp.RtpPacket) bool {
 		body := pkt.Body()
@@ -104,9 +98,11 @@ func (p *PsUnpacker) FeedRtpPacket(b []byte) error {
 
 	// 过期了直接丢掉
 	if p.list.IsStale(ipkt.Header.Seq) {
+		//nazalog.Debugf("FeedRtpPacket stale, drop. %d", ipkt.Header.Seq)
 		return ErrGb28181
 	}
 	// 插入队列
+	//nazalog.Debugf("FeedRtpPacket insert. %d", ipkt.Header.Seq)
 	p.list.Insert(ipkt)
 	for {
 		// 循环判断头部是否是顺序的
@@ -115,13 +111,15 @@ func (p *PsUnpacker) FeedRtpPacket(b []byte) error {
 			// 如果头一个是顺序的，取出来，喂入解析器
 
 			opkt := p.list.PopFirst()
-			p.list.SetUnpackedSeq(opkt.Header.Seq)
-            Log.Infof("rtp sep:%d;timestamp:%d",opkt.Header.Seq,opkt.Header.Timestamp)
+			p.list.SetDoneSeq(opkt.Header.Seq)
 			p.FeedRtpBody(opkt.Body(), opkt.Header.Timestamp)
+			//nazalog.Debugf("FeedRtpPacket feed. %d", opkt.Header.Seq)
 		} else {
 			// 不是顺序的，如果还没达到容器阈值，就先缓存在容器中，直接退出了
+			// 注意，如果队列为空，也会走到这，然后通过!full退出
 
 			if !p.list.Full() {
+				//nazalog.Debugf("FeedRtpPacket exit check !full.")
 				break
 			}
 
@@ -132,19 +130,25 @@ func (p *PsUnpacker) FeedRtpPacket(b []byte) error {
 			// 再丢弃连续的，直到下一个可解析帧位置
 			// 因为不连续的话，没法判断和正在丢弃的是否同一帧的，可以给个机会看后续是否能收到
 			prev := p.list.PopFirst()
+			//nazalog.Debugf("FeedRtpPacket, drop. %d", prev.Header.Seq)
 
 			for p.list.Size > 0 {
 				curr := p.list.PeekFirst()
 				if rtprtcp.SubSeq(curr.Header.Seq, prev.Header.Seq) != 1 {
+					//nazalog.Debugf("FeedRtpPacket exit drop !sequential.")
 					break
 				}
 
 				if isStartPositionFn(curr) {
-					p.list.SetUnpackedSeq(curr.Header.Seq - 1)
+					//nazalog.Debugf("FeedRtpPacket exit drop start.")
+
+					// 注意，这里需要设置done seq，确保这个seq在以后的判断中可被使用
+					p.list.SetDoneSeq(curr.Header.Seq - 1)
 					break
 				}
 
 				prev = p.list.PopFirst()
+				//nazalog.Debugf("FeedRtpPacket, drop. %d", prev.Header.Seq)
 			}
 
 			// 注意，缓存的数据也需要清除
@@ -208,11 +212,15 @@ func (p *PsUnpacker) FeedRtpBody(rtpBody []byte, rtpts uint32) {
 		case psPackStartCodePesPadding:
 			fallthrough
 		case psPackStartCodePesPsd:
-			fallthrough
+			consumed = parsePackStreamBody(rb, i)
 		default:
 			// TODO(chef): [opt] 所有code都处理后，不符合格式的code可以考虑重置unpacker，重新处理新喂入的数据 202207
-			nazalog.Errorf("----------default----------. %s", hex.Dump(nazabytes.Prefix(rb[i-4:], 32)))
-			consumed = parsePackStreamBody(rb, i)
+			nazalog.Errorf("unknown ps code, reset all cache buffer. %d,%d,%d, %s",
+				p.buf.Len(), len(p.audioBuf), len(p.videoBuf), hex.Dump(nazabytes.Prefix(rb[i-4:], 32)))
+			p.buf.Reset()
+			p.audioBuf = nil
+			p.videoBuf = nil
+			return
 		}
 
 		if consumed < 0 {
@@ -357,6 +365,7 @@ func (p *PsUnpacker) parseAvStream(code int, rtpts uint32, rb []byte, index int)
 								Pts:         p.preAudioPts / 90,
 								Payload:     p.audioBuf,
 							})
+							// TODO(chef): [perf] 复用内存块 202209
 							p.audioBuf = nil
 						} else {
 							// noop
