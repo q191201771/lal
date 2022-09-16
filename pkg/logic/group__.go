@@ -137,7 +137,7 @@ func NewGroup(appName string, streamName string, config *Config, observer IGroup
 		observer:   observer,
 		stat: base.StatGroup{
 			StreamName: streamName,
-			AppName: appName,
+			AppName:    appName,
 		},
 		exitChan:                   make(chan struct{}, 1),
 		rtmpSubSessionSet:          make(map[*rtmp.ServerSession]struct{}),
@@ -170,7 +170,6 @@ func (group *Group) RunLoop() {
 // Tick 定时器
 //
 // @param tickCount 当前时间，单位秒。注意，不一定是Unix时间戳，可以是从0开始+1秒递增的时间
-//
 func (group *Group) Tick(tickCount uint32) {
 	group.mutex.Lock()
 	defer group.mutex.Unlock()
@@ -294,6 +293,13 @@ func (group *Group) GetStat(maxsub int) base.StatGroup {
 		}
 		group.stat.StatSubs = append(group.stat.StatSubs, base.Session2StatSub(s))
 	}
+	for s := range group.hlsSubSessionSet {
+		statSubCount++
+		if statSubCount > maxsub {
+			break
+		}
+		group.stat.StatSubs = append(group.stat.StatSubs, base.Session2StatSub(s))
+	}
 
 	return group.stat
 }
@@ -402,7 +408,6 @@ func (group *Group) OutSessionNum() int {
 // disposeInactiveSessions 关闭不活跃的session
 //
 // TODO chef: [refactor] 梳理和naza.Connection超时重复部分
-//
 func (group *Group) disposeInactiveSessions(tickCount uint32) {
 	if group.psPubSession != nil {
 		if group.psPubTimeoutSec == 0 {
@@ -485,7 +490,6 @@ func (group *Group) disposeInactiveSessions(tickCount uint32) {
 }
 
 // updateAllSessionStat 更新所有session的状态
-//
 func (group *Group) updateAllSessionStat() {
 	if group.rtmpPubSession != nil {
 		group.rtmpPubSession.UpdateStat(calcSessionStatIntervalSec)
@@ -550,13 +554,11 @@ func (group *Group) hasInSession() bool {
 }
 
 // hasOutSession 是否还有out往外发送音视频数据的session
-//
 func (group *Group) hasOutSession() bool {
 	return group.hasSubSession() || group.hasPushSession()
 }
 
 // isTotalEmpty 当前group是否完全没有流了
-//
 func (group *Group) isTotalEmpty() bool {
 	return !group.hasInSession() && !group.hasOutSession()
 }
