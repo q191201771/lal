@@ -10,6 +10,8 @@ package hls
 
 import (
 	"bytes"
+	"errors"
+	"fmt"
 	"net/http"
 	"net/url"
 	"strings"
@@ -60,10 +62,14 @@ func (s *ServerHandler) ServeHTTP(resp http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	s.ServeHTTPWithUrlCtx(resp, req, urlCtx)
+	sessionIdHash, err := s.ServeHTTPWithUrlCtx(resp, req, urlCtx)
+	if err != nil && sessionIdHash != "" {
+		s.delSubSession(sessionIdHash, nil)
+		return
+	}
 }
 
-func (s *ServerHandler) ServeHTTPWithUrlCtx(resp http.ResponseWriter, req *http.Request, urlCtx base.UrlContext) {
+func (s *ServerHandler) ServeHTTPWithUrlCtx(resp http.ResponseWriter, req *http.Request, urlCtx base.UrlContext) (sessionIdHash string, err error) {
 	//Log.Debugf("%+v", req)
 
 	urlObj, _ := url.Parse(urlCtx.Url)
@@ -75,15 +81,16 @@ func (s *ServerHandler) ServeHTTPWithUrlCtx(resp http.ResponseWriter, req *http.
 	filetype := urlCtx.GetFileType()
 
 	// handle session
-	sessionIdHash := urlObj.Query().Get("session_id")
+	sessionIdHash = urlObj.Query().Get("session_id")
 	if filetype == "ts" && sessionIdHash != "" {
-		err := s.keepSessionAlive(sessionIdHash)
+		err = s.keepSessionAlive(sessionIdHash)
 		if err != nil {
 			Log.Warnf("keepSessionAlive failed. session[%s] err=%+v", sessionIdHash, err)
 			return
 		}
 	} else if filetype == "m3u8" {
-		redirectUrl, err := s.handleSubSession(sessionIdHash, urlObj, req, urlCtx)
+		var redirectUrl string
+		redirectUrl, err = s.handleSubSession(sessionIdHash, urlObj, req, urlCtx)
 		if err != nil {
 			Log.Warnf("handle hlsSubSession[%s]. err=%+v", sessionIdHash, err)
 			return
@@ -95,6 +102,8 @@ func (s *ServerHandler) ServeHTTPWithUrlCtx(resp http.ResponseWriter, req *http.
 				http.Redirect(resp, req, redirectUrl, http.StatusFound)
 				return
 			} else {
+				err = errors.New(fmt.Sprintf("duplicate redirect url[%s]", redirectUrl))
+				Log.Error(err.Error())
 				resp.WriteHeader(http.StatusBadRequest)
 				return
 			}
@@ -105,14 +114,16 @@ func (s *ServerHandler) ServeHTTPWithUrlCtx(resp http.ResponseWriter, req *http.
 	//Log.Debugf("%+v", ri)
 
 	if filename == "" || (filetype != "m3u8" && filetype != "ts") || ri.StreamName == "" || ri.FileNameWithPath == "" {
-		Log.Warnf("invalid hls request. url=%+v, request=%+v", urlCtx, ri)
+		err = errors.New(fmt.Sprintf("invalid hls request. url=%+v, request=%+v", urlCtx, ri))
+		Log.Warnf(err.Error())
 		resp.WriteHeader(404)
 		return
 	}
 
-	content, err := ReadFile(ri.FileNameWithPath)
-	if err != nil {
-		Log.Warnf("read hls file failed. request=%+v, err=%+v", ri, err)
+	content, _err := ReadFile(ri.FileNameWithPath)
+	if _err != nil {
+		err = errors.New(fmt.Sprintf("read hls file failed. request=%+v, err=%+v", ri, _err))
+		Log.Warnf(err.Error())
 		resp.WriteHeader(404)
 		return
 	}
@@ -166,11 +177,20 @@ func (s *ServerHandler) createSubSession(req *http.Request, urlCtx base.UrlConte
 	return session, err
 }
 
-func (s *ServerHandler) onSubSessionExpired(sessionIdHash string, session *SubSession) {
+func (s *ServerHandler) delSubSession(sessionIdHash string, session *SubSession) {
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
-	delete(s.sessionMap, sessionIdHash)
-	s.observer.OnDelHlsSubSession(session)
+	if session == nil {
+		session = s.sessionMap[sessionIdHash]
+	}
+	if session != nil {
+		delete(s.sessionMap, sessionIdHash)
+		s.observer.OnDelHlsSubSession(session)
+	}
+}
+
+func (s *ServerHandler) onSubSessionExpired(sessionIdHash string, session *SubSession) {
+	s.delSubSession(sessionIdHash, session)
 }
 
 func (s *ServerHandler) handleSubSession(sessionIdHash string, urlObj *url.URL, req *http.Request, urlCtx base.UrlContext) (redirectUrl string, err error) {
