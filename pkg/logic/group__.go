@@ -94,7 +94,6 @@ type Group struct {
 	// ps pub使用
 	psPubTimeoutSec            uint32 // 超时时间
 	psPubPrevInactiveCheckTick int64  // 上次检查时间
-	psPubDumpFile              *base.DumpFile
 	// rtmp sub使用
 	rtmpGopCache *remux.GopCache
 	// httpflv sub使用
@@ -123,6 +122,9 @@ type Group struct {
 	rtmpMergeWriter *base.MergeWriter // TODO(chef): 后面可以在业务层加一个定时Flush
 	//
 	stat base.StatGroup
+	//
+	psPubDumpFile    *base.DumpFile
+	rtspPullDumpFile *base.DumpFile
 }
 
 func NewGroup(appName string, streamName string, config *Config, observer IGroupObserver) *Group {
@@ -136,7 +138,7 @@ func NewGroup(appName string, streamName string, config *Config, observer IGroup
 		observer:   observer,
 		stat: base.StatGroup{
 			StreamName: streamName,
-			AppName: appName,
+			AppName:    appName,
 		},
 		exitChan:                   make(chan struct{}, 1),
 		rtmpSubSessionSet:          make(map[*rtmp.ServerSession]struct{}),

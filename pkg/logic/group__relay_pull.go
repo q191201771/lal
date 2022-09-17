@@ -32,6 +32,7 @@ func (group *Group) StartPull(info base.ApiCtrlStartRelayPullReq) (string, error
 	group.pullProxy.pullRetryNum = info.PullRetryNum
 	group.pullProxy.autoStopPullAfterNoOutMs = info.AutoStopPullAfterNoOutMs
 	group.pullProxy.rtspMode = info.RtspMode
+	group.pullProxy.debugDumpPacket = info.DebugDumpPacket
 
 	return group.pullIfNeeded()
 }
@@ -58,6 +59,7 @@ type pullProxy struct {
 	pullRetryNum             int
 	autoStopPullAfterNoOutMs int // 没有观看者时，是否自动停止pull
 	rtspMode                 int
+	debugDumpPacket          string
 
 	startCount   int
 	lastHasOutTs int64
@@ -105,12 +107,22 @@ func (group *Group) setRtmpPullSession(session *rtmp.PullSession) {
 
 func (group *Group) setRtspPullSession(session *rtsp.PullSession) {
 	group.pullProxy.rtspSession = session
+	if group.pullProxy.debugDumpPacket != "" {
+		group.rtspPullDumpFile = base.NewDumpFile()
+		if err := group.rtspPullDumpFile.OpenToWrite(group.pullProxy.debugDumpPacket); err != nil {
+			Log.Errorf("%+v", err)
+		}
+	}
 }
 
 func (group *Group) resetRelayPullSession() {
 	group.pullProxy.isSessionPulling = false
 	group.pullProxy.rtmpSession = nil
 	group.pullProxy.rtspSession = nil
+	if group.rtspPullDumpFile != nil {
+		group.rtspPullDumpFile.Close()
+		group.rtspPullDumpFile = nil
+	}
 }
 
 func (group *Group) getStatPull() base.StatPull {

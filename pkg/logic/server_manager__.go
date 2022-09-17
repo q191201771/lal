@@ -53,7 +53,6 @@ type ServerManager struct {
 
 	mutex        sync.Mutex
 	groupManager IGroupManager
-
 }
 
 func NewServerManager(modOption ...ModOption) *ServerManager {

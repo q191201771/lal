@@ -20,6 +20,13 @@ import (
 
 // TODO(chef): [refactor] move to naza 202208
 
+//
+// lal中的支持情况列表：
+// 支持情况 | 协议          | 类型 | 应用       | 开关手段     | 方式
+// 已支持  | ps            | pub | lalserver | http-api参数 | hook到logic中
+// 未支持  | rtsp          | pull | lalserver | http-api参数 | hook到logic中
+// 未支持  | customize pub |
+
 type DumpFile struct {
 	file *os.File
 }
