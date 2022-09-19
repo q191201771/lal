@@ -73,13 +73,19 @@ var (
 
 var ErrSdp = errors.New("lal.sdp: fxxk")
 
-// ----- pkg/logic -------------------------------------------------------------------------------------------------------
+// ----- pkg/logic -----------------------------------------------------------------------------------------------------
 
 var (
 	ErrDupInStream = errors.New("lal.logic: in stream already exist at group")
 
 	ErrSimpleAuthParamNotFound = errors.New("lal.logic: simple auth failed since url param lal_secret not found")
 	ErrSimpleAuthFailed        = errors.New("lal.logic: simple auth failed since url param lal_secret invalid")
+)
+
+// ----- pkg/gb28181 ---------------------------------------------------------------------------------------------------
+
+var (
+	ErrGb28181 = errors.New("lal.gb28181: fxxk")
 )
 
 // ---------------------------------------------------------------------------------------------------------------------

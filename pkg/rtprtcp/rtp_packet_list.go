@@ -8,7 +8,10 @@
 
 package rtprtcp
 
-import "github.com/q191201771/naza/pkg/nazalog"
+import (
+	"fmt"
+	"github.com/q191201771/naza/pkg/nazabytes"
+)
 
 type RtpPacketListItem struct {
 	Packet RtpPacket
@@ -102,7 +105,6 @@ func (l *RtpPacketList) InitMaxSize(maxSize int) {
 // Full 是否已经满了
 //
 func (l *RtpPacketList) Full() bool {
-	nazalog.Debugf("%d %d", l.Size, l.maxSize)
 	return l.Size >= l.maxSize
 }
 
@@ -126,4 +128,23 @@ func (l *RtpPacketList) IsFirstSequential() bool {
 func (l *RtpPacketList) SetDoneSeq(seq uint16) {
 	l.doneSeqFlag = true
 	l.doneSeq = seq
+}
+
+func (l *RtpPacketList) Reset() {
+	l.doneSeqFlag = false
+	l.doneSeq = 0
+	l.Head.Next = nil
+}
+
+func (l *RtpPacketList) DebugString() string {
+	p := l.Head.Next
+	buf := nazabytes.NewBuffer(65535)
+	buf.WriteString(fmt.Sprintf("size=%d, doneSeq=%d", l.Size, l.doneSeq))
+	buf.WriteString(" [")
+	for p != nil {
+		buf.WriteString(fmt.Sprintf("%d ", p.Packet.Header.Seq))
+		p = p.Next
+	}
+	buf.WriteString("]")
+	return buf.String()
 }

@@ -49,7 +49,7 @@ func CompareSeq(a, b uint16) int {
 		return 0
 	}
 	if a > b {
-		if a-b < 16384 {
+		if a-b < 32768 {
 			return 1
 		}
 
@@ -57,7 +57,7 @@ func CompareSeq(a, b uint16) int {
 	}
 
 	// must be a < b
-	if b-a < 16384 {
+	if b-a < 32768 {
 		return -1
 	}
 

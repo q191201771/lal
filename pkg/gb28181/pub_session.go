@@ -168,6 +168,7 @@ func (session *PubSession) dispose(err error) error {
 			return
 		}
 		retErr = session.conn.Dispose()
+		session.unpacker.Dispose()
 	})
 	return retErr
 }
