@@ -86,6 +86,7 @@ func (s *ServerHandler) ServeHTTPWithUrlCtx(resp http.ResponseWriter, req *http.
 		err = s.keepSessionAlive(sessionIdHash)
 		if err != nil {
 			Log.Warnf("keepSessionAlive failed. session[%s] err=%+v", sessionIdHash, err)
+			resp.WriteHeader(http.StatusNotFound)
 			return
 		}
 	} else if filetype == "m3u8" {
@@ -93,6 +94,7 @@ func (s *ServerHandler) ServeHTTPWithUrlCtx(resp http.ResponseWriter, req *http.
 		redirectUrl, err = s.handleSubSession(sessionIdHash, urlObj, req, urlCtx)
 		if err != nil {
 			Log.Warnf("handle hlsSubSession[%s]. err=%+v", sessionIdHash, err)
+			resp.WriteHeader(http.StatusNotFound)
 			return
 		}
 		if redirectUrl != "" {
@@ -116,7 +118,7 @@ func (s *ServerHandler) ServeHTTPWithUrlCtx(resp http.ResponseWriter, req *http.
 	if filename == "" || (filetype != "m3u8" && filetype != "ts") || ri.StreamName == "" || ri.FileNameWithPath == "" {
 		err = errors.New(fmt.Sprintf("invalid hls request. url=%+v, request=%+v", urlCtx, ri))
 		Log.Warnf(err.Error())
-		resp.WriteHeader(404)
+		resp.WriteHeader(http.StatusFound)
 		return
 	}
 
@@ -124,7 +126,7 @@ func (s *ServerHandler) ServeHTTPWithUrlCtx(resp http.ResponseWriter, req *http.
 	if _err != nil {
 		err = errors.New(fmt.Sprintf("read hls file failed. request=%+v, err=%+v", ri, _err))
 		Log.Warnf(err.Error())
-		resp.WriteHeader(404)
+		resp.WriteHeader(http.StatusNotFound)
 		return
 	}
 
@@ -206,8 +208,8 @@ func (s *ServerHandler) handleSubSession(sessionIdHash string, urlObj *url.URL, 
 		}
 		query := urlObj.Query()
 		query.Set("session_id", session.sessionIdHash)
-		urlObj.RawQuery = query.Encode()
-		return urlObj.String(), nil
+		redirectUrl = urlObj.Path + "?" + query.Encode()
+		return redirectUrl, nil
 	}
 	return "", nil
 }
