@@ -34,7 +34,6 @@ type IPathStrategy interface {
 //
 // 路由策略
 // 接到HTTP请求时，对应文件路径的映射逻辑
-//
 type IPathRequestStrategy interface {
 	// GetRequestInfo
 	//
@@ -87,7 +86,6 @@ const (
 // - test110-1620540716095-1.ts
 // - ...                        一系列的TS文件
 //
-//
 // 假设
 // 流名称="test110"
 // rootPath="/tmp/lal/hls/"
@@ -100,7 +98,6 @@ const (
 // http://127.0.0.1:8080/hls/test110.m3u8                       -> /tmp/lal/hls/test110/playlist.m3u8
 // http://127.0.0.1:8080/hls/test110-1620540712084-0.ts         -> /tmp/lal/hls/test110/test110-1620540712084-0.ts
 // 最下面这两个做了特殊映射
-//
 type DefaultPathStrategy struct {
 }
 
@@ -113,7 +110,6 @@ type DefaultPathStrategy struct {
 // /hls/test110/record.m3u8               -> record.m3u8               test110    m3u8     {rootOutPath}/test110/record.m3u8
 // /hls/test110/test110-1620540712084-.ts -> test110-1620540712084-.ts test110    ts       {rootOutPath/test110/test110-1620540712084-.ts
 // /hls/test110-1620540712084-.ts         -> test110-1620540712084-.ts test110    ts       {rootOutPath/test110/test110-1620540712084-.ts
-//
 func (dps *DefaultPathStrategy) GetRequestInfo(urlCtx base.UrlContext, rootOutPath string) (ri RequestInfo) {
 	filename := urlCtx.LastItemOfPath
 	filetype := urlCtx.GetFileType()
@@ -158,5 +154,16 @@ func (*DefaultPathStrategy) GetTsFileName(streamName string, index int, timestam
 }
 
 func (*DefaultPathStrategy) getStreamNameFromTsFileName(fileName string) string {
-	return strings.Split(fileName, "-")[0]
+	sum := 0
+	index := strings.LastIndexFunc(fileName, func(r rune) bool {
+		if r == '-' {
+			sum++
+		}
+		// GetTsFileName 格式固定为%s-%d-%d.ts streamName取%s部分
+		return sum == 2
+	})
+	if index == -1 {
+		return fileName
+	}
+	return fileName[:index]
 }
