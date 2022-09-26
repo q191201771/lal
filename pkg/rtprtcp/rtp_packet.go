@@ -115,6 +115,7 @@ func ParseRtpHeader(b []byte) (h RtpHeader, err error) {
 }
 
 // ParseRtpPacket 函数调用结束后，不持有参数<b>的内存块
+//
 func ParseRtpPacket(b []byte) (pkt RtpPacket, err error) {
 	pkt.Header, err = ParseRtpHeader(b)
 	if err != nil {

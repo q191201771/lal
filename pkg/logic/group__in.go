@@ -11,7 +11,6 @@ package logic
 import (
 	"github.com/q191201771/lal/pkg/gb28181"
 	"github.com/q191201771/naza/pkg/nazalog"
-	"net"
 	"time"
 
 	"github.com/q191201771/lal/pkg/base"
@@ -124,11 +123,10 @@ func (group *Group) StartRtpPub(req base.ApiCtrlStartRtpPubReq) (ret base.ApiCtr
 	}
 
 	pubSession := gb28181.NewPubSession().WithStreamName(req.StreamName).WithOnAvPacket(group.OnAvPacketFromPsPubSession)
-	pubSession.WithHookReadUdpPacket(func(b []byte, raddr *net.UDPAddr, err error) bool {
+	pubSession.WithHookReadPacket(func(b []byte) {
 		if group.psPubDumpFile != nil {
 			group.psPubDumpFile.Write(b)
 		}
-		return true
 	})
 
 	Log.Debugf("[%s] [%s] add RTP PubSession into group.", group.UniqueKey, pubSession.UniqueKey())
@@ -151,7 +149,7 @@ func (group *Group) StartRtpPub(req base.ApiCtrlStartRtpPubReq) (ret base.ApiCtr
 		)
 	}
 
-	port, err := pubSession.Listen(req.Port)
+	port, err := pubSession.Listen(req.Port, req.IsTcpFlag != 0)
 	if err != nil {
 		group.delPsPubSession(pubSession)
 

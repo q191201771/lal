@@ -193,12 +193,16 @@ func (h *HttpApiServer) ctrlStartRtpPubHandler(w http.ResponseWriter, req *http.
 		return
 	}
 
-	if !j.Exist("port") {
-		info.Port = 0
-	}
 	if !j.Exist("timeout_ms") {
 		info.TimeoutMs = 60000
 	}
+	// 不存在时默认0值的，不需要手动写了
+	//if !j.Exist("port") {
+	//	info.Port = 0
+	//}
+	//if !j.Exist("is_tcp_flag") {
+	//	info.IsTcpFlag = 0
+	//}
 
 	Log.Infof("http api start rtp pub. req info=%+v", info)
 

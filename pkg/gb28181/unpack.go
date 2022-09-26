@@ -84,9 +84,11 @@ func (p *PsUnpacker) WithOnAvPacket(onAvPacket base.OnAvPacketFunc) *PsUnpacker 
 //
 // 注意，内部会处理丢包、乱序等问题
 //
-// @param b: rtp包，注意，包含rtp包头部分
+// @param b: rtp包，注意，包含rtp包头部分，内部不持有该内存块
 //
 func (p *PsUnpacker) FeedRtpPacket(b []byte) error {
+	// TODO(chef): [opt] 当前遇到的场景都是，音频和视频共用一个ssrc，并且音频和视频的seq是打在一起的，是否存在两个ssrc的情况？ 202209
+
 	p.feedPacketCount++
 
 	//defer func() {

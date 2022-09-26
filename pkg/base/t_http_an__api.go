@@ -42,6 +42,7 @@ type ApiCtrlStartRtpPubReq struct {
 	StreamName      string `json:"stream_name"`
 	Port            int    `json:"port"`
 	TimeoutMs       int    `json:"timeout_ms"`
+	IsTcpFlag       int    `json:"is_tcp_flag"`
 	DebugDumpPacket string `json:"debug_dump_packet"`
 }
 

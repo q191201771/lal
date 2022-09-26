@@ -31,7 +31,7 @@ var ErrGb28181 = errors.New("lal.gb28181: fxxk")
 var maxUnpackRtpListSize = 1024
 
 var (
-	defaultPubSessionPortMin = uint16(30000)
+	defaultPubSessionPortMin = uint16(30000) // 注意，udp和tcp都使用这个端口范围
 	defaultPubSessionPortMax = uint16(60000)
 )
 
