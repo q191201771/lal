@@ -210,8 +210,14 @@ func (sm *ServerManager) RunLoop() error {
 	}
 
 	if sm.rtmpServer != nil {
-		if err := sm.rtmpServer.Listen(); err != nil {
-			return err
+		if sm.config.RtmpConfig.EnableRtmps {
+			if err := sm.rtmpServer.ListenWithTLS(sm.config.RtmpConfig.RtmpsCertFile, sm.config.RtmpConfig.RtmpsKeyFile); err != nil {
+				return err
+			}
+		} else {
+			if err := sm.rtmpServer.Listen(); err != nil {
+				return err
+			}
 		}
 		go func() {
 			if err := sm.rtmpServer.RunLoop(); err != nil {

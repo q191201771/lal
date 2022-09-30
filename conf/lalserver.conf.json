@@ -3,6 +3,9 @@
   "conf_version": "v0.3.3",
   "rtmp": {
     "enable": true,
+    "enable_rtmps": true,
+    "rtmps_cert_file": "./conf/cert.pem",
+    "rtmps_key_file": "./conf/key.pem",
     "addr": ":1935",
     "gop_num": 0,
     "merge_write_size": 0,
