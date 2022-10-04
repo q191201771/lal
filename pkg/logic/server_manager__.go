@@ -225,7 +225,7 @@ func (sm *ServerManager) RunLoop() error {
 	}
 
 	if sm.rtmpsServer != nil {
-		if err := sm.rtmpServer.ListenWithTLS(sm.config.RtmpsConfig.CertFile, sm.config.RtmpsConfig.KeyFile); err != nil {
+		if err := sm.rtmpsServer.ListenWithTLS(sm.config.RtmpsConfig.CertFile, sm.config.RtmpsConfig.KeyFile); err != nil {
 			return err
 		}
 		go func() {
