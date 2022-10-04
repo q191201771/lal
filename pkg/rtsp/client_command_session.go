@@ -443,8 +443,26 @@ func (session *ClientCommandSession) writeOneSetup(setupUri string) error {
 	session.sessionId = strings.Split(ctx.Headers.Get(HeaderSession), ";")[0]
 
 	rRtpPort, rRtcpPort, err := parseServerPort(ctx.Headers.Get(HeaderTransport))
+	var rtpRAddr, rtcpRAddr string
 	if err != nil {
-		return err
+		// 增强兼容性逻辑
+		// 有用户反馈，存在对端不返回server_port的情况，对端是easydrawin
+		// 其实在pull的情况下，没有对端端口也可以，因为不发数据，或者需要发送时，使用接收时获取到的对端地址即可
+
+		Log.Warnf("[%s] init conn, parseServerPort failed. lRtpPort=%d, lRtcpPort=%d",
+			session.uniqueKey, lRtpPort, lRtcpPort)
+
+		switch session.t {
+		case CcstPullSession:
+			// noop
+		case CcstPushSession:
+			fallthrough
+		default:
+			return err
+		}
+	} else {
+		rtpRAddr = net.JoinHostPort(session.urlCtx.Host, fmt.Sprintf("%d", rRtpPort))
+		rtcpRAddr = net.JoinHostPort(session.urlCtx.Host, fmt.Sprintf("%d", rRtcpPort))
 	}
 
 	Log.Debugf("[%s] init conn. lRtpPort=%d, lRtcpPort=%d, rRtpPort=%d, rRtcpPort=%d",
@@ -452,7 +470,7 @@ func (session *ClientCommandSession) writeOneSetup(setupUri string) error {
 
 	rtpConn, err := nazanet.NewUdpConnection(func(option *nazanet.UdpConnectionOption) {
 		option.Conn = rtpC
-		option.RAddr = net.JoinHostPort(session.urlCtx.Host, fmt.Sprintf("%d", rRtpPort))
+		option.RAddr = rtpRAddr
 		option.MaxReadPacketSize = rtprtcp.MaxRtpRtcpPacketSize
 	})
 	if err != nil {
@@ -461,7 +479,7 @@ func (session *ClientCommandSession) writeOneSetup(setupUri string) error {
 
 	rtcpConn, err := nazanet.NewUdpConnection(func(option *nazanet.UdpConnectionOption) {
 		option.Conn = rtcpC
-		option.RAddr = net.JoinHostPort(session.urlCtx.Host, fmt.Sprintf("%d", rRtcpPort))
+		option.RAddr = rtcpRAddr
 		option.MaxReadPacketSize = rtprtcp.MaxRtpRtcpPacketSize
 	})
 	if err != nil {
