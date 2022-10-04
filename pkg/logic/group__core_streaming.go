@@ -9,9 +9,10 @@
 package logic
 
 import (
+	"net"
+
 	"github.com/q191201771/lal/pkg/rtmp"
 	"github.com/q191201771/naza/pkg/nazalog"
-	"net"
 
 	"github.com/q191201771/lal/pkg/mpegts"
 
@@ -370,7 +371,7 @@ func (group *Group) broadcastByRtmpMsg(msg base.RtmpMsg) {
 	}
 
 	// # 缓存关键信息，以及gop
-	if group.config.RtmpConfig.Enable {
+	if group.config.RtmpConfig.Enable || group.config.RtmpsConfig.Enable {
 		group.rtmpGopCache.Feed(msg, lazyRtmpChunkDivider.GetEnsureWithoutSdf())
 		if msg.Header.MsgTypeId == base.RtmpTypeIdMetadata {
 			group.rtmpGopCache.SetMetadata(lazyRtmpChunkDivider.GetEnsureWithSdf(), lazyRtmpChunkDivider.GetEnsureWithoutSdf())
