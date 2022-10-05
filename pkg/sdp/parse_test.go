@@ -597,3 +597,32 @@ a=control:streamid=1
 	assert.Equal(t, nil, err)
 	_ = ctx
 }
+
+func TestCase15(t *testing.T) {
+	// TODO(chef): [fix] 有多路音频的情况 202209
+	//v=0
+	//o=- 2266397444 2266397444 IN IP4 0.0.0.0
+	//s=Media Server
+	//c=IN IP4 0.0.0.0
+	//t=0 0
+	//a=control:*
+	//	a=packetization-supported:DH
+	//a=rtppayload-supported:DH
+	//a=range:npt=now-
+	//	a=x-packetization-supported:IV
+	//a=x-rtppayload-supported:IV
+	//m=video 0 RTP/AVP 96
+	//a=control:trackID=0
+	//a=framerate:25.000000
+	//a=rtpmap:96 H264/90000
+	//a=fmtp:96 packetization-mode=1;profile-level-id=64103C;sprop-parameter-sets=Z2QQPKwbGqAIAA4/lmyAAAADAIAAABlHhEI1AA==,aO4xshsA
+	//a=recvonly
+	//m=audio 0 RTP/AVP 8
+	//a=control:trackID=1
+	//a=rtpmap:8 PCMA/8000
+	//a=recvonly
+	//m=audio 0 RTP/AVP 8
+	//a=control:trackID=2
+	//a=rtpmap:8 PCMA/8000
+	//a=recvonly
+}
