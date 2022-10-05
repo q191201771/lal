@@ -9,7 +9,7 @@
 
 [中文文档](https://pengrl.com/lal/#/)
 
-LAL is an audio/video live streaming broadcast server written in Go. It's sort of like `nginx-rtmp-module`, but easier to use and with more features, e.g RTMP, RTSP(RTP/RTCP), HLS, HTTP[S]/WebSocket[s]-FLV/TS, H264/H265/AAC, relay, cluster, record, HTTP API/Notify, GOP cache.
+LAL is an audio/video live streaming broadcast server written in Go. It's sort of like `nginx-rtmp-module`, but easier to use and with more features, e.g RTMP, RTSP(RTP/RTCP), HLS, HTTP[S]/WebSocket[s]-FLV/TS, GB28181, H264/H265/AAC, relay, cluster, record, HTTP API/Notify, GOP cache.
 
 ## Install
 
@@ -109,4 +109,4 @@ Bugs, questions, suggestions, anything related or not, feel free to contact me w
 
 MIT, see [License](https://github.com/q191201771/lal/blob/master/LICENSE).
 
-updated by yoko, 20211204
+this note updated by yoko, 202209
