@@ -259,6 +259,15 @@ func packPcr(out []byte, pcr uint64) {
 	out[3] = uint8(pcr >> 1)
 	out[4] = uint8(pcr<<7) | 0x7e
 	out[5] = 0
+
+	//pcrLow := pcr % 300
+	//pcrHigh := pcr / 300
+	//out[0] = uint8(pcrHigh >> 25)
+	//out[1] = uint8(pcrHigh >> 17)
+	//out[2] = uint8(pcrHigh >> 9)
+	//out[3] = uint8(pcrHigh >> 1)
+	//out[4] = uint8(pcrHigh<<7) | uint8(pcrLow>>8) | 0x7e
+	//out[5] = uint8(pcrLow)
 }
 
 // 注意，除PTS外，DTS也使用这个函数打包
