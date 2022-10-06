@@ -371,7 +371,7 @@ func (group *Group) broadcastByRtmpMsg(msg base.RtmpMsg) {
 	}
 
 	// # 缓存关键信息，以及gop
-	if group.config.RtmpConfig.Enable || group.config.RtmpsConfig.Enable {
+	if group.config.RtmpConfig.Enable || group.config.RtmpConfig.RtmpsEnable {
 		group.rtmpGopCache.Feed(msg, lazyRtmpChunkDivider.GetEnsureWithoutSdf())
 		if msg.Header.MsgTypeId == base.RtmpTypeIdMetadata {
 			group.rtmpGopCache.SetMetadata(lazyRtmpChunkDivider.GetEnsureWithSdf(), lazyRtmpChunkDivider.GetEnsureWithoutSdf())

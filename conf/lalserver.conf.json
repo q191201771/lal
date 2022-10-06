@@ -4,16 +4,14 @@
   "rtmp": {
     "enable": true,
     "addr": ":1935",
+    "rtmps_enable": true,
+    "rtmps_addr": ":4935",
+    "rtmps_cert_file": "./conf/cert.pem",
+    "rtmps_key_file": "./conf/key.pem",
     "gop_num": 0,
     "merge_write_size": 0,
     "add_dummy_audio_enable": false,
     "add_dummy_audio_wait_audio_ms": 150
-  },
-  "rtmps": {
-    "enable": true,
-    "addr": ":4935",
-    "cert_file": "./conf/cert.pem",
-    "key_file": "./conf/key.pem"
   },
   "default_http": {
     "http_listen_addr": ":8080",

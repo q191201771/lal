@@ -124,8 +124,8 @@ Doc: %s
 	if sm.config.RtmpConfig.Enable {
 		sm.rtmpServer = rtmp.NewServer(sm.config.RtmpConfig.Addr, sm)
 	}
-	if sm.config.RtmpsConfig.Enable {
-		sm.rtmpsServer = rtmp.NewServer(sm.config.RtmpsConfig.Addr, sm)
+	if sm.config.RtmpConfig.RtmpsEnable {
+		sm.rtmpsServer = rtmp.NewServer(sm.config.RtmpConfig.RtmpsAddr, sm)
 	}
 	if sm.config.RtspConfig.Enable {
 		sm.rtspServer = rtsp.NewServer(sm.config.RtspConfig.Addr, sm, sm.config.RtspConfig.ServerAuthConfig)
@@ -225,7 +225,7 @@ func (sm *ServerManager) RunLoop() error {
 	}
 
 	if sm.rtmpsServer != nil {
-		if err := sm.rtmpsServer.ListenWithTLS(sm.config.RtmpsConfig.CertFile, sm.config.RtmpsConfig.KeyFile); err != nil {
+		if err := sm.rtmpsServer.ListenWithTLS(sm.config.RtmpConfig.RtmpsCertFile, sm.config.RtmpConfig.RtmpsKeyFile); err != nil {
 			return err
 		}
 		go func() {
