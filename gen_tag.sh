@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-# 根据CHANGELOG.md中的最新版本号，决定是否更新version.go和以及打git tag
+# 根据CHANGELOG.md中的最新版本号，决定是否更新t_version.go和以及打git tag
 #
 # TODO(chef): 新电脑没有gsed导致失败了
 #
@@ -22,16 +22,16 @@ echo "newest version in git tag: " $GitTag
 
 # 源码中的版本号
 FileVersion=`cat pkg/base/t_version.go | grep 'const LalVersion' | awk -F\" '{print $2}'`
-echo "newest version in version.go: " $FileVersion
+echo "newest version in t_version.go: " $FileVersion
 
 # CHANGELOG.md和源码中的不一致，更新源码，并提交修改
 if [ "$NewVersion" == "$FileVersion" ];then
   echo 'same tag, noop.'
 else
-  echo 'update version.go'
-  gsed -i "/^const LalVersion/cconst LalVersion = \"${NewVersion}\"" pkg/base/version.go
-  git add pkg/base/version.go
-  git commit -m "${NewVersion} -> version.go"
+  echo 'update t_version.go'
+  gsed -i "/^const LalVersion/cconst LalVersion = \"${NewVersion}\"" pkg/base/t_version.go
+  git add pkg/base/t_version.go
+  git commit -m "${NewVersion} -> t_version.go"
   git push
 fi
 
