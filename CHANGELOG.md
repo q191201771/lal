@@ -1,4 +1,4 @@
-#### v0.31.0 (2022-10-07)
+#### v0.31.1 (2022-10-07)
 
 - [feat] HTTP-API增加`start_rtp_pub`接口，用于支持GB28181的ps流
 - [feat] 向外暴露IAuthentication，用于定制化鉴权
