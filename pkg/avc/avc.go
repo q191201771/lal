@@ -549,6 +549,7 @@ func IterateNaluAvcc(nals []byte, handler func(nal []byte)) error {
 }
 
 func Avcc2Annexb(nals []byte) ([]byte, error) {
+	// TODO(chef): 增加原地转换，不申请内存的方式 202206
 	ret := make([]byte, len(nals))
 	ret = ret[0:0]
 	err := IterateNaluAvcc(nals, func(nal []byte) {
@@ -559,8 +560,9 @@ func Avcc2Annexb(nals []byte) ([]byte, error) {
 }
 
 func Annexb2Avcc(nals []byte) ([]byte, error) {
+	// TODO(chef): 增加原地转换，不申请内存的方式。考虑原地内存不够大的情况 202206
 	var buf nazabytes.Buffer
-	buf.Grow(len(nals))
+	buf.Grow(len(nals) + 16) // perf: start code是三字节0 0 1时，转换时每个nal会多需要一个字节，预先申请16个字节，减少后续扩容的可能性
 	err := IterateNaluAnnexb(nals, func(nal []byte) {
 		bele.BePutUint32(buf.ReserveBytes(4), uint32(len(nal)))
 		buf.Flush(4)
