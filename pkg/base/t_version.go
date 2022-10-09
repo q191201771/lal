@@ -17,7 +17,7 @@ import "strings"
 
 // LalVersion 整个lal工程的版本号。注意，该变量由外部脚本修改维护，不要手动在代码中修改
 //
-const LalVersion = "v0.31.0"
+const LalVersion = "v0.31.1"
 
 // ConfVersion lalserver的配置文件的版本号
 //

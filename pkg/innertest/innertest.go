@@ -312,7 +312,8 @@ func entry() {
 		fileTagCount, httpflvPullTagCount.Load(), rtmpPullTagCount.Load(), rtspPullAvPacketCount.Load())
 
 	compareFile()
-	assert.Equal(t, strings.ReplaceAll(goldenRtspSdpList[mode], "\n", "\r\n"), string(rtspSdpCtx.RawSdp))
+	goldenRtspSdpTmplList[mode] = strings.ReplaceAll(goldenRtspSdpTmplList[mode], "{atoolv}", base.LalPackSdp)
+	assert.Equal(t, strings.ReplaceAll(goldenRtspSdpTmplList[mode], "\n", "\r\n"), string(rtspSdpCtx.RawSdp))
 }
 
 func compareFile() {
@@ -607,13 +608,13 @@ innertest-1642375465000-7.ts
 `,
 }
 
-var goldenRtspSdpList = []string{
+var goldenRtspSdpTmplList = []string{
 	`v=0
 o=- 0 0 IN IP4 127.0.0.1
 s=No Name
 c=IN IP4 127.0.0.1
 t=0 0
-a=tool:lal 0.30.1
+a=tool:{atoolv}
 m=video 0 RTP/AVP 96
 a=rtpmap:96 H264/90000
 a=fmtp:96 packetization-mode=1; sprop-parameter-sets=Z2QAFqyyAUBf8uAiAAADAAIAAAMAPB4sXJA=,aOvDyyLA; profile-level-id=640016
@@ -629,7 +630,7 @@ o=- 0 0 IN IP4 127.0.0.1
 s=No Name
 c=IN IP4 127.0.0.1
 t=0 0
-a=tool:lal 0.30.1
+a=tool:{atoolv}
 m=audio 0 RTP/AVP 97
 b=AS:128
 a=rtpmap:97 MPEG4-GENERIC/44100/2
@@ -641,7 +642,7 @@ o=- 0 0 IN IP4 127.0.0.1
 s=No Name
 c=IN IP4 127.0.0.1
 t=0 0
-a=tool:lal 0.30.1
+a=tool:{atoolv}
 m=video 0 RTP/AVP 96
 a=rtpmap:96 H264/90000
 a=fmtp:96 packetization-mode=1; sprop-parameter-sets=Z2QAFqyyAUBf8uAiAAADAAIAAAMAPB4sXJA=,aOvDyyLA; profile-level-id=640016
