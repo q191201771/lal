@@ -46,6 +46,7 @@ type ServerManager struct {
 	hlsServerHandler  *hls.ServerHandler
 
 	rtmpServer    *rtmp.Server
+	rtmpsServer   *rtmp.Server
 	rtspServer    *rtsp.Server
 	httpApiServer *HttpApiServer
 	pprofServer   *http.Server
@@ -122,6 +123,9 @@ Doc: %s
 
 	if sm.config.RtmpConfig.Enable {
 		sm.rtmpServer = rtmp.NewServer(sm.config.RtmpConfig.Addr, sm)
+	}
+	if sm.config.RtmpConfig.RtmpsEnable {
+		sm.rtmpsServer = rtmp.NewServer(sm.config.RtmpConfig.RtmpsAddr, sm)
 	}
 	if sm.config.RtspConfig.Enable {
 		sm.rtspServer = rtsp.NewServer(sm.config.RtspConfig.Addr, sm, sm.config.RtspConfig.ServerAuthConfig)
@@ -215,6 +219,17 @@ func (sm *ServerManager) RunLoop() error {
 		}
 		go func() {
 			if err := sm.rtmpServer.RunLoop(); err != nil {
+				Log.Error(err)
+			}
+		}()
+	}
+
+	if sm.rtmpsServer != nil {
+		if err := sm.rtmpsServer.ListenWithTLS(sm.config.RtmpConfig.RtmpsCertFile, sm.config.RtmpConfig.RtmpsKeyFile); err != nil {
+			return err
+		}
+		go func() {
+			if err := sm.rtmpsServer.RunLoop(); err != nil {
 				Log.Error(err)
 			}
 		}()

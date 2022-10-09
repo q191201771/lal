@@ -9,8 +9,10 @@
 package rtmp
 
 import (
-	"github.com/q191201771/lal/pkg/base"
+	"crypto/tls"
 	"net"
+
+	"github.com/q191201771/lal/pkg/base"
 )
 
 type IServerObserver interface {
@@ -52,6 +54,19 @@ func (server *Server) Listen() (err error) {
 		return
 	}
 	Log.Infof("start rtmp server listen. addr=%s", server.addr)
+	return
+}
+
+func (server *Server) ListenWithTLS(certFile, keyFile string) (err error) {
+	cert, err := tls.LoadX509KeyPair(certFile, keyFile)
+	if err != nil {
+		return
+	}
+	tlsConfig := &tls.Config{Certificates: []tls.Certificate{cert}}
+	if server.ln, err = tls.Listen("tcp", server.addr, tlsConfig); err != nil {
+		return
+	}
+	Log.Infof("start rtmps server listen. addr=%s", server.addr)
 	return
 }
 
