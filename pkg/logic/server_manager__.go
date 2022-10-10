@@ -11,28 +11,22 @@ package logic
 import (
 	"flag"
 	"fmt"
+	"io/ioutil"
 	"net/http"
+	_ "net/http/pprof"
 	"os"
 	"path/filepath"
 	"sync"
 	"time"
 
-	"github.com/q191201771/naza/pkg/nazalog"
-
-	"github.com/q191201771/naza/pkg/defertaskthread"
-
-	"github.com/q191201771/lal/pkg/hls"
-
 	"github.com/q191201771/lal/pkg/base"
-
-	"github.com/q191201771/lal/pkg/httpts"
-
-	"github.com/q191201771/lal/pkg/rtsp"
-
-	_ "net/http/pprof"
-
+	"github.com/q191201771/lal/pkg/hls"
 	"github.com/q191201771/lal/pkg/httpflv"
+	"github.com/q191201771/lal/pkg/httpts"
 	"github.com/q191201771/lal/pkg/rtmp"
+	"github.com/q191201771/lal/pkg/rtsp"
+	"github.com/q191201771/naza/pkg/defertaskthread"
+	"github.com/q191201771/naza/pkg/nazalog"
 	//"github.com/felixge/fgprof"
 )
 
@@ -68,28 +62,37 @@ func NewServerManager(modOption ...ModOption) *ServerManager {
 		fn(&sm.option)
 	}
 
-	confFile := sm.option.ConfFilename
-	// 运行参数中没有配置文件，尝试从几个默认位置读取
-	if confFile == "" {
-		nazalog.Warnf("config file did not specify in the command line, try to load it in the usual path.")
-		confFile = firstExistDefaultConfFilename()
-
-		// 所有默认位置都找不到配置文件，退出程序
+	rawContent := sm.option.ConfRawContent
+	if len(rawContent) == 0 {
+		confFile := sm.option.ConfFilename
+		// 运行参数中没有配置文件，尝试从几个默认位置读取
 		if confFile == "" {
-			// TODO(chef): refactor ILalserver既然已经作为package提供了，那么内部就不应该包含flag和os exit的操作，应该返回给上层
-			// TODO(chef): refactor new中逻辑是否该往后移
-			flag.Usage()
-			_, _ = fmt.Fprintf(os.Stderr, `
+			nazalog.Warnf("config file did not specify in the command line, try to load it in the usual path.")
+			confFile = firstExistDefaultConfFilename()
+
+			// 所有默认位置都找不到配置文件，退出程序
+			if confFile == "" {
+				// TODO(chef): refactor ILalserver既然已经作为package提供了，那么内部就不应该包含flag和os exit的操作，应该返回给上层
+				// TODO(chef): refactor new中逻辑是否该往后移
+				flag.Usage()
+				_, _ = fmt.Fprintf(os.Stderr, `
 Example:
   %s -c %s
 
 Github: %s
 Doc: %s
 `, os.Args[0], filepath.FromSlash("./conf/lalserver.conf.json"), base.LalGithubSite, base.LalDocSite)
+				base.OsExitAndWaitPressIfWindows(1)
+			}
+		}
+		var err error
+		rawContent, err = ioutil.ReadFile(confFile)
+		if err != nil {
+			_, _ = fmt.Fprintf(os.Stderr, "read conf file failed. file=%s err=%+v", confFile, err)
 			base.OsExitAndWaitPressIfWindows(1)
 		}
 	}
-	sm.config = LoadConfAndInitLog(confFile)
+	sm.config = LoadConfAndInitLog(rawContent)
 	base.LogoutStartInfo()
 
 	if sm.config.HlsConfig.Enable && sm.config.HlsConfig.UseMemoryAsDiskFlag {

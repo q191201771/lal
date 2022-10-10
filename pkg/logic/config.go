@@ -11,7 +11,6 @@ package logic
 import (
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"strings"
 
@@ -168,23 +167,18 @@ type CommonHttpAddrConfig struct {
 	HttpsKeyFile    string `json:"https_key_file"`
 }
 
-func LoadConfAndInitLog(confFile string) *Config {
+func LoadConfAndInitLog(rawContent []byte) *Config {
 	var config *Config
 
-	// 读取配置文件并解析原始内容
-	rawContent, err := ioutil.ReadFile(confFile)
-	if err != nil {
-		_, _ = fmt.Fprintf(os.Stderr, "read conf file failed. file=%s err=%+v", confFile, err)
-		base.OsExitAndWaitPressIfWindows(1)
-	}
-	if err = json.Unmarshal(rawContent, &config); err != nil {
-		_, _ = fmt.Fprintf(os.Stderr, "unmarshal conf file failed. file=%s err=%+v", confFile, err)
+	// 读取配置并解析原始内容
+	if err := json.Unmarshal(rawContent, &config); err != nil {
+		_, _ = fmt.Fprintf(os.Stderr, "unmarshal conf file failed. raw content=%s err=%+v", rawContent, err)
 		base.OsExitAndWaitPressIfWindows(1)
 	}
 
 	j, err := nazajson.New(rawContent)
 	if err != nil {
-		_, _ = fmt.Fprintf(os.Stderr, "nazajson unmarshal conf file failed. file=%s err=%+v", confFile, err)
+		_, _ = fmt.Fprintf(os.Stderr, "nazajson unmarshal conf file failed. raw content=%s err=%+v", rawContent, err)
 		base.OsExitAndWaitPressIfWindows(1)
 	}
 
@@ -328,7 +322,7 @@ func LoadConfAndInitLog(confFile string) *Config {
 		tlines = append(tlines, strings.TrimSpace(l))
 	}
 	compactRawContent := strings.Join(tlines, " ")
-	Log.Infof("load conf file succ. filename=%s, raw content=%s parsed=%+v", confFile, compactRawContent, config)
+	Log.Infof("load conf succ. raw content=%s parsed=%+v", compactRawContent, config)
 
 	return config
 }

@@ -85,6 +85,9 @@ type Option struct {
 	//
 	ConfFilename string
 
+	// ConfRawContent 配置，JSON格式
+	ConfRawContent []byte
+
 	// NotifyHandler
 	//
 	// 事件监听
