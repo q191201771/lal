@@ -1,9 +1,13 @@
 {
   "# doc of config": "https://pengrl.com/lal/#/ConfigBrief",
-  "conf_version": "v0.3.3",
+  "conf_version": "v0.3.4",
   "rtmp": {
     "enable": true,
     "addr": ":1935",
+    "rtmps_enable": true,
+    "rtmps_addr": ":4935",
+    "rtmps_cert_file": "./conf/cert.pem",
+    "rtmps_key_file": "./conf/key.pem",
     "gop_num": 0,
     "merge_write_size": 0,
     "add_dummy_audio_enable": false,

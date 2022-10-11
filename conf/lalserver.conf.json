@@ -1,6 +1,6 @@
 {
   "# doc of config": "https://pengrl.com/lal/#/ConfigBrief",
-  "conf_version": "v0.3.3",
+  "conf_version": "v0.3.4",
   "rtmp": {
     "enable": true,
     "addr": ":1935",
