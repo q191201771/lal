@@ -225,14 +225,15 @@ func (sm *ServerManager) RunLoop() error {
 	}
 
 	if sm.rtmpsServer != nil {
-		if err := sm.rtmpsServer.ListenWithTLS(sm.config.RtmpConfig.RtmpsCertFile, sm.config.RtmpConfig.RtmpsKeyFile); err != nil {
-			return err
+		err := sm.rtmpsServer.ListenWithTLS(sm.config.RtmpConfig.RtmpsCertFile, sm.config.RtmpConfig.RtmpsKeyFile)
+		// rtmps启动失败影响降级：当rtmps启动时我们并不返回错误，保证不因为rtmps影响其他服务
+		if err == nil {
+			go func() {
+				if errRun := sm.rtmpsServer.RunLoop(); errRun != nil {
+					Log.Error(errRun)
+				}
+			}()
 		}
-		go func() {
-			if err := sm.rtmpsServer.RunLoop(); err != nil {
-				Log.Error(err)
-			}
-		}()
 	}
 
 	if sm.rtspServer != nil {
