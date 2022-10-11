@@ -89,6 +89,10 @@ type HlsConfig struct {
 type RtspConfig struct {
 	Enable              bool   `json:"enable"`
 	Addr                string `json:"addr"`
+	RtspsEnable         bool   `json:"rtsps_enable"`
+	RtspsAddr           string `json:"rtsps_addr"`
+	RtspsCertFile       string `json:"rtsps_cert_file"`
+	RtspsKeyFile        string `json:"rtsps_key_file"`
 	OutWaitKeyFrameFlag bool   `json:"out_wait_key_frame_flag"`
 	rtsp.ServerAuthConfig
 }

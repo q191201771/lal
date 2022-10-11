@@ -48,6 +48,7 @@ type ServerManager struct {
 	rtmpServer    *rtmp.Server
 	rtmpsServer   *rtmp.Server
 	rtspServer    *rtsp.Server
+	rtspsServer   *rtsp.Server
 	httpApiServer *HttpApiServer
 	pprofServer   *http.Server
 	exitChan      chan struct{}
@@ -129,6 +130,9 @@ Doc: %s
 	}
 	if sm.config.RtspConfig.Enable {
 		sm.rtspServer = rtsp.NewServer(sm.config.RtspConfig.Addr, sm, sm.config.RtspConfig.ServerAuthConfig)
+	}
+	if sm.config.RtspConfig.RtspsEnable {
+		sm.rtspsServer = rtsp.NewServer(sm.config.RtspConfig.RtspsAddr, sm, sm.config.RtspConfig.ServerAuthConfig)
 	}
 	if sm.config.HttpApiConfig.Enable {
 		sm.httpApiServer = NewHttpApiServer(sm.config.HttpApiConfig.Addr, sm)
@@ -246,6 +250,17 @@ func (sm *ServerManager) RunLoop() error {
 		}()
 	}
 
+	if sm.rtspsServer != nil {
+		if err := sm.rtspsServer.ListenWithTLS(sm.config.RtspConfig.RtspsCertFile, sm.config.RtspConfig.RtspsKeyFile); err != nil {
+			return err
+		}
+		go func() {
+			if err := sm.rtspsServer.RunLoop(); err != nil {
+				Log.Error(err)
+			}
+		}()
+	}
+
 	if sm.httpApiServer != nil {
 		if err := sm.httpApiServer.Listen(); err != nil {
 			return err
@@ -323,8 +338,16 @@ func (sm *ServerManager) Dispose() {
 		sm.rtmpServer.Dispose()
 	}
 
+	if sm.rtmpsServer != nil {
+		sm.rtmpsServer.Dispose()
+	}
+
 	if sm.rtspServer != nil {
 		sm.rtspServer.Dispose()
+	}
+
+	if sm.rtspsServer != nil {
+		sm.rtspsServer.Dispose()
 	}
 
 	if sm.httpServerManager != nil {

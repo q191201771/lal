@@ -45,6 +45,10 @@
   "rtsp": {
     "enable": true,
     "addr": ":5544",
+    "rtsps_enable": true,
+    "rtsps_addr": ":5322",
+    "rtsps_cert_file": "./conf/cert.pem",
+    "rtsps_key_file": "./conf/key.pem",
     "out_wait_key_frame_flag": true,
     "auth_enable": false,
     "auth_method": 1,

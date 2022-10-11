@@ -27,6 +27,7 @@ const (
 	DefaultHttpsPort = 443
 	DefaultRtspPort  = 554
 	DefaultRtmpsPort = 443
+	DefaultRtspsPort = 322
 )
 
 type UrlPathContext struct {
@@ -112,6 +113,8 @@ func ParseUrl(rawUrl string, defaultPort int) (ctx UrlContext, err error) {
 			defaultPort = DefaultRtspPort
 		case "rtmps":
 			defaultPort = DefaultRtmpsPort
+		case "rtsps":
+			defaultPort = DefaultRtspsPort
 		}
 	}
 
@@ -203,7 +206,7 @@ func ParseRtspUrl(rawUrl string) (ctx UrlContext, err error) {
 		return
 	}
 	// 注意，存在一种情况，使用rtsp pull session，直接拉取没有url path的流，所以不检查ctx.Path
-	if ctx.Scheme != "rtsp" || ctx.Host == "" {
+	if (ctx.Scheme != "rtsp" && ctx.Scheme != "rtsps") || ctx.Host == "" {
 		return ctx, fmt.Errorf("%w. url=%s", ErrInvalidUrl, rawUrl)
 	}
 
