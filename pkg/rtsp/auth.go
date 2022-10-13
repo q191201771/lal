@@ -12,8 +12,9 @@ import (
 	"crypto/rand"
 	"encoding/base64"
 	"fmt"
-	"github.com/q191201771/lal/pkg/base"
 	"strings"
+
+	"github.com/q191201771/lal/pkg/base"
 
 	"github.com/q191201771/naza/pkg/nazamd5"
 )
@@ -46,7 +47,7 @@ func (a *Auth) ParseAuthorization(authStr string) (err error) {
 	switch {
 	case strings.HasPrefix(authStr, "Basic "):
 		a.Typ = AuthTypeDigest
-		authBase64Str := strings.TrimLeft(authStr, "Basic ")
+		authBase64Str := strings.TrimPrefix(authStr, "Basic ")
 
 		authInfo, err := base64.StdEncoding.DecodeString(authBase64Str)
 		if err != nil {
@@ -63,7 +64,7 @@ func (a *Auth) ParseAuthorization(authStr string) (err error) {
 	case strings.HasPrefix(authStr, "Digest "):
 		a.Typ = AuthTypeDigest
 
-		authDigestStr := strings.TrimLeft(authStr, "Digest ")
+		authDigestStr := strings.TrimPrefix(authStr, "Digest ")
 		a.Username = a.getV(authDigestStr, `username="`)
 		a.Realm = a.getV(authDigestStr, `realm="`)
 		a.Nonce = a.getV(authDigestStr, `nonce="`)
