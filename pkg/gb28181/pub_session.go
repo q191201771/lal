@@ -45,10 +45,9 @@ func NewPubSession() *PubSession {
 	}
 }
 
-// WithOnAvPacket 设置音视频的回调
+// WithOnAvPacket 设置音视频的回调。
 //
-//  @param onAvPacket 见 PsUnpacker.WithOnAvPacket 的注释
-//
+//	@param onAvPacket: 见 PsUnpacker.WithOnAvPacket 的注释
 func (session *PubSession) WithOnAvPacket(onAvPacket base.OnAvPacketFunc) *PubSession {
 	session.unpacker.WithOnAvPacket(onAvPacket)
 	return session
@@ -64,7 +63,6 @@ func (session *PubSession) WithStreamName(streamName string) *PubSession {
 // 将接收的数据返回给上层。
 // 注意，底层的解析逻辑依然走。
 // 可以用这个方式来截取数据进行调试。
-//
 func (session *PubSession) WithHookReadPacket(fn OnReadPacket) *PubSession {
 	session.hookOnReadPacket = fn
 	return session
@@ -73,7 +71,6 @@ func (session *PubSession) WithHookReadPacket(fn OnReadPacket) *PubSession {
 // Listen 非阻塞函数
 //
 // 注意，当`port`参数为0时，内部会自动选择一个可用端口监听，并通过返回值返回该端口
-//
 func (session *PubSession) Listen(port int, isTcpFlag bool) (int, error) {
 	session.isTcpFlag = isTcpFlag
 
@@ -84,7 +81,6 @@ func (session *PubSession) Listen(port int, isTcpFlag bool) (int, error) {
 }
 
 // RunLoop 阻塞函数
-//
 func (session *PubSession) RunLoop() error {
 	if session.isTcpFlag {
 		return session.runLoopTcp()

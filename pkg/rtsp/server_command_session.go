@@ -101,7 +101,6 @@ func (session *ServerCommandSession) FeedSdp(b []byte) {
 // WriteInterleavedPacket
 //
 // 使用RTSP TCP命令连接，向对端发送RTP数据
-//
 func (session *ServerCommandSession) WriteInterleavedPacket(packet []byte, channel int) error {
 	_, err := session.conn.Write(packInterleaved(channel, packet))
 	return err

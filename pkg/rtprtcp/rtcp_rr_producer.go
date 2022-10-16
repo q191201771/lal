@@ -66,7 +66,6 @@ func (r *RrProducer) FeedRtpPacket(seq uint16) {
 //
 // @param lsr: 从sr包中获取，见func SR.GetMiddleNtp
 // @return:    rr包的二进制数据
-//
 func (r *RrProducer) Produce(lsr uint32) []byte {
 	if r.baseSeq == -1 {
 		return nil

@@ -227,7 +227,6 @@ func feedback(v interface{}, w http.ResponseWriter) {
 // unmarshalRequestJsonBody
 //
 // TODO(chef): [refactor] 搬到naza中 202205
-//
 func unmarshalRequestJsonBody(r *http.Request, info interface{}, keyFieldList ...string) (nazajson.Json, error) {
 	body, err := ioutil.ReadAll(r.Body)
 	if err != nil {

@@ -62,7 +62,6 @@ func (s *PushSession) Push(rawUrl string) error {
 // Write 发送数据
 //
 // @param msg: 注意，`msg`数据应该是已经打包成rtmp chunk格式的数据。这里的数据就对应socket发送的数据，内部不会再修改数据内容。
-//
 func (s *PushSession) Write(msg []byte) error {
 	// TODO(chef): [opt] 使用Write函数时确保metadata有@SetDataFrame 202207
 
@@ -80,13 +79,11 @@ func (s *PushSession) Flush() error {
 // ---------------------------------------------------------------------------------------------------------------------
 
 // Dispose 文档请参考： IClientSessionLifecycle interface
-//
 func (s *PushSession) Dispose() error {
 	return s.core.Dispose()
 }
 
 // WaitChan 文档请参考： IClientSessionLifecycle interface
-//
 func (s *PushSession) WaitChan() <-chan error {
 	return s.core.WaitChan()
 }

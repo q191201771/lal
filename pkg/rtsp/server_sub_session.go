@@ -38,13 +38,11 @@ func NewSubSession(urlCtx base.UrlContext, cmdSession *ServerCommandSession) *Su
 }
 
 // FeedSdp 供上层调用
-//
 func (session *SubSession) FeedSdp(sdpCtx sdp.LogicContext) {
 	session.cmdSession.FeedSdp(sdpCtx.RawSdp)
 }
 
 // InitWithSdp 供 ServerCommandSession 调用
-//
 func (session *SubSession) InitWithSdp(sdpCtx sdp.LogicContext) {
 	session.baseOutSession.InitWithSdp(sdpCtx)
 }

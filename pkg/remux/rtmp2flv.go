@@ -28,7 +28,6 @@ func RtmpMsg2FlvTag(msg base.RtmpMsg) *httpflv.Tag {
 // -------------------------------------------------------------------------------------------------------------------
 
 // LazyRtmpMsg2FlvTag 在必要时，有且仅有一次做转换操作
-//
 type LazyRtmpMsg2FlvTag struct {
 	msg base.RtmpMsg
 	//tagWithSdf []byte

@@ -87,7 +87,6 @@ func (sm *ServerManager) CtrlStartRelayPull(info base.ApiCtrlStartRelayPullReq) 
 // CtrlStopRelayPull
 //
 // TODO(chef): 整理错误值
-//
 func (sm *ServerManager) CtrlStopRelayPull(streamName string) (ret base.ApiCtrlStopRelayPull) {
 	sm.mutex.Lock()
 	defer sm.mutex.Unlock()
@@ -114,7 +113,6 @@ func (sm *ServerManager) CtrlStopRelayPull(streamName string) (ret base.ApiCtrlS
 // CtrlKickSession
 //
 // TODO(chef): refactor 不要返回http结果，返回error吧
-//
 func (sm *ServerManager) CtrlKickSession(info base.ApiCtrlKickSessionReq) (ret base.HttpResponseBasic) {
 	sm.mutex.Lock()
 	defer sm.mutex.Unlock()

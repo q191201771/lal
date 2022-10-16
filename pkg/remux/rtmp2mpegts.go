@@ -50,7 +50,6 @@ type IRtmp2MpegtsRemuxerObserver interface {
 }
 
 // Rtmp2MpegtsRemuxer 输入rtmp流，输出mpegts流
-//
 type Rtmp2MpegtsRemuxer struct {
 	UniqueKey string
 
@@ -126,7 +125,6 @@ func NewRtmp2MpegtsRemuxer(observer IRtmp2MpegtsRemuxerObserver) *Rtmp2MpegtsRem
 // FeedRtmpMessage
 //
 // @param msg: msg.Payload 调用结束后，函数内部不会持有这块内存
-//
 func (s *Rtmp2MpegtsRemuxer) FeedRtmpMessage(msg base.RtmpMsg) {
 	s.filter.Push(msg)
 }
@@ -143,7 +141,6 @@ func (s *Rtmp2MpegtsRemuxer) Dispose() {
 // 1. 收到音频或视频时，音频缓存队列已达到一定长度（内部判断）
 // 2. 打开一个新的TS文件切片时
 // 3. 输入流关闭时
-//
 func (s *Rtmp2MpegtsRemuxer) FlushAudio() {
 	if s.audioCacheEmpty() {
 		return
@@ -171,7 +168,6 @@ func (s *Rtmp2MpegtsRemuxer) FlushAudio() {
 // onPatPmt onPop
 //
 // 实现 iRtmp2MpegtsFilterObserver
-//
 func (s *Rtmp2MpegtsRemuxer) onPatPmt(b []byte) {
 	s.observer.OnPatPmt(b)
 }

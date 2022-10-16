@@ -53,7 +53,6 @@ type OnRtpPacket func(pkt rtprtcp.RtpPacket)
 
 // NewRtmp2RtspRemuxer @param onSdp:       每次回调为独立的内存块，回调结束后，内部不再使用该内存块
 // @param onRtpPacket: 每次回调为独立的内存块，回调结束后，内部不再使用该内存块
-//
 func NewRtmp2RtspRemuxer(onSdp OnSdp, onRtpPacket OnRtpPacket) *Rtmp2RtspRemuxer {
 	return &Rtmp2RtspRemuxer{
 		onSdp:       onSdp,
@@ -64,7 +63,6 @@ func NewRtmp2RtspRemuxer(onSdp OnSdp, onRtpPacket OnRtpPacket) *Rtmp2RtspRemuxer
 }
 
 // FeedRtmpMsg @param msg: 函数调用结束后，内部不持有`msg`内存块
-//
 func (r *Rtmp2RtspRemuxer) FeedRtmpMsg(msg base.RtmpMsg) {
 	var err error
 

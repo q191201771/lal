@@ -10,7 +10,7 @@ package base
 
 // ----- 所有session -----
 //
-// server.pub:  rtmp(ServerSession), rtsp(PubSession)
+// server.pub:  rtmp(ServerSession), rtsp(PubSession), customize(CustomizePubSessionContext), ps(gb28181.PubSession)
 // server.sub:  rtmp(ServerSession), rtsp(SubSession), flv(SubSession), ts(SubSession), 还有一个比较特殊的hls
 //
 // client.push: rtmp(PushSession), rtsp(PushSession)
@@ -140,7 +140,6 @@ type IServerSessionLifecycle interface {
 // ISessionStat
 //
 // 调用约束：对于Client类型的Session，调用Start函数并返回成功后才能调用，否则行为未定义
-//
 type ISessionStat interface {
 	// UpdateStat
 	//
@@ -173,7 +172,6 @@ type ISessionStat interface {
 // ISessionUrlContext 获取和流地址相关的信息
 //
 // 调用约束：对于Client类型的Session，调用Start函数并返回成功后才能调用，否则行为未定义
-//
 type ISessionUrlContext interface {
 	Url() string
 	AppName() string

@@ -16,7 +16,6 @@ import (
 )
 
 // startRecordFlvIfNeeded 必要时开启flv录制
-//
 func (group *Group) startRecordFlvIfNeeded(nowUnix int64) {
 	if !group.config.RecordConfig.EnableFlv {
 		return

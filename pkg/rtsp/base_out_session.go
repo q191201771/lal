@@ -25,7 +25,6 @@ import (
 )
 
 // BaseOutSession out的含义是音视频由本端发送至对端
-//
 type BaseOutSession struct {
 	cmdSession IInterleavedPacketWriter
 
@@ -106,7 +105,6 @@ func (session *BaseOutSession) SetupWithChannel(uri string, rtpChannel, rtcpChan
 // ---------------------------------------------------------------------------------------------------------------------
 
 // Dispose 文档请参考： IClientSessionLifecycle interface
-//
 func (session *BaseOutSession) Dispose() error {
 	return session.dispose(nil)
 }
@@ -114,7 +112,6 @@ func (session *BaseOutSession) Dispose() error {
 // WaitChan 文档请参考： IClientSessionLifecycle interface
 //
 // 注意，目前只有一种情况，即上层主动调用Dispose函数，此时error为nil
-//
 func (session *BaseOutSession) WaitChan() <-chan error {
 	return session.waitChan
 }

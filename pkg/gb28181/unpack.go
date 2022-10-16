@@ -22,7 +22,6 @@ import (
 )
 
 // PsUnpacker 解析ps(Program Stream)流
-//
 type PsUnpacker struct {
 	list     rtprtcp.RtpPacketList
 	buf      *nazabytes.Buffer
@@ -69,12 +68,12 @@ func NewPsUnpacker() *PsUnpacker {
 // WithOnAvPacket
 //
 // @param onAvPacket: 回调函数中 base.AvPacket 字段说明：
-// 	PayloadType AvPacketPt 见 base.AvPacketPt
-//	Timestamp   int64      dts，单位毫秒
-//	Pts         int64      pts，单位毫秒
-//	Payload     []byte     对于视频，h264和h265是AnnexB格式
-//                         对于音频，AAC是前面携带adts的格式
-//
+// PayloadType AvPacketPt 见 base.AvPacketPt。
+// Timestamp   int64      dts，单位毫秒。
+// Pts         int64      pts，单位毫秒。
+// Payload     []byte
+// 对于视频，h264和h265是AnnexB格式。
+// 对于音频，AAC是前面携带adts的格式。
 func (p *PsUnpacker) WithOnAvPacket(onAvPacket base.OnAvPacketFunc) *PsUnpacker {
 	p.onAvPacket = onAvPacket
 	return p
@@ -85,7 +84,6 @@ func (p *PsUnpacker) WithOnAvPacket(onAvPacket base.OnAvPacketFunc) *PsUnpacker 
 // 注意，内部会处理丢包、乱序等问题
 //
 // @param b: rtp包，注意，包含rtp包头部分，内部不持有该内存块
-//
 func (p *PsUnpacker) FeedRtpPacket(b []byte) error {
 	// TODO(chef): [opt] 当前遇到的场景都是，音频和视频共用一个ssrc，并且音频和视频的seq是打在一起的，是否存在两个ssrc的情况？ 202209
 
@@ -181,7 +179,6 @@ func (p *PsUnpacker) FeedRtpPacket(b []byte) error {
 }
 
 // FeedRtpBody 注意，传入的数据应该是连续的，属于完整帧的
-//
 func (p *PsUnpacker) FeedRtpBody(rtpBody []byte, rtpts uint32) error {
 	p.feedBodyCount++
 
@@ -473,7 +470,6 @@ func (p *PsUnpacker) parseAvStream(code int, rtpts uint32, rb []byte, index int)
 }
 
 // parsePackHeader 注意，`rb[index:]`为待解析的内存块
-//
 func parsePackHeader(rb []byte, index int) int {
 	// 2.5.3.3 Pack layer of Program Stream
 	// Table 2-33 - Program Stream pack header
@@ -514,7 +510,6 @@ func parsePackStreamBody(rb []byte, index int) int {
 }
 
 // iterateNaluByStartCode 通过nal start code分隔缓存数据，将nal回调给上层
-//
 func (p *PsUnpacker) iterateNaluByStartCode(code int, pts, dts int64) {
 	leading, preLeading, startPos := 0, 0, 0
 	startPos, preLeading = h2645.IterateNaluStartCode(p.videoBuf, 0)

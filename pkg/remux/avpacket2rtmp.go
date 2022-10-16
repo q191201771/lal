@@ -27,7 +27,6 @@ import (
 // - gb28181 ps: rtp的合帧包
 // - customize: 业务方通过接口向lalserver输入的流
 // - 理论上也支持webrtc，后续接入webrtc时再验证
-//
 type AvPacket2RtmpRemuxer struct {
 	option    base.AvPacketStreamOption
 	onRtmpMsg rtmp.OnReadRtmpAvMsg
@@ -54,7 +53,6 @@ func NewAvPacket2RtmpRemuxer() *AvPacket2RtmpRemuxer {
 // WithOption
 //
 // TODO(chef): [refactor] 返回*AvPacket2RtmpRemuxer 202208
-//
 func (r *AvPacket2RtmpRemuxer) WithOption(modOption func(option *base.AvPacketStreamOption)) {
 	modOption(&r.option)
 }
@@ -69,7 +67,6 @@ func (r *AvPacket2RtmpRemuxer) WithOnRtmpMsg(onRtmpMsg rtmp.OnReadRtmpAvMsg) *Av
 // OnRtpPacket OnSdp OnAvPacket
 //
 // 实现RTSP回调数据的接口 rtsp.IBaseInSessionObserver ，使得接入时方便些
-//
 func (r *AvPacket2RtmpRemuxer) OnRtpPacket(pkt rtprtcp.RtpPacket) {
 	// noop
 }
@@ -86,7 +83,6 @@ func (r *AvPacket2RtmpRemuxer) OnAvPacket(pkt base.AvPacket) {
 // 这里提供输入sdp的sps、pps等信息的机会，如果没有，可以不调用
 //
 // 内部不持有输入参数的内存块
-//
 func (r *AvPacket2RtmpRemuxer) InitWithAvConfig(asc, vps, sps, pps []byte) {
 	var err error
 	var bVsh []byte
@@ -145,12 +141,9 @@ func (r *AvPacket2RtmpRemuxer) InitWithAvConfig(asc, vps, sps, pps []byte) {
 // 输入 base.AvPacket 数据
 //
 // @param pkt:
-//
-//  - 如果是aac，格式是裸数据或带adts头，具体取决于前面的配置
-//  - 如果是h264，格式是avcc或Annexb，具体取决于前面的配置
-//
-//  内部不持有该内存块
-//
+//   - 如果是aac，格式是裸数据或带adts头，具体取决于前面的配置。
+//   - 如果是h264，格式是avcc或Annexb，具体取决于前面的配置。
+//     内部不持有该内存块。
 func (r *AvPacket2RtmpRemuxer) FeedAvPacket(pkt base.AvPacket) {
 	switch pkt.PayloadType {
 	case base.AvPacketPtAvc:

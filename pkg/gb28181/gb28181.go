@@ -24,7 +24,6 @@ var (
 )
 
 // ErrGb28181 TODO(chef): [refactor] move to pkg base 202207
-//
 var ErrGb28181 = errors.New("lal.gb28181: fxxk")
 
 // TODO(chef): [opt] 除了队列长度，还可以通过时长控制 202209

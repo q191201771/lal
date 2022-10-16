@@ -17,7 +17,6 @@ import (
 )
 
 // StreamExist 检查远端rtmp流是否能正常拉取
-//
 func StreamExist(url string) error {
 	const (
 		timeoutMs = 10000

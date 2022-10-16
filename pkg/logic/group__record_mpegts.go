@@ -16,7 +16,6 @@ import (
 )
 
 // startRecordMpegtsIfNeeded 必要时开启ts录制
-//
 func (group *Group) startRecordMpegtsIfNeeded(nowUnix int64) {
 	if !group.config.RecordConfig.EnableMpegts {
 		return

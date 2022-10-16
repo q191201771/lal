@@ -27,7 +27,6 @@ var defaultChunkDivider = ChunkDivider{
 // Message2Chunks
 //
 // @return 返回的内存块由内部申请，不依赖参数<message>内存块
-//
 func Message2Chunks(message []byte, header *base.RtmpHeader) []byte {
 	return defaultChunkDivider.Message2Chunks(message, header)
 }
@@ -35,7 +34,6 @@ func Message2Chunks(message []byte, header *base.RtmpHeader) []byte {
 // Message2ChunksV
 //
 // @param message: 待打包的message支持放在多个字节切片中
-//
 func Message2ChunksV(message net.Buffers, header *base.RtmpHeader) []byte {
 	return defaultChunkDivider.Message2ChunksV(message, header)
 }
@@ -43,7 +41,6 @@ func Message2ChunksV(message net.Buffers, header *base.RtmpHeader) []byte {
 // Message2Chunks
 //
 // TODO chef: [opt] 新的 message 的第一个 chunk 始终使用 fmt0 格式，没有参考前一个 message
-//
 func (d *ChunkDivider) Message2Chunks(message []byte, header *base.RtmpHeader) []byte {
 	return message2Chunks(message, header, nil, d.localChunkSize)
 }
@@ -177,7 +174,6 @@ func message2Chunks(message []byte, header *base.RtmpHeader, prevHeader *base.Rt
 //
 // TODO(chef): [refactor] move to naza 202206
 // TODO(chef): [perf] impl me
-//
 func copyBufferFromBuffers(out []byte, bs net.Buffers, pos int, length int) {
 }
 

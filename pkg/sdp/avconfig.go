@@ -65,7 +65,6 @@ func ParseVpsSpsPps(a *AFmtPBase) (vps, sps, pps []byte, err error) {
 //
 // 解析AVC/H264的sps，pps
 // 例子见单元测试
-//
 func ParseSpsPps(a *AFmtPBase) (sps, pps []byte, err error) {
 	v, ok := a.Parameters["sprop-parameter-sets"]
 	if !ok {

@@ -15,7 +15,6 @@ import (
 )
 
 // Frame 帧数据，用于打包成mpegts格式的数据
-//
 type Frame struct {
 	Pts uint64 // =(毫秒 * 90)
 	Dts uint64
@@ -45,7 +44,6 @@ type Frame struct {
 // 注意，内部会增加 Frame.Cc 的值.
 //
 // @return: 内存块为独立申请，调度结束后，内部不再持有
-//
 func (frame *Frame) Pack() []byte {
 	bufLen := len(frame.Raw) * 2 // 预分配一块足够大的内存
 	if bufLen < 1024 {

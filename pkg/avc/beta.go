@@ -54,11 +54,11 @@ func TryParsePps(payload []byte) error {
 	return nil
 }
 
-// TryParseSeqHeader 尝试解析SeqHeader所有字段，实验中，请勿直接使用该函数
+// TryParseSeqHeader 尝试解析SeqHeader所有字段，实验中，请勿直接使用该函数。
 //
-// @param <payload> rtmp message的payload部分或者flv tag的payload部分
-//                  注意，包含了头部2字节类型以及3字节的cts
-//
+// @param payload:
+// rtmp message的payload部分或者flv tag的payload部分。
+// 注意，包含了头部2字节类型以及3字节的cts。
 func TryParseSeqHeader(payload []byte) error {
 	if len(payload) < 5 {
 		return nazaerrors.Wrap(base.ErrShortBuffer)

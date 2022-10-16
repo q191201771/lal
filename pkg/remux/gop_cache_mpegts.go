@@ -37,7 +37,6 @@ func NewGopCacheMpegts(uniqueKey string, gopNum int) *GopCacheMpegts {
 // Feed
 //
 // @param b: 内部持有该内存块
-//
 func (gc *GopCacheMpegts) Feed(b []byte, boundary bool) {
 	if gc.gopSize > 1 {
 		if boundary {
@@ -49,7 +48,6 @@ func (gc *GopCacheMpegts) Feed(b []byte, boundary bool) {
 }
 
 // GetGopCount 获取GOP数量，注意，最后一个可能是不完整的
-//
 func (gc *GopCacheMpegts) GetGopCount() int {
 	return (gc.gopRingLast + gc.gopSize - gc.gopRingFirst) % gc.gopSize
 }
@@ -72,7 +70,6 @@ func (gc *GopCacheMpegts) Clear() {
 //
 // 往最后一个GOP元素追加一个msg
 // 注意，如果GopCache为空，则不缓存msg
-//
 func (gc *GopCacheMpegts) feedLastGop(b []byte) {
 	if !gc.isGopRingEmpty() {
 		gc.gopRing[(gc.gopRingLast-1+gc.gopSize)%gc.gopSize].Feed(b)
@@ -82,7 +79,6 @@ func (gc *GopCacheMpegts) feedLastGop(b []byte) {
 // feedNewGop
 //
 // 生成一个最新的GOP元素，并往里追加一个msg
-//
 func (gc *GopCacheMpegts) feedNewGop(b []byte) {
 	if gc.isGopRingFull() {
 		gc.gopRingFirst = (gc.gopRingFirst + 1) % gc.gopSize
@@ -105,7 +101,6 @@ func (gc *GopCacheMpegts) isGopRingEmpty() bool {
 // GopMpegts
 //
 // 单个Gop，包含多帧数据
-//
 type GopMpegts struct {
 	data [][]byte
 }
@@ -113,7 +108,6 @@ type GopMpegts struct {
 // Feed
 //
 // @param b: 内部持有`b`内存块
-//
 func (g *GopMpegts) Feed(b []byte) {
 	g.data = append(g.data, b)
 }

@@ -24,7 +24,6 @@ type IStatable interface {
 // 2. 计算带宽
 //
 // 计算带宽有两种方式，一种是通过外部的 connection.Connection 获取最新状态，一种是内部自己管理状态
-//
 type BasicSessionStat struct {
 	stat StatSession
 
@@ -39,7 +38,6 @@ type BasicSessionStat struct {
 // NewBasicSessionStat
 //
 // @param remoteAddr: 如果当前未知，填入""空字符串
-//
 func NewBasicSessionStat(sessionType SessionType, remoteAddr string) BasicSessionStat {
 	var s BasicSessionStat
 	s.stat.typ = sessionType
@@ -150,7 +148,6 @@ func (s *BasicSessionStat) UniqueKey() string {
 // ---------------------------------------------------------------------------------------------------------------------
 
 // updateStat 根据两次调用间隔计算bitrate
-//
 func (s *BasicSessionStat) updateStat(readBytesSum, wroteBytesSum uint64, typ string, intervalSec uint32) {
 	rDiff := readBytesSum - s.prevConnStat.ReadBytesSum
 	s.stat.ReadBitrateKbits = int(rDiff * 8 / 1024 / uint64(intervalSec))
@@ -171,7 +168,6 @@ func (s *BasicSessionStat) updateStat(readBytesSum, wroteBytesSum uint64, typ st
 }
 
 // isAlive 根据两次调用间隔计算是否存活
-//
 func (s *BasicSessionStat) isAlive(readBytesSum, wroteBytesSum uint64) (readAlive, writeAlive bool) {
 	if s.staleStat == nil {
 		s.staleStat = new(connection.Stat)

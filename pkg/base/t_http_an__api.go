@@ -68,7 +68,6 @@ const (
 // HttpResponseBasic
 //
 // TODO(chef): 因为ILalserver会直接使用这个接口，所以重命名为ApiResponseBasic
-//
 type HttpResponseBasic struct {
 	ErrorCode int    `json:"error_code"`
 	Desp      string `json:"desp"`

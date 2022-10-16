@@ -48,7 +48,6 @@ type AControl struct {
 }
 
 // ParseSdp2RawContext 例子见单元测试
-//
 func ParseSdp2RawContext(b []byte) (RawContext, error) {
 	lines := strings.Split(string(b), "\r\n")
 	ctx, err := parseSdp2RawContext(lines)

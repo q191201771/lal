@@ -59,7 +59,6 @@ func NewPushSession(modOptions ...ModPushSessionOption) *PushSession {
 }
 
 // Push 阻塞直到和对端完成推流前，握手部分的工作（也即收到RTSP Record response），或者发生错误
-//
 func (session *PushSession) Push(rawUrl string, sdpCtx sdp.LogicContext) error {
 	Log.Debugf("[%s] push. url=%s", session.UniqueKey(), rawUrl)
 	session.cmdSession.InitWithSdp(sdpCtx)
@@ -120,13 +119,11 @@ func (session *PushSession) WriteRtpPacket(packet rtprtcp.RtpPacket) error {
 // ---------------------------------------------------------------------------------------------------------------------
 
 // Dispose 文档请参考： IClientSessionLifecycle interface
-//
 func (session *PushSession) Dispose() error {
 	return session.dispose(nil)
 }
 
 // WaitChan 文档请参考： IClientSessionLifecycle interface
-//
 func (session *PushSession) WaitChan() <-chan error {
 	return session.waitChan
 }

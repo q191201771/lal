@@ -49,7 +49,6 @@ type ErrorCode struct {
 
 // @param inUrl      拉流rtmp url地址
 // @param outUrlList 推流rtmp url地址列表
-//
 func NewTunnel(inUrl string, outUrlList []string) *Tunnel {
 	var streamName string
 	ctx, err := base.ParseRtmpUrl(inUrl)
@@ -76,8 +75,11 @@ func NewTunnel(inUrl string, outUrlList []string) *Tunnel {
 	}
 }
 
-// @return err 为nil时，表示任务启动成功，拉流和推流通道都已成功建立，并开始转推数据
-//             不为nil时，表示任务失败，可以通过`code`得到是拉流还是推流失败
+// Start
+//
+// @return ErrorCode.err:
+//   - 为nil时，表示任务启动成功，拉流和推流通道都已成功建立，并开始转推数据。
+//   - 不为nil时，表示任务失败，可以通过`code`得到是拉流还是推流失败。
 func (t *Tunnel) Start() (ret ErrorCode) {
 	const (
 		pullTimeoutMs   = 10000
@@ -236,14 +238,12 @@ func (t *Tunnel) Start() (ret ErrorCode) {
 }
 
 // `Start`函数调用成功后，可调用`Wait`函数，等待任务结束
-//
 func (t *Tunnel) Wait() chan ErrorCode {
 	return t.waitChan
 }
 
 // `Start`函数调用成功后，可调用`Close`函数，主动关闭转推任务
 // `Close`函数允许调用多次
-//
 func (t *Tunnel) Close() {
 	t.notifyClose()
 }

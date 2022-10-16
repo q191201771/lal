@@ -62,7 +62,6 @@ const (
 // audio object type      [5b] 1=AAC MAIN  2=AAC LC
 // samplingFrequencyIndex [4b] 0=96000, 1=88200, 2=64000, 3=48000, 4=44100, 5=32000, 6=24000, 7=22050, 8=16000, 9=12000, 10=11025, 11=11025, 12=7350
 // channelConfiguration   [4b] 1=center front speaker  2=left, right front speakers
-//
 type AscContext struct {
 	AudioObjectType        uint8 // [5b]
 	SamplingFrequencyIndex uint8 // [4b]
@@ -79,10 +78,10 @@ func NewAscContext(asc []byte) (*AscContext, error) {
 
 // Unpack
 //
-// @param asc: 2字节的AAC Audio Specifc Config
-//             注意，如果是rtmp/flv的message/tag，应去除Seq Header头部的2个字节
-//             函数调用结束后，内部不持有该内存块
+// @param asc: 2字节的AAC Audio Specifc Config。
 //
+//	注意，如果是rtmp/flv的message/tag，应去除Seq Header头部的2个字节。
+//	函数调用结束后，内部不持有该内存块。
 func (ascCtx *AscContext) Unpack(asc []byte) error {
 	if len(asc) < minAscLength {
 		return nazaerrors.Wrap(base.ErrShortBuffer)
@@ -98,7 +97,6 @@ func (ascCtx *AscContext) Unpack(asc []byte) error {
 // Pack
 //
 // @return asc: 内存块为独立新申请；函数调用结束后，内部不持有该内存块
-//
 func (ascCtx *AscContext) Pack() (asc []byte) {
 	asc = make([]byte, minAscLength)
 	bw := nazabits.NewBitWriter(asc)
@@ -110,13 +108,13 @@ func (ascCtx *AscContext) Pack() (asc []byte) {
 
 // PackAdtsHeader
 //
-// 获取ADTS头，由于ADTS头中的字段依赖包的长度，而每个包的长度可能不同，所以每个包的ADTS头都需要独立生成
+// 获取ADTS头，由于ADTS头中的字段依赖包的长度，而每个包的长度可能不同，所以每个包的ADTS头都需要独立生成。
 //
-// @param frameLength: raw aac frame的大小
-//                     注意，如果是rtmp/flv的message/tag，应去除Seq Header头部的2个字节
+// @param frameLength: raw aac frame的大小。
+//
+//	注意，如果是rtmp/flv的message/tag，应去除Seq Header头部的2个字节。
 //
 // @return h: 内存块为独立新申请；函数调用结束后，内部不持有该内存块
-//
 func (ascCtx *AscContext) PackAdtsHeader(frameLength int) (out []byte) {
 	out = make([]byte, AdtsHeaderLength)
 	_ = ascCtx.PackToAdtsHeader(out, frameLength)
@@ -126,7 +124,6 @@ func (ascCtx *AscContext) PackAdtsHeader(frameLength int) (out []byte) {
 // PackToAdtsHeader
 //
 // @param out: 函数调用结束后，内部不持有该内存块
-//
 func (ascCtx *AscContext) PackToAdtsHeader(out []byte, frameLength int) error {
 	if len(out) < AdtsHeaderLength {
 		return nazaerrors.Wrap(base.ErrShortBuffer)
@@ -239,7 +236,6 @@ func NewAdtsHeaderContext(adtsHeader []byte) (*AdtsHeaderContext, error) {
 // Unpack
 //
 // @param adtsHeader: 函数调用结束后，内部不持有该内存块
-//
 func (ctx *AdtsHeaderContext) Unpack(adtsHeader []byte) error {
 	if len(adtsHeader) < AdtsHeaderLength {
 		return nazaerrors.Wrap(base.ErrShortBuffer)
@@ -267,7 +263,6 @@ func (ctx *AdtsHeaderContext) Unpack(adtsHeader []byte) error {
 // @param adtsHeader: 函数调用结束后，内部不持有该内存块
 //
 // @return asc: 内存块为独立新申请；函数调用结束后，内部不持有该内存块
-//
 func MakeAscWithAdtsHeader(adtsHeader []byte) (asc []byte, err error) {
 	var ctx *AdtsHeaderContext
 	if ctx, err = NewAdtsHeaderContext(adtsHeader); err != nil {

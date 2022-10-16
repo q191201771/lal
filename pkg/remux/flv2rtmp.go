@@ -31,7 +31,6 @@ func FlvTagHeader2RtmpHeader(in httpflv.TagHeader) (out base.RtmpHeader) {
 }
 
 // FlvTag2RtmpMsg @return msg: 返回的内存块引用参数`tag`的内存块
-//
 func FlvTag2RtmpMsg(tag httpflv.Tag) (msg base.RtmpMsg) {
 	msg.Header = FlvTagHeader2RtmpHeader(tag.Header)
 	msg.Payload = tag.Payload()
@@ -39,7 +38,6 @@ func FlvTag2RtmpMsg(tag httpflv.Tag) (msg base.RtmpMsg) {
 }
 
 // FlvTag2RtmpChunks @return 返回的内存块为内部新申请
-//
 func FlvTag2RtmpChunks(tag httpflv.Tag) []byte {
 	rtmpHeader := FlvTagHeader2RtmpHeader(tag.Header)
 	return rtmp.Message2Chunks(tag.Payload(), &rtmpHeader)

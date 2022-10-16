@@ -41,7 +41,6 @@ type Auth struct {
 }
 
 // ParseAuthorization 解析字段，server side使用
-//
 func (a *Auth) ParseAuthorization(authStr string) (err error) {
 	switch {
 	case strings.HasPrefix(authStr, "Basic "):
@@ -78,7 +77,6 @@ func (a *Auth) ParseAuthorization(authStr string) (err error) {
 }
 
 // FeedWwwAuthenticate 使用第一轮回复，client side使用
-//
 func (a *Auth) FeedWwwAuthenticate(auths []string, username, password string) {
 	a.Username = username
 	a.Password = password
@@ -123,7 +121,6 @@ func (a *Auth) FeedWwwAuthenticate(auths []string, username, password string) {
 // MakeAuthorization 生成第二轮请求，client side使用
 //
 // 如果没有调用`FeedWwwAuthenticate`初始化过，则直接返回空字符串
-//
 func (a *Auth) MakeAuthorization(method, uri string) string {
 	if a.Username == "" {
 		return ""
@@ -143,7 +140,6 @@ func (a *Auth) MakeAuthorization(method, uri string) string {
 }
 
 // MakeAuthenticate 生成第一轮的回复，server side使用
-//
 func (a *Auth) MakeAuthenticate(method string) string {
 	switch method {
 	case AuthTypeBasic:
@@ -155,7 +151,6 @@ func (a *Auth) MakeAuthenticate(method string) string {
 }
 
 // CheckAuthorization 验证第二轮请求，server side使用
-//
 func (a *Auth) CheckAuthorization(method, username, password string) bool {
 	switch a.Typ {
 	case AuthTypeBasic:

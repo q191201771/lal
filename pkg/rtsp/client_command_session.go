@@ -127,13 +127,11 @@ func (session *ClientCommandSession) Do(rawUrl string) error {
 // ---------------------------------------------------------------------------------------------------------------------
 
 // Dispose 文档请参考： IClientSessionLifecycle interface
-//
 func (session *ClientCommandSession) Dispose() error {
 	return session.dispose(nil)
 }
 
 // WaitChan 文档请参考： IClientSessionLifecycle interface
-//
 func (session *ClientCommandSession) WaitChan() <-chan error {
 	return session.conn.Done()
 }

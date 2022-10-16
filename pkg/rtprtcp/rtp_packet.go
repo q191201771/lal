@@ -115,7 +115,6 @@ func ParseRtpHeader(b []byte) (h RtpHeader, err error) {
 }
 
 // ParseRtpPacket 函数调用结束后，不持有参数<b>的内存块
-//
 func ParseRtpPacket(b []byte) (pkt RtpPacket, err error) {
 	pkt.Header, err = ParseRtpHeader(b)
 	if err != nil {
@@ -135,7 +134,6 @@ func (p *RtpPacket) Body() []byte {
 }
 
 // IsAvcHevcBoundary @param pt: 取值范围为AvPacketPtAvc或AvPacketPtHevc，否则直接返回false
-//
 func IsAvcHevcBoundary(pkt RtpPacket, pt base.AvPacketPt) bool {
 	switch pt {
 	case base.AvPacketPtAvc:

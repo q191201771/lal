@@ -49,10 +49,11 @@ import (
 // Payload length:  7 bits, 7+16 bits, or 7+64 bits
 // Masking-key:  0 or 4 bytes
 // mark 加密
-// for i := 0; i < datalen; i {
-//     m := markingkeys[i%4]
-//     data[i] = msg[i] ^ m
-// }
+//
+//	for i := 0; i < datalen; i {
+//	    m := markingkeys[i%4]
+//	    data[i] = msg[i] ^ m
+//	}
 type WsOpcode = uint8
 
 const (

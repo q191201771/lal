@@ -85,9 +85,9 @@ func (u *UrlContext) calcFilenameAndTypeIfNeeded() {
 
 // ParseUrl
 //
-// @param defaultPort: 注意，如果rawUrl中显示指定了端口，则该参数不生效
-//                     注意，如果设置为-1，内部依然会对常见协议(http, https, rtmp, rtsp)设置官方默认端口
-//
+// @param defaultPort:
+// 注意，如果rawUrl中显示指定了端口，则该参数不生效。
+// 注意，如果设置为-1，内部依然会对常见协议(http, https, rtmp, rtsp)设置官方默认端口。
 func ParseUrl(rawUrl string, defaultPort int) (ctx UrlContext, err error) {
 	ctx.Url = rawUrl
 
@@ -219,7 +219,6 @@ func ParseHttpflvUrl(rawUrl string) (ctx UrlContext, err error) {
 // ParseHttpRequest
 //
 // @return 完整url
-//
 func ParseHttpRequest(req *http.Request) string {
 	// TODO(chef): [refactor] scheme是否能从从req.URL.Scheme获取
 	var scheme string

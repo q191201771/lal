@@ -41,9 +41,11 @@ const (
 )
 
 // CompareSeq 比较序号的值，内部处理序号翻转问题，见单元测试中的例子
-// @return  0 a和b相等
-//          1 a大于b
-//         -1 a小于b
+//
+// @return
+//   - 0 a和b相等
+//   - 1 a大于b
+//   - -1 a小于b
 func CompareSeq(a, b uint16) int {
 	if a == b {
 		return 0

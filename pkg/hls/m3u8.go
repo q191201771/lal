@@ -22,7 +22,6 @@ import (
 // @param content     需写入文件的内容
 // @param filename    m3u8文件名
 // @param filenameBak m3u8临时文件名
-//
 func writeM3u8File(content []byte, filename string, filenameBak string) error {
 	if err := fslCtx.WriteFile(filenameBak, content, 0666); err != nil {
 		return err
@@ -37,7 +36,6 @@ func writeM3u8File(content []byte, filename string, filenameBak string) error {
 // @param currDuration 当前duration
 //
 // @return 处理后的m3u8文件内容
-//
 func updateTargetDurationInM3u8(content []byte, currDuration int) ([]byte, error) {
 	l := bytes.Index(content, []byte("#EXT-X-TARGETDURATION:"))
 	if l == -1 {
@@ -67,7 +65,6 @@ func updateTargetDurationInM3u8(content []byte, currDuration int) ([]byte, error
 // @param content 传入m3u8文件内容
 //
 // @return durationSec m3u8中所有ts的时间总和。注意，使用的是m3u8文件中描述的ts时间，而不是读取ts文件中实际音视频数据的时间。
-//
 func CalcM3u8Duration(content []byte) (durationSec float64, err error) {
 	lines := bytes.Split(content, []byte{'\n'})
 	for _, line := range lines {
