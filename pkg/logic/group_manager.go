@@ -112,12 +112,12 @@ func (s *SimpleGroupManager) Len() int {
 // ---------------------------------------------------------------------------------------------------------------------
 //
 // 背景：
-//	- 有的协议需要结合appName和streamName作为流唯一标识（比如rtmp，httpflv，httpts）。
-//	- 有的协议不需要appName，只使用streamName作为流唯一标识（比如rtsp？）。
+//   - 有的协议需要结合appName和streamName作为流唯一标识（比如rtmp，httpflv，httpts）。
+//   - 有的协议不需要appName，只使用streamName作为流唯一标识（比如rtsp？）。
 //
 // 目标：
-//	- 有appName的协议，需要参考appName。
-//	- 没appName的协议，需要和有appName的协议互通。
+//   - 有appName的协议，需要参考appName。
+//   - 没appName的协议，需要和有appName的协议互通。
 //
 // 注意：
 //   - 当以上两种类型的协议混用时，系统使用者应避免第二种协议的streamName，在第一种协议中存在相同的streamName，但是appName不止一个，这种情况下，内部无法知道该如何对应。

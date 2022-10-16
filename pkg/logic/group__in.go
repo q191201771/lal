@@ -39,11 +39,10 @@ func (group *Group) AddCustomizePubSession(streamName string) (ICustomizePubSess
 		)
 	}
 
+	group.customizePubSession.WithOnRtmpMsg(group.OnReadRtmpAvMsg)
+
 	if group.config.RtmpConfig.AddDummyAudioEnable {
-		group.dummyAudioFilter = remux.NewDummyAudioFilter(group.UniqueKey, group.config.RtmpConfig.AddDummyAudioWaitAudioMs, group.OnReadRtmpAvMsg)
-		group.customizePubSession.WithOnRtmpMsg(group.dummyAudioFilter.OnReadRtmpAvMsg)
-	} else {
-		group.customizePubSession.WithOnRtmpMsg(group.OnReadRtmpAvMsg)
+		group.dummyAudioFilter = remux.NewDummyAudioFilter(group.UniqueKey, group.config.RtmpConfig.AddDummyAudioWaitAudioMs, group.broadcastByRtmpMsg)
 	}
 
 	return group.customizePubSession, nil
@@ -71,16 +70,10 @@ func (group *Group) AddRtmpPubSession(session *rtmp.ServerSession) error {
 		)
 	}
 
-	// TODO(chef): feat 为其他输入流也添加假音频。比如rtmp pull以及rtsp
-	// TODO(chef): refactor 可考虑抽象出一个输入流的配置块
-	// TODO(chef): refactor 考虑放入addIn中
+	session.SetPubSessionObserver(group)
+
 	if group.config.RtmpConfig.AddDummyAudioEnable {
-		// TODO(chef): 从整体控制和锁关系来说，应该让pub的数据回调到group中进锁后再让数据流入filter
-		// TODO(chef): 这里用OnReadRtmpAvMsg正确吗，是否会重复进锁
-		group.dummyAudioFilter = remux.NewDummyAudioFilter(group.UniqueKey, group.config.RtmpConfig.AddDummyAudioWaitAudioMs, group.OnReadRtmpAvMsg)
-		session.SetPubSessionObserver(group.dummyAudioFilter)
-	} else {
-		session.SetPubSessionObserver(group)
+		group.dummyAudioFilter = remux.NewDummyAudioFilter(group.UniqueKey, group.config.RtmpConfig.AddDummyAudioWaitAudioMs, group.broadcastByRtmpMsg)
 	}
 
 	return nil
@@ -103,6 +96,10 @@ func (group *Group) AddRtspPubSession(session *rtsp.PubSession) error {
 
 	group.rtsp2RtmpRemuxer = remux.NewAvPacket2RtmpRemuxer().WithOnRtmpMsg(group.onRtmpMsgFromRemux)
 	session.SetObserver(group)
+
+	//if group.config.RtmpConfig.AddDummyAudioEnable {
+	//	group.dummyAudioFilter = remux.NewDummyAudioFilter(group.UniqueKey, group.config.RtmpConfig.AddDummyAudioWaitAudioMs, )
+	//}
 
 	return nil
 }
@@ -362,7 +359,6 @@ func (group *Group) delPullSession(session base.IObject) {
 // ---------------------------------------------------------------------------------------------------------------------
 
 // addIn 有pub或pull的输入型session加入时，需要调用该函数
-//
 func (group *Group) addIn() {
 	now := time.Now().Unix()
 
@@ -377,7 +373,6 @@ func (group *Group) addIn() {
 }
 
 // delIn 有pub或pull的输入型session离开时，需要调用该函数
-//
 func (group *Group) delIn() {
 	// 注意，remuxer放前面，使得有机会将内部缓存的数据吐出来
 	if group.rtmp2MpegtsRemuxer != nil {

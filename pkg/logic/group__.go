@@ -45,22 +45,22 @@ import (
 // ---------------------------------------------------------------------------------------------------------------------
 // 输入流到输出流的转换路径关系
 //
-// customizePubSession.WithOnRtmpMsg -> [dummyAudioFilter] -> OnReadRtmpAvMsg -> rtmp2RtspRemuxer -> rtsp
-//                                                                            -> rtmp
-//                                                                            -> http-flv, ts, hls
+// customizePubSession.WithOnRtmpMsg -> OnReadRtmpAvMsg(enter Lock) -> [dummyAudioFilter] -> broadcastByRtmpMsg -> rtmp, http-flv
+//                                                                                                              -> rtmp2RtspRemuxer -> rtsp
+//                                                                                                              -> rtmp2MpegtsRemuxer -> ts, hls
 //
 // ---------------------------------------------------------------------------------------------------------------------
-// rtmpPubSession 和customizePubSession一样，省略
+// rtmpPubSession和customizePubSession一样，省略
 //
 // ---------------------------------------------------------------------------------------------------------------------
-// rtspPubSession -> OnRtpPacket -> rtsp
-//                -> OnAvPacket -> rtsp2RtmpRemuxer -> onRtmpMsgFromRemux -> broadcastByRtmpMsg -> rtmp
-//                                                                                              -> http-flv, ts, hls
+// rtspPubSession -> OnRtpPacket(enter Lock) -> rtsp
+//                -> OnAvPacket(enter Lock) -> rtsp2RtmpRemuxer -> onRtmpMsgFromRemux -> [dummyAudioFilter] -> broadcastByRtmpMsg -> rtmp, http-flv
+//                                                                                                          -> rtmp2MpegtsRemuxer -> ts, hls
 //
 // ---------------------------------------------------------------------------------------------------------------------
-// psPubSession -> OnAvPacketFromPsPubSession -> rtsp2RtmpRemuxer -> onRtmpMsgFromRemux -> broadcastByRtmpMsg -> rtmp2RtspRemuxer -> rtsp
-//                                                                                                            -> rtmp
-//                                                                                                            -> http-flv, ts, hls
+// psPubSession -> OnAvPacketFromPsPubSession(enter Lock) -> rtsp2RtmpRemuxer -> onRtmpMsgFromRemux -> [dummyAudioFilter] -> broadcastByRtmpMsg -> ...
+//                                                                                                                                              -> ...
+//                                                                                                                                              -> ...
 
 type IGroupObserver interface {
 	CleanupHlsIfNeeded(appName string, streamName string, path string)
@@ -170,7 +170,6 @@ func (group *Group) RunLoop() {
 // Tick 定时器
 //
 // @param tickCount 当前时间，单位秒。注意，不一定是Unix时间戳，可以是从0开始+1秒递增的时间
-//
 func (group *Group) Tick(tickCount uint32) {
 	group.mutex.Lock()
 	defer group.mutex.Unlock()
@@ -402,7 +401,6 @@ func (group *Group) OutSessionNum() int {
 // disposeInactiveSessions 关闭不活跃的session
 //
 // TODO chef: [refactor] 梳理和naza.Connection超时重复部分
-//
 func (group *Group) disposeInactiveSessions(tickCount uint32) {
 	if group.psPubSession != nil {
 		if group.psPubTimeoutSec == 0 {
@@ -485,7 +483,6 @@ func (group *Group) disposeInactiveSessions(tickCount uint32) {
 }
 
 // updateAllSessionStat 更新所有session的状态
-//
 func (group *Group) updateAllSessionStat() {
 	if group.rtmpPubSession != nil {
 		group.rtmpPubSession.UpdateStat(calcSessionStatIntervalSec)
@@ -549,13 +546,11 @@ func (group *Group) hasInSession() bool {
 }
 
 // hasOutSession 是否还有out往外发送音视频数据的session
-//
 func (group *Group) hasOutSession() bool {
 	return group.hasSubSession() || group.hasPushSession()
 }
 
 // isTotalEmpty 当前group是否完全没有流了
-//
 func (group *Group) isTotalEmpty() bool {
 	return !group.hasInSession() && !group.hasOutSession()
 }
