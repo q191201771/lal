@@ -15,8 +15,8 @@ import (
 	"github.com/q191201771/lal/pkg/base"
 	"github.com/q191201771/lal/pkg/httpflv"
 	"github.com/q191201771/lal/pkg/rtmp"
+	"github.com/q191201771/naza/pkg/bele"
 	"github.com/q191201771/naza/pkg/nazalog"
-	"m7s.live/engine/v4/util/bits/pio"
 )
 
 // 拉取HTTP-FLV的流
@@ -87,16 +87,17 @@ func parseFlag() (url, flvfile string) {
 }
 
 func writeFlvHeader(b []byte, flags uint8) {
+
 	// 'FLV', version 1
-	pio.PutU32BE(b[0:4], 0x464c5601)
+	bele.BePutUint32(b, 0x464c5601)
 	b[4] = flags
 
 	// DataOffset: UI32 Offset in bytes from start of file to start of body (that is, size of header)
 	// The DataOffset field usually has a value of 9 for FLV version 1.
-	pio.PutU32BE(b[5:9], 9)
+	bele.BePutUint32(b[5:9], 9)
 
 	// PreviousTagSize0: UI32 Always 0
-	pio.PutU32BE(b[9:13], 0)
+	bele.BePutUint32(b[9:13], 0)
 
 	return
 }
