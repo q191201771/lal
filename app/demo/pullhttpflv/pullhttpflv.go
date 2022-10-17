@@ -39,6 +39,8 @@ func main() {
 		return
 	}
 
+	defer flvfile.Close()
+
 	session := httpflv.NewPullSession()
 	err = session.Pull(url, func(tag httpflv.Tag) {
 		if tag.Header.Type == httpflv.TagTypeMetadata {
