@@ -19,11 +19,7 @@ import (
 	"github.com/q191201771/naza/pkg/nazalog"
 )
 
-// 拉取HTTP-FLV的流
-//
-// TODO
-// - 存储成flv文件
-// - 拉取HTTP-FLV流进行分析参见另外一个demo：analyseflv。 这个demo可能可以删除掉了。
+// 拉取http-flv的流并存储为flv文件
 
 func main() {
 	_ = nazalog.Init(func(option *nazalog.Option) {
@@ -44,6 +40,7 @@ func main() {
 	session := httpflv.NewPullSession()
 	err = session.Pull(url, func(tag httpflv.Tag) {
 		if tag.Header.Type == httpflv.TagTypeMetadata {
+			// TODO(chef): httpflv.PullSession支持返回flv header，可供业务方选择使用 202210
 			// 根据metadata填写flv头
 			opa, err := rtmp.ParseMetadata(tag.Payload())
 			if err != nil {
