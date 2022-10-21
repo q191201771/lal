@@ -33,7 +33,7 @@ const (
 	Amf0TypeMarkerObject     = uint8(0x03)
 	Amf0TypeMarkerNull       = uint8(0x05)
 	Amf0TypeMarkerEcmaArray  = uint8(0x08)
-	Amf0TypeMarkerObjectEnd  = uint8(0x09)
+	Amf0TypeMarkerObjectEnd  = uint8(0x09) // end for both Object and Array
 	Amf0TypeMarkerLongString = uint8(0x0c)
 
 	// 还没用到的类型
@@ -49,6 +49,7 @@ const (
 )
 
 var (
+	// Amf0TypeMarkerObjectEndBytes Amf0TypeMarkerArrayEndBytes:
 	// object-end-type(0x00 0x00 0x09) 表示Object和EcmaArray类型的结束标识
 	Amf0TypeMarkerObjectEndBytes = []byte{0, 0, Amf0TypeMarkerObjectEnd}
 	Amf0TypeMarkerArrayEndBytes  = []byte{0, 0, Amf0TypeMarkerObjectEnd}
