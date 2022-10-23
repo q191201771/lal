@@ -41,10 +41,6 @@ func (group *Group) AddCustomizePubSession(streamName string) (ICustomizePubSess
 
 	group.customizePubSession.WithOnRtmpMsg(group.OnReadRtmpAvMsg)
 
-	if group.config.RtmpConfig.AddDummyAudioEnable {
-		group.dummyAudioFilter = remux.NewDummyAudioFilter(group.UniqueKey, group.config.RtmpConfig.AddDummyAudioWaitAudioMs, group.broadcastByRtmpMsg)
-	}
-
 	return group.customizePubSession, nil
 }
 
@@ -72,10 +68,6 @@ func (group *Group) AddRtmpPubSession(session *rtmp.ServerSession) error {
 
 	session.SetPubSessionObserver(group)
 
-	if group.config.RtmpConfig.AddDummyAudioEnable {
-		group.dummyAudioFilter = remux.NewDummyAudioFilter(group.UniqueKey, group.config.RtmpConfig.AddDummyAudioWaitAudioMs, group.broadcastByRtmpMsg)
-	}
-
 	return nil
 }
 
@@ -96,10 +88,6 @@ func (group *Group) AddRtspPubSession(session *rtsp.PubSession) error {
 
 	group.rtsp2RtmpRemuxer = remux.NewAvPacket2RtmpRemuxer().WithOnRtmpMsg(group.onRtmpMsgFromRemux)
 	session.SetObserver(group)
-
-	//if group.config.RtmpConfig.AddDummyAudioEnable {
-	//	group.dummyAudioFilter = remux.NewDummyAudioFilter(group.UniqueKey, group.config.RtmpConfig.AddDummyAudioWaitAudioMs, )
-	//}
 
 	return nil
 }
@@ -364,6 +352,10 @@ func (group *Group) addIn() {
 
 	if group.shouldStartMpegtsRemuxer() {
 		group.rtmp2MpegtsRemuxer = remux.NewRtmp2MpegtsRemuxer(group)
+	}
+
+	if group.config.RtmpConfig.AddDummyAudioEnable {
+		group.dummyAudioFilter = remux.NewDummyAudioFilter(group.UniqueKey, group.config.RtmpConfig.AddDummyAudioWaitAudioMs, group.broadcastByRtmpMsg)
 	}
 
 	group.startPushIfNeeded()

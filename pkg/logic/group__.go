@@ -43,19 +43,19 @@ import (
 // | group.inSessionUniqueKey()                  | Y        | Y      |
 
 // ---------------------------------------------------------------------------------------------------------------------
-// 输入流到输出流的转换路径关系
+// 输入流到输出流的转换路径关系（一共6种输入）：
 //
-// customizePubSession.WithOnRtmpMsg -> OnReadRtmpAvMsg(enter Lock) -> [dummyAudioFilter] -> broadcastByRtmpMsg -> rtmp, http-flv
-//                                                                                                              -> rtmp2RtspRemuxer -> rtsp
-//                                                                                                              -> rtmp2MpegtsRemuxer -> ts, hls
+// rtmpPullSession.WithOnReadRtmpAvMsg  ->
+// rtmpPubSession.SetPubSessionObserver ->
+//    customizePubSession.WithOnRtmpMsg -> OnReadRtmpAvMsg(enter Lock) -> [dummyAudioFilter] -> broadcastByRtmpMsg -> rtmp, http-flv
+//                                                                                                                 -> rtmp2RtspRemuxer -> rtsp
+//                                                                                                                 -> rtmp2MpegtsRemuxer -> ts, hls
 //
 // ---------------------------------------------------------------------------------------------------------------------
-// rtmpPubSession和customizePubSession一样，省略
-//
-// ---------------------------------------------------------------------------------------------------------------------
-// rtspPubSession -> OnRtpPacket(enter Lock) -> rtsp
-//                -> OnAvPacket(enter Lock) -> rtsp2RtmpRemuxer -> onRtmpMsgFromRemux -> [dummyAudioFilter] -> broadcastByRtmpMsg -> rtmp, http-flv
-//                                                                                                          -> rtmp2MpegtsRemuxer -> ts, hls
+// rtspPullSession ->
+//  rtspPubSession -> OnRtpPacket(enter Lock) -> rtsp
+//                 -> OnAvPacket(enter Lock) -> rtsp2RtmpRemuxer -> onRtmpMsgFromRemux -> [dummyAudioFilter] -> broadcastByRtmpMsg -> rtmp, http-flv
+//                                                                                                           -> rtmp2MpegtsRemuxer -> ts, hls
 //
 // ---------------------------------------------------------------------------------------------------------------------
 // psPubSession -> OnAvPacketFromPsPubSession(enter Lock) -> rtsp2RtmpRemuxer -> onRtmpMsgFromRemux -> [dummyAudioFilter] -> broadcastByRtmpMsg -> ...
@@ -89,7 +89,7 @@ type Group struct {
 	rtmp2MpegtsRemuxer  *remux.Rtmp2MpegtsRemuxer
 	// pull
 	pullProxy *pullProxy
-	// rtmp pub使用
+	// rtmp pub使用 TODO(chef): [doc] 更新这个注释，是共同使用 202210
 	dummyAudioFilter *remux.DummyAudioFilter
 	// ps pub使用
 	psPubTimeoutSec            uint32 // 超时时间
