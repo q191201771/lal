@@ -10,9 +10,10 @@ package logic
 
 import (
 	"encoding/json"
-	"github.com/q191201771/lal/pkg/gb28181"
 	"strings"
 	"sync"
+
+	"github.com/q191201771/lal/pkg/gb28181"
 
 	"github.com/q191201771/lal/pkg/base"
 	"github.com/q191201771/lal/pkg/hls"
@@ -569,7 +570,7 @@ func (group *Group) inSessionUniqueKey() string {
 }
 
 func (group *Group) shouldStartRtspRemuxer() bool {
-	return group.config.RtspConfig.Enable
+	return group.config.RtspConfig.Enable || group.config.RtspConfig.RtspsEnable
 }
 
 func (group *Group) shouldStartMpegtsRemuxer() bool {
