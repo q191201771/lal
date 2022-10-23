@@ -553,8 +553,8 @@ func (session *ClientCommandSession) writeCmd(method, uri string, headers map[st
 	}
 
 	req := PackRequest(method, uri, headers, body)
-	Log.Debugf("[%s] > write %s.", session.uniqueKey, method)
-	//Log.Debugf("[%s] > write %s. req=%s", session.uniqueKey, method, req)
+	//Log.Debugf("[%s] > write %s.", session.uniqueKey, method)
+	Log.Debugf("[%s] > write %s. req=%s", session.uniqueKey, method, req)
 	_, err := session.conn.Write([]byte(req))
 	return err
 }
