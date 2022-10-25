@@ -255,14 +255,15 @@ func (sm *ServerManager) RunLoop() error {
 	}
 
 	if sm.rtspsServer != nil {
-		if err := sm.rtspsServer.ListenWithTLS(sm.config.RtspConfig.RtspsCertFile, sm.config.RtspConfig.RtspsKeyFile); err != nil {
-			return err
+		err := sm.rtspsServer.ListenWithTLS(sm.config.RtspConfig.RtspsCertFile, sm.config.RtspConfig.RtspsKeyFile)
+		// rtsps启动失败影响降级：当rtsps启动时我们并不返回错误，保证不因为rtsps影响其他服务
+		if err == nil {
+			go func() {
+				if errRun := sm.rtspsServer.RunLoop(); errRun != nil {
+					Log.Error(errRun)
+				}
+			}()
 		}
-		go func() {
-			if err := sm.rtspsServer.RunLoop(); err != nil {
-				Log.Error(err)
-			}
-		}()
 	}
 
 	if sm.httpApiServer != nil {

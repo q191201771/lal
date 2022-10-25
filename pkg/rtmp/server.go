@@ -60,6 +60,7 @@ func (server *Server) Listen() (err error) {
 func (server *Server) ListenWithTLS(certFile, keyFile string) (err error) {
 	cert, err := tls.LoadX509KeyPair(certFile, keyFile)
 	if err != nil {
+		Log.Errorf("start rtmps server listen failed. certFile=%s, keyFile=%s, err=%+v", certFile, keyFile, err)
 		return
 	}
 	tlsConfig := &tls.Config{Certificates: []tls.Certificate{cert}}
