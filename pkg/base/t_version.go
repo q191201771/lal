@@ -19,7 +19,7 @@ import "strings"
 const LalVersion = "v0.31.1"
 
 // ConfVersion lalserver的配置文件的版本号
-const ConfVersion = "v0.3.4"
+const ConfVersion = "v0.3.5"
 
 // HttpApiVersion lalserver的HTTP-API功能的版本号
 const HttpApiVersion = "v0.4.2"
