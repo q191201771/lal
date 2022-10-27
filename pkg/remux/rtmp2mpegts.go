@@ -480,8 +480,8 @@ func (s *Rtmp2MpegtsRemuxer) adjustDtsPts(frame *mpegts.Frame) {
 		if s.basicAudioPts == math.MaxUint64 {
 			s.basicAudioPts = frame.Pts
 		}
-		frame.Dts = subSafe(frame.Dts, s.basicAudioDts)
-		frame.Pts = subSafe(frame.Pts, s.basicAudioPts)
+		frame.Dts = subSafe(frame.Dts, s.basicAudioDts, s.UniqueKey, frame)
+		frame.Pts = subSafe(frame.Pts, s.basicAudioPts, s.UniqueKey, frame)
 	} else if frame.Sid == mpegts.StreamIdVideo {
 		if s.basicVideoDts == math.MaxUint64 {
 			s.basicVideoDts = frame.Dts
@@ -489,15 +489,15 @@ func (s *Rtmp2MpegtsRemuxer) adjustDtsPts(frame *mpegts.Frame) {
 		if s.basicVideoPts == math.MaxUint64 {
 			s.basicVideoPts = frame.Pts
 		}
-		frame.Dts = subSafe(frame.Dts, s.basicVideoDts)
-		frame.Pts = subSafe(frame.Pts, s.basicVideoPts)
+		frame.Dts = subSafe(frame.Dts, s.basicVideoDts, s.UniqueKey, frame)
+		frame.Pts = subSafe(frame.Pts, s.basicVideoPts, s.UniqueKey, frame)
 	}
 }
 
-func subSafe(a, b uint64) uint64 {
+func subSafe(a, b uint64, uk string, frame *mpegts.Frame) uint64 {
 	if a >= b {
 		return a - b
 	}
-	Log.Warnf("subSafe. a=%d, b=%d", a, b)
-	return 0
+	Log.Warnf("[%s] subSafe. a=%d, b=%d, frame=%s", uk, a, b, frame.DebugString())
+	return a
 }

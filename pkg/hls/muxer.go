@@ -152,7 +152,7 @@ func (m *Muxer) FeedMpegts(tsPackets []byte, frame *mpegts.Frame, boundary bool)
 	//Log.Debugf("> FeedMpegts. boundary=%v, frame=%p, sid=%d", boundary, frame, frame.Sid)
 	if frame.Sid == mpegts.StreamIdAudio {
 		// TODO(chef): 为什么音频用pts，视频用dts
-		if err := m.updateFragment(frame.Pts, boundary); err != nil {
+		if err := m.updateFragment(frame.Pts, boundary, frame); err != nil {
 			Log.Errorf("[%s] update fragment error. err=%+v", m.UniqueKey, err)
 			return
 		}
@@ -162,7 +162,7 @@ func (m *Muxer) FeedMpegts(tsPackets []byte, frame *mpegts.Frame, boundary bool)
 		}
 		//Log.Debugf("[%s] WriteFrame A. dts=%d, len=%d", m.UniqueKey, frame.DTS, len(frame.Raw))
 	} else {
-		if err := m.updateFragment(frame.Dts, boundary); err != nil {
+		if err := m.updateFragment(frame.Dts, boundary, frame); err != nil {
 			Log.Errorf("[%s] update fragment error. err=%+v", m.UniqueKey, err)
 			return
 		}
@@ -192,8 +192,10 @@ func (m *Muxer) OutPath() string {
 //
 // @param boundary: 调用方认为可能是开启新TS切片的时间点
 //
+// @param frame: 内部只在打日志时使用
+//
 // @return: 理论上，只有文件操作失败才会返回错误
-func (m *Muxer) updateFragment(ts uint64, boundary bool) error {
+func (m *Muxer) updateFragment(ts uint64, boundary bool, frame *mpegts.Frame) error {
 	discont := true
 
 	// 如果已经有TS切片，检查是否需要强制开启新的切片，以及切片是否发生跳跃
@@ -210,7 +212,7 @@ func (m *Muxer) updateFragment(ts uint64, boundary bool) error {
 		//
 		maxfraglen := uint64(m.config.FragmentDurationMs * 90 * 10)
 		if (ts > m.fragTs && ts-m.fragTs > maxfraglen) || (m.fragTs > ts && m.fragTs-ts > negMaxfraglen) {
-			Log.Warnf("[%s] force fragment split. fragTs=%d, ts=%d", m.UniqueKey, m.fragTs, ts)
+			Log.Warnf("[%s] force fragment split. fragTs=%d, ts=%d, frame=%s", m.UniqueKey, m.fragTs, ts, frame.DebugString())
 
 			if err := m.closeFragment(false); err != nil {
 				return err
