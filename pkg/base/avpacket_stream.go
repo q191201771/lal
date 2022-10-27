@@ -46,7 +46,7 @@ type IAvPacketStream interface {
 	// 注意，调用 FeedAvPacket 传入AAC音频数据前，需要先调用 FeedAudioSpecificConfig。
 	// FeedAudioSpecificConfig 在最开始总共调用一次，后面就可以一直调用 FeedAvPacket
 	//
-	FeedAudioSpecificConfig(asc []byte)
+	FeedAudioSpecificConfig(asc []byte) error
 
 	// FeedAvPacket
 	//
@@ -66,5 +66,5 @@ type IAvPacketStream interface {
 	// Avcc也即[<4字节长度 + nal>...]，Annexb也即[<4字节start code 00 00 00 01 + nal>...]。
 	// 注意，sps和pps也通过 FeedAvPacket 传入。sps和pps可以单独调用 FeedAvPacket，也可以sps+pps+I帧组合在一起调用一次 FeedAvPacket
 	//
-	FeedAvPacket(packet AvPacket)
+	FeedAvPacket(packet AvPacket) error
 }

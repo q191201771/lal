@@ -27,7 +27,9 @@ type ILalServer interface {
 	//
 	AddCustomizePubSession(streamName string) (ICustomizePubSessionContext, error)
 
-	// DelCustomizePubSession 将 ICustomizePubSessionContext 从 ILalServer 中删除
+	// DelCustomizePubSession 将 ICustomizePubSessionContext 对象从 ILalServer 中删除
+	//
+	// 注意，业务方调用该函数后，就不要再使用该 ICustomizePubSessionContext 对象的方法了，比如继续 FeedAvPacket 是无效的
 	//
 	DelCustomizePubSession(ICustomizePubSessionContext)
 
