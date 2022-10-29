@@ -31,6 +31,7 @@ const (
 type Config struct {
 	ConfVersion           string                `json:"conf_version"`
 	RtmpConfig            RtmpConfig            `json:"rtmp"`
+	InSessionConfig       InSessionConfig       `json:"in_session"`
 	DefaultHttpConfig     DefaultHttpConfig     `json:"default_http"`
 	HttpflvConfig         HttpflvConfig         `json:"httpflv"`
 	HlsConfig             HlsConfig             `json:"hls"`
@@ -50,16 +51,19 @@ type Config struct {
 }
 
 type RtmpConfig struct {
-	Enable                   bool   `json:"enable"`
-	Addr                     string `json:"addr"`
-	RtmpsEnable              bool   `json:"rtmps_enable"`
-	RtmpsAddr                string `json:"rtmps_addr"`
-	RtmpsCertFile            string `json:"rtmps_cert_file"`
-	RtmpsKeyFile             string `json:"rtmps_key_file"`
-	GopNum                   int    `json:"gop_num"` // TODO(chef): refactor 更名为gop_cache_num
-	MergeWriteSize           int    `json:"merge_write_size"`
-	AddDummyAudioEnable      bool   `json:"add_dummy_audio_enable"`
-	AddDummyAudioWaitAudioMs int    `json:"add_dummy_audio_wait_audio_ms"`
+	Enable         bool   `json:"enable"`
+	Addr           string `json:"addr"`
+	RtmpsEnable    bool   `json:"rtmps_enable"`
+	RtmpsAddr      string `json:"rtmps_addr"`
+	RtmpsCertFile  string `json:"rtmps_cert_file"`
+	RtmpsKeyFile   string `json:"rtmps_key_file"`
+	GopNum         int    `json:"gop_num"` // TODO(chef): refactor 更名为gop_cache_num
+	MergeWriteSize int    `json:"merge_write_size"`
+}
+
+type InSessionConfig struct {
+	AddDummyAudioEnable      bool `json:"add_dummy_audio_enable"`
+	AddDummyAudioWaitAudioMs int  `json:"add_dummy_audio_wait_audio_ms"`
 }
 
 type DefaultHttpConfig struct {

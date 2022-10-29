@@ -30,6 +30,8 @@ func (group *Group) AddCustomizePubSession(streamName string) (ICustomizePubSess
 	}
 
 	group.customizePubSession = NewCustomizePubSessionContext(streamName)
+	Log.Debugf("[%s] [%s] add customize pub session into group.", group.UniqueKey, group.customizePubSession.UniqueKey())
+
 	group.addIn()
 
 	if group.shouldStartRtspRemuxer() {
@@ -293,7 +295,7 @@ func (group *Group) delPsPubSession(session *gb28181.PubSession) {
 
 	if session != group.psPubSession {
 		Log.Warnf("[%s] del ps pub session but not match. del session=%s, group session=%p",
-			group.UniqueKey, session.UniqueKey(), group.customizePubSession)
+			group.UniqueKey, session.UniqueKey(), group.psPubSession)
 		return
 	}
 
@@ -301,10 +303,10 @@ func (group *Group) delPsPubSession(session *gb28181.PubSession) {
 }
 
 func (group *Group) delCustomizePubSession(sessionCtx ICustomizePubSessionContext) {
-	Log.Debugf("[%s] [%s] del rtmp PubSession from group.", group.UniqueKey, sessionCtx.UniqueKey())
+	Log.Debugf("[%s] [%s] del customize PubSession from group.", group.UniqueKey, sessionCtx.UniqueKey())
 
 	if sessionCtx != group.customizePubSession {
-		Log.Warnf("[%s] del rtmp pub session but not match. del session=%s, group session=%p",
+		Log.Warnf("[%s] del customize pub session but not match. del session=%s, group session=%p",
 			group.UniqueKey, sessionCtx.UniqueKey(), group.customizePubSession)
 		return
 	}
@@ -352,10 +354,11 @@ func (group *Group) addIn() {
 
 	if group.shouldStartMpegtsRemuxer() {
 		group.rtmp2MpegtsRemuxer = remux.NewRtmp2MpegtsRemuxer(group)
+		nazalog.Debugf("[%s] [%s] NewRtmp2MpegtsRemuxer in group.", group.UniqueKey, group.rtmp2MpegtsRemuxer.UniqueKey())
 	}
 
-	if group.config.RtmpConfig.AddDummyAudioEnable {
-		group.dummyAudioFilter = remux.NewDummyAudioFilter(group.UniqueKey, group.config.RtmpConfig.AddDummyAudioWaitAudioMs, group.broadcastByRtmpMsg)
+	if group.config.InSessionConfig.AddDummyAudioEnable {
+		group.dummyAudioFilter = remux.NewDummyAudioFilter(group.UniqueKey, group.config.InSessionConfig.AddDummyAudioWaitAudioMs, group.broadcastByRtmpMsg)
 	}
 
 	group.startPushIfNeeded()
