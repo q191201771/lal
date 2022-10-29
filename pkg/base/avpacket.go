@@ -62,7 +62,7 @@ func (packet *AvPacket) IsVideo() bool {
 
 func (packet *AvPacket) DebugString() string {
 	return fmt.Sprintf("[%p] type=%s, timestamp=%d, pts=%d, len=%d, payload=%s",
-		packet, packet.PayloadType.ReadableString(), packet.Timestamp, packet.Pts, len(packet.Payload), hex.Dump(nazabytes.Prefix(packet.Payload, 64)))
+		packet, packet.PayloadType.ReadableString(), packet.Timestamp, packet.Pts, len(packet.Payload), hex.Dump(nazabytes.Prefix(packet.Payload, 8)))
 }
 
 // ---------------------------------------------------------------------------------------------------------------------
