@@ -32,6 +32,9 @@ import (
 // |                             ....                              |
 // +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
 
+// TODO(chef): ext 202210
+// TODO(chef): padding 202210
+
 const (
 	RtpFixedHeaderLength = 12
 
@@ -58,7 +61,9 @@ type RtpHeader struct {
 	Timestamp  uint32 // 32b **** samples
 	Ssrc       uint32 // 32b **** Synchronization source
 
-	payloadOffset uint32
+	Csrc []uint32
+
+	payloadOffset uint32 // body部分，真正数据部分的起始位置
 }
 
 type RtpPacket struct {
@@ -74,6 +79,8 @@ func (h *RtpHeader) PackTo(out []byte) {
 	bele.BePutUint16(out[2:], h.Seq)
 	bele.BePutUint32(out[4:], h.Timestamp)
 	bele.BePutUint32(out[8:], h.Ssrc)
+
+	// TODO(chef): pack csrc 202210
 }
 
 func MakeDefaultRtpHeader() RtpHeader {
@@ -110,7 +117,17 @@ func ParseRtpHeader(b []byte) (h RtpHeader, err error) {
 	h.Timestamp = bele.BeUint32(b[4:])
 	h.Ssrc = bele.BeUint32(b[8:])
 
-	h.payloadOffset = RtpFixedHeaderLength
+	offset := RtpFixedHeaderLength
+
+	if h.CsrcCount > 0 {
+		h.Csrc = make([]uint32, h.CsrcCount)
+	}
+	for i := uint8(0); i < h.CsrcCount; i++ {
+		h.Csrc[i] = bele.BeUint32(b[offset:])
+		offset += 4
+	}
+
+	h.payloadOffset = uint32(offset)
 	return
 }
 
@@ -133,7 +150,9 @@ func (p *RtpPacket) Body() []byte {
 	return p.Raw[p.Header.payloadOffset:]
 }
 
-// IsAvcHevcBoundary @param pt: 取值范围为AvPacketPtAvc或AvPacketPtHevc，否则直接返回false
+// IsAvcHevcBoundary
+//
+// @param pt: 取值范围为AvPacketPtAvc或AvPacketPtHevc，否则直接返回false
 func IsAvcHevcBoundary(pkt RtpPacket, pt base.AvPacketPt) bool {
 	switch pt {
 	case base.AvPacketPtAvc:
