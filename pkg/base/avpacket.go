@@ -44,7 +44,7 @@ func (a AvPacketPt) ReadableString() string {
 // AvPacket
 //
 // 不同场景使用时，字段含义可能不同。
-// 使用AvPacket的地方，应注明各字段的含义。
+// 使用 AvPacket 的地方，应注明各字段的含义。
 type AvPacket struct {
 	PayloadType AvPacketPt
 	Timestamp   int64 // 如无特殊说明，此字段是Dts

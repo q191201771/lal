@@ -17,9 +17,7 @@ import (
 	"github.com/q191201771/naza/pkg/nazaerrors"
 )
 
-// TODO(chef)
-// - 考虑移入naza中
-// - 考虑增加一个pattern全部未命中的mux回调
+// TODO(chef): [refactor] 考虑移入naza中 202211
 
 const (
 	NetworkTcp = "tcp"
