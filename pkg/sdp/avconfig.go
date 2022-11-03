@@ -19,9 +19,10 @@ import (
 )
 
 func ParseAsc(a *AFmtPBase) ([]byte, error) {
-	if a.Format != base.RtpPacketTypeAac {
-		return nil, nazaerrors.Wrap(base.ErrSdp)
-	}
+	// AAC的这个地方除了97，还遇到过104的，暂时不要这个判断了
+	//if a.Format != base.RtpPacketTypeAac {
+	//	return nil, nazaerrors.Wrap(base.ErrSdp)
+	//}
 
 	v, ok := a.Parameters["config"]
 	if !ok {
