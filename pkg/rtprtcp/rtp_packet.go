@@ -64,6 +64,7 @@ type RtpHeader struct {
 	Csrc []uint32
 
 	payloadOffset uint32 // body部分，真正数据部分的起始位置
+	paddingLength int    // 末尾padding的长度
 }
 
 type RtpPacket struct {
@@ -128,6 +129,10 @@ func ParseRtpHeader(b []byte) (h RtpHeader, err error) {
 	}
 
 	h.payloadOffset = uint32(offset)
+
+	if h.Padding == 1 {
+		h.paddingLength = int(b[len(b)-1])
+	}
 	return
 }
 
@@ -147,6 +152,10 @@ func (p *RtpPacket) Body() []byte {
 		Log.Warnf("CHEFNOTICEME. payloadOffset=%d", p.Header.payloadOffset)
 		p.Header.payloadOffset = RtpFixedHeaderLength
 	}
+	if p.Header.Padding == 1 {
+		return p.Raw[p.Header.payloadOffset : len(p.Raw)-p.Header.paddingLength]
+	}
+
 	return p.Raw[p.Header.payloadOffset:]
 }
 
@@ -170,6 +179,7 @@ func IsAvcBoundary(pkt RtpPacket) bool {
 		avc.NaluTypeIdrSlice: {},
 	}
 
+	// TODO(chef): [fix] 检查数据长度有效性 202211
 	b := pkt.Body()
 	outerNaluType := avc.ParseNaluType(b[0])
 
@@ -211,6 +221,7 @@ func IsHevcBoundary(pkt RtpPacket) bool {
 		hevc.NaluTypeSliceRsvIrapVcl23: {},
 	}
 
+	// TODO(chef): [fix] 检查数据长度有效性 202211
 	b := pkt.Body()
 	outerNaluType := hevc.ParseNaluType(b[0])
 
