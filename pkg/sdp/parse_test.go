@@ -626,3 +626,37 @@ func TestCase15(t *testing.T) {
 	//a=rtpmap:8 PCMA/8000
 	//a=recvonly
 }
+
+func TestCase16(t *testing.T) {
+	golden := `v=0
+o=- 1667405799319376 1667405799319376 IN IP4 192.168.1.64
+s=Media Presentation
+e=NONE
+b=AS:5100
+t=0 0
+a=control:rtsp://192.168.1.64/
+m=video 0 RTP/AVP 96
+c=IN IP4 0.0.0.0
+b=AS:5000
+a=recvonly
+a=x-dimensions:1920,1080
+a=control:rtsp://192.168.1.64/trackID=1
+a=rtpmap:96 H264/90000
+a=fmtp:96 profile-level-id=420029; packetization-mode=1; sprop-parameter-sets=Z00AKY2NQDwBE/LNwEBAUAAAcIAAFfkAQA==,aO48gA==
+m=audio 0 RTP/AVP 104
+c=IN IP4 0.0.0.0
+b=AS:50
+a=recvonly
+a=control:rtsp://192.168.1.64/trackID=2
+a=rtpmap:104 mpeg4-generic/16000/1
+a=fmtp:104 profile-level-id=15; streamtype=5; mode=AAC-hbr; config=1408;SizeLength=13; IndexLength=3; IndexDeltaLength=3; Profile=1;
+a=Media_header:MEDIAINFO=494D4B48010300000400000101200110803E0000007D000000000000000000000000000000000000;
+a=appversion:1.0
+`
+	golden = strings.ReplaceAll(golden, "\n", "\r\n")
+	ctx, err := ParseSdp2LogicContext([]byte(golden))
+	var avcCtx avc.Context
+	avc.ParseSps(ctx.Sps, &avcCtx)
+	assert.Equal(t, nil, err)
+	_ = ctx
+}
