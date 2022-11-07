@@ -5,7 +5,7 @@
 [![CI](https://github.com/q191201771/lal/actions/workflows/ci.yml/badge.svg?branch=master)](https://github.com/q191201771/lal/actions/workflows/ci.yml)
 [![goreportcard](https://goreportcard.com/badge/github.com/q191201771/lal)](https://goreportcard.com/report/github.com/q191201771/lal)
 ![wechat](https://img.shields.io/:微信-q191201771-blue.svg)
-![qqgroup](https://img.shields.io/:QQ群-1090510973-blue.svg)
+![qqgroup](https://img.shields.io/:QQ群-635846365-blue.svg)
 
 [中文文档](https://pengrl.com/lal/#/)
 
