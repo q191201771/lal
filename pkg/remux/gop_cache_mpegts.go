@@ -74,8 +74,9 @@ func (gc *GopCacheMpegts) Clear() {
 // 注意，如果GopCache为空，则不缓存msg
 func (gc *GopCacheMpegts) feedLastGop(b []byte) {
 	if !gc.isGopRingEmpty() {
-		if gc.gopRing[(gc.gopRingLast-1+gc.gopSize)%gc.gopSize].len()<=gc.singleGopMaxNum ||gc.singleGopMaxNum==0{
-			gc.gopRing[(gc.gopRingLast-1+gc.gopSize)%gc.gopSize].Feed(b)
+		gopPos:=(gc.gopRingLast-1+gc.gopSize)%gc.gopSize
+		if gc.gopRing[gopPos].len()<=gc.singleGopMaxNum ||gc.singleGopMaxNum==0{
+			gc.gopRing[gopPos].Feed(b)
 		}
 
 	}

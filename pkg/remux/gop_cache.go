@@ -155,8 +155,9 @@ func (gc *GopCache) Clear() {
 // 注意，如果GopCache为空，则不缓存msg
 func (gc *GopCache) feedLastGop(msg base.RtmpMsg, b []byte) {
 	if !gc.isGopRingEmpty() {
-		if gc.gopRing[(gc.gopRingLast-1+gc.gopSize)%gc.gopSize].len()<=gc.singleGopMaxNum ||gc.singleGopMaxNum==0{
-			gc.gopRing[(gc.gopRingLast-1+gc.gopSize)%gc.gopSize].Feed(msg, b)
+		gopPos:=(gc.gopRingLast-1+gc.gopSize)%gc.gopSize
+		if gc.gopRing[gopPos].len()<=gc.singleGopMaxNum ||gc.singleGopMaxNum==0{
+			gc.gopRing[gopPos].Feed(msg, b)
 		}
 	}
 }
