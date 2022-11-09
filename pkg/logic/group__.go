@@ -147,9 +147,9 @@ func NewGroup(appName string, streamName string, config *Config, observer IGroup
 		httptsSubSessionSet:        make(map[*httpts.SubSession]struct{}),
 		rtspSubSessionSet:          make(map[*rtsp.SubSession]struct{}),
 		waitRtspSubSessionSet:      make(map[*rtsp.SubSession]struct{}),
-		rtmpGopCache:               remux.NewGopCache("rtmp", uk, config.RtmpConfig.GopNum),
-		httpflvGopCache:            remux.NewGopCache("httpflv", uk, config.HttpflvConfig.GopNum),
-		httptsGopCache:             remux.NewGopCacheMpegts(uk, config.HttptsConfig.GopNum),
+		rtmpGopCache:               remux.NewGopCache("rtmp", uk, config.RtmpConfig.GopNum, config.RtmpConfig.SingleGopMaxNum),
+		httpflvGopCache:            remux.NewGopCache("httpflv", uk, config.HttpflvConfig.GopNum, config.HttpflvConfig.SingleGopMaxNum),
+		httptsGopCache:             remux.NewGopCacheMpegts(uk, config.HttptsConfig.GopNum, config.HttptsConfig.SingleGopMaxNum),
 		psPubPrevInactiveCheckTick: -1,
 	}
 
