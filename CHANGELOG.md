@@ -1,3 +1,19 @@
+#### v0.32.0 (2022-11-10)
+
+- [feat] 自动叠加静音音频。所有协议、所有类型的输入流都已支持，文档见: https://pengrl.com/lal/#/dummy_audio
+- [feat] 支持rtmps、rtsps(server端)
+- [feat] rtp: 支持解析rtp header中的padding和csrc
+- [feat] demo: pullhttpflv拉取http-flv时可以存储为flv文件
+- [opt] 二次开发: 当DelCustomizePubSession后，调用被删除对象的FeedAvPacket方法将返回错误
+- [opt] 二次开发: 支持直接使用json字符串作为配置内容初始化ILalServer
+- [opt] 兼容性优化。转ts时，如果调整时间戳失败则使用调整前的时间戳。
+- [opt] 兼容性优化。当rtmps和rtsps加载签名文件失败时，只打印日志而不退出lalserver
+- [fix] rtsp: 修复aac rtp type不是标准值导致无法合帧的问题。提高兼容性
+- [fix] http-api: 修复sub http-flv remote_addr字段没有值的bug
+- [fix] rtsp: 修复auth可能失败的bug
+- [log] 打印rtsp信令。丰富多处错误日志，比如转hls异常
+- [doc] 新增文档：重要概念 https://pengrl.com/lal/#/concept
+
 #### v0.31.1 (2022-10-07)
 
 - [feat] HTTP-API增加`start_rtp_pub`接口，用于支持GB28181的ps流
