@@ -58,7 +58,7 @@ type RtmpConfig struct {
 	RtmpsCertFile  string `json:"rtmps_cert_file"`
 	RtmpsKeyFile   string `json:"rtmps_key_file"`
 	GopNum         int    `json:"gop_num"` // TODO(chef): refactor 更名为gop_cache_num
-	SingleGopMaxNum         int    `json:"single_gop_max_num"`
+	SingleGopMaxFrameNum         int    `json:"single_gop_max_frame_num"`
 	MergeWriteSize int    `json:"merge_write_size"`
 }
 
@@ -75,14 +75,14 @@ type HttpflvConfig struct {
 	CommonHttpServerConfig
 
 	GopNum int `json:"gop_num"`
-	SingleGopMaxNum         int    `json:"single_gop_max_num"`
+	SingleGopMaxFrameNum         int    `json:"single_gop_max_frame_num"`
 }
 
 type HttptsConfig struct {
 	CommonHttpServerConfig
 
 	GopNum int `json:"gop_num"`
-	SingleGopMaxNum         int    `json:"single_gop_max_num"`
+	SingleGopMaxFrameNum         int    `json:"single_gop_max_frame_num"`
 }
 
 type HlsConfig struct {

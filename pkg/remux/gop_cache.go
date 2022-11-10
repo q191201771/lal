@@ -63,7 +63,7 @@ type GopCache struct {
 	gopRingFirst int
 	gopRingLast  int
 	gopSize      int
-	singleGopMaxNum int
+	singleGopMaxFrameNum int
 }
 
 // NewGopCache
@@ -71,7 +71,7 @@ type GopCache struct {
 // @param gopNum: gop缓存大小。
 //   - 如果为0，则不缓存音频数据，也即GOP缓存功能不生效。
 //   - 如果>0，则缓存[0, gopNum]个GOP，最多缓存 gopNum 个GOP。注意，最后一个GOP可能是不完整的。
-func NewGopCache(t string, uniqueKey string, gopNum int,singleGopMaxNum int) *GopCache {
+func NewGopCache(t string, uniqueKey string, gopNum int,singleGopMaxFrameNum int) *GopCache {
 	return &GopCache{
 		t:            t,
 		uniqueKey:    uniqueKey,
@@ -79,7 +79,7 @@ func NewGopCache(t string, uniqueKey string, gopNum int,singleGopMaxNum int) *Go
 		gopRing:      make([]Gop, gopNum+1, gopNum+1),
 		gopRingFirst: 0,
 		gopRingLast:  0,
-		singleGopMaxNum:singleGopMaxNum,
+		singleGopMaxFrameNum:singleGopMaxFrameNum,
 	}
 }
 
@@ -156,7 +156,7 @@ func (gc *GopCache) Clear() {
 func (gc *GopCache) feedLastGop(msg base.RtmpMsg, b []byte) {
 	if !gc.isGopRingEmpty() {
 		gopPos:=(gc.gopRingLast-1+gc.gopSize)%gc.gopSize
-		if gc.gopRing[gopPos].len()<=gc.singleGopMaxNum ||gc.singleGopMaxNum==0{
+		if gc.gopRing[gopPos].len()<=gc.singleGopMaxFrameNum ||gc.singleGopMaxFrameNum==0{
 			gc.gopRing[gopPos].Feed(msg, b)
 		}
 	}

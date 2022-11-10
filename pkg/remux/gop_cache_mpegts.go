@@ -21,10 +21,10 @@ type GopCacheMpegts struct {
 	gopRingFirst int
 	gopRingLast  int
 	gopSize      int
-	singleGopMaxNum int
+	singleGopMaxFrameNum int
 }
 
-func NewGopCacheMpegts(uniqueKey string, gopNum int,singleGopMaxNum int) *GopCacheMpegts {
+func NewGopCacheMpegts(uniqueKey string, gopNum int,singleGopMaxFrameNum int) *GopCacheMpegts {
 	return &GopCacheMpegts{
 		uniqueKey:    uniqueKey,
 		gopNum:       gopNum,
@@ -32,7 +32,7 @@ func NewGopCacheMpegts(uniqueKey string, gopNum int,singleGopMaxNum int) *GopCac
 		gopRing:      make([]GopMpegts, gopNum+1, gopNum+1),
 		gopRingFirst: 0,
 		gopRingLast:  0,
-		singleGopMaxNum: singleGopMaxNum,
+		singleGopMaxFrameNum: singleGopMaxFrameNum,
 	}
 }
 
@@ -75,7 +75,7 @@ func (gc *GopCacheMpegts) Clear() {
 func (gc *GopCacheMpegts) feedLastGop(b []byte) {
 	if !gc.isGopRingEmpty() {
 		gopPos:=(gc.gopRingLast-1+gc.gopSize)%gc.gopSize
-		if gc.gopRing[gopPos].len()<=gc.singleGopMaxNum ||gc.singleGopMaxNum==0{
+		if gc.gopRing[gopPos].len()<=gc.singleGopMaxFrameNum ||gc.singleGopMaxFrameNum==0{
 			gc.gopRing[gopPos].Feed(b)
 		}
 
