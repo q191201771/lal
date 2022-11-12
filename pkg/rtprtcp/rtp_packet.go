@@ -104,8 +104,7 @@ func MakeRtpPacket(h RtpHeader, payload []byte) (pkt RtpPacket) {
 
 func ParseRtpHeader(b []byte) (h RtpHeader, err error) {
 	if len(b) < RtpFixedHeaderLength {
-		err = base.ErrRtpRtcpShortBuffer
-		return
+		return h, base.ErrRtpRtcpShortBuffer
 	}
 
 	h.Version = b[0] >> 6
@@ -123,9 +122,34 @@ func ParseRtpHeader(b []byte) (h RtpHeader, err error) {
 	if h.CsrcCount > 0 {
 		h.Csrc = make([]uint32, h.CsrcCount)
 	}
+
 	for i := uint8(0); i < h.CsrcCount; i++ {
+		if offset + 4 > len(b) {
+			return h, base.ErrRtpRtcpShortBuffer
+		}
+
 		h.Csrc[i] = bele.BeUint32(b[offset:])
 		offset += 4
+	}
+
+	if h.Extension != 0 {
+		if offset + 4 > len(b) {
+			return h, base.ErrRtpRtcpShortBuffer
+		}
+
+		// rfc3550#section-5.3.1
+		bele.BeUint16(b[offset:])
+		offset += 2
+		extensionLength := bele.BeUint16(b[offset:])
+		offset += 2
+
+		offset += int(extensionLength)
+
+		// TODO(chef): [feat] 当前只是跳过了extension，后续考虑解析具体的extension内容存储至结构体中 202211
+	}
+
+	if offset >= len(b) {
+		return h, base.ErrRtpRtcpShortBuffer
 	}
 
 	h.payloadOffset = uint32(offset)
