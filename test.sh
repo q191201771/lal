@@ -2,11 +2,11 @@
 
 #set -x
 
-echo '-----add_go_license-----'
-if command -v add_go_license >/dev/null 2>&1; then
-    add_go_license -d ./ -e 191201771@qq.com -n Chef
+echo '-----add_src_license-----'
+if command -v add_src_license >/dev/null 2>&1; then
+    add_src_license -d ./ -e 191201771@qq.com -n Chef
 else
-    echo 'CHEFNOTICEME add_go_license not exist!'
+    echo 'CHEFNOTICEME add_src_license not exist!'
 fi
 
 echo '-----gofmt-----'
@@ -55,7 +55,7 @@ cp ./conf/cert.pem ./conf/key.pem ./testdata/conf/
 
 ## 执行所有pkg里的单元测试，并生成测试覆盖文件
 echo "" > coverage.txt
-for d in $(go list ./... | grep -v vendor | grep pkg | grep -v innertest); do
+for d in $(go list ./... | grep -v vendor | grep pkg); do
     go test -race -coverprofile=profile.out -covermode=atomic $d
     if [ -f profile.out ]; then
         cat profile.out >> coverage.txt

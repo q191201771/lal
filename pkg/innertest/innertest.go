@@ -13,6 +13,7 @@ import (
 	"io/ioutil"
 	"net/http"
 	"os"
+	"runtime"
 	"strings"
 	"sync"
 	"testing"
@@ -107,6 +108,15 @@ func (r RtspPullObserver) OnAvPacket(pkt base.AvPacket) {
 }
 
 func Entry(tt *testing.T) {
+	// 在MacOS只测试一次
+	// 其他环境（比如github CI）上则每个package都执行，因为要生产测试覆盖率
+	if runtime.GOOS == "darwin" {
+		_, file, _, _ := runtime.Caller(1)
+		if !strings.HasSuffix(file, "innertest_test.go") {
+			return
+		}
+	}
+
 	t = tt
 
 	mode = 0
