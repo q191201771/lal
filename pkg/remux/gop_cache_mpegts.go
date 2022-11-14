@@ -21,9 +21,10 @@ type GopCacheMpegts struct {
 	gopRingFirst int
 	gopRingLast  int
 	gopSize      int
+	singleGopMaxFrameNum int
 }
 
-func NewGopCacheMpegts(uniqueKey string, gopNum int) *GopCacheMpegts {
+func NewGopCacheMpegts(uniqueKey string, gopNum int,singleGopMaxFrameNum int) *GopCacheMpegts {
 	return &GopCacheMpegts{
 		uniqueKey:    uniqueKey,
 		gopNum:       gopNum,
@@ -31,6 +32,7 @@ func NewGopCacheMpegts(uniqueKey string, gopNum int) *GopCacheMpegts {
 		gopRing:      make([]GopMpegts, gopNum+1, gopNum+1),
 		gopRingFirst: 0,
 		gopRingLast:  0,
+		singleGopMaxFrameNum: singleGopMaxFrameNum,
 	}
 }
 
@@ -72,7 +74,11 @@ func (gc *GopCacheMpegts) Clear() {
 // 注意，如果GopCache为空，则不缓存msg
 func (gc *GopCacheMpegts) feedLastGop(b []byte) {
 	if !gc.isGopRingEmpty() {
-		gc.gopRing[(gc.gopRingLast-1+gc.gopSize)%gc.gopSize].Feed(b)
+		gopPos:=(gc.gopRingLast-1+gc.gopSize)%gc.gopSize
+		if gc.gopRing[gopPos].len()<=gc.singleGopMaxFrameNum ||gc.singleGopMaxFrameNum==0{
+			gc.gopRing[gopPos].Feed(b)
+		}
+
 	}
 }
 
@@ -114,4 +120,7 @@ func (g *GopMpegts) Feed(b []byte) {
 
 func (g *GopMpegts) Clear() {
 	g.data = g.data[:0]
+}
+func (g *GopMpegts) len()int {
+	return len(g.data)
 }
