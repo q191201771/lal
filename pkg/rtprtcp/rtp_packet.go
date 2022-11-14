@@ -32,9 +32,6 @@ import (
 // |                             ....                              |
 // +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
 
-// TODO(chef): ext 202210
-// TODO(chef): padding 202210
-
 const (
 	RtpFixedHeaderLength = 12
 
@@ -62,6 +59,13 @@ type RtpHeader struct {
 	Ssrc       uint32 // 32b **** Synchronization source
 
 	Csrc []uint32
+
+	ExtensionProfile uint16
+
+	// Extensions 包含了整个extension，引用的是包体的内存
+	//
+	// TODO(chef): [opt] 后续考虑解析extension中的单独个item存储至结构体中 202211
+	Extensions []byte
 
 	payloadOffset uint32 // body部分，真正数据部分的起始位置
 	paddingLength int    // 末尾padding的长度
@@ -124,7 +128,7 @@ func ParseRtpHeader(b []byte) (h RtpHeader, err error) {
 	}
 
 	for i := uint8(0); i < h.CsrcCount; i++ {
-		if offset + 4 > len(b) {
+		if offset+4 > len(b) {
 			return h, base.ErrRtpRtcpShortBuffer
 		}
 
@@ -133,19 +137,17 @@ func ParseRtpHeader(b []byte) (h RtpHeader, err error) {
 	}
 
 	if h.Extension != 0 {
-		if offset + 4 > len(b) {
+		if offset+4 > len(b) {
 			return h, base.ErrRtpRtcpShortBuffer
 		}
 
 		// rfc3550#section-5.3.1
-		bele.BeUint16(b[offset:])
+		h.ExtensionProfile = bele.BeUint16(b[offset:])
 		offset += 2
 		extensionLength := bele.BeUint16(b[offset:])
 		offset += 2
+		h.Extensions = b[offset : offset+int(extensionLength)]
 
-		offset += int(extensionLength)
-
-		// TODO(chef): [feat] 当前只是跳过了extension，后续考虑解析具体的extension内容存储至结构体中 202211
 	}
 
 	if offset >= len(b) {
