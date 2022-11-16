@@ -45,16 +45,16 @@ type UrlContext struct {
 	Username     string
 	Password     string
 	StdHost      string // host or host:port
-	HostWithPort string
-	Host         string
-	Port         int
+	HostWithPort string // 当原始url中不包含port时，填充scheme对应的默认port
+	Host         string // 不包含port
+	Port         int // 当原始url中不包含port时，填充scheme对应的默认port
 
 	//UrlPathContext
-	PathWithRawQuery    string
-	Path                string
+	PathWithRawQuery    string // 注意，有前面的'/'
+	Path                string // 注意，有前面的'/'
 	PathWithoutLastItem string // 注意，没有前面的'/'，也没有后面的'/'
 	LastItemOfPath      string // 注意，没有前面的'/'
-	RawQuery            string // 参数
+	RawQuery            string // 参数，注意，没有前面的'?'
 
 	RawUrlWithoutUserInfo string
 
