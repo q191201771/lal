@@ -59,10 +59,10 @@ type GopCache struct {
 	VideoSeqHeader                    []byte
 	AacSeqHeader                      []byte
 
-	gopRing      []Gop
-	gopRingFirst int
-	gopRingLast  int
-	gopSize      int
+	gopRing              []Gop
+	gopRingFirst         int
+	gopRingLast          int
+	gopSize              int
 	singleGopMaxFrameNum int
 }
 
@@ -71,15 +71,15 @@ type GopCache struct {
 // @param gopNum: gop缓存大小。
 //   - 如果为0，则不缓存音频数据，也即GOP缓存功能不生效。
 //   - 如果>0，则缓存[0, gopNum]个GOP，最多缓存 gopNum 个GOP。注意，最后一个GOP可能是不完整的。
-func NewGopCache(t string, uniqueKey string, gopNum int,singleGopMaxFrameNum int) *GopCache {
+func NewGopCache(t string, uniqueKey string, gopNum int, singleGopMaxFrameNum int) *GopCache {
 	return &GopCache{
-		t:            t,
-		uniqueKey:    uniqueKey,
-		gopSize:      gopNum + 1,
-		gopRing:      make([]Gop, gopNum+1, gopNum+1),
-		gopRingFirst: 0,
-		gopRingLast:  0,
-		singleGopMaxFrameNum:singleGopMaxFrameNum,
+		t:                    t,
+		uniqueKey:            uniqueKey,
+		gopSize:              gopNum + 1,
+		gopRing:              make([]Gop, gopNum+1, gopNum+1),
+		gopRingFirst:         0,
+		gopRingLast:          0,
+		singleGopMaxFrameNum: singleGopMaxFrameNum,
 	}
 }
 
@@ -155,8 +155,8 @@ func (gc *GopCache) Clear() {
 // 注意，如果GopCache为空，则不缓存msg
 func (gc *GopCache) feedLastGop(msg base.RtmpMsg, b []byte) {
 	if !gc.isGopRingEmpty() {
-		gopPos:=(gc.gopRingLast-1+gc.gopSize)%gc.gopSize
-		if gc.gopRing[gopPos].len()<=gc.singleGopMaxFrameNum ||gc.singleGopMaxFrameNum==0{
+		gopPos := (gc.gopRingLast - 1 + gc.gopSize) % gc.gopSize
+		if gc.gopRing[gopPos].len() <= gc.singleGopMaxFrameNum || gc.singleGopMaxFrameNum == 0 {
 			gc.gopRing[gopPos].Feed(msg, b)
 		}
 	}
@@ -198,6 +198,6 @@ func (g *Gop) Feed(msg base.RtmpMsg, b []byte) {
 func (g *Gop) Clear() {
 	g.data = g.data[:0]
 }
-func (g *Gop) len()int {
+func (g *Gop) len() int {
 	return len(g.data)
 }

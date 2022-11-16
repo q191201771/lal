@@ -51,15 +51,15 @@ type Config struct {
 }
 
 type RtmpConfig struct {
-	Enable         bool   `json:"enable"`
-	Addr           string `json:"addr"`
-	RtmpsEnable    bool   `json:"rtmps_enable"`
-	RtmpsAddr      string `json:"rtmps_addr"`
-	RtmpsCertFile  string `json:"rtmps_cert_file"`
-	RtmpsKeyFile   string `json:"rtmps_key_file"`
-	GopNum         int    `json:"gop_num"` // TODO(chef): refactor 更名为gop_cache_num
-	SingleGopMaxFrameNum         int    `json:"single_gop_max_frame_num"`
-	MergeWriteSize int    `json:"merge_write_size"`
+	Enable               bool   `json:"enable"`
+	Addr                 string `json:"addr"`
+	RtmpsEnable          bool   `json:"rtmps_enable"`
+	RtmpsAddr            string `json:"rtmps_addr"`
+	RtmpsCertFile        string `json:"rtmps_cert_file"`
+	RtmpsKeyFile         string `json:"rtmps_key_file"`
+	GopNum               int    `json:"gop_num"` // TODO(chef): refactor 更名为gop_cache_num
+	SingleGopMaxFrameNum int    `json:"single_gop_max_frame_num"`
+	MergeWriteSize       int    `json:"merge_write_size"`
 }
 
 type InSessionConfig struct {
@@ -74,15 +74,15 @@ type DefaultHttpConfig struct {
 type HttpflvConfig struct {
 	CommonHttpServerConfig
 
-	GopNum int `json:"gop_num"`
-	SingleGopMaxFrameNum         int    `json:"single_gop_max_frame_num"`
+	GopNum               int `json:"gop_num"`
+	SingleGopMaxFrameNum int `json:"single_gop_max_frame_num"`
 }
 
 type HttptsConfig struct {
 	CommonHttpServerConfig
 
-	GopNum int `json:"gop_num"`
-	SingleGopMaxFrameNum         int    `json:"single_gop_max_frame_num"`
+	GopNum               int `json:"gop_num"`
+	SingleGopMaxFrameNum int `json:"single_gop_max_frame_num"`
 }
 
 type HlsConfig struct {
