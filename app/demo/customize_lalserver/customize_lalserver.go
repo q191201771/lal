@@ -11,12 +11,15 @@ package main
 import (
 	"flag"
 	"fmt"
-	"github.com/q191201771/lal/pkg/aac"
-	"github.com/q191201771/lal/pkg/avc"
-	"github.com/q191201771/naza/pkg/nazalog"
 	"io/ioutil"
 	"os"
 	"time"
+
+	"github.com/q191201771/lal/pkg/aac"
+	"github.com/q191201771/lal/pkg/avc"
+	"github.com/q191201771/lal/pkg/httpflv"
+	"github.com/q191201771/lal/pkg/remux"
+	"github.com/q191201771/naza/pkg/nazalog"
 
 	"github.com/q191201771/lal/pkg/base"
 
@@ -38,6 +41,7 @@ func main() {
 
 	// 比常规lalserver多加了这一行
 	go showHowToCustomizePub(lals)
+	go showHowToFlvCustomizePub(lals)
 
 	err := lals.RunLoop()
 	nazalog.Infof("server manager done. err=%+v", err)
@@ -55,6 +59,35 @@ func parseFlag() string {
 	}
 
 	return *cf
+}
+
+func showHowToFlvCustomizePub(lals logic.ILalServer) {
+	const (
+		flvfilename            = "/tmp/test.flv"
+		customizePubStreamName = "f110"
+	)
+
+	time.Sleep(200 * time.Millisecond)
+
+	tags, err := httpflv.ReadAllTagsFromFlvFile(flvfilename)
+	nazalog.Assert(nil, err)
+
+	session, err := lals.AddCustomizePubSession(customizePubStreamName)
+	nazalog.Assert(nil, err)
+
+	startRealTime := time.Now()
+	startTs := int64(0)
+	for _, tag := range tags {
+		msg := remux.FlvTag2RtmpMsg(tag)
+		diffTs := int64(msg.Header.TimestampAbs) - startTs
+		diffReal := time.Since(startRealTime).Milliseconds()
+		if diffReal < diffTs {
+			time.Sleep(time.Duration(diffTs-diffReal) * time.Millisecond)
+		}
+		session.FeedRtmpMsg(msg)
+	}
+
+	lals.DelCustomizePubSession(session)
 }
 
 func showHowToCustomizePub(lals logic.ILalServer) {

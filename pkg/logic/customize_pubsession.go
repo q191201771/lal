@@ -36,6 +36,7 @@ func NewCustomizePubSessionContext(streamName string) *CustomizePubSessionContex
 }
 
 func (ctx *CustomizePubSessionContext) WithOnRtmpMsg(onRtmpMsg func(msg base.RtmpMsg)) *CustomizePubSessionContext {
+	ctx.onRtmpMsg = onRtmpMsg
 	ctx.remuxer.WithOnRtmpMsg(onRtmpMsg)
 	return ctx
 }
@@ -74,5 +75,13 @@ func (ctx *CustomizePubSessionContext) FeedAvPacket(packet base.AvPacket) error 
 	}
 	//nazalog.Debugf("[%s] FeedAvPacket. packet=%s", ctx.uniqueKey, packet.DebugString())
 	ctx.remuxer.FeedAvPacket(packet)
+	return nil
+}
+
+func (ctx *CustomizePubSessionContext) FeedRtmpMsg(msg base.RtmpMsg) error {
+	if ctx.disposeFlag.Load() {
+		return base.ErrDisposedInStream
+	}
+	ctx.onRtmpMsg(msg)
 	return nil
 }
