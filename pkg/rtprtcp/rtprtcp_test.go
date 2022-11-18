@@ -9,9 +9,8 @@
 package rtprtcp_test
 
 import (
-	"testing"
-
 	"github.com/q191201771/lal/pkg/innertest"
+	"testing"
 )
 
 func TestRtpRtcp(t *testing.T) {

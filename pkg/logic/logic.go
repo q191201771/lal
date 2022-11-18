@@ -9,8 +9,9 @@
 package logic
 
 import (
-	"github.com/q191201771/lal/pkg/base"
 	"path/filepath"
+
+	"github.com/q191201771/lal/pkg/base"
 )
 
 // ---------------------------------------------------------------------------------------------------------------------
@@ -27,7 +28,9 @@ type ILalServer interface {
 	//
 	AddCustomizePubSession(streamName string) (ICustomizePubSessionContext, error)
 
-	// DelCustomizePubSession 将 ICustomizePubSessionContext 从 ILalServer 中删除
+	// DelCustomizePubSession 将 ICustomizePubSessionContext 对象从 ILalServer 中删除
+	//
+	// 注意，业务方调用该函数后，就不要再使用该 ICustomizePubSessionContext 对象的方法了，比如继续 FeedAvPacket 是无效的
 	//
 	DelCustomizePubSession(ICustomizePubSessionContext)
 
@@ -47,7 +50,6 @@ type ILalServer interface {
 // NewLalServer 创建一个lal server
 //
 // @param modOption: 定制化配置。可变参数，如果不关心，可以不填，具体字段见 Option
-//
 func NewLalServer(modOption ...ModOption) ILalServer {
 	return NewServerManager(modOption...)
 }
@@ -59,6 +61,8 @@ type ICustomizePubSessionContext interface {
 	//
 	base.IAvPacketStream
 
+	FeedRtmpMsg(msg base.RtmpMsg) error
+
 	UniqueKey() string
 	StreamName() string
 }
@@ -66,7 +70,6 @@ type ICustomizePubSessionContext interface {
 // ---------------------------------------------------------------------------------------------------------------------
 
 // INotifyHandler 事件通知接口
-//
 type INotifyHandler interface {
 	OnServerStart(info base.LalInfo)
 	OnUpdate(info base.UpdateInfo)
@@ -81,9 +84,17 @@ type INotifyHandler interface {
 }
 
 type Option struct {
-	// ConfFilename 配置文件，注意，如果为空，内部会尝试从 DefaultConfFilenameList 读取默认配置文件
+	// ConfFilename 配置文件。
 	//
+	// 注意，如果为空，内部会尝试从 DefaultConfFilenameList 读取默认配置文件
 	ConfFilename string
+
+	// ConfRawContent 配置内容，json格式。
+	//
+	// 应用场景：有的业务方配置内容并非从配置文件中读取，比如集成 ILalServer 时配置内容来自配置中心网络下发，所以提供这个字段供业务方直接传入配置内容。
+	//
+	// 注意，读取加载配置的优先级是 ConfRawContent > ConfFilename > DefaultConfFilenameList
+	ConfRawContent []byte
 
 	// NotifyHandler
 	//
@@ -114,7 +125,6 @@ var defaultOption = Option{
 type ModOption func(option *Option)
 
 // DefaultConfFilenameList 没有指定配置文件时，按顺序作为优先级，找到第一个存在的并使用
-//
 var DefaultConfFilenameList = []string{
 	filepath.FromSlash("lalserver.conf.json"),
 	filepath.FromSlash("./conf/lalserver.conf.json"),

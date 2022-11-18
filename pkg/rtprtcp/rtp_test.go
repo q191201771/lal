@@ -24,7 +24,6 @@ func TestCompareSeq(t *testing.T) {
 	assert.Equal(t, 1, rtprtcp.CompareSeq(1, 0))
 	assert.Equal(t, 1, rtprtcp.CompareSeq(16383, 0))
 
-	assert.Equal(t, -1, rtprtcp.CompareSeq(16384, 0))
 	assert.Equal(t, -1, rtprtcp.CompareSeq(65534, 0))
 	assert.Equal(t, -1, rtprtcp.CompareSeq(65535, 0))
 	assert.Equal(t, -1, rtprtcp.CompareSeq(65534, 1))
@@ -33,11 +32,14 @@ func TestCompareSeq(t *testing.T) {
 	assert.Equal(t, -1, rtprtcp.CompareSeq(0, 1))
 	assert.Equal(t, -1, rtprtcp.CompareSeq(0, 16383))
 
-	assert.Equal(t, 1, rtprtcp.CompareSeq(0, 16384))
 	assert.Equal(t, 1, rtprtcp.CompareSeq(0, 65534))
 	assert.Equal(t, 1, rtprtcp.CompareSeq(0, 65535))
 	assert.Equal(t, 1, rtprtcp.CompareSeq(1, 65534))
 	assert.Equal(t, 1, rtprtcp.CompareSeq(1, 65535))
+
+	assert.Equal(t, 1, rtprtcp.CompareSeq(16384, 0))
+	assert.Equal(t, -1, rtprtcp.CompareSeq(0, 16384))
+	assert.Equal(t, -1, rtprtcp.CompareSeq(10400, 33489))
 }
 
 func TestSubSeq(t *testing.T) {

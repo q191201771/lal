@@ -10,9 +10,10 @@ package logic
 
 import (
 	"encoding/json"
-	"github.com/q191201771/lal/pkg/gb28181"
 	"strings"
 	"sync"
+
+	"github.com/q191201771/lal/pkg/gb28181"
 
 	"github.com/q191201771/lal/pkg/base"
 	"github.com/q191201771/lal/pkg/hls"
@@ -43,24 +44,24 @@ import (
 // | group.inSessionUniqueKey()                  | Y        | Y      |
 
 // ---------------------------------------------------------------------------------------------------------------------
-// 输入流到输出流的转换路径关系
+// 输入流到输出流的转换路径关系（一共6种输入）：
 //
-// customizePubSession.WithOnRtmpMsg -> [dummyAudioFilter] -> OnReadRtmpAvMsg -> rtmp2RtspRemuxer -> rtsp
-//                                                                            -> rtmp
-//                                                                            -> http-flv, ts, hls
-//
-// ---------------------------------------------------------------------------------------------------------------------
-// rtmpPubSession 和customizePubSession一样，省略
-//
-// ---------------------------------------------------------------------------------------------------------------------
-// rtspPubSession -> OnRtpPacket -> rtsp
-//                -> OnAvPacket -> rtsp2RtmpRemuxer -> onRtmpMsgFromRemux -> broadcastByRtmpMsg -> rtmp
-//                                                                                              -> http-flv, ts, hls
+// rtmpPullSession.WithOnReadRtmpAvMsg  ->
+// rtmpPubSession.SetPubSessionObserver ->
+//    customizePubSession.WithOnRtmpMsg -> OnReadRtmpAvMsg(enter Lock) -> [dummyAudioFilter] -> broadcastByRtmpMsg -> rtmp, http-flv
+//                                                                                                                 -> rtmp2RtspRemuxer -> rtsp
+//                                                                                                                 -> rtmp2MpegtsRemuxer -> ts, hls
 //
 // ---------------------------------------------------------------------------------------------------------------------
-// psPubSession -> OnAvPacketFromPsPubSession -> rtsp2RtmpRemuxer -> onRtmpMsgFromRemux -> broadcastByRtmpMsg -> rtmp2RtspRemuxer -> rtsp
-//                                                                                                            -> rtmp
-//                                                                                                            -> http-flv, ts, hls
+// rtspPullSession ->
+//  rtspPubSession -> OnRtpPacket(enter Lock) -> rtsp
+//                 -> OnAvPacket(enter Lock) -> rtsp2RtmpRemuxer -> onRtmpMsgFromRemux -> [dummyAudioFilter] -> broadcastByRtmpMsg -> rtmp, http-flv
+//                                                                                                           -> rtmp2MpegtsRemuxer -> ts, hls
+//
+// ---------------------------------------------------------------------------------------------------------------------
+// psPubSession -> OnAvPacketFromPsPubSession(enter Lock) -> rtsp2RtmpRemuxer -> onRtmpMsgFromRemux -> [dummyAudioFilter] -> broadcastByRtmpMsg -> ...
+//                                                                                                                                              -> ...
+//                                                                                                                                              -> ...
 
 type IGroupObserver interface {
 	CleanupHlsIfNeeded(appName string, streamName string, path string)
@@ -89,12 +90,11 @@ type Group struct {
 	rtmp2MpegtsRemuxer  *remux.Rtmp2MpegtsRemuxer
 	// pull
 	pullProxy *pullProxy
-	// rtmp pub使用
+	// rtmp pub使用 TODO(chef): [doc] 更新这个注释，是共同使用 202210
 	dummyAudioFilter *remux.DummyAudioFilter
 	// ps pub使用
 	psPubTimeoutSec            uint32 // 超时时间
 	psPubPrevInactiveCheckTick int64  // 上次检查时间
-	psPubDumpFile              *base.DumpFile
 	// rtmp sub使用
 	rtmpGopCache *remux.GopCache
 	// httpflv sub使用
@@ -124,8 +124,11 @@ type Group struct {
 	rtmpMergeWriter *base.MergeWriter // TODO(chef): 后面可以在业务层加一个定时Flush
 	//
 	stat base.StatGroup
-
+	//
 	hlsCalcSessionStatIntervalSec uint32
+	//
+	psPubDumpFile    *base.DumpFile
+	rtspPullDumpFile *base.DumpFile
 }
 
 func NewGroup(appName string, streamName string, config *Config, observer IGroupObserver) *Group {
@@ -148,9 +151,9 @@ func NewGroup(appName string, streamName string, config *Config, observer IGroup
 		rtspSubSessionSet:             make(map[*rtsp.SubSession]struct{}),
 		waitRtspSubSessionSet:         make(map[*rtsp.SubSession]struct{}),
 		hlsSubSessionSet:              make(map[*hls.SubSession]struct{}),
-		rtmpGopCache:                  remux.NewGopCache("rtmp", uk, config.RtmpConfig.GopNum),
-		httpflvGopCache:               remux.NewGopCache("httpflv", uk, config.HttpflvConfig.GopNum),
-		httptsGopCache:                remux.NewGopCacheMpegts(uk, config.HttptsConfig.GopNum),
+		rtmpGopCache:                  remux.NewGopCache("rtmp", uk, config.RtmpConfig.GopNum, config.RtmpConfig.SingleGopMaxFrameNum),
+		httpflvGopCache:               remux.NewGopCache("httpflv", uk, config.HttpflvConfig.GopNum, config.HttpflvConfig.SingleGopMaxFrameNum),
+		httptsGopCache:                remux.NewGopCacheMpegts(uk, config.HttptsConfig.GopNum, config.HttptsConfig.SingleGopMaxFrameNum),
 		psPubPrevInactiveCheckTick:    -1,
 		hlsCalcSessionStatIntervalSec: uint32(config.HlsConfig.FragmentDurationMs/1000) * 10,
 	}
@@ -588,7 +591,7 @@ func (group *Group) inSessionUniqueKey() string {
 }
 
 func (group *Group) shouldStartRtspRemuxer() bool {
-	return group.config.RtspConfig.Enable
+	return group.config.RtspConfig.Enable || group.config.RtspConfig.RtspsEnable
 }
 
 func (group *Group) shouldStartMpegtsRemuxer() bool {

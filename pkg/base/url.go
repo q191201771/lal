@@ -27,6 +27,7 @@ const (
 	DefaultHttpsPort = 443
 	DefaultRtspPort  = 554
 	DefaultRtmpsPort = 443
+	DefaultRtspsPort = 322
 )
 
 type UrlPathContext struct {
@@ -44,16 +45,16 @@ type UrlContext struct {
 	Username     string
 	Password     string
 	StdHost      string // host or host:port
-	HostWithPort string
-	Host         string
-	Port         int
+	HostWithPort string // 当原始url中不包含port时，填充scheme对应的默认port
+	Host         string // 不包含port
+	Port         int // 当原始url中不包含port时，填充scheme对应的默认port
 
 	//UrlPathContext
-	PathWithRawQuery    string
-	Path                string
+	PathWithRawQuery    string // 注意，有前面的'/'
+	Path                string // 注意，有前面的'/'
 	PathWithoutLastItem string // 注意，没有前面的'/'，也没有后面的'/'
 	LastItemOfPath      string // 注意，没有前面的'/'
-	RawQuery            string // 参数
+	RawQuery            string // 参数，注意，没有前面的'?'
 
 	RawUrlWithoutUserInfo string
 
@@ -85,9 +86,9 @@ func (u *UrlContext) calcFilenameAndTypeIfNeeded() {
 
 // ParseUrl
 //
-// @param defaultPort: 注意，如果rawUrl中显示指定了端口，则该参数不生效
-//                     注意，如果设置为-1，内部依然会对常见协议(http, https, rtmp, rtsp)设置官方默认端口
-//
+// @param defaultPort:
+// 注意，如果rawUrl中显示指定了端口，则该参数不生效。
+// 注意，如果设置为-1，内部依然会对常见协议(http, https, rtmp, rtsp)设置官方默认端口。
 func ParseUrl(rawUrl string, defaultPort int) (ctx UrlContext, err error) {
 	ctx.Url = rawUrl
 
@@ -112,6 +113,8 @@ func ParseUrl(rawUrl string, defaultPort int) (ctx UrlContext, err error) {
 			defaultPort = DefaultRtspPort
 		case "rtmps":
 			defaultPort = DefaultRtmpsPort
+		case "rtsps":
+			defaultPort = DefaultRtspsPort
 		}
 	}
 
@@ -203,7 +206,7 @@ func ParseRtspUrl(rawUrl string) (ctx UrlContext, err error) {
 		return
 	}
 	// 注意，存在一种情况，使用rtsp pull session，直接拉取没有url path的流，所以不检查ctx.Path
-	if ctx.Scheme != "rtsp" || ctx.Host == "" {
+	if (ctx.Scheme != "rtsp" && ctx.Scheme != "rtsps") || ctx.Host == "" {
 		return ctx, fmt.Errorf("%w. url=%s", ErrInvalidUrl, rawUrl)
 	}
 
@@ -219,7 +222,6 @@ func ParseHttpflvUrl(rawUrl string) (ctx UrlContext, err error) {
 // ParseHttpRequest
 //
 // @return 完整url
-//
 func ParseHttpRequest(req *http.Request) string {
 	// TODO(chef): [refactor] scheme是否能从从req.URL.Scheme获取
 	var scheme string

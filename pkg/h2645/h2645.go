@@ -64,7 +64,6 @@ const (
 )
 
 // IterateNaluAvcc 遍历Avcc格式的nalu流
-//
 func IterateNaluAvcc(nals []byte, handler func(nal []byte)) error {
 	return avc.IterateNaluAvcc(nals, handler)
 }

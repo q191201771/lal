@@ -16,19 +16,15 @@ import "strings"
 // 并且将这些信息打入可执行文件、日志、各协议中的标准版本字段中
 
 // LalVersion 整个lal工程的版本号。注意，该变量由外部脚本修改维护，不要手动在代码中修改
-//
-const LalVersion = "v0.30.1"
+const LalVersion = "v0.32.0"
 
 // ConfVersion lalserver的配置文件的版本号
-//
-const ConfVersion = "v0.3.3"
+const ConfVersion = "v0.4.1"
 
 // HttpApiVersion lalserver的HTTP-API功能的版本号
-//
-const HttpApiVersion = "v0.4.1"
+const HttpApiVersion = "v0.4.2"
 
 // HttpNotifyVersion lalserver的HTTP-Notify功能的版本号
-//
 const HttpNotifyVersion = "v0.2.1"
 
 var (

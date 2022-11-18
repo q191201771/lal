@@ -13,6 +13,7 @@ package rtmp
 import (
 	"github.com/q191201771/lal/pkg/base"
 	"github.com/q191201771/naza/pkg/bele"
+	"net"
 )
 
 type ChunkDivider struct {
@@ -23,15 +24,32 @@ var defaultChunkDivider = ChunkDivider{
 	localChunkSize: LocalChunkSize,
 }
 
-// Message2Chunks @return 返回的内存块由内部申请，不依赖参数<message>内存块
+// Message2Chunks
+//
+// @return 返回的内存块由内部申请，不依赖参数<message>内存块
 func Message2Chunks(message []byte, header *base.RtmpHeader) []byte {
 	return defaultChunkDivider.Message2Chunks(message, header)
 }
 
-// Message2Chunks TODO chef: 新的 message 的第一个 chunk 始终使用 fmt0 格式，没有参考前一个 message
+// Message2ChunksV
+//
+// @param message: 待打包的message支持放在多个字节切片中
+func Message2ChunksV(message net.Buffers, header *base.RtmpHeader) []byte {
+	return defaultChunkDivider.Message2ChunksV(message, header)
+}
+
+// Message2Chunks
+//
+// TODO chef: [opt] 新的 message 的第一个 chunk 始终使用 fmt0 格式，没有参考前一个 message
 func (d *ChunkDivider) Message2Chunks(message []byte, header *base.RtmpHeader) []byte {
 	return message2Chunks(message, header, nil, d.localChunkSize)
 }
+
+func (d *ChunkDivider) Message2ChunksV(message net.Buffers, header *base.RtmpHeader) []byte {
+	return message2ChunksV(message, header, nil, d.localChunkSize)
+}
+
+// ---------------------------------------------------------------------------------------------------------------------
 
 // @param 返回头的大小
 func calcHeader(header *base.RtmpHeader, prevHeader *base.RtmpHeader, out []byte) int {
@@ -144,6 +162,53 @@ func message2Chunks(message []byte, header *base.RtmpHeader, prevHeader *base.Rt
 			index += chunkSize
 		} else {
 			copy(out[index:], message[i*chunkSize:i*chunkSize+lastChunkSize])
+			index += lastChunkSize
+		}
+		prevHeader = header
+	}
+
+	return out[:index]
+}
+
+// copyBufferFromBuffers
+//
+// TODO(chef): [refactor] move to naza 202206
+// TODO(chef): [perf] impl me
+func copyBufferFromBuffers(out []byte, bs net.Buffers, pos int, length int) {
+}
+
+func message2ChunksV(message net.Buffers, header *base.RtmpHeader, prevHeader *base.RtmpHeader, chunkSize int) []byte {
+	var totalLen int
+	for _, b := range message {
+		totalLen += len(b)
+	}
+
+	// 计算chunk数量，最后一个chunk的大小
+	numOfChunk := totalLen / chunkSize
+	lastChunkSize := chunkSize
+	if totalLen%chunkSize != 0 {
+		numOfChunk++
+		lastChunkSize = totalLen % chunkSize
+	}
+
+	maxNeededLen := (chunkSize + maxHeaderSize) * numOfChunk
+	out := make([]byte, maxNeededLen)
+
+	var index int
+
+	// NOTICE 和srs交互时，发现srs要求message中的非第一个chunk不能使用fmt0
+	// 将message切割成chunk放入chunk body中
+	for i := 0; i < numOfChunk; i++ {
+		headLen := calcHeader(header, prevHeader, out[index:])
+		index += headLen
+
+		if i != numOfChunk-1 {
+			//copy(out[index:], message[i*chunkSize:i*chunkSize+chunkSize])
+			copyBufferFromBuffers(out[index:], message, i*chunkSize, chunkSize)
+			index += chunkSize
+		} else {
+			//copy(out[index:], message[i*chunkSize:i*chunkSize+lastChunkSize])
+			copyBufferFromBuffers(out[index:], message, i*chunkSize, lastChunkSize)
 			index += lastChunkSize
 		}
 		prevHeader = header

@@ -10,6 +10,7 @@ package rtmp_test
 
 import (
 	"encoding/hex"
+	"strings"
 	"testing"
 
 	"github.com/q191201771/lal/pkg/base"
@@ -19,21 +20,18 @@ import (
 )
 
 func TestMetadata(t *testing.T) {
-	cache := base.LalRtmpBuildMetadataEncoder
-	base.LalRtmpBuildMetadataEncoder = "lal0.30.1"
-	defer func() {
-		base.LalRtmpBuildMetadataEncoder = cache
-	}()
-
 	// -----
 	b, err := rtmp.BuildMetadata(1024, 768, 10, 7)
 	assert.Equal(t, nil, err)
-	assert.Equal(t, "02000a6f6e4d6574614461746103000577696474680040900000000000000006686569676874004088000000000000000c617564696f636f6465636964004024000000000000000c766964656f636f646563696400401c000000000000000776657273696f6e0200096c616c302e33302e31000009", hex.EncodeToString(b))
+	ver := hex.EncodeToString([]byte(base.LalVersionDot))
+	expected := "02000a6f6e4d6574614461746103000577696474680040900000000000000006686569676874004088000000000000000c617564696f636f6465636964004024000000000000000c766964656f636f646563696400401c000000000000000776657273696f6e0200096c616c" +
+		ver + "00036c616c020006" + ver + "000009"
+	assert.Equal(t, expected, hex.EncodeToString(b))
 
 	// -----
 	opa, err := rtmp.ParseMetadata(b)
 	assert.Equal(t, nil, err)
-	assert.Equal(t, 5, len(opa))
+	assert.Equal(t, 6, len(opa))
 	v := opa.Find("width")
 	assert.Equal(t, float64(1024), v.(float64))
 	v = opa.Find("height")
@@ -44,14 +42,20 @@ func TestMetadata(t *testing.T) {
 	assert.Equal(t, float64(7), v.(float64))
 	v = opa.Find("version")
 	assert.Equal(t, base.LalRtmpBuildMetadataEncoder, v.(string))
+	v = opa.Find("lal")
+	assert.Equal(t, base.LalVersionDot, v.(string))
 
 	// -----
 	wo, err := rtmp.MetadataEnsureWithoutSdf(b)
 	assert.Equal(t, nil, err)
 	assert.Equal(t, b, wo)
+
 	w, err := rtmp.MetadataEnsureWithSdf(b)
 	assert.Equal(t, nil, err)
-	assert.Equal(t, "02000d40736574446174614672616d6502000a6f6e4d6574614461746103000577696474680040900000000000000006686569676874004088000000000000000c617564696f636f6465636964004024000000000000000c766964656f636f646563696400401c000000000000000776657273696f6e0200096c616c302e33302e31000009", hex.EncodeToString(w))
+	exp2 := "02000d40736574446174614672616d6502000a6f6e4d6574614461746103000577696474680040900000000000000006686569676874004088000000000000000c617564696f636f6465636964004024000000000000000c766964656f636f646563696400401c000000000000000776657273696f6e0200096c616c302e33322e3000036c616c020006302e33322e30000009"
+	strings.Replace(exp2, "302e33322e3", ver, -1)
+	assert.Equal(t, exp2, hex.EncodeToString(w))
+
 	wo, err = rtmp.MetadataEnsureWithoutSdf(b)
 	assert.Equal(t, nil, err)
 	assert.Equal(t, b, wo)

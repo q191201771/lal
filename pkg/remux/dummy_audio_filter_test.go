@@ -103,7 +103,7 @@ func TestDummyAudioFilter(t *testing.T) {
 }
 
 // @param logstr e.g. "header={Csid:4 MsgLen:378 MsgTypeId:18 MsgStreamId:1 TimestampAbs:0}"
-///
+// /
 func helperUnpackRtmpMsg(logstr string) base.RtmpMsg {
 	var fetchItemFn = func(str string, prefix string, suffix string) string {
 		b := strings.Index(str, prefix)

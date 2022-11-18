@@ -17,6 +17,7 @@ import (
 	"github.com/q191201771/lal/pkg/mpegts"
 	"github.com/q191201771/naza/pkg/bele"
 	"github.com/q191201771/naza/pkg/nazabytes"
+	"github.com/q191201771/naza/pkg/nazalog"
 	"math"
 )
 
@@ -50,9 +51,8 @@ type IRtmp2MpegtsRemuxerObserver interface {
 }
 
 // Rtmp2MpegtsRemuxer 输入rtmp流，输出mpegts流
-//
 type Rtmp2MpegtsRemuxer struct {
-	UniqueKey string
+	uk string
 
 	observer      IRtmp2MpegtsRemuxerObserver
 	filter        *rtmp2MpegtsFilter
@@ -109,7 +109,7 @@ type Rtmp2MpegtsRemuxer struct {
 func NewRtmp2MpegtsRemuxer(observer IRtmp2MpegtsRemuxerObserver) *Rtmp2MpegtsRemuxer {
 	uk := base.GenUkRtmp2MpegtsRemuxer()
 	r := &Rtmp2MpegtsRemuxer{
-		UniqueKey:     uk,
+		uk:            uk,
 		observer:      observer,
 		basicAudioDts: math.MaxUint64,
 		basicAudioPts: math.MaxUint64,
@@ -120,13 +120,15 @@ func NewRtmp2MpegtsRemuxer(observer IRtmp2MpegtsRemuxerObserver) *Rtmp2MpegtsRem
 	r.videoOut = make([]byte, initialVideoOutBufferSize)
 	r.videoOut = r.videoOut[0:0]
 	r.filter = newRtmp2MpegtsFilter(calcFragmentHeaderQueueSize, r)
+
+	nazalog.Debugf("[%s] NewRtmp2MpegtsRemuxer", r.uk)
+
 	return r
 }
 
 // FeedRtmpMessage
 //
 // @param msg: msg.Payload 调用结束后，函数内部不会持有这块内存
-//
 func (s *Rtmp2MpegtsRemuxer) FeedRtmpMessage(msg base.RtmpMsg) {
 	s.filter.Push(msg)
 }
@@ -143,7 +145,6 @@ func (s *Rtmp2MpegtsRemuxer) Dispose() {
 // 1. 收到音频或视频时，音频缓存队列已达到一定长度（内部判断）
 // 2. 打开一个新的TS文件切片时
 // 3. 输入流关闭时
-//
 func (s *Rtmp2MpegtsRemuxer) FlushAudio() {
 	if s.audioCacheEmpty() {
 		return
@@ -166,12 +167,15 @@ func (s *Rtmp2MpegtsRemuxer) FlushAudio() {
 	s.audioCc = frame.Cc
 }
 
+func (s *Rtmp2MpegtsRemuxer) UniqueKey() string {
+	return s.uk
+}
+
 // ----- implement of iRtmp2MpegtsFilterObserver ----------------------------------------------------------------------------------------------------------------
 
 // onPatPmt onPop
 //
 // 实现 iRtmp2MpegtsFilterObserver
-//
 func (s *Rtmp2MpegtsRemuxer) onPatPmt(b []byte) {
 	s.observer.OnPatPmt(b)
 }
@@ -189,7 +193,7 @@ func (s *Rtmp2MpegtsRemuxer) onPop(msg base.RtmpMsg) {
 
 func (s *Rtmp2MpegtsRemuxer) feedVideo(msg base.RtmpMsg) {
 	if len(msg.Payload) <= 5 {
-		Log.Warnf("[%s] rtmp msg too short, ignore. header=%+v, payload=%s", s.UniqueKey, msg.Header, hex.Dump(msg.Payload))
+		Log.Warnf("[%s] rtmp msg too short, ignore. header=%+v, payload=%s", s.uk, msg.Header, hex.Dump(msg.Payload))
 		return
 	}
 
@@ -204,12 +208,12 @@ func (s *Rtmp2MpegtsRemuxer) feedVideo(msg base.RtmpMsg) {
 	var err error
 	if msg.IsAvcKeySeqHeader() {
 		if s.spspps, err = avc.SpsPpsSeqHeader2Annexb(msg.Payload); err != nil {
-			Log.Errorf("[%s] cache spspps failed. err=%+v", s.UniqueKey, err)
+			Log.Errorf("[%s] cache spspps failed. err=%+v", s.uk, err)
 		}
 		return
 	} else if msg.IsHevcKeySeqHeader() {
 		if s.spspps, err = hevc.VpsSpsPpsSeqHeader2Annexb(msg.Payload); err != nil {
-			Log.Errorf("[%s] cache vpsspspps failed. err=%+v", s.UniqueKey, err)
+			Log.Errorf("[%s] cache vpsspspps failed. err=%+v", s.uk, err)
 		}
 		return
 	}
@@ -223,7 +227,7 @@ func (s *Rtmp2MpegtsRemuxer) feedVideo(msg base.RtmpMsg) {
 	// msg中可能有多个NALU，逐个获取
 	nals, err := avc.SplitNaluAvcc(msg.Payload[5:])
 	if err != nil {
-		Log.Errorf("[%s] iterate nalu failed. err=%+v, header=%+v, payload=%s", err, s.UniqueKey, msg.Header, hex.Dump(nazabytes.Prefix(msg.Payload, 32)))
+		Log.Errorf("[%s] iterate nalu failed. err=%+v, header=%+v, payload=%s", err, s.uk, msg.Header, hex.Dump(nazabytes.Prefix(msg.Payload, 32)))
 		return
 	}
 
@@ -312,7 +316,7 @@ func (s *Rtmp2MpegtsRemuxer) feedVideo(msg base.RtmpMsg) {
 			case avc.NaluTypeIdrSlice:
 				if !spsppsSent {
 					if s.videoOut, err = s.appendSpsPps(s.videoOut); err != nil {
-						Log.Warnf("[%s] append spspps by not exist.", s.UniqueKey)
+						Log.Warnf("[%s] append spspps by not exist.", s.uk)
 						return
 					}
 				}
@@ -326,7 +330,7 @@ func (s *Rtmp2MpegtsRemuxer) feedVideo(msg base.RtmpMsg) {
 			if hevc.IsIrapNalu(nalType) {
 				if !spsppsSent {
 					if s.videoOut, err = s.appendSpsPps(s.videoOut); err != nil {
-						Log.Warnf("[%s] append spspps by not exist.", s.UniqueKey)
+						Log.Warnf("[%s] append spspps by not exist.", s.uk)
 						return
 					}
 				}
@@ -374,24 +378,24 @@ func (s *Rtmp2MpegtsRemuxer) feedVideo(msg base.RtmpMsg) {
 
 func (s *Rtmp2MpegtsRemuxer) feedAudio(msg base.RtmpMsg) {
 	if len(msg.Payload) <= 2 {
-		Log.Warnf("[%s] rtmp msg too short, ignore. header=%+v, payload=%s", s.UniqueKey, msg.Header, hex.Dump(msg.Payload))
+		Log.Warnf("[%s] rtmp msg too short, ignore. header=%+v, payload=%s", s.uk, msg.Header, hex.Dump(msg.Payload))
 		return
 	}
 	if msg.Payload[0]>>4 != base.RtmpSoundFormatAac {
 		return
 	}
 
-	//Log.Debugf("[%s] hls: feedAudio. dts=%d len=%d", s.UniqueKey, msg.Header.TimestampAbs, len(msg.Payload))
+	//Log.Debugf("[%s] hls: feedAudio. dts=%d len=%d", s.uk, msg.Header.TimestampAbs, len(msg.Payload))
 
 	if msg.Payload[1] == base.RtmpAacPacketTypeSeqHeader {
 		if err := s.cacheAacSeqHeader(msg); err != nil {
-			Log.Errorf("[%s] cache aac seq header failed. err=%+v", s.UniqueKey, err)
+			Log.Errorf("[%s] cache aac seq header failed. err=%+v", s.uk, err)
 		}
 		return
 	}
 
 	if !s.audioSeqHeaderCached() {
-		Log.Warnf("[%s] feed audio message but aac seq header not exist.", s.UniqueKey)
+		Log.Warnf("[%s] feed audio message but aac seq header not exist.", s.uk)
 		return
 	}
 
@@ -484,8 +488,8 @@ func (s *Rtmp2MpegtsRemuxer) adjustDtsPts(frame *mpegts.Frame) {
 		if s.basicAudioPts == math.MaxUint64 {
 			s.basicAudioPts = frame.Pts
 		}
-		frame.Dts = subSafe(frame.Dts, s.basicAudioDts)
-		frame.Pts = subSafe(frame.Pts, s.basicAudioPts)
+		frame.Dts = subSafe(frame.Dts, s.basicAudioDts, s.uk, frame)
+		frame.Pts = subSafe(frame.Pts, s.basicAudioPts, s.uk, frame)
 	} else if frame.Sid == mpegts.StreamIdVideo {
 		if s.basicVideoDts == math.MaxUint64 {
 			s.basicVideoDts = frame.Dts
@@ -493,15 +497,15 @@ func (s *Rtmp2MpegtsRemuxer) adjustDtsPts(frame *mpegts.Frame) {
 		if s.basicVideoPts == math.MaxUint64 {
 			s.basicVideoPts = frame.Pts
 		}
-		frame.Dts = subSafe(frame.Dts, s.basicVideoDts)
-		frame.Pts = subSafe(frame.Pts, s.basicVideoPts)
+		frame.Dts = subSafe(frame.Dts, s.basicVideoDts, s.uk, frame)
+		frame.Pts = subSafe(frame.Pts, s.basicVideoPts, s.uk, frame)
 	}
 }
 
-func subSafe(a, b uint64) uint64 {
+func subSafe(a, b uint64, uk string, frame *mpegts.Frame) uint64 {
 	if a >= b {
 		return a - b
 	}
-	Log.Warnf("subSafe. a=%d, b=%d", a, b)
-	return 0
+	Log.Warnf("[%s] subSafe. a=%d, b=%d, frame=%s", uk, a, b, frame.DebugString())
+	return a
 }

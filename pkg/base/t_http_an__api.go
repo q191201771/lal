@@ -30,6 +30,7 @@ type ApiCtrlStartRelayPullReq struct {
 	PullRetryNum             int    `json:"pull_retry_num"`
 	AutoStopPullAfterNoOutMs int    `json:"auto_stop_pull_after_no_out_ms"`
 	RtspMode                 int    `json:"rtsp_mode"`
+	DebugDumpPacket          string `json:"debug_dump_packet"`
 }
 
 type ApiCtrlKickSessionReq struct {
@@ -41,6 +42,7 @@ type ApiCtrlStartRtpPubReq struct {
 	StreamName      string `json:"stream_name"`
 	Port            int    `json:"port"`
 	TimeoutMs       int    `json:"timeout_ms"`
+	IsTcpFlag       int    `json:"is_tcp_flag"`
 	DebugDumpPacket string `json:"debug_dump_packet"`
 }
 
@@ -61,10 +63,11 @@ const (
 	ErrorCodeListenUdpPortFail  = 2002
 )
 
+// TODO(chef): [refactor] 所有Resp类型的结构体名加上Resp后缀 202209
+
 // HttpResponseBasic
 //
 // TODO(chef): 因为ILalserver会直接使用这个接口，所以重命名为ApiResponseBasic
-//
 type HttpResponseBasic struct {
 	ErrorCode int    `json:"error_code"`
 	Desp      string `json:"desp"`

@@ -133,7 +133,6 @@ func ParseNaluTypeReadable(v uint8) string {
 // ParseNaluType
 //
 // @param v 第一个字节
-//
 func ParseNaluType(v uint8) uint8 {
 	// 6 bit in middle
 	// 0*** ***0
@@ -144,7 +143,6 @@ func ParseNaluType(v uint8) uint8 {
 // IsIrapNalu 是否是关键帧
 //
 // @param typ 帧类型。注意，是经过 ParseNaluType 解析后的帧类型
-//
 func IsIrapNalu(typ uint8) bool {
 	// [16, 23] irap nal
 	// [19, 20] idr nal
@@ -156,7 +154,6 @@ func IsIrapNalu(typ uint8) bool {
 // HVCC Seq Header -> Annexb
 //
 // @return 返回的内存块为内部独立新申请
-//
 func VpsSpsPpsSeqHeader2Annexb(payload []byte) ([]byte, error) {
 	vps, sps, pps, err := ParseVpsSpsPpsFromSeqHeaderWithoutMalloc(payload)
 	if err != nil {
@@ -195,7 +192,6 @@ func BuildVpsSpsPps2Annexb(vps, sps, pps []byte) ([]byte, error) {
 // 见func ParseVpsSpsPpsFromSeqHeaderWithoutMalloc
 //
 // @return vps, sps, pps: 内存块为内部独立新申请
-//
 func ParseVpsSpsPpsFromSeqHeader(payload []byte) (vps, sps, pps []byte, err error) {
 	v, s, p, e := ParseVpsSpsPpsFromSeqHeaderWithoutMalloc(payload)
 	if e != nil {
@@ -209,13 +205,13 @@ func ParseVpsSpsPpsFromSeqHeader(payload []byte) (vps, sps, pps []byte, err erro
 
 // ParseVpsSpsPpsFromSeqHeaderWithoutMalloc
 //
-// 从HVCC格式的Seq Header中得到VPS，SPS，PPS内存块
+// 从HVCC格式的Seq Header中得到VPS，SPS，PPS内存块。
 //
-// @param <payload> rtmp message的payload部分或者flv tag的payload部分
-//                  注意，包含了头部2字节类型以及3字节的cts
+// @param payload: rtmp message的payload部分或者flv tag的payload部分。
 //
-// @return vps, sps, pps: 复用传入参数`payload`的内存块
+//	注意，包含了头部2字节类型以及3字节的cts。
 //
+// @return vps, sps, pps: 复用传入参数`payload`的内存块。
 func ParseVpsSpsPpsFromSeqHeaderWithoutMalloc(payload []byte) (vps, sps, pps []byte, err error) {
 	if len(payload) < 5 {
 		return nil, nil, nil, nazaerrors.Wrap(base.ErrShortBuffer)
@@ -289,7 +285,6 @@ func ParseVpsSpsPpsFromSeqHeaderWithoutMalloc(payload []byte) (vps, sps, pps []b
 // BuildSeqHeaderFromVpsSpsPps
 //
 // @return 内存块为内部独立新申请
-//
 func BuildSeqHeaderFromVpsSpsPps(vps, sps, pps []byte) ([]byte, error) {
 	var sh []byte
 	sh = make([]byte, 43+len(vps)+len(sps)+len(pps))

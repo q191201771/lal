@@ -17,27 +17,28 @@ type GopCacheMpegts struct {
 	uniqueKey string
 	gopNum    int
 
-	gopRing      []GopMpegts
-	gopRingFirst int
-	gopRingLast  int
-	gopSize      int
+	gopRing              []GopMpegts
+	gopRingFirst         int
+	gopRingLast          int
+	gopSize              int
+	singleGopMaxFrameNum int
 }
 
-func NewGopCacheMpegts(uniqueKey string, gopNum int) *GopCacheMpegts {
+func NewGopCacheMpegts(uniqueKey string, gopNum int, singleGopMaxFrameNum int) *GopCacheMpegts {
 	return &GopCacheMpegts{
-		uniqueKey:    uniqueKey,
-		gopNum:       gopNum,
-		gopSize:      gopNum + 1,
-		gopRing:      make([]GopMpegts, gopNum+1, gopNum+1),
-		gopRingFirst: 0,
-		gopRingLast:  0,
+		uniqueKey:            uniqueKey,
+		gopNum:               gopNum,
+		gopSize:              gopNum + 1,
+		gopRing:              make([]GopMpegts, gopNum+1, gopNum+1),
+		gopRingFirst:         0,
+		gopRingLast:          0,
+		singleGopMaxFrameNum: singleGopMaxFrameNum,
 	}
 }
 
 // Feed
 //
 // @param b: 内部持有该内存块
-//
 func (gc *GopCacheMpegts) Feed(b []byte, boundary bool) {
 	if gc.gopSize > 1 {
 		if boundary {
@@ -49,7 +50,6 @@ func (gc *GopCacheMpegts) Feed(b []byte, boundary bool) {
 }
 
 // GetGopCount 获取GOP数量，注意，最后一个可能是不完整的
-//
 func (gc *GopCacheMpegts) GetGopCount() int {
 	return (gc.gopRingLast + gc.gopSize - gc.gopRingFirst) % gc.gopSize
 }
@@ -72,17 +72,19 @@ func (gc *GopCacheMpegts) Clear() {
 //
 // 往最后一个GOP元素追加一个msg
 // 注意，如果GopCache为空，则不缓存msg
-//
 func (gc *GopCacheMpegts) feedLastGop(b []byte) {
 	if !gc.isGopRingEmpty() {
-		gc.gopRing[(gc.gopRingLast-1+gc.gopSize)%gc.gopSize].Feed(b)
+		gopPos := (gc.gopRingLast - 1 + gc.gopSize) % gc.gopSize
+		if gc.gopRing[gopPos].len() <= gc.singleGopMaxFrameNum || gc.singleGopMaxFrameNum == 0 {
+			gc.gopRing[gopPos].Feed(b)
+		}
+
 	}
 }
 
 // feedNewGop
 //
 // 生成一个最新的GOP元素，并往里追加一个msg
-//
 func (gc *GopCacheMpegts) feedNewGop(b []byte) {
 	if gc.isGopRingFull() {
 		gc.gopRingFirst = (gc.gopRingFirst + 1) % gc.gopSize
@@ -105,7 +107,6 @@ func (gc *GopCacheMpegts) isGopRingEmpty() bool {
 // GopMpegts
 //
 // 单个Gop，包含多帧数据
-//
 type GopMpegts struct {
 	data [][]byte
 }
@@ -113,11 +114,13 @@ type GopMpegts struct {
 // Feed
 //
 // @param b: 内部持有`b`内存块
-//
 func (g *GopMpegts) Feed(b []byte) {
 	g.data = append(g.data, b)
 }
 
 func (g *GopMpegts) Clear() {
 	g.data = g.data[:0]
+}
+func (g *GopMpegts) len() int {
+	return len(g.data)
 }

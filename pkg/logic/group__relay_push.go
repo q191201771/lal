@@ -64,7 +64,6 @@ func (group *Group) initRelayPushByConfig() {
 }
 
 // startPushIfNeeded 必要时进行replay push转推
-//
 func (group *Group) startPushIfNeeded() {
 	// push转推功能没开
 	if !group.pushEnable {

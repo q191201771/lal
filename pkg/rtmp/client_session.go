@@ -172,13 +172,11 @@ func (s *ClientSession) Flush() error {
 // ---------------------------------------------------------------------------------------------------------------------
 
 // Dispose 文档请参考： IClientSessionLifecycle interface
-//
 func (s *ClientSession) Dispose() error {
 	return s.dispose(nil)
 }
 
 // WaitChan 文档请参考： IClientSessionLifecycle interface
-//
 func (s *ClientSession) WaitChan() <-chan error {
 	return s.conn.Done()
 }

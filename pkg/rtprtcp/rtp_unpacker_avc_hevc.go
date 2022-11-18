@@ -52,9 +52,9 @@ func (unpacker *RtpUnpackerAvcHevc) TryUnpackOne(list *RtpPacketList) (unpackedF
 		pkt.PayloadType = unpacker.payloadType
 		pkt.Timestamp = int64(first.Packet.Header.Timestamp / uint32(unpacker.clockRate/1000))
 
-		pkt.Payload = make([]byte, len(first.Packet.Raw)-int(first.Packet.Header.payloadOffset)+4)
-		bele.BePutUint32(pkt.Payload, uint32(len(first.Packet.Raw))-first.Packet.Header.payloadOffset)
-		copy(pkt.Payload[4:], first.Packet.Raw[first.Packet.Header.payloadOffset:])
+		pkt.Payload = make([]byte, len(first.Packet.Body())+4)
+		bele.BePutUint32(pkt.Payload, uint32(len(first.Packet.Body())))
+		copy(pkt.Payload[4:], first.Packet.Body())
 
 		list.Head.Next = first.Next
 		list.Size--
@@ -74,13 +74,16 @@ func (unpacker *RtpUnpackerAvcHevc) TryUnpackOne(list *RtpPacketList) (unpackedF
 		pkt.Timestamp = int64(first.Packet.Header.Timestamp / uint32(unpacker.clockRate/1000))
 
 		// 跳过前面的字节，并且将多nalu前的2字节长度，替换成4字节长度
-		buf := first.Packet.Raw[first.Packet.Header.payloadOffset+skip:]
+		// skip后：
+		// rtp中的数据格式 [<2字节的nalu长度>, <nalu>, <2字节的nalu长度>, <nalu> ...]
+		// 转变后的数据格式 [<4字节的nalu长度>, <nalu>, <4字节的nalu长度>, <nalu> ...]
+		buf := first.Packet.Body()[skip:]
 
 		// 使用两次遍历，第一次遍历找出总大小，第二次逐个拷贝，目的是使得内存块一次就申请好，不用动态扩容造成额外性能开销
 		totalSize := 0
 		for i := 0; i != len(buf); {
 			if len(buf)-i < 2 {
-				Log.Errorf("invalid STAP-A packet. len(buf)=%d, i=%d", len(buf), i)
+				Log.Errorf("[%p] invalid STAP-A packet. len(buf)=%d, i=%d", unpacker, len(buf), i)
 				return false, 0
 			}
 			naluSize := int(bele.BeUint16(buf[i:]))
@@ -130,14 +133,14 @@ func (unpacker *RtpUnpackerAvcHevc) TryUnpackOne(list *RtpPacketList) (unpackedF
 					naluTypeLen = 1
 					naluType = make([]byte, naluTypeLen)
 
-					fuIndicator := first.Packet.Raw[first.Packet.Header.payloadOffset]
-					fuHeader := first.Packet.Raw[first.Packet.Header.payloadOffset+1]
+					fuIndicator := first.Packet.Body()[0]
+					fuHeader := first.Packet.Body()[1]
 					naluType[0] = (fuIndicator & 0xE0) | (fuHeader & 0x1F)
 				} else {
 					naluTypeLen = 2
 					naluType = make([]byte, naluTypeLen)
 
-					buf := first.Packet.Raw[first.Packet.Header.payloadOffset:]
+					buf := first.Packet.Body()
 					fuType := buf[2] & 0x3f
 					// ffmpeg rtpdec_hevc.c
 					// 取buf[0]的头尾各1位
@@ -149,15 +152,20 @@ func (unpacker *RtpUnpackerAvcHevc) TryUnpackOne(list *RtpPacketList) (unpackedF
 				totalSize := 0
 				pp := first
 				for {
-					totalSize += len(pp.Packet.Raw) - int(pp.Packet.Header.payloadOffset) - (naluTypeLen + 1)
+					// naluTypeLen表示的是合帧之后的nalu type的长度。而+1，是在rtp时头的长度。
+					// 比如h264，帧数据时naluTypeLen是1字节，rtp包时长度是2字节。
+					totalSize += len(pp.Packet.Body()) - (naluTypeLen + 1)
 					if pp == p {
 						break
 					}
 					pp = pp.Next
 				}
 
-				pkt.Payload = make([]byte, totalSize+4+naluTypeLen)
+				// 三部分组成： len + type + data
+				pkt.Payload = make([]byte, 4+naluTypeLen+totalSize)
+				// len
 				bele.BePutUint32(pkt.Payload, uint32(totalSize+naluTypeLen))
+				// type
 				var index int
 				if unpacker.payloadType == base.AvPacketPtAvc {
 					pkt.Payload[4] = naluType[0]
@@ -167,11 +175,12 @@ func (unpacker *RtpUnpackerAvcHevc) TryUnpackOne(list *RtpPacketList) (unpackedF
 					pkt.Payload[5] = naluType[1]
 					index = 6
 				}
+				// data
 				packetCount := 0
 				pp = first
 				for {
-					copy(pkt.Payload[index:], pp.Packet.Raw[int(pp.Packet.Header.payloadOffset)+(naluTypeLen+1):])
-					index += len(pp.Packet.Raw) - int(pp.Packet.Header.payloadOffset) - (naluTypeLen + 1)
+					copy(pkt.Payload[index:], pp.Packet.Body()[naluTypeLen+1:])
+					index += len(pp.Packet.Body()) - (naluTypeLen + 1)
 					packetCount++
 
 					if pp == p {
@@ -187,8 +196,8 @@ func (unpacker *RtpUnpackerAvcHevc) TryUnpackOne(list *RtpPacketList) (unpackedF
 				return true, p.Packet.Header.Seq
 			} else {
 				// 不应该出现其他类型
-				Log.Errorf("invalid position type. position=%d, first=(h=%+v, pos=%d), prev=(h=%+v, pos=%d), p=(h=%+v, pos=%d)",
-					p.Packet.positionType, first.Packet.Header, first.Packet.positionType, prev.Packet.Header, prev.Packet.positionType, p.Packet.Header, p.Packet.positionType)
+				Log.Errorf("[%p] invalid position type. position=%d, first=(h=%+v, pos=%d), prev=(h=%+v, pos=%d), p=(h=%+v, pos=%d)",
+					unpacker, p.Packet.positionType, first.Packet.Header, first.Packet.positionType, prev.Packet.Header, prev.Packet.positionType, p.Packet.Header, p.Packet.positionType)
 				return false, 0
 			}
 		}
@@ -203,8 +212,9 @@ func (unpacker *RtpUnpackerAvcHevc) TryUnpackOne(list *RtpPacketList) (unpackedF
 
 	return false, 0
 }
+
 func calcPositionIfNeededAvc(pkt *RtpPacket) {
-	b := pkt.Raw[pkt.Header.payloadOffset:]
+	b := pkt.Body()
 
 	// rfc3984 5.3.  NAL Unit Octet Usage
 	//
@@ -278,7 +288,7 @@ func calcPositionIfNeededAvc(pkt *RtpPacket) {
 }
 
 func calcPositionIfNeededHevc(pkt *RtpPacket) {
-	b := pkt.Raw[pkt.Header.payloadOffset:]
+	b := pkt.Body()
 
 	// +---------------+---------------+
 	// |0|1|2|3|4|5|6|7|0|1|2|3|4|5|6|7|

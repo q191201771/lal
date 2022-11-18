@@ -11,13 +11,11 @@ package base
 // 文档见： https://pengrl.com/lal/#/HTTPNotify
 
 // EventCommonInfo 所有事件共有的字段
-//
 type EventCommonInfo struct {
 	ServerId string `json:"server_id"`
 }
 
 // SessionEventCommonInfo session相关的事件的共有的字段
-//
 type SessionEventCommonInfo struct {
 	EventCommonInfo
 

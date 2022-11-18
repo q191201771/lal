@@ -21,7 +21,6 @@ import (
 )
 
 // StartPull 外部命令主动触发pull拉流
-//
 func (group *Group) StartPull(info base.ApiCtrlStartRelayPullReq) (string, error) {
 	group.mutex.Lock()
 	defer group.mutex.Unlock()
@@ -32,6 +31,7 @@ func (group *Group) StartPull(info base.ApiCtrlStartRelayPullReq) (string, error
 	group.pullProxy.pullRetryNum = info.PullRetryNum
 	group.pullProxy.autoStopPullAfterNoOutMs = info.AutoStopPullAfterNoOutMs
 	group.pullProxy.rtspMode = info.RtspMode
+	group.pullProxy.debugDumpPacket = info.DebugDumpPacket
 
 	return group.pullIfNeeded()
 }
@@ -39,7 +39,6 @@ func (group *Group) StartPull(info base.ApiCtrlStartRelayPullReq) (string, error
 // StopPull
 //
 // @return 如果PullSession存在，返回它的unique key
-//
 func (group *Group) StopPull() string {
 	group.mutex.Lock()
 	defer group.mutex.Unlock()
@@ -58,6 +57,7 @@ type pullProxy struct {
 	pullRetryNum             int
 	autoStopPullAfterNoOutMs int // 没有观看者时，是否自动停止pull
 	rtspMode                 int
+	debugDumpPacket          string
 
 	startCount   int
 	lastHasOutTs int64
@@ -68,7 +68,6 @@ type pullProxy struct {
 }
 
 // initRelayPullByConfig 根据配置文件中的静态回源配置来初始化回源设置
-//
 func (group *Group) initRelayPullByConfig() {
 	// 注意，这是配置文件中静态回源的配置值，不是HTTP-API的默认值
 	const (
@@ -105,12 +104,22 @@ func (group *Group) setRtmpPullSession(session *rtmp.PullSession) {
 
 func (group *Group) setRtspPullSession(session *rtsp.PullSession) {
 	group.pullProxy.rtspSession = session
+	if group.pullProxy.debugDumpPacket != "" {
+		group.rtspPullDumpFile = base.NewDumpFile()
+		if err := group.rtspPullDumpFile.OpenToWrite(group.pullProxy.debugDumpPacket); err != nil {
+			Log.Errorf("%+v", err)
+		}
+	}
 }
 
 func (group *Group) resetRelayPullSession() {
 	group.pullProxy.isSessionPulling = false
 	group.pullProxy.rtmpSession = nil
 	group.pullProxy.rtspSession = nil
+	if group.rtspPullDumpFile != nil {
+		group.rtspPullDumpFile.Close()
+		group.rtspPullDumpFile = nil
+	}
 }
 
 func (group *Group) getStatPull() base.StatPull {
@@ -184,7 +193,6 @@ func (group *Group) pullSessionUniqueKey() string {
 // kickPull
 //
 // @return 返回true，表示找到对应的session，并关闭
-//
 func (group *Group) kickPull(sessionId string) bool {
 	if (group.pullProxy.rtmpSession != nil && group.pullProxy.rtmpSession.UniqueKey() == sessionId) ||
 		(group.pullProxy.rtspSession != nil && group.pullProxy.rtspSession.UniqueKey() == sessionId) {
@@ -201,7 +209,6 @@ func (group *Group) kickPull(sessionId string) bool {
 // 1. 添加新sub session
 // 2. 外部命令，比如http api
 // 3. 定时器，比如pull的连接断了，通过定时器可以重启触发pull
-//
 func (group *Group) pullIfNeeded() (string, error) {
 	if flag, err := group.shouldStartPull(); !flag {
 		return "", err
@@ -327,7 +334,6 @@ func (group *Group) shouldStartPull() (bool, error) {
 }
 
 // shouldAutoStopPull 是否需要自动停，根据没人观看停的逻辑
-//
 func (group *Group) shouldAutoStopPull() bool {
 	// 没开启
 	if group.pullProxy.autoStopPullAfterNoOutMs < 0 {

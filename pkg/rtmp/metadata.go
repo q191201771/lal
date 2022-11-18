@@ -41,7 +41,6 @@ func ParseMetadata(b []byte) (ObjectPairArray, error) {
 // 确保metadata中包含@setDataFrame
 //
 // @return 返回的内存块为内部独立申请
-//
 func MetadataEnsureWithSdf(b []byte) ([]byte, error) {
 	var ret []byte
 	v, _, err := Amf0.ReadString(b)
@@ -69,7 +68,6 @@ func MetadataEnsureWithSdf(b []byte) ([]byte, error) {
 // 确保metadata中不包含@setDataFrame
 //
 // @return 返回的内存块为内部独立申请
-//
 func MetadataEnsureWithoutSdf(b []byte) ([]byte, error) {
 	var ret []byte
 	v, l, err := Amf0.ReadString(b)
@@ -110,10 +108,14 @@ func MetadataEnsureWithoutSdf(b []byte) ([]byte, error) {
 // @param width        如果为-1，则metadata中不写入该字段
 // @param height       如果为-1，则metadata中不写入该字段
 // @param audiocodecid 如果为-1，则metadata中不写入该字段
-//                     AAC 10
+//
+//	AAC 10
+//
 // @param videocodecid 如果为-1，则metadata中不写入该字段
-//                     H264 7
-//                     H265 12
+//
+//	H264 7
+//	H265 12
+//
 // @return 返回的内存块为新申请的独立内存块
 func BuildMetadata(width int, height int, audiocodecid int, videocodecid int) ([]byte, error) {
 	buf := &bytes.Buffer{}
@@ -149,6 +151,10 @@ func BuildMetadata(width int, height int, audiocodecid int, videocodecid int) ([
 	opa = append(opa, ObjectPair{
 		Key:   "version",
 		Value: base.LalRtmpBuildMetadataEncoder,
+	})
+	opa = append(opa, ObjectPair{
+		Key:   "lal",
+		Value: base.LalVersionDot,
 	})
 
 	if err := Amf0.WriteObject(buf, opa); err != nil {

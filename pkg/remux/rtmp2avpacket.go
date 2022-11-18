@@ -20,7 +20,6 @@ import (
 //
 // 用途：
 // - 将rtmp流中的视频转换成ffmpeg可解码的格式
-//
 type Rtmp2AvPacketRemuxer struct {
 	option     Rtmp2AvPacketRemuxerOption
 	onAvPacket func(pkt base.AvPacket, arg interface{})
@@ -52,7 +51,6 @@ func (r *Rtmp2AvPacketRemuxer) WithOption(modOption func(option *Rtmp2AvPacketRe
 // WithOnAvPacket
 //
 // @param onAvPacket: pkt 内存由内部新申请，回调后内部不再使用
-//
 func (r *Rtmp2AvPacketRemuxer) WithOnAvPacket(onAvPacket func(pkt base.AvPacket, arg interface{})) *Rtmp2AvPacketRemuxer {
 	r.onAvPacket = onAvPacket
 	return r

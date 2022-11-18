@@ -24,13 +24,13 @@ var (
 )
 
 // ErrGb28181 TODO(chef): [refactor] move to pkg base 202207
-//
 var ErrGb28181 = errors.New("lal.gb28181: fxxk")
 
+// TODO(chef): [opt] 除了队列长度，还可以通过时长控制 202209
 var maxUnpackRtpListSize = 1024
 
 var (
-	defaultPubSessionPortMin = uint16(30000)
+	defaultPubSessionPortMin = uint16(30000) // 注意，udp和tcp都使用这个端口范围
 	defaultPubSessionPortMax = uint16(60000)
 )
 

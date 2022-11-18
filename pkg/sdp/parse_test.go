@@ -135,9 +135,9 @@ func TestParseAsc(t *testing.T) {
 }
 
 // TODO chef 补充assert判断
-//[]byte{0x40, 0x01, 0x0c, 0x01, 0xff, 0xff, 0x01, 0x60, 0x00, 0x00, 0x03, 0x00, 0x90, 0x00, 0x00, 0x03, 0x00, 0x00, 0x03, 0x00, 0x3f, 0x95, 0x98, 0x09}
-//[]byte{0x42, 0x01, 0x01, 0x01, 0x60, 0x00, 0x00, 0x03, 0x00, 0x90, 0x00, 0x00, 0x03, 0x00, 0x00, 0x03, 0x00, 0x3f, 0xa0, 0x05, 0x02, 0x01, 0x69, 0x65, 0x95, 0x9a, 0x49, 0x32, 0xbc, 0x04, 0x04, 0x00, 0x00, 0x03, 0x00, 0x04, 0x00, 0x00, 0x03, 0x00, 0x3c, 0x20}
-//[]byte{0x44, 0x01, 0xc1, 0x72, 0xb4, 0x62, 0x40}
+// []byte{0x40, 0x01, 0x0c, 0x01, 0xff, 0xff, 0x01, 0x60, 0x00, 0x00, 0x03, 0x00, 0x90, 0x00, 0x00, 0x03, 0x00, 0x00, 0x03, 0x00, 0x3f, 0x95, 0x98, 0x09}
+// []byte{0x42, 0x01, 0x01, 0x01, 0x60, 0x00, 0x00, 0x03, 0x00, 0x90, 0x00, 0x00, 0x03, 0x00, 0x00, 0x03, 0x00, 0x3f, 0xa0, 0x05, 0x02, 0x01, 0x69, 0x65, 0x95, 0x9a, 0x49, 0x32, 0xbc, 0x04, 0x04, 0x00, 0x00, 0x03, 0x00, 0x04, 0x00, 0x00, 0x03, 0x00, 0x3c, 0x20}
+// []byte{0x44, 0x01, 0xc1, 0x72, 0xb4, 0x62, 0x40}
 func TestParseVpsSpsPps(t *testing.T) {
 	s := "a=fmtp:96 sprop-vps=QAEMAf//AWAAAAMAkAAAAwAAAwA/ugJA; sprop-sps=QgEBAWAAAAMAkAAAAwAAAwA/oAUCAXHy5bpKTC8BAQAAAwABAAADAA8I; sprop-pps=RAHAc8GJ"
 	f, err := ParseAFmtPBase(s)
@@ -589,6 +589,69 @@ b=AS:128
 a=rtpmap:97 MPEG4-GENERIC/44100/2
 a=fmtp:97 profile-level-id=1;mode=AAC-hbr;sizelength=13;indexlength=3;indexdeltalength=3; config=1210
 a=control:streamid=1
+`
+	golden = strings.ReplaceAll(golden, "\n", "\r\n")
+	ctx, err := ParseSdp2LogicContext([]byte(golden))
+	var avcCtx avc.Context
+	avc.ParseSps(ctx.Sps, &avcCtx)
+	assert.Equal(t, nil, err)
+	_ = ctx
+}
+
+func TestCase15(t *testing.T) {
+	// TODO(chef): [fix] 有多路音频的情况 202209
+	//v=0
+	//o=- 2266397444 2266397444 IN IP4 0.0.0.0
+	//s=Media Server
+	//c=IN IP4 0.0.0.0
+	//t=0 0
+	//a=control:*
+	//	a=packetization-supported:DH
+	//a=rtppayload-supported:DH
+	//a=range:npt=now-
+	//	a=x-packetization-supported:IV
+	//a=x-rtppayload-supported:IV
+	//m=video 0 RTP/AVP 96
+	//a=control:trackID=0
+	//a=framerate:25.000000
+	//a=rtpmap:96 H264/90000
+	//a=fmtp:96 packetization-mode=1;profile-level-id=64103C;sprop-parameter-sets=Z2QQPKwbGqAIAA4/lmyAAAADAIAAABlHhEI1AA==,aO4xshsA
+	//a=recvonly
+	//m=audio 0 RTP/AVP 8
+	//a=control:trackID=1
+	//a=rtpmap:8 PCMA/8000
+	//a=recvonly
+	//m=audio 0 RTP/AVP 8
+	//a=control:trackID=2
+	//a=rtpmap:8 PCMA/8000
+	//a=recvonly
+}
+
+func TestCase16(t *testing.T) {
+	golden := `v=0
+o=- 1667405799319376 1667405799319376 IN IP4 192.168.1.64
+s=Media Presentation
+e=NONE
+b=AS:5100
+t=0 0
+a=control:rtsp://192.168.1.64/
+m=video 0 RTP/AVP 96
+c=IN IP4 0.0.0.0
+b=AS:5000
+a=recvonly
+a=x-dimensions:1920,1080
+a=control:rtsp://192.168.1.64/trackID=1
+a=rtpmap:96 H264/90000
+a=fmtp:96 profile-level-id=420029; packetization-mode=1; sprop-parameter-sets=Z00AKY2NQDwBE/LNwEBAUAAAcIAAFfkAQA==,aO48gA==
+m=audio 0 RTP/AVP 104
+c=IN IP4 0.0.0.0
+b=AS:50
+a=recvonly
+a=control:rtsp://192.168.1.64/trackID=2
+a=rtpmap:104 mpeg4-generic/16000/1
+a=fmtp:104 profile-level-id=15; streamtype=5; mode=AAC-hbr; config=1408;SizeLength=13; IndexLength=3; IndexDeltaLength=3; Profile=1;
+a=Media_header:MEDIAINFO=494D4B48010300000400000101200110803E0000007D000000000000000000000000000000000000;
+a=appversion:1.0
 `
 	golden = strings.ReplaceAll(golden, "\n", "\r\n")
 	ctx, err := ParseSdp2LogicContext([]byte(golden))

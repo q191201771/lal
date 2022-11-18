@@ -6,6 +6,7 @@
 //
 // Author: Chef (191201771@qq.com)
 
+// Package base 提供被其他多个package依赖的基础内容，自身不依赖任何package
 package base
 
 import (
@@ -16,14 +17,11 @@ import (
 	"github.com/q191201771/naza/pkg/bininfo"
 )
 
-// base包提供被其他多个package依赖的基础内容，自身不依赖任何package
-//
 // TODO chef: 考虑部分内容放入关联的协议package的子package中
 
 var startTime string
 
 // ReadableNowTime 当前时间，可读字符串形式
-//
 func ReadableNowTime() string {
 	return time.Now().Format("2006-01-02 15:04:05.999")
 }

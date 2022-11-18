@@ -57,11 +57,9 @@ func NewRtspTunnel(pullUrl string, pushUrl string, pullOverTcp bool, pushOverTcp
 	}
 }
 
-// Start 开启任务，阻塞直到任务开启成功或失败
+// Start 开启任务，阻塞直到任务开启成功或失败。
 //
-// @return true  表示任务启动成功，此时数据已经在后台转发
-//         false 表示任务启动失败
-//
+// @return: 如果为nil，表示任务启动成功，此时数据已经在后台转发
 func (r *RtspTunnel) Start() error {
 	r.pullSession = rtsp.NewPullSession(r, func(option *rtsp.PullSessionOption) {
 		option.PullTimeoutMs = 5000
@@ -117,7 +115,6 @@ func (r *RtspTunnel) Start() error {
 // 注意，只有 Start 成功后的tunnel才能调用，否则行为未定义
 //
 // 更详细的说明参考 IClientSessionLifecycle interface
-//
 func (r *RtspTunnel) Dispose() error {
 	return r.dispose(nil)
 }
@@ -125,7 +122,6 @@ func (r *RtspTunnel) Dispose() error {
 // WaitChan Start 成功后，可使用这个channel来接收tunnel结束的消息
 //
 // 更详细的说明参考 IClientSessionLifecycle interface
-//
 func (r *RtspTunnel) WaitChan() chan error {
 	return r.waitChan
 }

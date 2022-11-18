@@ -1,3 +1,46 @@
+#### v0.32.0 (2022-11-10)
+
+- [feat] 自动叠加静音音频。所有协议、所有类型的输入流都已支持，文档见: https://pengrl.com/lal/#/dummy_audio
+- [feat] 支持rtmps、rtsps(server端)
+- [feat] rtp: 支持解析rtp header中的padding和csrc
+- [feat] demo: pullhttpflv拉取http-flv时可以存储为flv文件
+- [opt] 二次开发: 当DelCustomizePubSession后，调用被删除对象的FeedAvPacket方法将返回错误
+- [opt] 二次开发: 支持直接使用json字符串作为配置内容初始化ILalServer
+- [opt] 兼容性优化。转ts时，如果调整时间戳失败则使用调整前的时间戳。
+- [opt] 兼容性优化。当rtmps和rtsps加载签名文件失败时，只打印日志而不退出lalserver
+- [fix] rtsp: 修复aac rtp type不是标准值导致无法合帧的问题。提高兼容性
+- [fix] http-api: 修复sub http-flv remote_addr字段没有值的bug
+- [fix] rtsp: 修复auth可能失败的bug
+- [log] 打印rtsp信令。丰富多处错误日志，比如转hls异常
+- [doc] 新增文档：重要概念 https://pengrl.com/lal/#/concept
+
+#### v0.31.1 (2022-10-07)
+
+- [feat] HTTP-API增加`start_rtp_pub`接口，用于支持GB28181的ps流
+- [feat] 向外暴露IAuthentication，用于定制化鉴权
+- [feat] 向外暴露ModConfigGroupCreator，支持为特定的Group独立配置
+- [opt] rtsp: 允许rtsp先拉再推，也即没有输入流时，可以先创建rtsp SubSession
+- [feat] rtp: unpacker支持hevc ap格式
+- [fix] rtmp: 优化metadata @SetDataFrame的处理，解决flv录制文件用ffmpeg查看fps不准的问题 #201
+- [fix] rtmp: 修复PubSession发送publish信令中字段错误导致推流至youtube失败的问题 #199
+- [perf] rtmp: PullSession支持配置是否复用接收message时的内存块
+- [opt] rtmp: ClientSession推流兼容vhou url格式
+- [opt] rtmp: add float64 support to amf0::WriteObject
+- [opt] rtsp: PullSession在setup阶段如果对端没有回复server port，依然尝试继续拉流，增强兼容性
+- [fix] rtsp: server端没有收到前面的信令直接收到PLAY信令，主动关闭连接，避免崩溃
+- [fix] rtsp: 解析sdp中MPEG4-GENERIC大小写导致aac音频无法正常合帧的问题
+- [fix] hls: 修复hls鉴权时streamName取值错误导致无法正常鉴权的问题
+- [fix] hls: 修复流名称中包含-中划线时hls异常的问题
+- [opt] mpegts: rtmp2mpegts的时间戳重打从0开始，兼容时间戳太大时vlc播放不了的问题
+- [opt] remux: 新增RtspRemuxerAddSpsPps2KeyFrameFlag参数，用于强制在关键帧数据包前加sps、pps。目的是增强兼容性。
+- [opt] remux: Rtmp2AvPacketRemuxer可携带自定义参数
+- [fix] remux: avpacket2rtmp nal以00 00 01开头时崩溃，丢弃aud
+- [refactor] rtprtcp: 重构RtpPacketList
+- [chore] 构建windows可执行文件时增加.exe后缀
+- [opt] HTTP-API和Notify: bitrate重命名为bitrate_kbits
+- [opt] HTTP-API和Notify: StatGroup增加AppName字段
+- [opt] HTTP-Notify: session相关的回调增加ReadBytesSum和WroteBytesSum字段
+
 #### v0.30.1 (2022-06-15)
 
 - [feat] HTTP-API：新增start/stop_relay_pull接口，支持rtmp和rtsp，支持设置超时时间，自动关闭，重试次数，rtsp类型等参数

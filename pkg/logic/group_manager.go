@@ -20,7 +20,6 @@ type ModConfigGroupCreator func(appName, streamName string, baseConfig *Config)
 //
 // 封装管理Group的容器
 // 管理流标识（appName，streamName）与Group的映射关系。比如appName是否参与映射匹配
-//
 type IGroupManager interface {
 	// GetOrCreateGroup
 	//
@@ -49,7 +48,6 @@ type IGroupManager interface {
 // ---------------------------------------------------------------------------------------------------------------------
 
 // SimpleGroupManager 忽略appName，只使用streamName
-//
 type SimpleGroupManager struct {
 	groupCreator IGroupCreator
 	groups       map[string]*Group // streamName -> Group
@@ -114,16 +112,16 @@ func (s *SimpleGroupManager) Len() int {
 // ---------------------------------------------------------------------------------------------------------------------
 //
 // 背景：
-//   有的协议需要结合appName和streamName作为流唯一标识（比如rtmp，httpflv，httpts）
-//   有的协议不需要appName，只使用streamName作为流唯一标识（比如rtsp？）
-// 目标：
-//   有appName的协议，需要参考appName
-//   没appName的协议，需要和有appName的协议互通
-// 注意：
-//   - 当以上两种类型的协议混用时，系统使用者应避免第二种协议的streamName，在第一种协议中存在相同的streamName，但是appName不止一个
-//     这种情况下，内部无法知道该如何对应
-//   - group可能由第一种协议创建，也可能由第二种协议创建
+//   - 有的协议需要结合appName和streamName作为流唯一标识（比如rtmp，httpflv，httpts）。
+//   - 有的协议不需要appName，只使用streamName作为流唯一标识（比如rtsp？）。
 //
+// 目标：
+//   - 有appName的协议，需要参考appName。
+//   - 没appName的协议，需要和有appName的协议互通。
+//
+// 注意：
+//   - 当以上两种类型的协议混用时，系统使用者应避免第二种协议的streamName，在第一种协议中存在相同的streamName，但是appName不止一个，这种情况下，内部无法知道该如何对应。
+//   - group可能由第一种协议创建，也可能由第二种协议创建。
 type ComplexGroupManager struct {
 	groupCreator IGroupCreator
 	// 注意，一个group只可能在一个容器中，两个容器中的group加起来才是全量

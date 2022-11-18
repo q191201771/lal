@@ -19,7 +19,6 @@ var Clock = mock.NewStdClock()
 // FlvFilePumpOption
 //
 // 读取flv文件，将tag按时间戳间隔缓慢（类似于ffmpeg的-re）返回
-//
 type FlvFilePumpOption struct {
 	IsRecursive bool // 如果为true，则循环返回文件内容（类似于ffmpeg的-stream_loop -1）
 }
@@ -48,7 +47,6 @@ type OnPumpFlvTag func(tag Tag) bool
 // Pump
 //
 // @param onFlvTag 如果回调中返回false，则停止Pump
-//
 func (f *FlvFilePump) Pump(filename string, onFlvTag OnPumpFlvTag) error {
 	// 一次性将文件所有内容读入内存，后续不再读取文件
 	tags, err := ReadAllTagsFromFlvFile(filename)
@@ -60,7 +58,6 @@ func (f *FlvFilePump) Pump(filename string, onFlvTag OnPumpFlvTag) error {
 }
 
 // PumpWithTags @return error 暂时只做预留，目前只会返回nil
-//
 func (f *FlvFilePump) PumpWithTags(tags []Tag, onFlvTag OnPumpFlvTag) error {
 	var totalBaseTs uint32 // 整体的基础时间戳。每轮最后更新
 

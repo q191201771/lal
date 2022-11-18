@@ -17,7 +17,6 @@ func (group *Group) IsHlsMuxerAlive() bool {
 }
 
 // startHlsIfNeeded 必要时启动hls
-//
 func (group *Group) startHlsIfNeeded() {
 	if !group.config.HlsConfig.Enable && !group.config.HlsConfig.EnableHttps {
 		return

@@ -11,28 +11,22 @@ package logic
 import (
 	"flag"
 	"fmt"
+	"io/ioutil"
 	"net/http"
+	_ "net/http/pprof"
 	"os"
 	"path/filepath"
 	"sync"
 	"time"
 
-	"github.com/q191201771/naza/pkg/nazalog"
-
-	"github.com/q191201771/naza/pkg/defertaskthread"
-
-	"github.com/q191201771/lal/pkg/hls"
-
 	"github.com/q191201771/lal/pkg/base"
-
-	"github.com/q191201771/lal/pkg/httpts"
-
-	"github.com/q191201771/lal/pkg/rtsp"
-
-	_ "net/http/pprof"
-
+	"github.com/q191201771/lal/pkg/hls"
 	"github.com/q191201771/lal/pkg/httpflv"
+	"github.com/q191201771/lal/pkg/httpts"
 	"github.com/q191201771/lal/pkg/rtmp"
+	"github.com/q191201771/lal/pkg/rtsp"
+	"github.com/q191201771/naza/pkg/defertaskthread"
+	"github.com/q191201771/naza/pkg/nazalog"
 	//"github.com/felixge/fgprof"
 )
 
@@ -46,7 +40,9 @@ type ServerManager struct {
 	hlsServerHandler  *hls.ServerHandler
 
 	rtmpServer    *rtmp.Server
+	rtmpsServer   *rtmp.Server
 	rtspServer    *rtsp.Server
+	rtspsServer   *rtsp.Server
 	httpApiServer *HttpApiServer
 	pprofServer   *http.Server
 	exitChan      chan struct{}
@@ -67,28 +63,37 @@ func NewServerManager(modOption ...ModOption) *ServerManager {
 		fn(&sm.option)
 	}
 
-	confFile := sm.option.ConfFilename
-	// 运行参数中没有配置文件，尝试从几个默认位置读取
-	if confFile == "" {
-		nazalog.Warnf("config file did not specify in the command line, try to load it in the usual path.")
-		confFile = firstExistDefaultConfFilename()
-
-		// 所有默认位置都找不到配置文件，退出程序
+	rawContent := sm.option.ConfRawContent
+	if len(rawContent) == 0 {
+		confFile := sm.option.ConfFilename
+		// 运行参数中没有配置文件，尝试从几个默认位置读取
 		if confFile == "" {
-			// TODO(chef): refactor ILalserver既然已经作为package提供了，那么内部就不应该包含flag和os exit的操作，应该返回给上层
-			// TODO(chef): refactor new中逻辑是否该往后移
-			flag.Usage()
-			_, _ = fmt.Fprintf(os.Stderr, `
+			nazalog.Warnf("config file did not specify in the command line, try to load it in the usual path.")
+			confFile = firstExistDefaultConfFilename()
+
+			// 所有默认位置都找不到配置文件，退出程序
+			if confFile == "" {
+				// TODO(chef): refactor ILalserver既然已经作为package提供了，那么内部就不应该包含flag和os exit的操作，应该返回给上层
+				// TODO(chef): refactor new中逻辑是否该往后移
+				flag.Usage()
+				_, _ = fmt.Fprintf(os.Stderr, `
 Example:
   %s -c %s
 
 Github: %s
 Doc: %s
 `, os.Args[0], filepath.FromSlash("./conf/lalserver.conf.json"), base.LalGithubSite, base.LalDocSite)
+				base.OsExitAndWaitPressIfWindows(1)
+			}
+		}
+		var err error
+		rawContent, err = ioutil.ReadFile(confFile)
+		if err != nil {
+			_, _ = fmt.Fprintf(os.Stderr, "read conf file failed. file=%s err=%+v", confFile, err)
 			base.OsExitAndWaitPressIfWindows(1)
 		}
 	}
-	sm.config = LoadConfAndInitLog(confFile)
+	sm.config = LoadConfAndInitLog(rawContent)
 	base.LogoutStartInfo()
 
 	if sm.config.HlsConfig.Enable && sm.config.HlsConfig.UseMemoryAsDiskFlag {
@@ -123,8 +128,14 @@ Doc: %s
 	if sm.config.RtmpConfig.Enable {
 		sm.rtmpServer = rtmp.NewServer(sm.config.RtmpConfig.Addr, sm)
 	}
+	if sm.config.RtmpConfig.RtmpsEnable {
+		sm.rtmpsServer = rtmp.NewServer(sm.config.RtmpConfig.RtmpsAddr, sm)
+	}
 	if sm.config.RtspConfig.Enable {
 		sm.rtspServer = rtsp.NewServer(sm.config.RtspConfig.Addr, sm, sm.config.RtspConfig.ServerAuthConfig)
+	}
+	if sm.config.RtspConfig.RtspsEnable {
+		sm.rtspsServer = rtsp.NewServer(sm.config.RtspConfig.RtspsAddr, sm, sm.config.RtspConfig.ServerAuthConfig)
 	}
 	if sm.config.HttpApiConfig.Enable {
 		sm.httpApiServer = NewHttpApiServer(sm.config.HttpApiConfig.Addr, sm)
@@ -220,6 +231,18 @@ func (sm *ServerManager) RunLoop() error {
 		}()
 	}
 
+	if sm.rtmpsServer != nil {
+		err := sm.rtmpsServer.ListenWithTLS(sm.config.RtmpConfig.RtmpsCertFile, sm.config.RtmpConfig.RtmpsKeyFile)
+		// rtmps启动失败影响降级：当rtmps启动时我们并不返回错误，保证不因为rtmps影响其他服务
+		if err == nil {
+			go func() {
+				if errRun := sm.rtmpsServer.RunLoop(); errRun != nil {
+					Log.Error(errRun)
+				}
+			}()
+		}
+	}
+
 	if sm.rtspServer != nil {
 		if err := sm.rtspServer.Listen(); err != nil {
 			return err
@@ -229,6 +252,18 @@ func (sm *ServerManager) RunLoop() error {
 				Log.Error(err)
 			}
 		}()
+	}
+
+	if sm.rtspsServer != nil {
+		err := sm.rtspsServer.ListenWithTLS(sm.config.RtspConfig.RtspsCertFile, sm.config.RtspConfig.RtspsKeyFile)
+		// rtsps启动失败影响降级：当rtsps启动时我们并不返回错误，保证不因为rtsps影响其他服务
+		if err == nil {
+			go func() {
+				if errRun := sm.rtspsServer.RunLoop(); errRun != nil {
+					Log.Error(errRun)
+				}
+			}()
+		}
 	}
 
 	if sm.httpApiServer != nil {
@@ -308,8 +343,16 @@ func (sm *ServerManager) Dispose() {
 		sm.rtmpServer.Dispose()
 	}
 
+	if sm.rtmpsServer != nil {
+		sm.rtmpsServer.Dispose()
+	}
+
 	if sm.rtspServer != nil {
 		sm.rtspServer.Dispose()
+	}
+
+	if sm.rtspsServer != nil {
+		sm.rtspsServer.Dispose()
 	}
 
 	if sm.httpServerManager != nil {

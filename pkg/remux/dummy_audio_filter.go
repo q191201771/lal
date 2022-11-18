@@ -38,7 +38,6 @@ type DummyAudioFilter struct {
 //
 // @param waitAudioMs 等待音频数据时间，如果超出这个时间还没有接收到音频数据，则开始制造静音数据
 // @param onPop       注意，所有回调都发生在输入函数调用中
-//
 func NewDummyAudioFilter(uk string, waitAudioMs int, onPop rtmp.OnReadRtmpAvMsg) *DummyAudioFilter {
 	return &DummyAudioFilter{
 		uk:           uk,

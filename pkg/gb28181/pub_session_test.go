@@ -13,9 +13,11 @@ import (
 	"fmt"
 	"github.com/q191201771/lal/pkg/aac"
 	"github.com/q191201771/lal/pkg/base"
+	"github.com/q191201771/naza/pkg/bele"
 	"github.com/q191201771/naza/pkg/nazalog"
 	"github.com/q191201771/naza/pkg/nazanet"
 	"io/ioutil"
+	"net"
 	"os"
 	"testing"
 	"time"
@@ -39,13 +41,14 @@ func TestReplayPubSession(t *testing.T) {
 	// go test -test.run TestReplayPubSession
 	//
 	filename := "/tmp/record.psdata"
+	isTcpFlag := 1
 
 	b, err := ioutil.ReadFile(filename)
 	if len(b) == 0 || err != nil {
 		return
 	}
 
-	//testPushFile("127.0.0.1:10002", filename)
+	testPushFile("127.0.0.1:10002", filename, isTcpFlag)
 }
 
 func TestPubSession(t *testing.T) {
@@ -63,6 +66,8 @@ func TestPubSession(t *testing.T) {
 	// 1. 执行该测试
 	//testPubSession()
 }
+
+// ---------------------------------------------------------------------------------------------------------------------
 
 func testPubSession() {
 	// 一个udp包一个文件，按行分隔，hex stream格式如下
@@ -99,7 +104,7 @@ func testPubSession() {
 		helpUdpSend(addr)
 	}()
 
-	_, runErr := session.Listen(int(port))
+	_, runErr := session.Listen(int(port), false)
 	nazalog.Assert(nil, runErr)
 	runErr = session.RunLoop()
 	nazalog.Assert(nil, runErr)
@@ -121,16 +126,26 @@ func helpUdpSend(addr string) {
 	}
 }
 
-func testPushFile(addr string, filename string) {
-	conn, err := nazanet.NewUdpConnection(func(option *nazanet.UdpConnectionOption) {
-		option.RAddr = addr
-	})
-	nazalog.Assert(nil, err)
+func testPushFile(addr string, filename string, isTcpFlag int) {
+	var udpConn *nazanet.UdpConnection
+	var tcpConn net.Conn
+	var err error
+
+	if isTcpFlag != 0 {
+		tcpConn, err = net.Dial("tcp", addr)
+		nazalog.Assert(nil, err)
+	} else {
+		udpConn, err = nazanet.NewUdpConnection(func(option *nazanet.UdpConnectionOption) {
+			option.RAddr = addr
+		})
+		nazalog.Assert(nil, err)
+	}
 
 	df := base.NewDumpFile()
 	err = df.OpenToRead(filename)
 	nazalog.Assert(nil, err)
 
+	lb := make([]byte, 2)
 	for {
 		m, err := df.ReadOneMessage()
 		if err != nil {
@@ -139,8 +154,16 @@ func testPushFile(addr string, filename string) {
 		}
 		nazalog.Debugf("%s", m.DebugString())
 
-		conn.Write(m.Body)
+		if isTcpFlag != 0 {
+			bele.BePutUint16(lb, uint16(m.Len))
+			_, err = tcpConn.Write(lb)
+			nazalog.Assert(nil, err)
+			_, err = tcpConn.Write(m.Body)
+			nazalog.Assert(nil, err)
+		} else {
+			udpConn.Write(m.Body)
+		}
 
-		time.Sleep(10 * time.Millisecond)
+		//time.Sleep(10 * time.Millisecond)
 	}
 }

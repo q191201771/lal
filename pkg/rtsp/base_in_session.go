@@ -31,7 +31,6 @@ import (
 // BaseInSession会向上层回调两种格式的数据(本质上是一份数据，业务方可自由选择使用)：
 // 1. 原始的rtp packet
 // 2. rtp合并后的av packet
-//
 type IBaseInSessionObserver interface {
 	OnSdp(sdpCtx sdp.LogicContext)
 
@@ -133,7 +132,6 @@ func (session *BaseInSession) InitWithSdp(sdpCtx sdp.LogicContext) {
 }
 
 // SetObserver 如果没有设置回调监听对象，可以通过该函数设置，调用方保证调用该函数发生在调用InitWithSdp之后
-//
 func (session *BaseInSession) SetObserver(observer IBaseInSessionObserver) {
 	session.observer = observer
 
@@ -178,7 +176,6 @@ func (session *BaseInSession) SetupWithChannel(uri string, rtpChannel, rtcpChann
 // ---------------------------------------------------------------------------------------------------------------------
 
 // Dispose 文档请参考： IClientSessionLifecycle interface
-//
 func (session *BaseInSession) Dispose() error {
 	return session.dispose(nil)
 }
@@ -186,7 +183,6 @@ func (session *BaseInSession) Dispose() error {
 // WaitChan 文档请参考： IClientSessionLifecycle interface
 //
 // 注意，目前只有一种情况，即上层主动调用Dispose函数，此时error为nil
-//
 func (session *BaseInSession) WaitChan() <-chan error {
 	return session.waitChan
 }

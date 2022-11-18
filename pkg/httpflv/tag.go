@@ -27,7 +27,6 @@ type Tag struct {
 }
 
 // Payload 只包含数据部分，去除了前面11字节的tag header和后面4字节的prev tag size
-//
 func (tag *Tag) Payload() []byte {
 	return tag.Raw[TagHeaderSize : len(tag.Raw)-PrevTagSizeFieldSize]
 }
@@ -103,7 +102,6 @@ func PackHttpflvTag(t uint8, timestamp uint32, in []byte) []byte {
 }
 
 // ReadTag 从`rd`中读取数据并解析至`tag`
-//
 func ReadTag(rd io.Reader) (tag Tag, err error) {
 	rawHeader := make([]byte, TagHeaderSize)
 	if _, err = io.ReadAtLeast(rd, rawHeader, TagHeaderSize); err != nil {

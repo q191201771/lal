@@ -10,6 +10,7 @@ package rtprtcp
 
 import (
 	"github.com/q191201771/lal/pkg/base"
+	"github.com/q191201771/naza/pkg/nazalog"
 )
 
 // 传入RTP包，合成帧数据，并回调返回
@@ -46,21 +47,30 @@ type IRtpUnpackerProtocol interface {
 	TryUnpackOne(list *RtpPacketList) (unpackedFlag bool, unpackedSeq uint16)
 }
 
-// OnAvPacket @param pkt: pkt.Timestamp   RTP包头中的时间戳(pts)经过clockrate换算后的时间戳，单位毫秒
-//                             注意，不支持带B帧的视频流，pts和dts永远相同
-//             pkt.PayloadType base.AvPacketPTXXX
-//             pkt.Payload     AAC:
-//                               返回的是raw frame，一个AvPacket只包含一帧
-//                               引用的是接收到的RTP包中的内存块
-//                             AVC或HEVC:
-//                               AVCC格式，每个NAL前包含4字节NAL的长度
-//                               新申请的内存块，回调结束后，内部不再使用该内存块
-//                               注意，这一层只做RTP包的合并，假如sps和pps是两个RTP single包，则合并结果为两个AvPacket，
-//                               假如sps和pps是一个stapA包，则合并结果为一个AvPacket
+// OnAvPacket
+//
+// @param pkt:
+//
+//	  pkt.Timestamp:
+//	    RTP包头中的时间戳(pts)经过clockrate换算后的时间戳，单位毫秒。
+//		注意，不支持带B帧的视频流，pts和dts永远相同。
+//
+//	  pkt.PayloadType: base.AvPacketPTXXX。
+//
+//	  pkt.Payload:
+//		AAC:
+//		  返回的是raw frame，一个AvPacket只包含一帧。
+//		  引用的是接收到的RTP包中的内存块。
+//		AVC或HEVC:
+//		  AVCC格式，每个NAL前包含4字节NAL的长度。
+//		  新申请的内存块，回调结束后，内部不再使用该内存块。
+//		  注意，这一层只做RTP包的合并，假如sps和pps是两个RTP single包，则合并结果为两个AvPacket，
+//		  假如sps和pps是一个stapA包，则合并结果为一个AvPacket。
 type OnAvPacket func(pkt base.AvPacket)
 
 // DefaultRtpUnpackerFactory 目前支持AVC，HEVC和AAC MPEG4-GENERIC，业务方也可以自己实现IRtpUnpackerProtocol，甚至是IRtpUnpackContainer
 func DefaultRtpUnpackerFactory(payloadType base.AvPacketPt, clockRate int, maxSize int, onAvPacket OnAvPacket) IRtpUnpacker {
+	nazalog.Debugf("DefaultRtpUnpackerFactory. type=%d, clockRate=%d, maxSize=%d", payloadType, clockRate, maxSize)
 	var protocol IRtpUnpackerProtocol
 	switch payloadType {
 	case base.AvPacketPtAac:

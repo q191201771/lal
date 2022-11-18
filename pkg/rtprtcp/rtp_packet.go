@@ -58,7 +58,17 @@ type RtpHeader struct {
 	Timestamp  uint32 // 32b **** samples
 	Ssrc       uint32 // 32b **** Synchronization source
 
-	payloadOffset uint32
+	Csrc []uint32
+
+	ExtensionProfile uint16
+
+	// Extensions 包含了整个extension，引用的是包体的内存
+	//
+	// TODO(chef): [opt] 后续考虑解析extension中的单独个item存储至结构体中 202211
+	Extensions []byte
+
+	payloadOffset uint32 // body部分，真正数据部分的起始位置
+	paddingLength int    // 末尾padding的长度
 }
 
 type RtpPacket struct {
@@ -74,6 +84,8 @@ func (h *RtpHeader) PackTo(out []byte) {
 	bele.BePutUint16(out[2:], h.Seq)
 	bele.BePutUint32(out[4:], h.Timestamp)
 	bele.BePutUint32(out[8:], h.Ssrc)
+
+	// TODO(chef): pack csrc 202210
 }
 
 func MakeDefaultRtpHeader() RtpHeader {
@@ -96,8 +108,7 @@ func MakeRtpPacket(h RtpHeader, payload []byte) (pkt RtpPacket) {
 
 func ParseRtpHeader(b []byte) (h RtpHeader, err error) {
 	if len(b) < RtpFixedHeaderLength {
-		err = base.ErrRtpRtcpShortBuffer
-		return
+		return h, base.ErrRtpRtcpShortBuffer
 	}
 
 	h.Version = b[0] >> 6
@@ -110,7 +121,44 @@ func ParseRtpHeader(b []byte) (h RtpHeader, err error) {
 	h.Timestamp = bele.BeUint32(b[4:])
 	h.Ssrc = bele.BeUint32(b[8:])
 
-	h.payloadOffset = RtpFixedHeaderLength
+	offset := RtpFixedHeaderLength
+
+	if h.CsrcCount > 0 {
+		h.Csrc = make([]uint32, h.CsrcCount)
+	}
+
+	for i := uint8(0); i < h.CsrcCount; i++ {
+		if offset+4 > len(b) {
+			return h, base.ErrRtpRtcpShortBuffer
+		}
+
+		h.Csrc[i] = bele.BeUint32(b[offset:])
+		offset += 4
+	}
+
+	if h.Extension != 0 {
+		if offset+4 > len(b) {
+			return h, base.ErrRtpRtcpShortBuffer
+		}
+
+		// rfc3550#section-5.3.1
+		h.ExtensionProfile = bele.BeUint16(b[offset:])
+		offset += 2
+		extensionLength := bele.BeUint16(b[offset:])
+		offset += 2
+		h.Extensions = b[offset : offset+int(extensionLength)]
+
+	}
+
+	if offset >= len(b) {
+		return h, base.ErrRtpRtcpShortBuffer
+	}
+
+	h.payloadOffset = uint32(offset)
+
+	if h.Padding == 1 {
+		h.paddingLength = int(b[len(b)-1])
+	}
 	return
 }
 
@@ -130,11 +178,16 @@ func (p *RtpPacket) Body() []byte {
 		Log.Warnf("CHEFNOTICEME. payloadOffset=%d", p.Header.payloadOffset)
 		p.Header.payloadOffset = RtpFixedHeaderLength
 	}
+	if p.Header.Padding == 1 {
+		return p.Raw[p.Header.payloadOffset : len(p.Raw)-p.Header.paddingLength]
+	}
+
 	return p.Raw[p.Header.payloadOffset:]
 }
 
-// IsAvcHevcBoundary @param pt: 取值范围为AvPacketPtAvc或AvPacketPtHevc，否则直接返回false
+// IsAvcHevcBoundary
 //
+// @param pt: 取值范围为AvPacketPtAvc或AvPacketPtHevc，否则直接返回false
 func IsAvcHevcBoundary(pkt RtpPacket, pt base.AvPacketPt) bool {
 	switch pt {
 	case base.AvPacketPtAvc:
@@ -152,6 +205,7 @@ func IsAvcBoundary(pkt RtpPacket) bool {
 		avc.NaluTypeIdrSlice: {},
 	}
 
+	// TODO(chef): [fix] 检查数据长度有效性 202211
 	b := pkt.Body()
 	outerNaluType := avc.ParseNaluType(b[0])
 
@@ -193,6 +247,7 @@ func IsHevcBoundary(pkt RtpPacket) bool {
 		hevc.NaluTypeSliceRsvIrapVcl23: {},
 	}
 
+	// TODO(chef): [fix] 检查数据长度有效性 202211
 	b := pkt.Body()
 	outerNaluType := hevc.ParseNaluType(b[0])
 

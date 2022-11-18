@@ -9,13 +9,13 @@
 package rtprtcp
 
 // (70 * 365 + 17) * 24 * 60 * 60
-const offset uint64 = 2208988800
+const ntpOffset uint64 = 2208988800
 
 // Ntp2UnixNano 将ntp时间戳转换为Unix时间戳，Unix时间戳单位是纳秒
 func Ntp2UnixNano(v uint64) uint64 {
 	msw := v >> 32
 	lsw := v & 0xFFFFFFFF
-	return (msw-offset)*1e9 + (lsw*1e9)>>32
+	return (msw-ntpOffset)*1e9 + (lsw*1e9)>>32
 }
 
 // MswLsw2UnixNano 将ntp时间戳（高32位低32位分开的形式）转换为Unix时间戳

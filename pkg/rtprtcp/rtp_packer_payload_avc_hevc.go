@@ -59,7 +59,6 @@ func NewRtpPackerPayloadAvcHevc(payloadType base.AvPacketPt, modOptions ...ModRt
 // Pack @param in: AVCC格式
 //
 // @return out: 内存块为独立新申请；函数返回后，内部不再持有该内存块
-//
 func (r *RtpPackerPayloadAvcHevc) Pack(in []byte, maxSize int) (out [][]byte) {
 	if in == nil || maxSize <= 0 {
 		return

@@ -85,6 +85,13 @@ func TestAscContext(t *testing.T) {
 	sf, err = ascCtx.GetSamplingFrequency()
 	assert.Equal(t, -1, sf)
 	assert.IsNotNil(t, err)
+
+	// case
+	ascCtx, err = aac.NewAscContext([]byte{0x14, 0x08})
+	assert.Equal(t, nil, err)
+	sf, err = ascCtx.GetSamplingFrequency()
+	assert.Equal(t, 16000, sf)
+	assert.Equal(t, nil, err)
 }
 
 func TestMakeAudioDataSeqHeader(t *testing.T) {

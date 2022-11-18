@@ -24,7 +24,6 @@ type LogDump struct {
 // NewLogDump
 //
 // @param debugMaxNum: 日志最小级别为debug时，使用debug打印日志次数的阈值
-//
 func NewLogDump(log nazalog.Logger, debugMaxNum int) LogDump {
 	return LogDump{
 		log:         log,
@@ -52,7 +51,6 @@ func (ld *LogDump) ShouldDump() bool {
 // 将 ShouldDump 独立出来的目的是避免不需要打印日志时， Outf 调用前构造实参的开销，比如
 // ld.Outf("hex=%s", hex.Dump(buf))
 // 这个hex.Dump调用
-//
 func (ld *LogDump) Outf(format string, v ...interface{}) {
 	ld.log.Out(ld.log.GetOption().Level, 3, fmt.Sprintf(format, v...))
 }

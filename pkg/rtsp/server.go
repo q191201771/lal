@@ -9,6 +9,7 @@
 package rtsp
 
 import (
+	"crypto/tls"
 	"net"
 )
 
@@ -78,6 +79,20 @@ func (s *Server) Listen() (err error) {
 		return
 	}
 	Log.Infof("start rtsp server listen. addr=%s", s.addr)
+	return
+}
+
+func (s *Server) ListenWithTLS(certFile, keyFile string) (err error) {
+	cert, err := tls.LoadX509KeyPair(certFile, keyFile)
+	if err != nil {
+		Log.Errorf("start rtsps server listen failed. certFile=%s, keyFile=%s, err=%+v", certFile, keyFile, err)
+		return
+	}
+	tlsConfig := &tls.Config{Certificates: []tls.Certificate{cert}}
+	if s.ln, err = tls.Listen("tcp", s.addr, tlsConfig); err != nil {
+		return
+	}
+	Log.Infof("start rtsps server listen. addr=%s", s.addr)
 	return
 }
 

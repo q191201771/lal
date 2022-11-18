@@ -11,7 +11,6 @@ package logic
 import (
 	"github.com/q191201771/lal/pkg/gb28181"
 	"github.com/q191201771/naza/pkg/nazalog"
-	"net"
 	"time"
 
 	"github.com/q191201771/lal/pkg/base"
@@ -31,6 +30,8 @@ func (group *Group) AddCustomizePubSession(streamName string) (ICustomizePubSess
 	}
 
 	group.customizePubSession = NewCustomizePubSessionContext(streamName)
+	Log.Debugf("[%s] [%s] add customize pub session into group.", group.UniqueKey, group.customizePubSession.UniqueKey())
+
 	group.addIn()
 
 	if group.shouldStartRtspRemuxer() {
@@ -40,12 +41,7 @@ func (group *Group) AddCustomizePubSession(streamName string) (ICustomizePubSess
 		)
 	}
 
-	if group.config.RtmpConfig.AddDummyAudioEnable {
-		group.dummyAudioFilter = remux.NewDummyAudioFilter(group.UniqueKey, group.config.RtmpConfig.AddDummyAudioWaitAudioMs, group.OnReadRtmpAvMsg)
-		group.customizePubSession.WithOnRtmpMsg(group.dummyAudioFilter.OnReadRtmpAvMsg)
-	} else {
-		group.customizePubSession.WithOnRtmpMsg(group.OnReadRtmpAvMsg)
-	}
+	group.customizePubSession.WithOnRtmpMsg(group.OnReadRtmpAvMsg)
 
 	return group.customizePubSession, nil
 }
@@ -72,17 +68,7 @@ func (group *Group) AddRtmpPubSession(session *rtmp.ServerSession) error {
 		)
 	}
 
-	// TODO(chef): feat 为其他输入流也添加假音频。比如rtmp pull以及rtsp
-	// TODO(chef): refactor 可考虑抽象出一个输入流的配置块
-	// TODO(chef): refactor 考虑放入addIn中
-	if group.config.RtmpConfig.AddDummyAudioEnable {
-		// TODO(chef): 从整体控制和锁关系来说，应该让pub的数据回调到group中进锁后再让数据流入filter
-		// TODO(chef): 这里用OnReadRtmpAvMsg正确吗，是否会重复进锁
-		group.dummyAudioFilter = remux.NewDummyAudioFilter(group.UniqueKey, group.config.RtmpConfig.AddDummyAudioWaitAudioMs, group.OnReadRtmpAvMsg)
-		session.SetPubSessionObserver(group.dummyAudioFilter)
-	} else {
-		session.SetPubSessionObserver(group)
-	}
+	session.SetPubSessionObserver(group)
 
 	return nil
 }
@@ -124,11 +110,10 @@ func (group *Group) StartRtpPub(req base.ApiCtrlStartRtpPubReq) (ret base.ApiCtr
 	}
 
 	pubSession := gb28181.NewPubSession().WithStreamName(req.StreamName).WithOnAvPacket(group.OnAvPacketFromPsPubSession)
-	pubSession.WithHookReadUdpPacket(func(b []byte, raddr *net.UDPAddr, err error) bool {
+	pubSession.WithHookReadPacket(func(b []byte) {
 		if group.psPubDumpFile != nil {
 			group.psPubDumpFile.Write(b)
 		}
-		return true
 	})
 
 	Log.Debugf("[%s] [%s] add RTP PubSession into group.", group.UniqueKey, pubSession.UniqueKey())
@@ -151,7 +136,7 @@ func (group *Group) StartRtpPub(req base.ApiCtrlStartRtpPubReq) (ret base.ApiCtr
 		)
 	}
 
-	port, err := pubSession.Listen(req.Port)
+	port, err := pubSession.Listen(req.Port, req.IsTcpFlag != 0)
 	if err != nil {
 		group.delPsPubSession(pubSession)
 
@@ -310,7 +295,7 @@ func (group *Group) delPsPubSession(session *gb28181.PubSession) {
 
 	if session != group.psPubSession {
 		Log.Warnf("[%s] del ps pub session but not match. del session=%s, group session=%p",
-			group.UniqueKey, session.UniqueKey(), group.customizePubSession)
+			group.UniqueKey, session.UniqueKey(), group.psPubSession)
 		return
 	}
 
@@ -318,10 +303,10 @@ func (group *Group) delPsPubSession(session *gb28181.PubSession) {
 }
 
 func (group *Group) delCustomizePubSession(sessionCtx ICustomizePubSessionContext) {
-	Log.Debugf("[%s] [%s] del rtmp PubSession from group.", group.UniqueKey, sessionCtx.UniqueKey())
+	Log.Debugf("[%s] [%s] del customize PubSession from group.", group.UniqueKey, sessionCtx.UniqueKey())
 
 	if sessionCtx != group.customizePubSession {
-		Log.Warnf("[%s] del rtmp pub session but not match. del session=%s, group session=%p",
+		Log.Warnf("[%s] del customize pub session but not match. del session=%s, group session=%p",
 			group.UniqueKey, sessionCtx.UniqueKey(), group.customizePubSession)
 		return
 	}
@@ -364,12 +349,16 @@ func (group *Group) delPullSession(session base.IObject) {
 // ---------------------------------------------------------------------------------------------------------------------
 
 // addIn 有pub或pull的输入型session加入时，需要调用该函数
-//
 func (group *Group) addIn() {
 	now := time.Now().Unix()
 
 	if group.shouldStartMpegtsRemuxer() {
 		group.rtmp2MpegtsRemuxer = remux.NewRtmp2MpegtsRemuxer(group)
+		nazalog.Debugf("[%s] [%s] NewRtmp2MpegtsRemuxer in group.", group.UniqueKey, group.rtmp2MpegtsRemuxer.UniqueKey())
+	}
+
+	if group.config.InSessionConfig.AddDummyAudioEnable {
+		group.dummyAudioFilter = remux.NewDummyAudioFilter(group.UniqueKey, group.config.InSessionConfig.AddDummyAudioWaitAudioMs, group.broadcastByRtmpMsg)
 	}
 
 	group.startPushIfNeeded()
@@ -379,7 +368,6 @@ func (group *Group) addIn() {
 }
 
 // delIn 有pub或pull的输入型session离开时，需要调用该函数
-//
 func (group *Group) delIn() {
 	// 注意，remuxer放前面，使得有机会将内部缓存的数据吐出来
 	if group.rtmp2MpegtsRemuxer != nil {

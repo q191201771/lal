@@ -36,7 +36,7 @@ func NewBasicHttpSubSession(option BasicHttpSubSessionOption) *BasicHttpSubSessi
 	s := &BasicHttpSubSession{
 		BasicHttpSubSessionOption: option,
 		conn:                      connection.New(option.Conn, option.ConnModOption),
-		sessionStat:               NewBasicSessionStat(option.SessionType, ""),
+		sessionStat:               NewBasicSessionStat(option.SessionType, option.Conn.RemoteAddr().String()),
 	}
 	return s
 }

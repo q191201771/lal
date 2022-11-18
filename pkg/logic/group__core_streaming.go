@@ -9,9 +9,10 @@
 package logic
 
 import (
+	"net"
+
 	"github.com/q191201771/lal/pkg/rtmp"
 	"github.com/q191201771/naza/pkg/nazalog"
-	"net"
 
 	"github.com/q191201771/lal/pkg/mpegts"
 
@@ -34,11 +35,14 @@ import (
 //
 // 输入rtmp数据.
 // 来自 rtmp.ServerSession(Pub), rtmp.PullSession, CustomizePubSessionContext(remux.AvPacket2RtmpRemuxer), (remux.DummyAudioFilter) 的回调.
-//
 func (group *Group) OnReadRtmpAvMsg(msg base.RtmpMsg) {
 	group.mutex.Lock()
 	defer group.mutex.Unlock()
-	group.broadcastByRtmpMsg(msg)
+	if group.dummyAudioFilter != nil {
+		group.dummyAudioFilter.Feed(msg)
+	} else {
+		group.broadcastByRtmpMsg(msg)
+	}
 }
 
 // ---------------------------------------------------------------------------------------------------------------------
@@ -47,7 +51,6 @@ func (group *Group) OnReadRtmpAvMsg(msg base.RtmpMsg) {
 //
 // 输入rtsp(rtp)和rtp合帧之后的数据.
 // 来自 rtsp.PubSession 的回调.
-//
 func (group *Group) OnSdp(sdpCtx sdp.LogicContext) {
 	group.mutex.Lock()
 	defer group.mutex.Unlock()
@@ -63,6 +66,9 @@ func (group *Group) OnRtpPacket(pkt rtprtcp.RtpPacket) {
 	group.mutex.Lock()
 	defer group.mutex.Unlock()
 	group.feedRtpPacket(pkt)
+	if group.rtspPullDumpFile != nil {
+		group.rtspPullDumpFile.Write(pkt.Raw)
+	}
 }
 
 // OnAvPacket ...
@@ -83,7 +89,6 @@ func (group *Group) OnAvPacket(pkt base.AvPacket) {
 // OnAvPacketFromPsPubSession
 //
 // 来自 gb28181.PubSession 的回调.
-//
 func (group *Group) OnAvPacketFromPsPubSession(pkt *base.AvPacket) {
 	// TODO(chef): [refactor] 统一所有回调，AvPacket和*AvPacket 202208
 
@@ -103,7 +108,6 @@ func (group *Group) OnAvPacketFromPsPubSession(pkt *base.AvPacket) {
 //
 // 输入mpegts数据.
 // 来自 remux.Rtmp2MpegtsRemuxer 的回调.
-//
 func (group *Group) OnPatPmt(b []byte) {
 	group.patpmt = b
 
@@ -129,9 +133,12 @@ func (group *Group) OnTsPackets(tsPackets []byte, frame *mpegts.Frame, boundary 
 //
 // 输入rtmp数据.
 // 来自 remux.AvPacket2RtmpRemuxer 的回调.
-//
 func (group *Group) onRtmpMsgFromRemux(msg base.RtmpMsg) {
-	group.broadcastByRtmpMsg(msg)
+	if group.dummyAudioFilter != nil {
+		group.dummyAudioFilter.Feed(msg)
+	} else {
+		group.broadcastByRtmpMsg(msg)
+	}
 }
 
 // ---------------------------------------------------------------------------------------------------------------------
@@ -140,7 +147,6 @@ func (group *Group) onRtmpMsgFromRemux(msg base.RtmpMsg) {
 //
 // 输入rtsp(rtp)数据.
 // 来自 remux.Rtmp2RtspRemuxer 的回调.
-//
 func (group *Group) onSdpFromRemux(sdpCtx sdp.LogicContext) {
 	group.sdpCtx = &sdpCtx
 	group.feedWaitRtspSubSessions()
@@ -156,7 +162,6 @@ func (group *Group) onRtpPacketFromRemux(pkt rtprtcp.RtpPacket) {
 // OnFragmentOpen
 //
 // 来自 hls.Muxer 的回调
-//
 func (group *Group) OnFragmentOpen() {
 	group.rtmp2MpegtsRemuxer.FlushAudio()
 }
@@ -168,7 +173,6 @@ func (group *Group) OnFragmentOpen() {
 // 使用rtmp类型的数据做为输入，广播给各协议的输出
 //
 // @param msg 调用结束后，内部不持有msg.Payload内存块
-//
 func (group *Group) broadcastByRtmpMsg(msg base.RtmpMsg) {
 	//Log.Debugf("> broadcastByRtmpMsg. %s", msg.DebugString())
 
@@ -367,7 +371,7 @@ func (group *Group) broadcastByRtmpMsg(msg base.RtmpMsg) {
 	}
 
 	// # 缓存关键信息，以及gop
-	if group.config.RtmpConfig.Enable {
+	if group.config.RtmpConfig.Enable || group.config.RtmpConfig.RtmpsEnable {
 		group.rtmpGopCache.Feed(msg, lazyRtmpChunkDivider.GetEnsureWithoutSdf())
 		if msg.Header.MsgTypeId == base.RtmpTypeIdMetadata {
 			group.rtmpGopCache.SetMetadata(lazyRtmpChunkDivider.GetEnsureWithSdf(), lazyRtmpChunkDivider.GetEnsureWithoutSdf())

@@ -15,7 +15,6 @@ import (
 )
 
 // Frame 帧数据，用于打包成mpegts格式的数据
-//
 type Frame struct {
 	Pts uint64 // =(毫秒 * 90)
 	Dts uint64
@@ -45,7 +44,6 @@ type Frame struct {
 // 注意，内部会增加 Frame.Cc 的值.
 //
 // @return: 内存块为独立申请，调度结束后，内部不再持有
-//
 func (frame *Frame) Pack() []byte {
 	bufLen := len(frame.Raw) * 2 // 预分配一块足够大的内存
 	if bufLen < 1024 {
@@ -259,6 +257,15 @@ func packPcr(out []byte, pcr uint64) {
 	out[3] = uint8(pcr >> 1)
 	out[4] = uint8(pcr<<7) | 0x7e
 	out[5] = 0
+
+	//pcrLow := pcr % 300
+	//pcrHigh := pcr / 300
+	//out[0] = uint8(pcrHigh >> 25)
+	//out[1] = uint8(pcrHigh >> 17)
+	//out[2] = uint8(pcrHigh >> 9)
+	//out[3] = uint8(pcrHigh >> 1)
+	//out[4] = uint8(pcrHigh<<7) | uint8(pcrLow>>8) | 0x7e
+	//out[5] = uint8(pcrLow)
 }
 
 // 注意，除PTS外，DTS也使用这个函数打包

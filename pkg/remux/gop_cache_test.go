@@ -59,7 +59,7 @@ func TestGopCache_Feed(t *testing.T) {
 	i4f := func() []byte { return []byte{1, 4} }
 	p4f := func() []byte { return []byte{0, 4} }
 
-	nc := NewGopCache("rtmp", "test", 3)
+	nc := NewGopCache("rtmp", "test", 3, 0)
 	assert.Equal(t, 0, nc.GetGopCount())
 	assert.Equal(t, nil, nc.GetGopDataAt(0))
 	assert.Equal(t, nil, nc.GetGopDataAt(1))

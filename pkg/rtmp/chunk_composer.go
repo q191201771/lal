@@ -23,7 +23,6 @@ import (
 // ChunkComposer
 //
 // 读取chunk，并合并chunk，生成message返回给上层
-//
 type ChunkComposer struct {
 	peerChunkSize   uint32
 	reuseBufferFlag bool // TODO(chef): [fix] RtmpTypeIdAggregateMessage时，reuseBufferFlag==false的处理 202206
@@ -50,17 +49,18 @@ type OnCompleteMessage func(stream *Stream) error
 
 // RunLoop 将rtmp chunk合并为message
 //
-// @param cb: stream.msg: 注意，回调结束后，`msg`的内存块会被`ChunkComposer`重复使用
-//                        也即多次回调的`msg`是复用的同一块内存块
-//                        如果业务方需要在回调结束后，依然持有`msg`，那么需要对`msg`进行拷贝
-//                        只在回调中使用`msg`，则不需要拷贝
+// @param cb:
 //
-//            cb return:  如果cb返回的error不为nil，则`RunLoop`停止阻塞，并返回这个错误
+//	 @param cb.Stream.msg:
+//	  注意，回调结束后，`msg`的内存块会被`ChunkComposer`重复使用。
+//		 也即多次回调的`msg`是复用的同一块内存块。
+//		 如果业务方需要在回调结束后，依然持有`msg`，那么需要对`msg`进行拷贝。
+//		 只在回调中使用`msg`，则不需要拷贝。
+//		 @return(回调函数`cb`的返回值): 如果cb返回的error不为nil，则`RunLoop`停止阻塞，并返回这个错误。
 //
 // @return 阻塞直到发生错误
 //
 // TODO chef: msglen支持最大阈值，超过可以认为对端是非法的
-//
 func (c *ChunkComposer) RunLoop(reader io.Reader, cb OnCompleteMessage) error {
 	var aggregateStream *Stream
 	bootstrap := make([]byte, 11)
@@ -270,7 +270,7 @@ func (c *ChunkComposer) RunLoop(reader io.Reader, cb OnCompleteMessage) error {
 
 		// TODO(chef): 这里应该永远执行不到，可以删除掉
 		if stream.msg.Len() > stream.header.MsgLen {
-			return base.NewErrRtmpShortBuffer(int(stream.header.MsgLen), int(stream.msg.Len()), "len of msg bigger tthan msg len of header")
+			return base.NewErrRtmpShortBuffer(int(stream.header.MsgLen), int(stream.msg.Len()), "len of msg bigger than msg len of header")
 		}
 	}
 }

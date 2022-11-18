@@ -52,9 +52,12 @@ func NewRtpPacker(payloadPacker IRtpPackerPayload, clockRate int, ssrc uint32, m
 	}
 }
 
-// Pack @param pkt: pkt.Timestamp   绝对时间戳，单位毫秒
-//             pkt.PayloadType rtp包头中的packet type
+// Pack
 //
+// @param pkt:
+//
+// - pkt.Timestamp   绝对时间戳，单位毫秒。
+// - pkt.PayloadType rtp包头中的packet type。
 func (r *RtpPacker) Pack(pkt base.AvPacket) (out []RtpPacket) {
 	payloads := r.payloadPacker.Pack(pkt.Payload, r.option.MaxPayloadSize)
 	for i, payload := range payloads {

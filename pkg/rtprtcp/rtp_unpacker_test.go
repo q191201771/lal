@@ -10,6 +10,7 @@ package rtprtcp
 
 import (
 	"encoding/hex"
+	"github.com/q191201771/naza/pkg/nazalog"
 	"testing"
 
 	"github.com/q191201771/naza/pkg/bele"
@@ -34,12 +35,12 @@ func TestAvcCase1(t *testing.T) {
 			{
 				Timestamp:   10340642,
 				PayloadType: base.AvPacketPtAvc,
-				Payload:     testHelperAddPrefixLength(rtpPackets[0].Raw[12:]),
+				Payload:     testHelperAddPrefixLength(rtpPackets[0].Raw),
 			},
 			{
 				Timestamp:   10340642,
 				PayloadType: base.AvPacketPtAvc,
-				Payload:     testHelperAddPrefixLength(rtpPackets[1].Raw[12:]),
+				Payload:     testHelperAddPrefixLength(rtpPackets[1].Raw),
 			},
 		}
 	})
@@ -62,22 +63,22 @@ func TestHevcCase1(t *testing.T) {
 			{
 				Timestamp:   25753900,
 				PayloadType: base.AvPacketPtHevc,
-				Payload:     testHelperAddPrefixLength(rtpPackets[0].Raw[12:]),
+				Payload:     testHelperAddPrefixLength(rtpPackets[0].Raw),
 			},
 			{
 				Timestamp:   25753900,
 				PayloadType: base.AvPacketPtHevc,
-				Payload:     testHelperAddPrefixLength(rtpPackets[1].Raw[12:]),
+				Payload:     testHelperAddPrefixLength(rtpPackets[1].Raw),
 			},
 			{
 				Timestamp:   25753900,
 				PayloadType: base.AvPacketPtHevc,
-				Payload:     testHelperAddPrefixLength(rtpPackets[2].Raw[12:]),
+				Payload:     testHelperAddPrefixLength(rtpPackets[2].Raw),
 			},
 			{
 				Timestamp:   25753900,
 				PayloadType: base.AvPacketPtHevc,
-				Payload:     testHelperAddPrefixLength(rtpPackets[3].Raw[12:]),
+				Payload:     testHelperAddPrefixLength(rtpPackets[3].Raw),
 			},
 		}
 	})
@@ -181,7 +182,6 @@ func TestAacCase2(t *testing.T) {
 // @param expectedFn:
 // []RtpPacket: `hexRtpPackets`解析成的rtp包数组
 // []base.AvPacket: rtp包数组解析成的AvPacket数组
-//
 func testHelperTemplete(t *testing.T, payloadType base.AvPacketPt, clockRate int, maxSize int, hexRtpPackets []string, expectedFn func([]RtpPacket) []base.AvPacket) {
 	rtpPackets, err := testHelperHexstream2rtppackets(hexRtpPackets)
 	assert.Equal(t, nil, err)
@@ -191,9 +191,11 @@ func testHelperTemplete(t *testing.T, payloadType base.AvPacketPt, clockRate int
 }
 
 func testHelperAddPrefixLength(in []byte) (out []byte) {
-	out = make([]byte, len(in)+4)
-	bele.BePutUint32(out, uint32(len(in)))
-	copy(out[4:], in)
+	pkt, err := ParseRtpPacket(in)
+	nazalog.Assert(nil, err)
+	out = make([]byte, len(pkt.Body())+4)
+	bele.BePutUint32(out, uint32(len(pkt.Body())))
+	copy(out[4:], pkt.Body())
 	return
 }
 
@@ -202,7 +204,7 @@ func testHelperAddPrefixLength(in []byte) (out []byte) {
 func testHelperUnpack(payloadType base.AvPacketPt, clockRate int, maxSize int, rtpPackets []RtpPacket) []base.AvPacket {
 	var outPkts []base.AvPacket
 	unpacker := DefaultRtpUnpackerFactory(payloadType, clockRate, maxSize, func(pkt base.AvPacket) {
-		Log.Debugf("%s", hex.EncodeToString(pkt.Payload))
+		//Log.Debugf("%s", hex.EncodeToString(pkt.Payload))
 		outPkts = append(outPkts, pkt)
 	})
 	for _, pkt := range rtpPackets {

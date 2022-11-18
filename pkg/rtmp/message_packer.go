@@ -24,7 +24,6 @@ const (
 )
 
 // MessagePacker 打包并发送 rtmp 信令
-//
 type MessagePacker struct {
 	b *Buffer
 }
@@ -36,7 +35,6 @@ func NewMessagePacker() *MessagePacker {
 }
 
 // 注意，这个函数只会打包一个chunk头，所以调用方应自己保证在`bodyLen`小于chunk size时使用
-//
 func writeSingleChunkHeader(out []byte, csid int, bodyLen int, typeid uint8, streamid int) {
 	// 目前这个函数只供发送信令时调用，信令的 csid 都是小于等于 63 的，如果传入的 csid 大于 63，直接 panic
 	if csid > 63 {

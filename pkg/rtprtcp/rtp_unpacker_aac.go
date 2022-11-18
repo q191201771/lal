@@ -65,8 +65,7 @@ func (unpacker *RtpUnpackerAac) TryUnpackOne(list *RtpPacketList) (unpackedFlag 
 	if p == nil {
 		return false, 0
 	}
-	b := p.Packet.Raw[p.Packet.Header.payloadOffset:]
-	//Log.Debugf("%d, %d, %s", len(pkt.Raw), pkt.Header.timestamp, hex.Dump(b))
+	b := p.Packet.Body()
 
 	aus := parseAu(b)
 
@@ -115,7 +114,7 @@ func (unpacker *RtpUnpackerAac) TryUnpackOne(list *RtpPacketList) (unpackedFlag 
 			}
 
 			// 注意，非第一个fragment，也会包含au，au的size和第一个fragment里au的size应该相等
-			b = p.Packet.Raw[p.Packet.Header.payloadOffset:]
+			b = p.Packet.Body()
 			aus := parseAu(b)
 			if len(aus) != 1 {
 				Log.Errorf("shall be a single fragment. len(aus)=%d", len(aus))

@@ -33,7 +33,7 @@ const (
 	Amf0TypeMarkerObject     = uint8(0x03)
 	Amf0TypeMarkerNull       = uint8(0x05)
 	Amf0TypeMarkerEcmaArray  = uint8(0x08)
-	Amf0TypeMarkerObjectEnd  = uint8(0x09)
+	Amf0TypeMarkerObjectEnd  = uint8(0x09) // end for both Object and Array
 	Amf0TypeMarkerLongString = uint8(0x0c)
 
 	// 还没用到的类型
@@ -48,7 +48,12 @@ const (
 	//Amf0TypeMarkerTypedObject = uint8(0x10)
 )
 
-var Amf0TypeMarkerObjectEndBytes = []byte{0, 0, Amf0TypeMarkerObjectEnd}
+var (
+	// Amf0TypeMarkerObjectEndBytes Amf0TypeMarkerArrayEndBytes:
+	// object-end-type(0x00 0x00 0x09) 表示Object和EcmaArray类型的结束标识
+	Amf0TypeMarkerObjectEndBytes = []byte{0, 0, Amf0TypeMarkerObjectEnd}
+	Amf0TypeMarkerArrayEndBytes  = []byte{0, 0, Amf0TypeMarkerObjectEnd}
+)
 
 // ---------------------------------------------------------------------------------------------------------------------
 
@@ -396,10 +401,9 @@ func (amf0) ReadArray(b []byte) (ObjectPairArray, int, error) {
 		}
 	}
 
-	if len(b)-index >= 3 && bytes.Equal(b[index:index+3], Amf0TypeMarkerObjectEndBytes) {
+	if len(b)-index >= 3 && bytes.Equal(b[index:index+3], Amf0TypeMarkerArrayEndBytes) {
 		index += 3
 	} else {
-		// 测试时发现Array最后也是以00 00 09结束，不确定是否是标准规定的，加个日志在这
 		Log.Warn("amf ReadArray without suffix Amf0TypeMarkerObjectEndBytes.")
 	}
 	return ops, index, nil

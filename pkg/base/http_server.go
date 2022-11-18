@@ -17,9 +17,7 @@ import (
 	"github.com/q191201771/naza/pkg/nazaerrors"
 )
 
-// TODO(chef)
-// - 考虑移入naza中
-// - 考虑增加一个pattern全部未命中的mux回调
+// TODO(chef): [refactor] 考虑移入naza中 202211
 
 const (
 	NetworkTcp = "tcp"
@@ -56,19 +54,21 @@ type Handler func(http.ResponseWriter, *http.Request)
 
 // AddListen
 //
-// @param addrCtx IsHttps  是否为https
-//                         注意，如果要为相同的路由同时绑定http和https，那么应该调用该函数两次，分别将该参数设置为true和false
-//                Addr     监听地址，内部会为其建立监听
-//                         http和https不能够使用相同的地址
-//                         注意，多次调用，允许使用相同的地址绑定不同的`pattern`
-//                CertFile
-//                KeyFile
-//                Network  如果为空默认为NetworkTcp="tcp"
+// @param addrCtx:
 //
-// @param pattern 必须以`/`开始，并以`/`结束
-//                注意，如果是`/`，则在其他所有pattern都匹配失败后，做为兜底匹配成功
-//                相同的pattern不能绑定不同的`handler`回调函数（显然，我们无法为相同的监听地址，相同的路径绑定多个回调函数）
+//	 LocalAddrCtx.IsHttps 是否为https。
+//		注意，如果要为相同的路由同时绑定http和https，那么应该调用该函数两次，分别将该参数设置为true和false。
+//		LocalAddrCtx.Addr 监听地址，内部会为其建立监听。
+//		http和https不能够使用相同的地址。
+//		注意，多次调用，允许使用相同的地址绑定不同的`pattern`。
+//		LocalAddrCtx.CertFile ...
+//		LocalAddrCtx.KeyFile ...
+//		LocalAddrCtx.Network 如果为空默认为NetworkTcp="tcp"。
 //
+// @param pattern: 必须以`/`开始，并以`/`结束。
+//
+//	注意，如果是`/`，则在其他所有pattern都匹配失败后，做为兜底匹配成功。
+//	相同的pattern不能绑定不同的`handler`回调函数（显然，我们无法为相同的监听地址，相同的路径绑定多个回调函数）。
 func (s *HttpServerManager) AddListen(addrCtx LocalAddrCtx, pattern string, handler Handler) error {
 	var (
 		ctx *ServerCtx
@@ -143,7 +143,6 @@ func (s *HttpServerManager) Dispose() error {
 // ---------------------------------------------------------------------------------------------------------------------
 
 // 为传入的`Addr`地址创建http或https监听
-//
 func listen(ctx LocalAddrCtx) (net.Listener, error) {
 	if ctx.Network == "" {
 		ctx.Network = NetworkTcp
