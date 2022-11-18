@@ -100,13 +100,15 @@ func (s *SubSession) KeepAlive() {
 }
 
 func GetAppNameFromUrlCtx(urlCtx base.UrlContext, hlsUrlPattern string) string {
-	var appName string
 	if hlsUrlPattern == "" {
-		appName = urlCtx.PathWithoutLastItem
+		return urlCtx.PathWithoutLastItem
 	} else {
-		appName = strings.Split(urlCtx.PathWithoutLastItem, hlsUrlPattern)[1]
+		urlParts := strings.Split(urlCtx.PathWithoutLastItem, hlsUrlPattern)
+		if len(urlParts) > 1 {
+			return urlParts[1]
+		}
 	}
-	return appName
+	return ""
 }
 
 func GetStreamNameFromUrlCtx(urlCtx base.UrlContext) string {
