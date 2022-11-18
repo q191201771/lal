@@ -9,8 +9,9 @@
 package logic
 
 import (
-	"github.com/q191201771/lal/pkg/base"
 	"path/filepath"
+
+	"github.com/q191201771/lal/pkg/base"
 )
 
 // ---------------------------------------------------------------------------------------------------------------------
@@ -59,6 +60,8 @@ type ICustomizePubSessionContext interface {
 	// IAvPacketStream 传入音视频数据相关的接口。详细说明见 base.IAvPacketStream
 	//
 	base.IAvPacketStream
+
+	FeedRtmpMsg(msg base.RtmpMsg) error
 
 	UniqueKey() string
 	StreamName() string
