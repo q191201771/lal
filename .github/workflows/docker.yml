@@ -28,3 +28,4 @@ jobs:
         with:
           push: true
           tags: q191201771/lal:latest
+          platforms: linux/amd64,linux/arm64
