@@ -23,6 +23,7 @@ const (
 	UkPreFlvPullSession             = SessionProtocolFlvStr + SessionBaseTypePullStr      // "FLVPULL"
 	UkPreTsSubSession               = SessionProtocolTsStr + SessionBaseTypePubSubStr     // "TSSUB"
 	UkPrePsPubSession               = SessionProtocolPsStr + SessionBaseTypePubStr        // "PSPUB"
+	UkPreHlsSubSession              = SessionProtocolHlsStr + SessionBaseTypeSubStr        // "HLSSUB"
 
 	UkPreRtspServerCommandSession = "RTSPSRVCMD" // 这个不暴露给上层
 
@@ -83,6 +84,10 @@ func GenUkFlvPullSession() string {
 	return siUkFlvPullSession.GenUniqueKey()
 }
 
+func GenUkHlsSubSession() string {
+	return siUkHlsSubSession.GenUniqueKey()
+}
+
 func GenUkPsPubSession() string {
 	return siUkPsPubSession.GenUniqueKey()
 }
@@ -113,6 +118,7 @@ var (
 	siUkTsSubSession             *unique.SingleGenerator
 	siUkFlvPullSession           *unique.SingleGenerator
 	siUkPsPubSession             *unique.SingleGenerator
+	siUkHlsSubSession            *unique.SingleGenerator
 
 	siUkGroup              *unique.SingleGenerator
 	siUkHlsMuxer           *unique.SingleGenerator
@@ -133,6 +139,7 @@ func init() {
 	siUkTsSubSession = unique.NewSingleGenerator(UkPreTsSubSession)
 	siUkFlvPullSession = unique.NewSingleGenerator(UkPreFlvPullSession)
 	siUkPsPubSession = unique.NewSingleGenerator(UkPrePsPubSession)
+	siUkHlsSubSession = unique.NewSingleGenerator(UkPreHlsSubSession)
 
 	siUkGroup = unique.NewSingleGenerator(UkPreGroup)
 	siUkHlsMuxer = unique.NewSingleGenerator(UkPreHlsMuxer)

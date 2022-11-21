@@ -111,6 +111,7 @@ type Group struct {
 	httptsSubSessionSet   map[*httpts.SubSession]struct{}
 	rtspSubSessionSet     map[*rtsp.SubSession]struct{}
 	waitRtspSubSessionSet map[*rtsp.SubSession]struct{}
+	hlsSubSessionSet      map[*hls.SubSession]struct{}
 	// push
 	pushEnable    bool
 	url2PushProxy map[string]*pushProxy
@@ -123,6 +124,8 @@ type Group struct {
 	rtmpMergeWriter *base.MergeWriter // TODO(chef): 后面可以在业务层加一个定时Flush
 	//
 	stat base.StatGroup
+	//
+	hlsCalcSessionStatIntervalSec uint32
 	//
 	psPubDumpFile    *base.DumpFile
 	rtspPullDumpFile *base.DumpFile
@@ -141,16 +144,18 @@ func NewGroup(appName string, streamName string, config *Config, observer IGroup
 			StreamName: streamName,
 			AppName:    appName,
 		},
-		exitChan:                   make(chan struct{}, 1),
-		rtmpSubSessionSet:          make(map[*rtmp.ServerSession]struct{}),
-		httpflvSubSessionSet:       make(map[*httpflv.SubSession]struct{}),
-		httptsSubSessionSet:        make(map[*httpts.SubSession]struct{}),
-		rtspSubSessionSet:          make(map[*rtsp.SubSession]struct{}),
-		waitRtspSubSessionSet:      make(map[*rtsp.SubSession]struct{}),
-		rtmpGopCache:               remux.NewGopCache("rtmp", uk, config.RtmpConfig.GopNum, config.RtmpConfig.SingleGopMaxFrameNum),
-		httpflvGopCache:            remux.NewGopCache("httpflv", uk, config.HttpflvConfig.GopNum, config.HttpflvConfig.SingleGopMaxFrameNum),
-		httptsGopCache:             remux.NewGopCacheMpegts(uk, config.HttptsConfig.GopNum, config.HttptsConfig.SingleGopMaxFrameNum),
-		psPubPrevInactiveCheckTick: -1,
+		exitChan:                      make(chan struct{}, 1),
+		rtmpSubSessionSet:             make(map[*rtmp.ServerSession]struct{}),
+		httpflvSubSessionSet:          make(map[*httpflv.SubSession]struct{}),
+		httptsSubSessionSet:           make(map[*httpts.SubSession]struct{}),
+		rtspSubSessionSet:             make(map[*rtsp.SubSession]struct{}),
+		waitRtspSubSessionSet:         make(map[*rtsp.SubSession]struct{}),
+		hlsSubSessionSet:              make(map[*hls.SubSession]struct{}),
+		rtmpGopCache:                  remux.NewGopCache("rtmp", uk, config.RtmpConfig.GopNum, config.RtmpConfig.SingleGopMaxFrameNum),
+		httpflvGopCache:               remux.NewGopCache("httpflv", uk, config.HttpflvConfig.GopNum, config.HttpflvConfig.SingleGopMaxFrameNum),
+		httptsGopCache:                remux.NewGopCacheMpegts(uk, config.HttptsConfig.GopNum, config.HttptsConfig.SingleGopMaxFrameNum),
+		psPubPrevInactiveCheckTick:    -1,
+		hlsCalcSessionStatIntervalSec: uint32(config.HlsConfig.FragmentDurationMs/1000) * 10,
 	}
 
 	g.initRelayPushByConfig()
@@ -184,6 +189,14 @@ func (group *Group) Tick(tickCount uint32) {
 	// 定时计算session bitrate
 	if tickCount%calcSessionStatIntervalSec == 0 {
 		group.updateAllSessionStat()
+	}
+
+	// because hls make multiple separate http request to get stream content and gap between request base on hls segment duration
+	// if we update every 5s can cause bitrateKbit equal to 0 if within 5s do not have any ts http request is make
+	if tickCount%group.hlsCalcSessionStatIntervalSec == 0 {
+		for session := range group.hlsSubSessionSet {
+			session.UpdateStat(group.hlsCalcSessionStatIntervalSec)
+		}
 	}
 }
 
@@ -288,6 +301,13 @@ func (group *Group) GetStat(maxsub int) base.StatGroup {
 		group.stat.StatSubs = append(group.stat.StatSubs, base.Session2StatSub(s))
 	}
 	for s := range group.waitRtspSubSessionSet {
+		statSubCount++
+		if statSubCount > maxsub {
+			break
+		}
+		group.stat.StatSubs = append(group.stat.StatSubs, base.Session2StatSub(s))
+	}
+	for s := range group.hlsSubSessionSet {
 		statSubCount++
 		if statSubCount > maxsub {
 			break
@@ -530,7 +550,8 @@ func (group *Group) hasSubSession() bool {
 		len(group.httpflvSubSessionSet) != 0 ||
 		len(group.httptsSubSessionSet) != 0 ||
 		len(group.rtspSubSessionSet) != 0 ||
-		len(group.waitRtspSubSessionSet) != 0
+		len(group.waitRtspSubSessionSet) != 0 ||
+		len(group.hlsSubSessionSet) != 0
 }
 
 func (group *Group) hasPushSession() bool {

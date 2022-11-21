@@ -37,6 +37,8 @@ var (
 	ErrSessionNotStarted = errors.New("lal.base: session has not been started yet")
 
 	ErrInvalidUrl = errors.New("lal.base: invalid url")
+
+	ErrGroupNotFound = errors.New("lal.base: group not found")
 )
 
 // ----- pkg/hevc ------------------------------------------------------------------------------------------------------
@@ -46,6 +48,7 @@ var ErrHevc = errors.New("lal.hevc: fxxk")
 // ----- pkg/hls -------------------------------------------------------------------------------------------------------
 
 var ErrHls = errors.New("lal.hls: fxxk")
+var ErrHlsSessionNotFound = errors.New("lal.hls: hls session not found")
 
 // ----- pkg/rtmp ------------------------------------------------------------------------------------------------------
 

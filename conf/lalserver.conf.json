@@ -38,7 +38,9 @@
     "fragment_num": 6,
     "delete_threshold": 6,
     "cleanup_mode": 1,
-    "use_memory_as_disk_flag": false
+    "use_memory_as_disk_flag": false,
+    "session_timeout_ms": 30000,
+    "session_hash_key": "something_secret"
   },
   "httpts": {
     "enable": true,
