@@ -23,7 +23,7 @@ const (
 	UkPreFlvPullSession             = SessionProtocolFlvStr + SessionBaseTypePullStr      // "FLVPULL"
 	UkPreTsSubSession               = SessionProtocolTsStr + SessionBaseTypePubSubStr     // "TSSUB"
 	UkPrePsPubSession               = SessionProtocolPsStr + SessionBaseTypePubStr        // "PSPUB"
-	UkPreHlsSubSession              = SessionProtocolHlsStr + SessionBaseTypeSubStr        // "HLSSUB"
+	UkPreHlsSubSession              = SessionProtocolHlsStr + SessionBaseTypeSubStr       // "HLSSUB"
 
 	UkPreRtspServerCommandSession = "RTSPSRVCMD" // 这个不暴露给上层
 

@@ -27,29 +27,26 @@ type IHlsServerHandlerObserver interface {
 }
 
 type ServerHandler struct {
-	outPath        string
-	observer       IHlsServerHandlerObserver
-	urlPattern     string
-	sessionMap     map[string]*SubSession
-	mutex          sync.Mutex
-	sessionTimeout time.Duration
-	sessionHashKey string
+	outPath           string
+	observer          IHlsServerHandlerObserver
+	urlPattern        string
+	sessionMap        map[string]*SubSession
+	mutex             sync.Mutex
+	subSessionTimeout time.Duration
+	subSessionHashKey string
 }
 
-func NewServerHandler(outPath, urlPattern, sessionHashKey string, sessionTimeoutMs int, observer IHlsServerHandlerObserver) *ServerHandler {
+func NewServerHandler(outPath, urlPattern, subSessionHashKey string, subSessionTimeoutMs int, observer IHlsServerHandlerObserver) *ServerHandler {
 	if strings.HasPrefix(urlPattern, "/") {
 		urlPattern = urlPattern[1:]
 	}
-	if sessionTimeoutMs == 0 {
-		sessionTimeoutMs = 30000
-	}
 	sh := &ServerHandler{
-		outPath:        outPath,
-		observer:       observer,
-		urlPattern:     urlPattern,
-		sessionMap:     make(map[string]*SubSession),
-		sessionTimeout: time.Duration(sessionTimeoutMs) * time.Millisecond,
-		sessionHashKey: sessionHashKey,
+		outPath:           outPath,
+		observer:          observer,
+		urlPattern:        urlPattern,
+		sessionMap:        make(map[string]*SubSession),
+		subSessionTimeout: time.Duration(subSessionTimeoutMs) * time.Millisecond,
+		subSessionHashKey: subSessionHashKey,
 	}
 	go sh.runLoop()
 	return sh
@@ -62,15 +59,14 @@ func (s *ServerHandler) ServeHTTP(resp http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	sessionIdHash, err := s.ServeHTTPWithUrlCtx(resp, req, urlCtx)
-	if err != nil && sessionIdHash != "" {
-		s.delSubSession(sessionIdHash, nil)
-		return
-	}
+	s.ServeHTTPWithUrlCtx(resp, req, urlCtx)
 }
 
-func (s *ServerHandler) ServeHTTPWithUrlCtx(resp http.ResponseWriter, req *http.Request, urlCtx base.UrlContext) (sessionIdHash string, err error) {
+func (s *ServerHandler) ServeHTTPWithUrlCtx(resp http.ResponseWriter, req *http.Request, urlCtx base.UrlContext) {
 	//Log.Debugf("%+v", req)
+
+	var sessionIdHash string
+	var err error
 
 	urlObj, _ := url.Parse(urlCtx.Url)
 
@@ -80,33 +76,40 @@ func (s *ServerHandler) ServeHTTPWithUrlCtx(resp http.ResponseWriter, req *http.
 	filename := urlCtx.LastItemOfPath
 	filetype := urlCtx.GetFileType()
 
-	// handle session
-	sessionIdHash = urlObj.Query().Get("session_id")
-	if filetype == "ts" && sessionIdHash != "" {
-		err = s.keepSessionAlive(sessionIdHash)
-		if err != nil {
-			Log.Warnf("keepSessionAlive failed. session[%s] err=%+v", sessionIdHash, err)
-			resp.WriteHeader(http.StatusNotFound)
-			return
-		}
-	} else if filetype == "m3u8" {
-		var redirectUrl string
-		redirectUrl, err = s.handleSubSession(sessionIdHash, urlObj, req, urlCtx)
-		if err != nil {
-			Log.Warnf("handle hlsSubSession[%s]. err=%+v", sessionIdHash, err)
-			resp.WriteHeader(http.StatusNotFound)
-			return
-		}
-		if redirectUrl != "" {
-			if redirectUrl != urlCtx.Url {
+	// 如果开启了hls sub session功能
+	if s.isSubSessionModeEnable() {
+		sessionIdHash = urlObj.Query().Get("session_id")
+		if filetype == "ts" && sessionIdHash != "" {
+			// 注意，为了增强容错性，不管是session_id字段无效，还是session_id为空，我们都依然返回ts文件内容给播放端
+			if sessionIdHash != "" {
+				err = s.keepSessionAlive(sessionIdHash)
+				if err != nil {
+					Log.Warnf("keepSessionAlive failed. session=%s, err=%+v", sessionIdHash, err)
+				}
+			} else {
+				// noop
+			}
+		} else if filetype == "m3u8" {
+			if sessionIdHash != "" {
+				err = s.keepSessionAlive(sessionIdHash)
+				if err != nil {
+					Log.Warnf("keepSessionAlive failed. session=%s, err=%+v", sessionIdHash, err)
+				}
+			} else {
+				// m3u8请求时，session_id不存在，创建session对象，并让m3u8跳转到携带session_id的url请求
+
+				session, err := s.createSubSession(req, urlCtx)
+				if err != nil {
+					resp.WriteHeader(http.StatusNotFound)
+					return
+				}
+
+				query := urlObj.Query()
+				query.Set("session_id", session.sessionIdHash)
+				redirectUrl := urlObj.Path + "?" + query.Encode()
 				resp.Header().Add("Cache-Control", "no-cache")
 				resp.Header().Add("Access-Control-Allow-Origin", "*")
 				http.Redirect(resp, req, redirectUrl, http.StatusFound)
-				return
-			} else {
-				err = errors.New(fmt.Sprintf("duplicate redirect url[%s]", redirectUrl))
-				Log.Error(err.Error())
-				resp.WriteHeader(http.StatusBadRequest)
 				return
 			}
 		}
@@ -134,6 +137,7 @@ func (s *ServerHandler) ServeHTTPWithUrlCtx(resp http.ResponseWriter, req *http.
 	case "m3u8":
 		resp.Header().Add("Content-Type", "application/x-mpegurl")
 		resp.Header().Add("Server", base.LalHlsM3u8Server)
+		// 给ts文件都携带上session_id字段
 		if sessionIdHash != "" {
 			content = bytes.ReplaceAll(content, []byte(".ts"), []byte(".ts?session_id="+sessionIdHash))
 		}
@@ -155,14 +159,30 @@ func (s *ServerHandler) ServeHTTPWithUrlCtx(resp http.ResponseWriter, req *http.
 	return
 }
 
+// getSubSession 获取 SubSession，如果不存在，返回nil
 func (s *ServerHandler) getSubSession(sessionIdHash string) *SubSession {
+	s.mutex.Lock()
+	defer s.mutex.Unlock()
 	return s.sessionMap[sessionIdHash]
 }
 
+func (s *ServerHandler) createSubSession(req *http.Request, urlCtx base.UrlContext) (*SubSession, error) {
+	s.mutex.Lock()
+	defer s.mutex.Unlock()
+	session := NewSubSession(req, urlCtx, s.urlPattern, s.subSessionHashKey, s.subSessionTimeout)
+	s.sessionMap[session.sessionIdHash] = session
+	if err := s.observer.OnNewHlsSubSession(session); err != nil {
+		delete(s.sessionMap, session.sessionIdHash)
+		return nil, err
+	}
+	return session, nil
+}
+
+// keepSessionAlive 标记延长session存活时间，如果session不存在，返回 base.ErrHlsSessionNotFound
 func (s *ServerHandler) keepSessionAlive(sessionIdHash string) error {
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
-	session := s.getSubSession(sessionIdHash)
+	session := s.sessionMap[sessionIdHash]
 	if session == nil {
 		return base.ErrHlsSessionNotFound
 	}
@@ -170,59 +190,23 @@ func (s *ServerHandler) keepSessionAlive(sessionIdHash string) error {
 	return nil
 }
 
-func (s *ServerHandler) createSubSession(req *http.Request, urlCtx base.UrlContext) (*SubSession, error) {
-	s.mutex.Lock()
-	defer s.mutex.Unlock()
-	session := NewSubSession(req, urlCtx, s.urlPattern, s.sessionHashKey, s.sessionTimeout)
-	s.sessionMap[session.sessionIdHash] = session
-	err := s.observer.OnNewHlsSubSession(session)
-	return session, err
-}
-
-func (s *ServerHandler) delSubSession(sessionIdHash string, session *SubSession) {
-	s.mutex.Lock()
-	defer s.mutex.Unlock()
-	if session == nil {
-		session = s.sessionMap[sessionIdHash]
-	}
-	if session != nil {
-		delete(s.sessionMap, sessionIdHash)
-		s.observer.OnDelHlsSubSession(session)
-	}
-}
-
-func (s *ServerHandler) onSubSessionExpired(sessionIdHash string, session *SubSession) {
-	s.delSubSession(sessionIdHash, session)
-}
-
-func (s *ServerHandler) handleSubSession(sessionIdHash string, urlObj *url.URL, req *http.Request, urlCtx base.UrlContext) (redirectUrl string, err error) {
-	if sessionIdHash != "" {
-		err = s.keepSessionAlive(sessionIdHash)
-		if err != nil {
-			return "", err
-		}
-	} else {
-		session, err := s.createSubSession(req, urlCtx)
-		if err != nil {
-			return "", err
-		}
-		query := urlObj.Query()
-		query.Set("session_id", session.sessionIdHash)
-		redirectUrl = urlObj.Path + "?" + query.Encode()
-		return redirectUrl, nil
-	}
-	return "", nil
-}
-
 func (s *ServerHandler) clearExpireSession() {
+	s.mutex.Lock()
+	defer s.mutex.Unlock()
 	for sessionIdHash, session := range s.sessionMap {
 		if session.IsExpired() {
-			s.onSubSessionExpired(sessionIdHash, session)
+			delete(s.sessionMap, sessionIdHash)
+			s.observer.OnDelHlsSubSession(session)
 		}
 	}
+}
+
+func (s *ServerHandler) isSubSessionModeEnable() bool {
+	return s.subSessionHashKey != ""
 }
 
 func (s *ServerHandler) runLoop() {
+	// TODO(chef): [refactor] 也许可以弄到group中管理超时，和其他协议的session管理方式保持一致 202211
 	ticker := time.NewTicker(1 * time.Second)
 	for range ticker.C {
 		s.clearExpireSession()

@@ -122,7 +122,7 @@ Doc: %s
 		sm.config.HlsConfig.Enable || sm.config.HlsConfig.EnableHttps {
 		sm.httpServerManager = base.NewHttpServerManager()
 		sm.httpServerHandler = NewHttpServerHandler(sm)
-		sm.hlsServerHandler = hls.NewServerHandler(sm.config.HlsConfig.OutPath, sm.config.HlsConfig.UrlPattern, sm.config.HlsConfig.SessionHashKey, sm.config.HlsConfig.SessionTimeoutMs, sm)
+		sm.hlsServerHandler = hls.NewServerHandler(sm.config.HlsConfig.OutPath, sm.config.HlsConfig.UrlPattern, sm.config.HlsConfig.SubSessionHashKey, sm.config.HlsConfig.SubSessionTimeoutMs, sm)
 	}
 
 	if sm.config.RtmpConfig.Enable {

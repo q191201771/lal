@@ -47,7 +47,7 @@ type UrlContext struct {
 	StdHost      string // host or host:port
 	HostWithPort string // 当原始url中不包含port时，填充scheme对应的默认port
 	Host         string // 不包含port
-	Port         int // 当原始url中不包含port时，填充scheme对应的默认port
+	Port         int    // 当原始url中不包含port时，填充scheme对应的默认port
 
 	//UrlPathContext
 	PathWithRawQuery    string // 注意，有前面的'/'

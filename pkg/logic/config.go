@@ -90,8 +90,8 @@ type HlsConfig struct {
 
 	UseMemoryAsDiskFlag bool `json:"use_memory_as_disk_flag"`
 	hls.MuxerConfig
-	SessionTimeoutMs int    `json:"session_timeout_ms"`
-	SessionHashKey   string `json:"session_hash_key"`
+	SubSessionTimeoutMs int    `json:"sub_session_timeout_ms"`
+	SubSessionHashKey   string `json:"session_hash_key"`
 }
 
 type RtspConfig struct {
@@ -296,16 +296,21 @@ func LoadConfAndInitLog(rawContent []byte) *Config {
 			config.HlsConfig.FragmentNum)
 		config.HlsConfig.DeleteThreshold = config.HlsConfig.FragmentNum
 	}
+	if config.HlsConfig.SubSessionHashKey != "" && config.HlsConfig.SubSessionTimeoutMs == 0 {
+		// 没有设置超时值，或者超时为0时
+		Log.Warnf("config hls.sub_session_timeout_ms is 0. set to %d(which is fragment_num * fragment_duration_ms * 2)",
+			config.HlsConfig.FragmentNum*config.HlsConfig.FragmentDurationMs*2)
+	}
 	if (config.HttpflvConfig.Enable || config.HttpflvConfig.EnableHttps) && !j.Exist("httpflv.url_pattern") {
-		Log.Warnf("config httpflv.url_pattern not exist. set to default wchich is %s", defaultHttpflvUrlPattern)
+		Log.Warnf("config httpflv.url_pattern not exist. set to default which is %s", defaultHttpflvUrlPattern)
 		config.HttpflvConfig.UrlPattern = defaultHttpflvUrlPattern
 	}
 	if (config.HttptsConfig.Enable || config.HttptsConfig.EnableHttps) && !j.Exist("httpts.url_pattern") {
-		Log.Warnf("config httpts.url_pattern not exist. set to default wchich is %s", defaultHttptsUrlPattern)
+		Log.Warnf("config httpts.url_pattern not exist. set to default which is %s", defaultHttptsUrlPattern)
 		config.HttptsConfig.UrlPattern = defaultHttptsUrlPattern
 	}
 	if (config.HlsConfig.Enable || config.HlsConfig.EnableHttps) && !j.Exist("hls.url_pattern") {
-		Log.Warnf("config hls.url_pattern not exist. set to default wchich is %s", defaultHlsUrlPattern)
+		Log.Warnf("config hls.url_pattern not exist. set to default which is %s", defaultHlsUrlPattern)
 		config.HttpflvConfig.UrlPattern = defaultHlsUrlPattern
 	}
 

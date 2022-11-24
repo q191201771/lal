@@ -1,3 +1,11 @@
+// Copyright 2022, Chef.  All rights reserved.
+// https://github.com/q191201771/lal
+//
+// Use of this source code is governed by a MIT-style license
+// that can be found in the License file.
+//
+// Author: Chef (191201771@qq.com)
+
 package hls
 
 import (
@@ -43,6 +51,7 @@ func NewSubSession(req *http.Request, urlCtx base.UrlContext, hlsUrlPattern, ses
 	session.stat.RemoteAddr = req.RemoteAddr
 	session.stat.StartTime = time.Now().String()
 
+	// TODO(chef): [refactor] 也许后续可以弄短点，比如前8位或16位 202211
 	session.sessionIdHash = nazamd5.Md5([]byte(session.stat.SessionId + sessionHashKey))
 	return session
 }
