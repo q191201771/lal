@@ -14,6 +14,7 @@ func ReadAllTagsFromFlvFile(filename string) ([]Tag, error) {
 	var tags []Tag
 
 	var ffr FlvFileReader
+	defer ffr.Dispose()
 	err := ffr.Open(filename)
 	if err != nil {
 		return nil, err
