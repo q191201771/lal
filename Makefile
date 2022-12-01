@@ -1,13 +1,21 @@
 .PHONY: build
-build: deps
-	./build.sh
+build:
+	export GO111MODULE=on && export GOPROXY=https://goproxy.cn,https://goproxy.io,direct && ./build.sh
 
 .PHONY: build_for_linux
-build_for_linux: deps
-	./build_for_linux.sh
+build_for_linux:
+	export CGO_ENABLED=0 && export GOS=linux && ./build.sh
+
+.PHONY: build_for_linux_amd64
+build_for_linux_amd64:
+	export CGO_ENABLED=0 && export GOS=linux && export GOARCH=amd64 && ./build.sh
+
+.PHONY: build_for_linux_arm64
+build_for_linux_arm64:
+	export CGO_ENABLED=0 && export GOS=linux && export GOARCH=arm64 && ./build.sh
 
 .PHONY: test
-test: deps
+test:
 	./test.sh
 
 .PHONY: deps
