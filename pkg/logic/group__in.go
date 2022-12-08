@@ -112,7 +112,7 @@ func (group *Group) StartRtpPub(req base.ApiCtrlStartRtpPubReq) (ret base.ApiCtr
 	pubSession := gb28181.NewPubSession().WithStreamName(req.StreamName).WithOnAvPacket(group.OnAvPacketFromPsPubSession)
 	pubSession.WithHookReadPacket(func(b []byte) {
 		if group.psPubDumpFile != nil {
-			group.psPubDumpFile.Write(b)
+			group.psPubDumpFile.WriteWithType(b, base.DumpTypePsRtpData)
 		}
 	})
 

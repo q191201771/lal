@@ -67,7 +67,7 @@ func (group *Group) OnRtpPacket(pkt rtprtcp.RtpPacket) {
 	defer group.mutex.Unlock()
 	group.feedRtpPacket(pkt)
 	if group.rtspPullDumpFile != nil {
-		group.rtspPullDumpFile.Write(pkt.Raw)
+		group.rtspPullDumpFile.WriteWithType(pkt.Raw, base.DumpTypeRtspRtpData)
 	}
 }
 

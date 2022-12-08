@@ -8,4 +8,8 @@
 
 package innertest
 
-// TODO(chef): [refactor] 把gb28181 ps的测试也挪过来 202209
+import "testing"
+
+func TestDump_CutomizePub(t *testing.T) {
+
+}
