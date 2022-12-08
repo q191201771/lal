@@ -150,7 +150,7 @@ func (d *DumpFile) pack(b []byte, typ uint32) []byte {
 	i += 4
 	bele.BePutUint32(ret[i:], uint32(len(b))) // Len
 	i += 4
-	bele.BePutUint64(ret[i:], uint64(time.Now().UnixMilli())) // Timestamp
+	bele.BePutUint64(ret[i:], uint64(UnixMilli(time.Now()))) // Timestamp
 	i += 8
 	copy(ret[i:], "LALD")
 	i += 4
