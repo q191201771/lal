@@ -170,7 +170,7 @@ func (r *AvPacket2RtmpRemuxer) FeedAvPacket(pkt base.AvPacket) {
 				t := avc.ParseNaluType(nal[0])
 				if t == avc.NaluTypeAud {
 					continue
-				} else if t == avc.NaluTypeSps || t == avc.NaluTypePps {
+				} else if t == avc.NaluTypeSps || t == avc.NaluTypePps||t == avc.NaluTypeSei {
 					// 如果有sps，pps，先把它们抽离出来进行缓存
 					if t == avc.NaluTypeSps {
 						r.setSps(nal)
@@ -222,7 +222,7 @@ func (r *AvPacket2RtmpRemuxer) FeedAvPacket(pkt base.AvPacket) {
 				t := hevc.ParseNaluType(nal[0])
 				if t == hevc.NaluTypeAud {
 					continue
-				} else if t == hevc.NaluTypeVps || t == hevc.NaluTypeSps || t == hevc.NaluTypePps {
+				} else if t == hevc.NaluTypeVps || t == hevc.NaluTypeSps || t == hevc.NaluTypePps||t == hevc.NaluTypeSei {
 					if t == hevc.NaluTypeVps {
 						r.setVps(nal)
 					} else if t == hevc.NaluTypeSps {
