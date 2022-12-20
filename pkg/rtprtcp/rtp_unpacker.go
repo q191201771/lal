@@ -21,6 +21,7 @@ var (
 	_ IRtpUnpackContainer  = &RtpUnpackContainer{}
 	_ IRtpUnpackerProtocol = &RtpUnpackerAac{}
 	_ IRtpUnpackerProtocol = &RtpUnpackerAvcHevc{}
+	_ IRtpUnpackerProtocol = &RtpUnpackerRaw{}
 )
 
 type IRtpUnpacker interface {
@@ -75,6 +76,8 @@ func DefaultRtpUnpackerFactory(payloadType base.AvPacketPt, clockRate int, maxSi
 	switch payloadType {
 	case base.AvPacketPtAac:
 		protocol = NewRtpUnpackerAac(payloadType, clockRate, onAvPacket)
+	case base.AvPacketPtG711A:
+		protocol = NewRtpUnpackerRaw(payloadType, clockRate, onAvPacket)
 	case base.AvPacketPtAvc:
 		fallthrough
 	case base.AvPacketPtHevc:

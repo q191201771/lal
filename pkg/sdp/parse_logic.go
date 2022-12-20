@@ -52,7 +52,16 @@ func (lc *LogicContext) IsPayloadTypeOrigin(t int) bool {
 }
 
 func (lc *LogicContext) IsAudioUnpackable() bool {
-	return lc.audioPayloadTypeBase == base.AvPacketPtAac && lc.Asc != nil
+	switch lc.audioPayloadTypeBase {
+	case base.AvPacketPtAac:
+		if lc.Asc == nil {
+			return false
+		}
+	case base.AvPacketPtG711A:
+		return true
+	}
+
+	return false
 }
 
 func (lc *LogicContext) IsVideoUnpackable() bool {
@@ -125,8 +134,22 @@ func ParseSdp2LogicContext(b []byte) (LogicContext, error) {
 				} else {
 					Log.Warnf("aac afmtp not exist.")
 				}
+			} else if strings.EqualFold(md.ARtpMap.EncodingName, ARtpMapEncodingNameG711A) {
+				// 例子:a=rtpmap:8 PCMA/8000/1
+				// rtmpmap中有PCMA字段表示G711A
+				ret.audioPayloadTypeBase = base.AvPacketPtG711A
 			} else {
-				ret.audioPayloadTypeBase = base.AvPacketPtUnknown
+				if md.M.PT == 8 {
+					// ffmpeg推流情况下不会填充rtpmap字段,m中pt值为8也可以表示是PCMA,采样率默认为8000Hz
+					// RFC3551中表明G711A固定pt值为8
+					ret.audioPayloadTypeBase = base.AvPacketPtG711A
+					ret.audioPayloadTypeOrigin = 8
+					if ret.AudioClockRate == 0 {
+						ret.AudioClockRate = 8000
+					}
+				} else {
+					ret.audioPayloadTypeBase = base.AvPacketPtUnknown
+				}
 			}
 		case "video":
 			ret.hasVideo = true

@@ -11,6 +11,7 @@ package base
 import (
 	"encoding/hex"
 	"fmt"
+
 	"github.com/q191201771/naza/pkg/nazabytes"
 )
 
@@ -20,9 +21,10 @@ type AvPacketPt int
 
 const (
 	AvPacketPtUnknown AvPacketPt = -1
+	AvPacketPtG711A   AvPacketPt = 8  // g711a
 	AvPacketPtAvc     AvPacketPt = 96 // h264
 	AvPacketPtHevc    AvPacketPt = 98 // h265
-	AvPacketPtAac     AvPacketPt = 97
+	AvPacketPtAac     AvPacketPt = 97 // aac
 )
 
 func (a AvPacketPt) ReadableString() string {

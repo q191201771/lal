@@ -29,6 +29,7 @@ type MediaDesc struct {
 
 type M struct {
 	Media string
+	PT    int // 暂时只支持m只有一个pt值的情况
 }
 
 type ARtpMap struct {
@@ -88,6 +89,7 @@ func ParseM(s string) (ret M, err error) {
 		return ret, nazaerrors.Wrap(base.ErrSdp)
 	}
 	ret.Media = items[0]
+	ret.PT, _ = strconv.Atoi(items[3])
 	return
 }
 
