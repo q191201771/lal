@@ -300,6 +300,7 @@ func LoadConfAndInitLog(rawContent []byte) *Config {
 		// 没有设置超时值，或者超时为0时
 		Log.Warnf("config hls.sub_session_timeout_ms is 0. set to %d(which is fragment_num * fragment_duration_ms * 2)",
 			config.HlsConfig.FragmentNum*config.HlsConfig.FragmentDurationMs*2)
+		config.HlsConfig.SubSessionTimeoutMs = config.HlsConfig.FragmentNum * config.HlsConfig.FragmentDurationMs * 2
 	}
 	if (config.HttpflvConfig.Enable || config.HttpflvConfig.EnableHttps) && !j.Exist("httpflv.url_pattern") {
 		Log.Warnf("config httpflv.url_pattern not exist. set to default which is %s", defaultHttpflvUrlPattern)
