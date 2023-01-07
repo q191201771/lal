@@ -35,7 +35,7 @@ func NewPubSession(urlCtx base.UrlContext, cmdSession *ServerCommandSession) *Pu
 	}
 	baseInSession := NewBaseInSession(base.SessionTypeRtspPub, s)
 	s.baseInSession = baseInSession
-	Log.Infof("[%s] lifecycle new rtsp PubSession. session=%p, streamName=%s", s, urlCtx.LastItemOfPath)
+	Log.Infof("[%s] lifecycle new rtsp PubSession. session=%p, streamName=%s", s.UniqueKey(), s, urlCtx.LastItemOfPath)
 	return s
 }
 
