@@ -36,6 +36,8 @@ var DefaultApsOption = AvPacketStreamOption{
 type IAvPacketStream interface {
 	// WithOption 修改配置项
 	//
+	// TODO(chef): [refactor] 重命名为WithAvPacketStreamOption 202301
+	//
 	WithOption(modOption func(option *AvPacketStreamOption))
 
 	// FeedAudioSpecificConfig 传入音频AAC的初始化数据
