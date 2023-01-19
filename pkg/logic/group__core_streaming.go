@@ -59,6 +59,9 @@ func (group *Group) OnSdp(sdpCtx sdp.LogicContext) {
 	if group.rtsp2RtmpRemuxer != nil {
 		group.rtsp2RtmpRemuxer.OnSdp(sdpCtx)
 	}
+	if group.rtspPullDumpFile != nil {
+		group.rtspPullDumpFile.WriteWithType(sdpCtx.RawSdp, base.DumpTypeRtspSdpData)
+	}
 }
 
 // OnRtpPacket ...
