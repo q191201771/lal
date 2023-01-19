@@ -55,6 +55,8 @@ func NewAvPacket2RtmpRemuxer() *AvPacket2RtmpRemuxer {
 // TODO(chef): [refactor] 返回*AvPacket2RtmpRemuxer 202208
 func (r *AvPacket2RtmpRemuxer) WithOption(modOption func(option *base.AvPacketStreamOption)) {
 	modOption(&r.option)
+
+	// TODO(chef): [log] 打印所有option 202301
 }
 
 func (r *AvPacket2RtmpRemuxer) WithOnRtmpMsg(onRtmpMsg rtmp.OnReadRtmpAvMsg) *AvPacket2RtmpRemuxer {
@@ -100,7 +102,7 @@ func (r *AvPacket2RtmpRemuxer) InitWithAvConfig(asc, vps, sps, pps []byte) {
 	}
 
 	if r.audioType == base.AvPacketPtUnknown && r.videoType == base.AvPacketPtUnknown {
-		Log.Warn("has no audio or video")
+		Log.Warn("neither audio nor video exist")
 		return
 	}
 
