@@ -139,15 +139,20 @@ func message2Chunks(message []byte, header *base.RtmpHeader, prevHeader *base.Rt
 	//	return nil, ErrRtmp
 	//}
 
-	// 计算chunk数量，最后一个chunk的大小
+	// 注意，这里我们要尽量缩小预分配内存的大小
+	var maxNeededLen int
+
 	numOfChunk := len(message) / chunkSize
+	maxNeededLen = numOfChunk * (chunkSize + maxHeaderSize)
+
+	// 计算chunk数量，最后一个chunk的大小
 	lastChunkSize := chunkSize
 	if len(message)%chunkSize != 0 {
 		numOfChunk++
 		lastChunkSize = len(message) % chunkSize
+		maxNeededLen += lastChunkSize + maxHeaderSize
 	}
 
-	maxNeededLen := (chunkSize + maxHeaderSize) * numOfChunk
 	out := make([]byte, maxNeededLen)
 
 	var index int
@@ -168,12 +173,7 @@ func message2Chunks(message []byte, header *base.RtmpHeader, prevHeader *base.Rt
 		prevHeader = header
 	}
 
-	retVal := make([]byte, index)
-	copy(retVal, out[:index])
-	defer func() {
-		out = nil
-	}()
-	return retVal
+	return out[:index]
 }
 
 // copyBufferFromBuffers
