@@ -234,7 +234,11 @@ func (s *ServerSession) doMsg(stream *Stream) error {
 }
 
 func (s *ServerSession) doAck(stream *Stream) error {
-	seqNum := bele.BeUint32(stream.msg.buff.Bytes())
+	buf := stream.msg.buff.Bytes()
+	if len(buf) < 4 {
+		return base.ErrRtmpShortBuffer
+	}
+	seqNum := bele.BeUint32(buf)
 	Log.Infof("[%s] < R Acknowledgement. ignore. sequence number=%d.", s.UniqueKey(), seqNum)
 	return nil
 }
