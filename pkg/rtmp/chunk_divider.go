@@ -11,9 +11,10 @@ package rtmp
 // 将message切割成chunk
 
 import (
+	"net"
+
 	"github.com/q191201771/lal/pkg/base"
 	"github.com/q191201771/naza/pkg/bele"
-	"net"
 )
 
 type ChunkDivider struct {
@@ -167,7 +168,12 @@ func message2Chunks(message []byte, header *base.RtmpHeader, prevHeader *base.Rt
 		prevHeader = header
 	}
 
-	return out[:index]
+	retVal := make([]byte, index)
+	copy(retVal, out[:index])
+	defer func() {
+		out = nil
+	}()
+	return retVal
 }
 
 // copyBufferFromBuffers
