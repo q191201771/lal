@@ -243,6 +243,7 @@ func (s *ServerSession) doAck(stream *Stream) error {
 	return nil
 }
 func (s *ServerSession) doUserControl(stream *Stream) error {
+	// TODO(chef): 检查buff长度有效性 202301
 	userControlType := bele.BeUint16(stream.msg.buff.Bytes())
 	if userControlType == uint16(base.RtmpUserControlPingRequest) {
 		stream.msg.buff.Skip(2)
