@@ -1,3 +1,18 @@
+#### v0.33.0 (2022-01)
+
+- [feat] debug dump，支持抓取流数据回放调试
+- [feat] http api & notify: 支持获取hls播放者数量、码率等信息；支持获取hls开始播放、结束播放的事件通知
+- [fix] rtp: 解析rtp extension扩展头，避免因此导致rtp解析失败
+- [chore] docker同时支持amd和arm架构
+- [feat] demo: analyseflv支持http flv流或flv文件作为输入
+- [feat] 插件化例子：增加读取flv文件再通过CustomPubSession将数据输入lalserver的例子
+- [opt] rtmp: 缩小打chunk时预分配的内存大小
+- [opt] 插件化：Cutsomize Pub支持AvPacket、RtmpMsg两种输入数据的方式
+- [opt] Gop缓冲功能支持配置单个Gop内的最大缓冲帧数量
+- [fix] 修复hls获取app name失败的问题
+- [fix] flv: 修复ReadAllTagsFromFlvFile中没有关闭文件的bug
+- [fix] rtmp: 接收buff解析前有效长度检查
+
 #### v0.32.0 (2022-11-10)
 
 - [feat] 自动叠加静音音频。所有协议、所有类型的输入流都已支持，文档见: https://pengrl.com/lal/#/dummy_audio
