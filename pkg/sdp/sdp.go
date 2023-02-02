@@ -11,7 +11,8 @@ package sdp
 // rfc4566
 
 const (
-	ARtpMapEncodingNameH265 = "H265"
-	ARtpMapEncodingNameH264 = "H264"
-	ARtpMapEncodingNameAac  = "MPEG4-GENERIC"
+	ARtpMapEncodingNameH265  = "H265"
+	ARtpMapEncodingNameH264  = "H264"
+	ARtpMapEncodingNameAac   = "MPEG4-GENERIC"
+	ARtpMapEncodingNameG711A = "PCMA"
 )
