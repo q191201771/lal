@@ -52,16 +52,7 @@ func (lc *LogicContext) IsPayloadTypeOrigin(t int) bool {
 }
 
 func (lc *LogicContext) IsAudioUnpackable() bool {
-	switch lc.audioPayloadTypeBase {
-	case base.AvPacketPtAac:
-		if lc.Asc == nil {
-			return false
-		}
-	case base.AvPacketPtG711A:
-		return true
-	}
-
-	return false
+	return lc.audioPayloadTypeBase == base.AvPacketPtAac && lc.Asc != nil
 }
 
 func (lc *LogicContext) IsVideoUnpackable() bool {
