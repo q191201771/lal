@@ -143,6 +143,9 @@ func ParseSdp2LogicContext(b []byte) (LogicContext, error) {
 						Log.Warnf("parse sps pps from afmtp failed. err=%+v", err)
 					}
 				} else {
+					// afmtp不存在，也即没法从sdp中解析出sps、pps。
+					// 这种情况是存在的，sps、pps可以在后续的rtp数据包中传输。
+					// 所以这里只打印警告。
 					Log.Warnf("avc afmtp not exist.")
 				}
 			case ARtpMapEncodingNameH265:
