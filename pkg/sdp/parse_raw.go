@@ -89,7 +89,9 @@ func ParseM(s string) (ret M, err error) {
 		return ret, nazaerrors.Wrap(base.ErrSdp)
 	}
 	ret.Media = items[0]
-	ret.PT, _ = strconv.Atoi(items[3])
+	if len(items) > 3 {
+		ret.PT, _ = strconv.Atoi(items[3])
+	}
 	return
 }
 
