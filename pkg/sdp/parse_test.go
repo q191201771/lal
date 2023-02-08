@@ -660,3 +660,45 @@ a=appversion:1.0
 	assert.Equal(t, nil, err)
 	_ = ctx
 }
+
+func TestCase17(t *testing.T) {
+	golden := `v=0
+o=08154911501886160101 1672977368 1672977368 IN IP4 192.168.8.105
+s=Unnamed
+t=0 0
+c=IN IP4 127.0.0.1
+m=video 0 RTP/AVP 99
+a=rtpmap:99 H264/90000
+a=control:trackID=1
+m=audio 0 RTP/AVP 0
+a=rtpmap:0 PCMU/8000
+a=control:trackID=2
+`
+	golden = strings.ReplaceAll(golden, "\n", "\r\n")
+	ctx, err := ParseSdp2LogicContext([]byte(golden))
+	assert.Equal(t, nil, err)
+	_ = ctx
+}
+
+// 见 #251
+func TestCase18(t *testing.T) {
+	golden := `v=0
+o=- 0 0 IN IP4 127.0.0.1
+s=No Name
+c=IN IP4 127.0.0.1
+t=0 0
+a=tool:libavformat LIBAVFORMAT_VERSION
+m=video 0 RTP/AVP 96
+a=rtpmap:96 H264/90000
+a=fmtp:96 packetization-mode=1; sprop-parameter-sets=Z2QAFqyyAUBf8uAiAAADAAIAAAMAPB4sXJA=,aOvDyyLA; profile-level-id=640016
+a=control:streamid=0
+m=audio 0 RTP/AVP 8
+b=AS:64
+a=control:streamid=1
+`
+	golden = strings.ReplaceAll(golden, "\n", "\r\n")
+	ctx, err := ParseSdp2LogicContext([]byte(golden))
+	assert.Equal(t, nil, err)
+	assert.Equal(t, true, ctx.IsAudioPayloadTypeOrigin(8))
+	assert.Equal(t, false, ctx.IsAudioUnpackable())
+}

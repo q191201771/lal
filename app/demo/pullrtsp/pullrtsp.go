@@ -25,9 +25,6 @@ import (
 
 // pullrtsp 拉取rtsp流，然后存储为flv文件或者dump文件进行分析
 
-// TODO(chef): dump功能整理成flag参数 202211
-// TODO(chef): dump中加入sdp 202211
-
 var remuxer *remux.AvPacket2RtmpRemuxer
 var dump *base.DumpFile
 

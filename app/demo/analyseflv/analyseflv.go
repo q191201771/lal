@@ -13,6 +13,7 @@ import (
 	"encoding/hex"
 	"flag"
 	"fmt"
+	"github.com/q191201771/lal/pkg/aac"
 	"strconv"
 	"strings"
 	"time"
@@ -32,7 +33,8 @@ import (
 	"github.com/q191201771/naza/pkg/nazalog"
 )
 
-// 分析诊断HTTP-FLV流的时间戳。注意，这个程序还没有完成。
+// 分析诊断HTTP-FLV流以及FLV文件的小工具。
+//
 // 功能：
 // - 时间戳回退检查
 //     - 当音频时间戳出现回退时打error日志
@@ -44,17 +46,19 @@ import (
 //     - 视频带宽
 //     - 视频DTS和PTS不相等的计数
 //     - I帧间隔时间
+// - metadata
 // - H264
 //     - 打印每个tag的类型：key seq header...
 //     - 打印每个tag中有多少个帧：SPS PPS SEI IDR SLICE...
 //     - 打印每个SLICE的类型：I、P、B...
-// 解析metadata信息，并打印
+// - AAC
+//     - 解析seq header
+//
 
 // TODO
 // - 检查时间戳正向大的跳跃
 // - 打印GOP中帧数量？
 // - slice_num?
-// - 输入源可以是httpflv，也可以是flv文件
 
 var (
 	timestampCheckFlag   = true
@@ -72,6 +76,85 @@ var (
 	diffIdrTs   = int64(-1)
 )
 
+var brTotal = bitrate.New(func(option *bitrate.Option) {
+	option.WindowMs = 5000
+})
+
+var brAudio = bitrate.New(func(option *bitrate.Option) {
+	option.WindowMs = 5000
+})
+
+var brVideo = bitrate.New(func(option *bitrate.Option) {
+	option.WindowMs = 5000
+})
+
+var videoCtsNotZeroCount = 0
+
+func handleTags(tag httpflv.Tag) bool {
+	if printEveryTagFlag {
+		nazalog.Debugf("header=%+v, hex=%s", tag.Header, hex.Dump(nazabytes.Prefix(tag.Payload(), 32)))
+	}
+
+	brTotal.Add(len(tag.Raw))
+
+	switch tag.Header.Type {
+	case httpflv.TagTypeMetadata:
+		if printMetaData {
+			nazalog.Debugf("----------\n%s", hex.Dump(tag.Payload()))
+
+			opa, err := rtmp.ParseMetadata(tag.Payload())
+			nazalog.Assert(nil, err)
+			var buf bytes.Buffer
+			buf.WriteString(fmt.Sprintf("-----\ncount:%d\n", len(opa)))
+			for _, op := range opa {
+				buf.WriteString(fmt.Sprintf("  %s: %+v\n", op.Key, op.Value))
+			}
+			nazalog.Debugf("%+v", buf.String())
+		}
+	case httpflv.TagTypeAudio:
+		nazalog.Debugf("header=%+v, body=%s", tag.Header, hex.Dump(nazabytes.Prefix(tag.Payload(), 128)))
+		brAudio.Add(len(tag.Raw))
+
+		if tag.IsAacSeqHeader() {
+			ascCtx, err := aac.NewAscContext(tag.Payload()[2:])
+			nazalog.Assert(nil, err)
+			nazalog.Infof("aac seq header. %s, %+v", hex.EncodeToString(tag.Payload()), ascCtx)
+		}
+		if timestampCheckFlag {
+			if prevAudioTs != -1 && int64(tag.Header.Timestamp) < prevAudioTs {
+				nazalog.Errorf("audio timestamp error, less than prev audio timestamp. header=%+v, prevAudioTs=%d, diff=%d", tag.Header, prevAudioTs, int64(tag.Header.Timestamp)-prevAudioTs)
+			}
+			if prevTs != -1 && int64(tag.Header.Timestamp) < prevTs {
+				nazalog.Warnf("audio timestamp error. less than prev global timestamp. header=%+v, prevTs=%d, diff=%d", tag.Header, prevTs, int64(tag.Header.Timestamp)-prevTs)
+			}
+		}
+		prevAudioTs = int64(tag.Header.Timestamp)
+		prevTs = int64(tag.Header.Timestamp)
+	case httpflv.TagTypeVideo:
+		analysisVideoTag(tag)
+
+		videoCts := bele.BeUint24(tag.Raw[13:])
+		if videoCts != 0 {
+			videoCtsNotZeroCount++
+		}
+
+		brVideo.Add(len(tag.Raw))
+
+		if timestampCheckFlag {
+			if prevVideoTs != -1 && int64(tag.Header.Timestamp) < prevVideoTs {
+				nazalog.Errorf("video timestamp error, less than prev video timestamp. header=%+v, prevVideoTs=%d, diff=%d", tag.Header, prevVideoTs, int64(tag.Header.Timestamp)-prevVideoTs)
+			}
+			if prevTs != -1 && int64(tag.Header.Timestamp) < prevTs {
+				nazalog.Warnf("video timestamp error, less than prev global timestamp. header=%+v, prevTs=%d, diff=%d", tag.Header, prevTs, int64(tag.Header.Timestamp)-prevTs)
+			}
+		}
+		prevVideoTs = int64(tag.Header.Timestamp)
+		prevTs = int64(tag.Header.Timestamp)
+	}
+
+	return true
+}
+
 func main() {
 	_ = nazalog.Init(func(option *nazalog.Option) {
 		option.AssertBehavior = nazalog.AssertFatal
@@ -79,20 +162,7 @@ func main() {
 	defer nazalog.Sync()
 	base.LogoutStartInfo()
 
-	url := parseFlag()
-	session := httpflv.NewPullSession()
-
-	brTotal := bitrate.New(func(option *bitrate.Option) {
-		option.WindowMs = 5000
-	})
-	brAudio := bitrate.New(func(option *bitrate.Option) {
-		option.WindowMs = 5000
-	})
-	brVideo := bitrate.New(func(option *bitrate.Option) {
-		option.WindowMs = 5000
-	})
-
-	videoCtsNotZeroCount := 0
+	in := parseFlag()
 
 	go func() {
 		for {
@@ -104,77 +174,26 @@ func main() {
 		}
 	}()
 
-	err := session.Pull(url, func(tag httpflv.Tag) {
-		if printEveryTagFlag {
-			nazalog.Debugf("header=%+v, hex=%s", tag.Header, hex.Dump(nazabytes.Prefix(tag.Payload(), 32)))
-		}
+	if strings.HasPrefix(in, "http") || strings.HasPrefix(in, "https") {
+		session := httpflv.NewPullSession()
+		// TODO(chef): [refactor] 统一 PullSession 和 FilePump 的回调格式 202211
+		err := session.Pull(in, func(tag httpflv.Tag) {
+			handleTags(tag)
+		})
+		nazalog.Assert(nil, err)
 
-		brTotal.Add(len(tag.Raw))
+		// 临时测试一下主动关闭client session
+		//go func() {
+		//	time.Sleep(5 * time.Second)
+		//	_ = session.Dispose()
+		//}()
 
-		switch tag.Header.Type {
-		case httpflv.TagTypeMetadata:
-			if printMetaData {
-				nazalog.Debugf("----------\n%s", hex.Dump(tag.Payload()))
-
-				opa, err := rtmp.ParseMetadata(tag.Payload())
-				nazalog.Assert(nil, err)
-				var buf bytes.Buffer
-				buf.WriteString(fmt.Sprintf("-----\ncount:%d\n", len(opa)))
-				for _, op := range opa {
-					buf.WriteString(fmt.Sprintf("  %s: %+v\n", op.Key, op.Value))
-				}
-				nazalog.Debugf("%+v", buf.String())
-			}
-		case httpflv.TagTypeAudio:
-			nazalog.Debugf("header=%+v, %+v", tag.Header, tag.IsAacSeqHeader())
-			brAudio.Add(len(tag.Raw))
-
-			if tag.IsAacSeqHeader() {
-				s := session.GetStat()
-				nazalog.Infof("aac seq header. readBytes=%d, %s", s.ReadBytesSum, hex.EncodeToString(tag.Payload()))
-			}
-			if timestampCheckFlag {
-				if prevAudioTs != -1 && int64(tag.Header.Timestamp) < prevAudioTs {
-					nazalog.Errorf("audio timestamp error, less than prev audio timestamp. header=%+v, prevAudioTs=%d, diff=%d", tag.Header, prevAudioTs, int64(tag.Header.Timestamp)-prevAudioTs)
-				}
-				if prevTs != -1 && int64(tag.Header.Timestamp) < prevTs {
-					nazalog.Warnf("audio timestamp error. less than prev global timestamp. header=%+v, prevTs=%d, diff=%d", tag.Header, prevTs, int64(tag.Header.Timestamp)-prevTs)
-				}
-			}
-			prevAudioTs = int64(tag.Header.Timestamp)
-			prevTs = int64(tag.Header.Timestamp)
-		case httpflv.TagTypeVideo:
-			analysisVideoTag(tag)
-
-			videoCts := bele.BeUint24(tag.Raw[13:])
-			if videoCts != 0 {
-				videoCtsNotZeroCount++
-			}
-
-			brVideo.Add(len(tag.Raw))
-
-			if timestampCheckFlag {
-				if prevVideoTs != -1 && int64(tag.Header.Timestamp) < prevVideoTs {
-					nazalog.Errorf("video timestamp error, less than prev video timestamp. header=%+v, prevVideoTs=%d, diff=%d", tag.Header, prevVideoTs, int64(tag.Header.Timestamp)-prevVideoTs)
-				}
-				if prevTs != -1 && int64(tag.Header.Timestamp) < prevTs {
-					nazalog.Warnf("video timestamp error, less than prev global timestamp. header=%+v, prevTs=%d, diff=%d", tag.Header, prevTs, int64(tag.Header.Timestamp)-prevTs)
-				}
-			}
-			prevVideoTs = int64(tag.Header.Timestamp)
-			prevTs = int64(tag.Header.Timestamp)
-		}
-	})
-	nazalog.Assert(nil, err)
-
-	// 临时测试一下主动关闭client session
-	//go func() {
-	//	time.Sleep(5 * time.Second)
-	//	_ = session.Dispose()
-	//}()
-
-	err = <-session.WaitChan()
-	nazalog.Errorf("< session.WaitChan. err=%+v", err)
+		err = <-session.WaitChan()
+		nazalog.Errorf("< session.WaitChan. err=%+v", err)
+	} else {
+		err := httpflv.NewFlvFilePump().Pump(in, handleTags)
+		nazalog.Assert(nil, err)
+	}
 }
 
 const (
@@ -246,7 +265,7 @@ func analysisVideoTag(tag httpflv.Tag) {
 	}
 }
 
-// 注意，SEI的内容是自定义格式，解析的代码不具有通用性
+// SeiDelayMs 注意，SEI的内容是自定义格式，解析的代码不具有通用性
 func SeiDelayMs(seiNalu []byte) int {
 	//nazalog.Debugf("sei: %s", hex.Dump(seiNalu))
 	items := strings.Split(string(seiNalu), ":")
@@ -264,11 +283,11 @@ func SeiDelayMs(seiNalu []byte) int {
 }
 
 func parseFlag() string {
-	url := flag.String("i", "", "specify http-flv url")
+	in := flag.String("i", "", "specify http-flv url, or flv filename")
 	flag.Parse()
-	if *url == "" {
+	if *in == "" {
 		flag.Usage()
 		base.OsExitAndWaitPressIfWindows(1)
 	}
-	return *url
+	return *in
 }

@@ -64,6 +64,8 @@ func (a *AvPacketQueue) Feed(pkt base.AvPacket) {
 		pkt.Timestamp -= a.videoBaseTs
 
 		_ = a.videoQueue.PushBack(pkt)
+	case base.AvPacketPtG711A:
+		fallthrough
 	case base.AvPacketPtAac:
 		if pkt.Timestamp < a.audioBaseTs {
 			Log.Warnf("audio ts rotate. pktTS=%d, audioBaseTs=%d, videoBaseTs=%d, audioQueue=%d, videoQueue=%d",

@@ -11,9 +11,10 @@ package rtmp
 // 将message切割成chunk
 
 import (
+	"net"
+
 	"github.com/q191201771/lal/pkg/base"
 	"github.com/q191201771/naza/pkg/bele"
-	"net"
 )
 
 type ChunkDivider struct {
@@ -138,15 +139,20 @@ func message2Chunks(message []byte, header *base.RtmpHeader, prevHeader *base.Rt
 	//	return nil, ErrRtmp
 	//}
 
-	// 计算chunk数量，最后一个chunk的大小
+	// 注意，这里我们要尽量缩小预分配内存的大小
+	var maxNeededLen int
+
 	numOfChunk := len(message) / chunkSize
+	maxNeededLen = numOfChunk * (chunkSize + maxHeaderSize)
+
+	// 计算chunk数量，最后一个chunk的大小
 	lastChunkSize := chunkSize
 	if len(message)%chunkSize != 0 {
 		numOfChunk++
 		lastChunkSize = len(message) % chunkSize
+		maxNeededLen += lastChunkSize + maxHeaderSize
 	}
 
-	maxNeededLen := (chunkSize + maxHeaderSize) * numOfChunk
 	out := make([]byte, maxNeededLen)
 
 	var index int
