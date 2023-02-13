@@ -10,10 +10,13 @@ package logic
 
 import (
 	"encoding/json"
-	"github.com/q191201771/naza/pkg/nazajson"
+	"html/template"
 	"io/ioutil"
 	"net"
 	"net/http"
+	"strings"
+
+	"github.com/q191201771/naza/pkg/nazajson"
 
 	"github.com/q191201771/naza/pkg/nazahttp"
 
@@ -26,6 +29,8 @@ type HttpApiServer struct {
 
 	ln net.Listener
 }
+
+var webUITpl string
 
 func NewHttpApiServer(addr string, sm *ServerManager) *HttpApiServer {
 	return &HttpApiServer{
@@ -53,7 +58,7 @@ func (h *HttpApiServer) RunLoop() error {
 	mux.HandleFunc("/api/ctrl/stop_relay_pull", h.ctrlStopRelayPullHandler)
 	mux.HandleFunc("/api/ctrl/kick_session", h.ctrlKickSessionHandler)
 	mux.HandleFunc("/api/ctrl/start_rtp_pub", h.ctrlStartRtpPubHandler)
-	mux.HandleFunc("/", h.notFoundHandler)
+	mux.HandleFunc("/", h.webUIHandler)
 
 	var srv http.Server
 	srv.Handler = mux
@@ -212,6 +217,36 @@ func (h *HttpApiServer) ctrlStartRtpPubHandler(w http.ResponseWriter, req *http.
 }
 
 // ---------------------------------------------------------------------------------------------------------------------
+
+func (h *HttpApiServer) webUIHandler(w http.ResponseWriter, req *http.Request) {
+	if req.URL.Path != "/" {
+		h.notFoundHandler(w, req)
+		return
+	}
+
+	t, err := template.New("webUI").Parse(webUITpl)
+	if err != nil {
+		Log.Errorf("invaild html template: %v", err)
+		return
+	}
+
+	lalInfo := h.sm.StatLalInfo()
+	data := map[string]interface{}{
+		"ServerID":      lalInfo.ServerId,
+		"LalVersion":    lalInfo.LalVersion,
+		"ApiVersion":    lalInfo.ApiVersion,
+		"NotifyVersion": lalInfo.NotifyVersion,
+		"StartTime":     lalInfo.StartTime,
+	}
+	for _, item := range strings.Split(lalInfo.BinInfo, ". ") {
+		if index := strings.Index(item, "="); index != -1 {
+			k := item[:index]
+			v := strings.TrimPrefix(strings.TrimSuffix(item[index:], "."), "=")
+			data[k] = v
+		}
+	}
+	t.Execute(w, data)
+}
 
 func (h *HttpApiServer) notFoundHandler(w http.ResponseWriter, req *http.Request) {
 	Log.Warnf("invalid http-api request. uri=%s, raddr=%s", req.RequestURI, req.RemoteAddr)

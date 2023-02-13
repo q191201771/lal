@@ -18,6 +18,7 @@ GitCommitLog=${GitCommitLog//\'/\"}
 GitStatus=`git status -s`
 BuildTime=`date +'%Y.%m.%d.%H%M%S'`
 BuildGoVersion=`go version`
+WebUITpl=`cat lal.html`
 
 LDFlags=" \
     -X 'github.com/q191201771/naza/pkg/bininfo.GitTag=${GitTag}' \
@@ -25,6 +26,7 @@ LDFlags=" \
     -X 'github.com/q191201771/naza/pkg/bininfo.GitStatus=${GitStatus}' \
     -X 'github.com/q191201771/naza/pkg/bininfo.BuildTime=${BuildTime}' \
     -X 'github.com/q191201771/naza/pkg/bininfo.BuildGoVersion=${BuildGoVersion}' \
+    -X 'github.com/q191201771/lal/pkg/logic.webUITpl=${WebUITpl}' \
 "
 
 echo "build" ${ROOT_DIR}/app/lalserver "..."
