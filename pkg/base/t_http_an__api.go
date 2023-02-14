@@ -63,53 +63,53 @@ const (
 	ErrorCodeListenUdpPortFail  = 2002
 )
 
-// TODO(chef): [refactor] 所有Resp类型的结构体名加上Resp后缀 202209
-
 // HttpResponseBasic
-//
-// TODO(chef): 因为ILalserver会直接使用这个接口，所以重命名为ApiResponseBasic
-type HttpResponseBasic struct {
+type ApiRespBasic struct {
 	ErrorCode int    `json:"error_code"`
 	Desp      string `json:"desp"`
 }
 
-type ApiStatLalInfo struct {
-	HttpResponseBasic
+type ApiStatLalInfoResp struct {
+	ApiRespBasic
 	Data LalInfo `json:"data"`
 }
 
-type ApiStatAllGroup struct {
-	HttpResponseBasic
+type ApiStatAllGroupResp struct {
+	ApiRespBasic
 	Data struct {
 		Groups []StatGroup `json:"groups"`
 	} `json:"data"`
 }
 
-type ApiStatGroup struct {
-	HttpResponseBasic
+type ApiStatGroupResp struct {
+	ApiRespBasic
 	Data *StatGroup `json:"data"`
 }
 
-type ApiCtrlStartRelayPull struct {
-	HttpResponseBasic
+type ApiCtrlStartRelayPullResp struct {
+	ApiRespBasic
 	Data struct {
 		StreamName string `json:"stream_name"`
 		SessionId  string `json:"session_id"`
 	} `json:"data"`
 }
 
-type ApiCtrlStopRelayPull struct {
-	HttpResponseBasic
+type ApiCtrlStopRelayPullResp struct {
+	ApiRespBasic
 	Data struct {
 		SessionId string `json:"session_id"`
 	} `json:"data"`
 }
 
-type ApiCtrlStartRtpPub struct {
-	HttpResponseBasic
+type ApiCtrlKickSessionResp struct {
+	ApiRespBasic
+}
+
+type ApiCtrlStartRtpPubResp struct {
+	ApiRespBasic
 	Data struct {
 		StreamName string `json:"stream_name"`
 		SessionId  string `json:"session_id"`
 		Port       int    `json:"port"`
-	}
+	} `json:"data"`
 }

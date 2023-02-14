@@ -53,7 +53,7 @@ func (sm *ServerManager) StatGroup(streamName string) *base.StatGroup {
 	return &ret
 }
 
-func (sm *ServerManager) CtrlStartRelayPull(info base.ApiCtrlStartRelayPullReq) (ret base.ApiCtrlStartRelayPull) {
+func (sm *ServerManager) CtrlStartRelayPull(info base.ApiCtrlStartRelayPullReq) (ret base.ApiCtrlStartRelayPullResp) {
 	sm.mutex.Lock()
 	defer sm.mutex.Unlock()
 
@@ -87,7 +87,7 @@ func (sm *ServerManager) CtrlStartRelayPull(info base.ApiCtrlStartRelayPullReq) 
 // CtrlStopRelayPull
 //
 // TODO(chef): 整理错误值
-func (sm *ServerManager) CtrlStopRelayPull(streamName string) (ret base.ApiCtrlStopRelayPull) {
+func (sm *ServerManager) CtrlStopRelayPull(streamName string) (ret base.ApiCtrlStopRelayPullResp) {
 	sm.mutex.Lock()
 	defer sm.mutex.Unlock()
 
@@ -113,7 +113,7 @@ func (sm *ServerManager) CtrlStopRelayPull(streamName string) (ret base.ApiCtrlS
 // CtrlKickSession
 //
 // TODO(chef): refactor 不要返回http结果，返回error吧
-func (sm *ServerManager) CtrlKickSession(info base.ApiCtrlKickSessionReq) (ret base.HttpResponseBasic) {
+func (sm *ServerManager) CtrlKickSession(info base.ApiCtrlKickSessionReq) (ret base.ApiCtrlKickSessionResp) {
 	sm.mutex.Lock()
 	defer sm.mutex.Unlock()
 	g := sm.getGroup("", info.StreamName)
@@ -134,7 +134,7 @@ func (sm *ServerManager) CtrlKickSession(info base.ApiCtrlKickSessionReq) (ret b
 	return
 }
 
-func (sm *ServerManager) CtrlStartRtpPub(info base.ApiCtrlStartRtpPubReq) (ret base.ApiCtrlStartRtpPub) {
+func (sm *ServerManager) CtrlStartRtpPub(info base.ApiCtrlStartRtpPubReq) (ret base.ApiCtrlStartRtpPubResp) {
 	sm.mutex.Lock()
 	defer sm.mutex.Unlock()
 

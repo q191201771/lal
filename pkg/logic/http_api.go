@@ -70,7 +70,7 @@ func (h *HttpApiServer) RunLoop() error {
 // ---------------------------------------------------------------------------------------------------------------------
 
 func (h *HttpApiServer) statLalInfoHandler(w http.ResponseWriter, req *http.Request) {
-	var v base.ApiStatLalInfo
+	var v base.ApiStatLalInfoResp
 	v.ErrorCode = base.ErrorCodeSucc
 	v.Desp = base.DespSucc
 	v.Data = h.sm.StatLalInfo()
@@ -78,7 +78,7 @@ func (h *HttpApiServer) statLalInfoHandler(w http.ResponseWriter, req *http.Requ
 }
 
 func (h *HttpApiServer) statAllGroupHandler(w http.ResponseWriter, req *http.Request) {
-	var v base.ApiStatAllGroup
+	var v base.ApiStatAllGroupResp
 	v.ErrorCode = base.ErrorCodeSucc
 	v.Desp = base.DespSucc
 	v.Data.Groups = h.sm.StatAllGroup()
@@ -86,7 +86,7 @@ func (h *HttpApiServer) statAllGroupHandler(w http.ResponseWriter, req *http.Req
 }
 
 func (h *HttpApiServer) statGroupHandler(w http.ResponseWriter, req *http.Request) {
-	var v base.ApiStatGroup
+	var v base.ApiStatGroupResp
 
 	q := req.URL.Query()
 	streamName := q.Get("stream_name")
@@ -114,7 +114,7 @@ func (h *HttpApiServer) statGroupHandler(w http.ResponseWriter, req *http.Reques
 // ---------------------------------------------------------------------------------------------------------------------
 
 func (h *HttpApiServer) ctrlStartRelayPullHandler(w http.ResponseWriter, req *http.Request) {
-	var v base.ApiCtrlStartRelayPull
+	var v base.ApiCtrlStartRelayPullResp
 	var info base.ApiCtrlStartRelayPullReq
 
 	j, err := unmarshalRequestJsonBody(req, &info, "url")
@@ -147,7 +147,7 @@ func (h *HttpApiServer) ctrlStartRelayPullHandler(w http.ResponseWriter, req *ht
 }
 
 func (h *HttpApiServer) ctrlStopRelayPullHandler(w http.ResponseWriter, req *http.Request) {
-	var v base.ApiCtrlStopRelayPull
+	var v base.ApiCtrlStopRelayPullResp
 
 	q := req.URL.Query()
 	streamName := q.Get("stream_name")
@@ -166,7 +166,7 @@ func (h *HttpApiServer) ctrlStopRelayPullHandler(w http.ResponseWriter, req *htt
 }
 
 func (h *HttpApiServer) ctrlKickSessionHandler(w http.ResponseWriter, req *http.Request) {
-	var v base.HttpResponseBasic
+	var v base.ApiCtrlKickSessionResp
 	var info base.ApiCtrlKickSessionReq
 
 	_, err := unmarshalRequestJsonBody(req, &info, "stream_name", "session_id")
@@ -186,7 +186,7 @@ func (h *HttpApiServer) ctrlKickSessionHandler(w http.ResponseWriter, req *http.
 }
 
 func (h *HttpApiServer) ctrlStartRtpPubHandler(w http.ResponseWriter, req *http.Request) {
-	var v base.ApiCtrlStartRtpPub
+	var v base.ApiCtrlStartRtpPubResp
 	var info base.ApiCtrlStartRtpPubReq
 
 	j, err := unmarshalRequestJsonBody(req, &info, "stream_name")

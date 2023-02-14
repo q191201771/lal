@@ -94,7 +94,7 @@ func (group *Group) AddRtspPubSession(session *rtsp.PubSession) error {
 	return nil
 }
 
-func (group *Group) StartRtpPub(req base.ApiCtrlStartRtpPubReq) (ret base.ApiCtrlStartRtpPub) {
+func (group *Group) StartRtpPub(req base.ApiCtrlStartRtpPubReq) (ret base.ApiCtrlStartRtpPubResp) {
 	group.mutex.Lock()
 	defer group.mutex.Unlock()
 

@@ -42,9 +42,9 @@ type ILalServer interface {
 	StatLalInfo() base.LalInfo
 	StatAllGroup() (sgs []base.StatGroup)
 	StatGroup(streamName string) *base.StatGroup
-	CtrlStartRelayPull(info base.ApiCtrlStartRelayPullReq) base.ApiCtrlStartRelayPull
-	CtrlStopRelayPull(streamName string) base.ApiCtrlStopRelayPull
-	CtrlKickSession(info base.ApiCtrlKickSessionReq) base.HttpResponseBasic
+	CtrlStartRelayPull(info base.ApiCtrlStartRelayPullReq) base.ApiCtrlStartRelayPullResp
+	CtrlStopRelayPull(streamName string) base.ApiCtrlStopRelayPullResp
+	CtrlKickSession(info base.ApiCtrlKickSessionReq) base.ApiCtrlKickSessionResp
 }
 
 // NewLalServer 创建一个lal server
@@ -136,3 +136,12 @@ var DefaultConfFilenameList = []string{
 	filepath.FromSlash("../../../conf/lalserver.conf.json"),
 	filepath.FromSlash("lal/conf/lalserver.conf.json"),
 }
+
+// ---------------------------------------------------------------------------------------------------------------------
+
+// TODO(chef): [doc] 整理散乱在源码文件中的以注释形式存在的文档 202302
+//
+// - base/t_session.go       session相关的
+// - logic/group__.go        1) group内的流转关系 2) group对session的接口要求
+// - base/dump_file.go       session对debug dump的支持情况
+// - innertest/iface_impl.go 所有interface以及实现了interface的struct
