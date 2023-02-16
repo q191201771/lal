@@ -9,6 +9,7 @@
 package logic
 
 import (
+	_ "embed"
 	"encoding/json"
 	"html/template"
 	"io/ioutil"
@@ -23,14 +24,15 @@ import (
 	"github.com/q191201771/lal/pkg/base"
 )
 
+//go:embed http_an__lal.html
+var webUITpl string
+
 type HttpApiServer struct {
 	addr string
 	sm   *ServerManager
 
 	ln net.Listener
 }
-
-var webUITpl string
 
 func NewHttpApiServer(addr string, sm *ServerManager) *HttpApiServer {
 	return &HttpApiServer{
@@ -50,6 +52,8 @@ func (h *HttpApiServer) Listen() (err error) {
 func (h *HttpApiServer) RunLoop() error {
 	mux := http.NewServeMux()
 
+	mux.HandleFunc("/lal.html", h.webUIHandler)
+
 	mux.HandleFunc("/api/stat/group", h.statGroupHandler)
 	mux.HandleFunc("/api/stat/all_group", h.statAllGroupHandler)
 	mux.HandleFunc("/api/stat/lal_info", h.statLalInfoHandler)
@@ -58,7 +62,8 @@ func (h *HttpApiServer) RunLoop() error {
 	mux.HandleFunc("/api/ctrl/stop_relay_pull", h.ctrlStopRelayPullHandler)
 	mux.HandleFunc("/api/ctrl/kick_session", h.ctrlKickSessionHandler)
 	mux.HandleFunc("/api/ctrl/start_rtp_pub", h.ctrlStartRtpPubHandler)
-	mux.HandleFunc("/", h.webUIHandler)
+	// 所有没有注册路由的走下面这个处理函数
+	mux.HandleFunc("/", h.notFoundHandler)
 
 	var srv http.Server
 	srv.Handler = mux
@@ -108,7 +113,6 @@ func (h *HttpApiServer) statGroupHandler(w http.ResponseWriter, req *http.Reques
 	v.ErrorCode = base.ErrorCodeSucc
 	v.Desp = base.DespSucc
 	feedback(v, w)
-	return
 }
 
 // ---------------------------------------------------------------------------------------------------------------------
@@ -143,7 +147,6 @@ func (h *HttpApiServer) ctrlStartRelayPullHandler(w http.ResponseWriter, req *ht
 
 	resp := h.sm.CtrlStartRelayPull(info)
 	feedback(resp, w)
-	return
 }
 
 func (h *HttpApiServer) ctrlStopRelayPullHandler(w http.ResponseWriter, req *http.Request) {
@@ -162,7 +165,6 @@ func (h *HttpApiServer) ctrlStopRelayPullHandler(w http.ResponseWriter, req *htt
 
 	resp := h.sm.CtrlStopRelayPull(streamName)
 	feedback(resp, w)
-	return
 }
 
 func (h *HttpApiServer) ctrlKickSessionHandler(w http.ResponseWriter, req *http.Request) {
@@ -182,7 +184,6 @@ func (h *HttpApiServer) ctrlKickSessionHandler(w http.ResponseWriter, req *http.
 
 	resp := h.sm.CtrlKickSession(info)
 	feedback(resp, w)
-	return
 }
 
 func (h *HttpApiServer) ctrlStartRtpPubHandler(w http.ResponseWriter, req *http.Request) {
@@ -213,17 +214,9 @@ func (h *HttpApiServer) ctrlStartRtpPubHandler(w http.ResponseWriter, req *http.
 
 	resp := h.sm.CtrlStartRtpPub(info)
 	feedback(resp, w)
-	return
 }
 
-// ---------------------------------------------------------------------------------------------------------------------
-
 func (h *HttpApiServer) webUIHandler(w http.ResponseWriter, req *http.Request) {
-	if req.URL.Path != "/" {
-		h.notFoundHandler(w, req)
-		return
-	}
-
 	t, err := template.New("webUI").Parse(webUITpl)
 	if err != nil {
 		Log.Errorf("invaild html template: %v", err)
@@ -250,7 +243,11 @@ func (h *HttpApiServer) webUIHandler(w http.ResponseWriter, req *http.Request) {
 
 func (h *HttpApiServer) notFoundHandler(w http.ResponseWriter, req *http.Request) {
 	Log.Warnf("invalid http-api request. uri=%s, raddr=%s", req.RequestURI, req.RemoteAddr)
+	//w.WriteHeader(http.StatusNotFound)
+	feedback(base.ApiNotFoundResp, w)
 }
+
+// ---------------------------------------------------------------------------------------------------------------------
 
 func feedback(v interface{}, w http.ResponseWriter) {
 	resp, _ := json.Marshal(v)
