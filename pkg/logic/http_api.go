@@ -229,6 +229,7 @@ func (h *HttpApiServer) webUIHandler(w http.ResponseWriter, req *http.Request) {
 		"LalVersion":    lalInfo.LalVersion,
 		"ApiVersion":    lalInfo.ApiVersion,
 		"NotifyVersion": lalInfo.NotifyVersion,
+		"WebUiVersion":  lalInfo.WebUiVersion,
 		"StartTime":     lalInfo.StartTime,
 	}
 	for _, item := range strings.Split(lalInfo.BinInfo, ". ") {

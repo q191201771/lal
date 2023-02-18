@@ -25,6 +25,7 @@ func (sm *ServerManager) StatLalInfo() base.LalInfo {
 	lalInfo.LalVersion = base.LalVersion
 	lalInfo.ApiVersion = base.HttpApiVersion
 	lalInfo.NotifyVersion = base.HttpNotifyVersion
+	lalInfo.WebUiVersion = base.HttpWebUiVersion
 	lalInfo.StartTime = sm.serverStartTime
 	lalInfo.ServerId = sm.config.ServerId
 	return lalInfo
