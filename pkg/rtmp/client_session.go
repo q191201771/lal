@@ -79,6 +79,13 @@ type ClientSessionOption struct {
 	PeerWinAckSize int
 
 	ReuseReadMessageBufferFlag bool // 接收Message时，是否重用内存块
+
+	// TlsConfig
+	// rtmps时使用。
+	// 不关心可以不填。
+	// 业务方可以通过这个字段自定义 tls.Config
+	// 注意，如果使用rtmps并且该字段为nil，那么内部会使用 base.DefaultTlsConfigClient 生成 tls.Config
+	TlsConfig *tls.Config
 }
 
 var defaultClientSessOption = ClientSessionOption{
@@ -107,6 +114,10 @@ func NewClientSession(sessionType base.SessionType, modOptions ...ModClientSessi
 		hc = &HandshakeClientComplex{}
 	} else {
 		hc = &HandshakeClientSimple{}
+	}
+
+	if option.TlsConfig == nil {
+		option.TlsConfig = base.DefaultTlsConfigClient()
 	}
 
 	cc := NewChunkComposer()
@@ -291,12 +302,7 @@ func (s *ClientSession) tcpConnect() error {
 
 	var conn net.Conn
 	if s.urlCtx.Scheme == "rtmps" {
-		// rtmps跳过证书认证
-		conf := &tls.Config{
-			InsecureSkipVerify: true,
-		}
-
-		if conn, err = tls.Dial("tcp", s.urlCtx.HostWithPort, conf); err != nil {
+		if conn, err = tls.Dial("tcp", s.urlCtx.HostWithPort, s.option.TlsConfig); err != nil {
 			return err
 		}
 	} else {
