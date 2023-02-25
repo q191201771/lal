@@ -91,7 +91,7 @@ type HlsConfig struct {
 	UseMemoryAsDiskFlag bool `json:"use_memory_as_disk_flag"`
 	hls.MuxerConfig
 	SubSessionTimeoutMs int    `json:"sub_session_timeout_ms"`
-	SubSessionHashKey   string `json:"session_hash_key"`
+	SubSessionHashKey   string `json:"sub_session_hash_key"`
 }
 
 type RtspConfig struct {
