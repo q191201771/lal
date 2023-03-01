@@ -74,12 +74,10 @@ type ClientSessionOption struct {
 	WriteBufSize  int // io层发送音视频数据的缓冲大小，如果为0，则没有缓冲
 	WriteChanSize int // io层发送音视频数据的异步队列大小，如果为0，则同步发送
 
-	HandshakeComplexFlag bool // 握手是否使用复杂模式
-
-	PeerWinAckSize int
-
 	ReuseReadMessageBufferFlag bool // 接收Message时，是否重用内存块
+	PeerWinAckSize             int
 
+	HandshakeComplexFlag bool // 握手是否使用复杂模式
 	// TlsConfig
 	// rtmps时使用。
 	// 不关心可以不填。
