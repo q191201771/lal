@@ -23,6 +23,7 @@ type Stream struct {
 	header base.RtmpHeader
 	msg    StreamMsg
 
+	absTsFlag bool   // 标记当这个stream收到新的msg的时候，是否收到过绝对时间
 	timestamp uint32 // 注意，是rtmp chunk协议header中的时间戳，可能是绝对的，也可能是相对的。上层不应该使用这个字段，而应该使用Header.TimestampAbs
 }
 
