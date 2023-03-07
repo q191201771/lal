@@ -96,24 +96,24 @@ func (gc *GopCache) SetMetadata(w []byte, wo []byte) {
 // Feed
 //
 // @param lg: 内部可能持有lg返回的内存块
-func (gc *GopCache) Feed(msg base.RtmpMsg, b []byte) {
+func (gc *GopCache) Feed(msg base.RtmpMsg, b []byte) bool {
 	// TODO(chef): [refactor] 重构lg两个参数这种方式 202207
 
 	switch msg.Header.MsgTypeId {
 	case base.RtmpTypeIdMetadata:
 		// noop
-		return
+		return true
 	case base.RtmpTypeIdAudio:
 		if msg.IsAacSeqHeader() {
 			gc.AacSeqHeader = b
 			Log.Debugf("[%s] cache %s aac seq header. size:%d", gc.uniqueKey, gc.t, len(gc.AacSeqHeader))
-			return
+			return true
 		}
 	case base.RtmpTypeIdVideo:
 		if msg.IsVideoKeySeqHeader() {
 			gc.VideoSeqHeader = b
 			Log.Debugf("[%s] cache %s video seq header. size:%d", gc.uniqueKey, gc.t, len(gc.VideoSeqHeader))
-			return
+			return true
 		}
 	}
 
@@ -121,9 +121,10 @@ func (gc *GopCache) Feed(msg base.RtmpMsg, b []byte) {
 		if msg.IsVideoKeyNalu() {
 			gc.feedNewGop(msg, b)
 		} else {
-			gc.feedLastGop(msg, b)
+			return gc.feedLastGop(msg, b)
 		}
 	}
+	return true
 }
 
 // GetGopCount 获取GOP数量，注意，最后一个可能是不完整的
@@ -153,13 +154,16 @@ func (gc *GopCache) Clear() {
 //
 // 往最后一个GOP元素追加一个msg
 // 注意，如果GopCache为空，则不缓存msg
-func (gc *GopCache) feedLastGop(msg base.RtmpMsg, b []byte) {
+func (gc *GopCache) feedLastGop(msg base.RtmpMsg, b []byte) bool {
 	if !gc.isGopRingEmpty() {
 		gopPos := (gc.gopRingLast - 1 + gc.gopSize) % gc.gopSize
 		if gc.gopRing[gopPos].len() <= gc.singleGopMaxFrameNum || gc.singleGopMaxFrameNum == 0 {
 			gc.gopRing[gopPos].Feed(msg, b)
+		} else {
+			return false
 		}
 	}
+	return true
 }
 
 // feedNewGop

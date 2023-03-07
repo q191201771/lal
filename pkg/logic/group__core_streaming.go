@@ -375,13 +375,17 @@ func (group *Group) broadcastByRtmpMsg(msg base.RtmpMsg) {
 
 	// # 缓存关键信息，以及gop
 	if group.config.RtmpConfig.Enable || group.config.RtmpConfig.RtmpsEnable {
-		group.rtmpGopCache.Feed(msg, lazyRtmpChunkDivider.GetEnsureWithoutSdf())
+		if !group.rtmpGopCache.Feed(msg, lazyRtmpChunkDivider.GetEnsureWithoutSdf()) {
+			Log.Warnf("[%s] over frame number limit for a single gop in rtmp cache.", group.UniqueKey)
+		}
 		if msg.Header.MsgTypeId == base.RtmpTypeIdMetadata {
 			group.rtmpGopCache.SetMetadata(lazyRtmpChunkDivider.GetEnsureWithSdf(), lazyRtmpChunkDivider.GetEnsureWithoutSdf())
 		}
 	}
 	if group.config.HttpflvConfig.Enable {
-		group.httpflvGopCache.Feed(msg, lazyRtmpMsg2FlvTag.GetEnsureWithoutSdf())
+		if !group.httpflvGopCache.Feed(msg, lazyRtmpMsg2FlvTag.GetEnsureWithoutSdf()) {
+			Log.Warnf("[%s] over frame number limit for a single gop in http flv cache.", group.UniqueKey)
+		}
 		if msg.Header.MsgTypeId == base.RtmpTypeIdMetadata {
 			// 注意，因为withSdf实际上用不上，而且我们也没实现，所以全部用without了
 			group.httpflvGopCache.SetMetadata(lazyRtmpMsg2FlvTag.GetEnsureWithoutSdf(), lazyRtmpMsg2FlvTag.GetEnsureWithoutSdf())
