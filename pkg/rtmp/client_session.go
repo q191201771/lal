@@ -346,10 +346,8 @@ func (s *ClientSession) runReadLoop() {
 }
 
 func (s *ClientSession) doMsg(stream *Stream) error {
-	if s.sessionStat.BaseType() == base.SessionBaseTypePullStr {
-		if err := s.doRespAcknowledgement(stream); err != nil {
-			return err
-		}
+	if err := s.sendAcknowledgementIfNeeded(stream); err != nil {
+		return err
 	}
 
 	switch stream.header.MsgTypeId {
@@ -629,11 +627,12 @@ func (s *ClientSession) doProtocolControlMessage(stream *Stream) error {
 	return nil
 }
 
-func (s *ClientSession) doRespAcknowledgement(stream *Stream) error {
+func (s *ClientSession) sendAcknowledgementIfNeeded(stream *Stream) error {
 	// https://github.com/q191201771/lal/pull/154
 	if s.option.PeerWinAckSize <= 0 {
 		return nil
 	}
+
 	currStat := s.conn.GetStat()
 	delta := uint32(currStat.ReadBytesSum - s.recvLastAck)
 	//此次接收小于窗口大小一半，不处理
