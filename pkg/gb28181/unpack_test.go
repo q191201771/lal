@@ -10,12 +10,12 @@ package gb28181
 
 import (
 	"encoding/hex"
+	"os"
+	"testing"
+
 	"github.com/q191201771/lal/pkg/base"
 	"github.com/q191201771/lal/pkg/hevc"
 	"github.com/q191201771/naza/pkg/nazamd5"
-	"io/ioutil"
-	"os"
-	"testing"
 
 	"github.com/q191201771/lal/pkg/avc"
 	"github.com/q191201771/naza/pkg/nazabytes"
@@ -120,8 +120,8 @@ func test1() {
 	nazalog.Debugf("[test1] > test1")
 	// 读取raw文件(包连在一起，不包含rtp header)，存取h264文件
 
-	//b, err := ioutil.ReadFile("/tmp/udp.raw")
-	b, err := ioutil.ReadFile("/Volumes/T7/new/avfile/ka_at_13sec.ps")
+	//b, err := os.ReadFile("/tmp/udp.raw")
+	b, err := os.ReadFile("/Volumes/T7/new/avfile/ka_at_13sec.ps")
 	nazalog.Assert(nil, err)
 
 	fp, err := os.Create("/tmp/udp.h264")
@@ -154,7 +154,7 @@ func test1() {
 	unpacker.FeedRtpBody(b, 0)
 
 	fp.Close()
-	out, err := ioutil.ReadFile("/tmp/udp.h264")
+	out, err := os.ReadFile("/tmp/udp.h264")
 	nazalog.Assert(nil, err)
 	nazalog.Assert("fd8dbe365152e212bf8cbabb7a99c1aa", nazamd5.Md5(out))
 }
