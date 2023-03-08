@@ -75,7 +75,12 @@ type ClientSessionOption struct {
 	WriteChanSize int // io层发送音视频数据的异步队列大小，如果为0，则同步发送
 
 	ReuseReadMessageBufferFlag bool // 接收Message时，是否重用内存块
-	PeerWinAckSize             int
+	// PeerWinAckSize
+	//
+	// 设置发送 base.RtmpTypeIdAck 的触发阈值的默认值。
+	// 如果没收到 base.RtmpTypeIdWinAckSize，则使用该默认值作为阈值；
+	// 如果收到 base.RtmpTypeIdWinAckSize，则使用收到的值作为阈值。
+	PeerWinAckSize int
 
 	HandshakeComplexFlag bool // 握手是否使用复杂模式
 	// TlsConfig

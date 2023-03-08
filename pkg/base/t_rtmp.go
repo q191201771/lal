@@ -18,12 +18,18 @@ import (
 const (
 	// RtmpTypeIdAudio spec-rtmp_specification_1.0.pdf
 	// 7.1. Types of Messages
-	RtmpTypeIdAudio              uint8 = 8
-	RtmpTypeIdVideo              uint8 = 9
-	RtmpTypeIdMetadata           uint8 = 18 // RtmpTypeIdDataMessageAmf0
-	RtmpTypeIdSetChunkSize       uint8 = 1
-	RtmpTypeIdAck                uint8 = 3
-	RtmpTypeIdUserControl        uint8 = 4
+	RtmpTypeIdAudio        uint8 = 8
+	RtmpTypeIdVideo        uint8 = 9
+	RtmpTypeIdMetadata     uint8 = 18 // RtmpTypeIdDataMessageAmf0
+	RtmpTypeIdSetChunkSize uint8 = 1
+	// RtmpTypeIdAck 和 RtmpTypeIdWinAckSize 的含义：
+	//
+	// 一端向另一端发送 RtmpTypeIdWinAckSize ，要求对端每收够一定数据（一定数据的阈值包含在 RtmpTypeIdWinAckSize 信令中）后，向本端回复 RtmpTypeIdAck 。
+	//
+	// 常见的应用场景：数据发送端要求数据接收端定时发送心跳信令给本端。
+	RtmpTypeIdAck         uint8 = 3
+	RtmpTypeIdUserControl uint8 = 4
+	// RtmpTypeIdWinAckSize 见 RtmpTypeIdAck
 	RtmpTypeIdWinAckSize         uint8 = 5
 	RtmpTypeIdBandwidth          uint8 = 6
 	RtmpTypeIdCommandMessageAmf3 uint8 = 17
