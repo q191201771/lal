@@ -92,8 +92,9 @@ type ServerSession struct {
 
 	DisposeByObserverFlag bool
 
-	recvLastAck uint64
-	seqNum      uint32
+	peerWinAckSize int
+	recvLastAck    uint64
+	seqNum         uint32
 }
 
 func NewServerSession(observer IServerSessionObserver, conn net.Conn) *ServerSession {
@@ -207,13 +208,14 @@ func (s *ServerSession) handshake() error {
 }
 
 func (s *ServerSession) doMsg(stream *Stream) error {
-	if s.sessionStat.BaseType() == base.SessionBaseTypePubStr {
-		if err := s.doRespAcknowledgement(stream); err != nil {
-			return err
-		}
+	if err := s.writeAcknowledgementIfNeeded(stream); err != nil {
+		return err
 	}
+
 	//log.Debugf("%d %d %v", stream.header.msgTypeId, stream.msgLen, stream.header)
 	switch stream.header.MsgTypeId {
+	case base.RtmpTypeIdWinAckSize:
+		return s.doWinAckSize(stream)
 	case base.RtmpTypeIdSetChunkSize:
 		// noop
 		// 因为底层的 chunk composer 已经处理过了，这里就不用处理
@@ -238,6 +240,16 @@ func (s *ServerSession) doMsg(stream *Stream) error {
 		Log.Warnf("[%s] read unknown message. typeid=%d, %s", s.UniqueKey(), stream.header.MsgTypeId, stream.toDebugString())
 
 	}
+	return nil
+}
+
+func (s *ServerSession) doWinAckSize(stream *Stream) error {
+	if stream.msg.Len() < 4 {
+		return base.NewErrRtmpShortBuffer(4, int(stream.msg.Len()), "ClientSession::doProtocolControlMessage")
+	}
+
+	s.peerWinAckSize = int(bele.BeUint32(stream.msg.buff.Bytes()))
+	Log.Infof("[%s] < R Window Acknowledgement Size: %d", s.UniqueKey(), s.peerWinAckSize)
 	return nil
 }
 
@@ -353,7 +365,11 @@ func (s *ServerSession) doCommandAmf3Message(stream *Stream) error {
 	stream.msg.Skip(1)
 	return s.doCommandMessage(stream)
 }
-func (s *ServerSession) doRespAcknowledgement(stream *Stream) error {
+func (s *ServerSession) writeAcknowledgementIfNeeded(stream *Stream) error {
+	if s.peerWinAckSize <= 0 {
+		return nil
+	}
+
 	currStat := s.conn.GetStat()
 	delta := uint32(currStat.ReadBytesSum - s.recvLastAck)
 	//此次接收小于窗口大小一半，不处理

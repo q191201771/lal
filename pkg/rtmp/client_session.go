@@ -351,7 +351,7 @@ func (s *ClientSession) runReadLoop() {
 }
 
 func (s *ClientSession) doMsg(stream *Stream) error {
-	if err := s.sendAcknowledgementIfNeeded(stream); err != nil {
+	if err := s.writeAcknowledgementIfNeeded(stream); err != nil {
 		return err
 	}
 
@@ -632,7 +632,7 @@ func (s *ClientSession) doProtocolControlMessage(stream *Stream) error {
 	return nil
 }
 
-func (s *ClientSession) sendAcknowledgementIfNeeded(stream *Stream) error {
+func (s *ClientSession) writeAcknowledgementIfNeeded(stream *Stream) error {
 	// https://github.com/q191201771/lal/pull/154
 	if s.option.PeerWinAckSize <= 0 {
 		return nil
