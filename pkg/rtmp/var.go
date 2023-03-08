@@ -46,4 +46,3 @@ var (
 // 接收rtmp数据时，msg的初始内存块大小
 // 注意，该值只影响性能，不影响功能（大小不够会自动扩容）
 const initMsgLen = 4096
-const AckSeqMax = 0xf0000000

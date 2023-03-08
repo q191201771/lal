@@ -647,7 +647,7 @@ func (s *ClientSession) sendAcknowledgementIfNeeded(stream *Stream) error {
 	s.recvLastAck = currStat.ReadBytesSum
 	seqNum := s.seqNum + delta
 	//当序列号溢出时，将其重置
-	if seqNum > AckSeqMax {
+	if seqNum > ackSeqMax {
 		seqNum = delta
 	}
 	s.seqNum = seqNum
