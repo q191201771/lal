@@ -15,7 +15,8 @@ package base
 
 const (
 	// AudioCodecAac StatGroup.AudioCodec
-	AudioCodecAac = "AAC"
+	AudioCodecAac   = "AAC"
+	AudioCodecG711U = "PCMU"
 
 	// VideoCodecAvc StatGroup.VideoCodec
 	VideoCodecAvc  = "H264"

@@ -15,4 +15,5 @@ const (
 	ARtpMapEncodingNameH264  = "H264"
 	ARtpMapEncodingNameAac   = "MPEG4-GENERIC"
 	ARtpMapEncodingNameG711A = "PCMA"
+	ARtpMapEncodingNameG711U = "PCMU"
 )

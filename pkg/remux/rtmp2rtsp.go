@@ -10,9 +10,10 @@ package remux
 
 import (
 	"encoding/hex"
-	"github.com/q191201771/lal/pkg/h2645"
 	"math/rand"
 	"time"
+
+	"github.com/q191201771/lal/pkg/h2645"
 
 	"github.com/q191201771/lal/pkg/aac"
 	"github.com/q191201771/lal/pkg/avc"
@@ -73,6 +74,12 @@ func (r *Rtmp2RtspRemuxer) FeedRtmpMsg(msg base.RtmpMsg) {
 		if len(msg.Payload) <= 2 {
 			Log.Warnf("rtmp msg too short, ignore. header=%+v, payload=%s", msg.Header, hex.Dump(msg.Payload))
 			return
+		}
+		if r.audioPt == base.AvPacketPtUnknown {
+			switch msg.AudioCodecId() {
+			case base.RtmpSoundFormatG711U:
+				r.audioPt = base.AvPacketPtG711U
+			}
 		}
 	case base.RtmpTypeIdVideo:
 		if len(msg.Payload) <= 5 {
@@ -136,7 +143,7 @@ func (r *Rtmp2RtspRemuxer) doAnalyze() {
 		}
 
 		// 回调sdp
-		ctx, err := sdp.Pack(r.vps, r.sps, r.pps, r.asc)
+		ctx, err := sdp.Pack(r.vps, r.sps, r.pps, r.asc, r.audioPt)
 		Log.Assert(nil, err)
 		r.onSdp(ctx)
 
@@ -206,26 +213,32 @@ func (r *Rtmp2RtspRemuxer) remux(msg base.RtmpMsg) {
 }
 
 func (r *Rtmp2RtspRemuxer) getAudioPacker() *rtprtcp.RtpPacker {
-	if r.asc == nil {
-		return nil
-	}
-
 	if r.audioPacker == nil {
 		// TODO(chef): ssrc随机产生，并且整个lal没有在setup信令中传递ssrc
 		r.audioSsrc = rand.Uint32()
 
-		ascCtx, err := aac.NewAscContext(r.asc)
-		if err != nil {
-			Log.Errorf("parse asc failed. err=%+v", err)
-			return nil
-		}
-		clockRate, err := ascCtx.GetSamplingFrequency()
-		if err != nil {
-			Log.Errorf("get sampling frequency failed. err=%+v, asc=%s", err, hex.Dump(r.asc))
-		}
+		switch r.audioPt {
+		case base.AvPacketPtG711U:
+			pp := rtprtcp.NewRtpPackerPayloadPcm()
+			r.audioPacker = rtprtcp.NewRtpPacker(pp, 8000, r.audioSsrc)
+		case base.AvPacketPtAac:
+			if r.asc == nil {
+				return nil
+			}
 
-		pp := rtprtcp.NewRtpPackerPayloadAac()
-		r.audioPacker = rtprtcp.NewRtpPacker(pp, clockRate, r.audioSsrc)
+			ascCtx, err := aac.NewAscContext(r.asc)
+			if err != nil {
+				Log.Errorf("parse asc failed. err=%+v", err)
+				return nil
+			}
+			clockRate, err := ascCtx.GetSamplingFrequency()
+			if err != nil {
+				Log.Errorf("get sampling frequency failed. err=%+v, asc=%s", err, hex.Dump(r.asc))
+			}
+
+			pp := rtprtcp.NewRtpPackerPayloadAac()
+			r.audioPacker = rtprtcp.NewRtpPacker(pp, clockRate, r.audioSsrc)
+		}
 	}
 	return r.audioPacker
 }

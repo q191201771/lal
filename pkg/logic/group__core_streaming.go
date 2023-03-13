@@ -394,8 +394,15 @@ func (group *Group) broadcastByRtmpMsg(msg base.RtmpMsg) {
 
 	// # 记录stat
 	if group.stat.AudioCodec == "" {
-		if msg.IsAacSeqHeader() {
-			group.stat.AudioCodec = base.AudioCodecAac
+		if msg.Header.MsgTypeId == base.RtmpTypeIdAudio {
+			switch msg.AudioCodecId() {
+			case base.RtmpSoundFormatAac:
+				if msg.IsAacSeqHeader() {
+					group.stat.AudioCodec = base.AudioCodecAac
+				}
+			case base.RtmpSoundFormatG711U:
+				group.stat.AudioCodec = base.AudioCodecG711U
+			}
 		}
 	}
 	if group.stat.VideoCodec == "" {

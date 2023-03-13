@@ -11,6 +11,7 @@ package base
 import (
 	"encoding/hex"
 	"fmt"
+
 	"github.com/q191201771/naza/pkg/bele"
 	"github.com/q191201771/naza/pkg/nazabytes"
 )
@@ -86,9 +87,12 @@ const (
 	//   AACAUDIODATA
 	//     AACPacketType UI8
 	//     Data          UI8[n]
-	RtmpSoundFormatAac         uint8 = 10 // 注意，视频的CodecId是后4位，音频是前4位
-	RtmpAacPacketTypeSeqHeader       = 0
-	RtmpAacPacketTypeRaw             = 1
+	// 注意，视频的CodecId是后4位，音频是前4位
+	RtmpSoundFormatG711U uint8 = 8
+	RtmpSoundFormatAac   uint8 = 10
+
+	RtmpAacPacketTypeSeqHeader = 0
+	RtmpAacPacketTypeRaw       = 1
 )
 
 type RtmpHeader struct {
@@ -129,11 +133,15 @@ func (msg RtmpMsg) IsVideoKeyNalu() bool {
 }
 
 func (msg RtmpMsg) IsAacSeqHeader() bool {
-	return msg.Header.MsgTypeId == RtmpTypeIdAudio && (msg.Payload[0]>>4) == RtmpSoundFormatAac && msg.Payload[1] == RtmpAacPacketTypeSeqHeader
+	return msg.Header.MsgTypeId == RtmpTypeIdAudio && msg.AudioCodecId() == RtmpSoundFormatAac && msg.Payload[1] == RtmpAacPacketTypeSeqHeader
 }
 
 func (msg RtmpMsg) VideoCodecId() uint8 {
 	return msg.Payload[0] & 0xF
+}
+
+func (msg RtmpMsg) AudioCodecId() uint8 {
+	return msg.Payload[0] >> 4
 }
 
 func (msg RtmpMsg) Clone() (ret RtmpMsg) {

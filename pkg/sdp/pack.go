@@ -21,36 +21,43 @@ import (
 	"github.com/q191201771/lal/pkg/base"
 )
 
-func Pack(vps, sps, pps, asc []byte) (ctx LogicContext, err error) {
+func Pack(vps, sps, pps, asc []byte, audioPt base.AvPacketPt) (ctx LogicContext, err error) {
 	// 判断音频、视频是否存在，以及视频是H264还是H265
-	var hasAudio, hasVideo, isHevc bool
+	var hasAudio, hasVideo, isHevc, isAac bool
 	if sps != nil && pps != nil {
 		hasVideo = true
 		if vps != nil {
 			isHevc = true
 		}
 	}
-	if asc != nil {
-		hasAudio = true
+
+	var samplingFrequency int
+	if audioPt != base.AvPacketPtUnknown {
+		switch audioPt {
+		case base.AvPacketPtG711U:
+			hasAudio = true
+			samplingFrequency = 8000
+		case base.AvPacketPtAac:
+			if asc != nil {
+				isAac = true
+				hasAudio = true
+				// 判断AAC的采样率
+				var ascCtx *aac.AscContext
+				ascCtx, err = aac.NewAscContext(asc)
+				if err != nil {
+					return
+				}
+				samplingFrequency, err = ascCtx.GetSamplingFrequency()
+				if err != nil {
+					return
+				}
+			}
+		}
 	}
 
 	if !hasAudio && !hasVideo {
 		err = nazaerrors.Wrap(base.ErrSdp)
 		return
-	}
-
-	// 判断AAC的采样率
-	var samplingFrequency int
-	if asc != nil {
-		var ascCtx *aac.AscContext
-		ascCtx, err = aac.NewAscContext(asc)
-		if err != nil {
-			return
-		}
-		samplingFrequency, err = ascCtx.GetSamplingFrequency()
-		if err != nil {
-			return
-		}
 	}
 
 	sdpStr := fmt.Sprintf(`v=0
@@ -84,13 +91,21 @@ a=control:streamid=%d
 	}
 
 	if hasAudio {
-		tmpl := `m=audio 0 RTP/AVP 97
+		if isAac {
+			tmpl := `m=audio 0 RTP/AVP 97
 b=AS:128
 a=rtpmap:97 MPEG4-GENERIC/%d/2
 a=fmtp:97 profile-level-id=1;mode=AAC-hbr;sizelength=13;indexlength=3;indexdeltalength=3; config=%s
 a=control:streamid=%d
 `
-		sdpStr += fmt.Sprintf(tmpl, samplingFrequency, hex.EncodeToString(asc), streamid)
+			sdpStr += fmt.Sprintf(tmpl, samplingFrequency, hex.EncodeToString(asc), streamid)
+		} else {
+			tmpl := `m=audio 0 RTP/AVP 0
+a=rtpmap:0 PCMU/%d
+a=control:streamid=%d
+`
+			sdpStr += fmt.Sprintf(tmpl, samplingFrequency, streamid)
+		}
 	}
 
 	raw := []byte(strings.ReplaceAll(sdpStr, "\n", "\r\n"))
