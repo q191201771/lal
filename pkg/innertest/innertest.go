@@ -10,7 +10,7 @@ package innertest
 
 import (
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"os"
 	"runtime"
@@ -247,7 +247,7 @@ func entry() {
 
 	go func() {
 		b, _ := getHttpts()
-		_ = ioutil.WriteFile(wTsPullFileName, b, 0666)
+		_ = os.WriteFile(wTsPullFileName, b, 0666)
 		assert.Equal(t, goldenHttptsLenList[mode], len(b))
 		assert.Equal(t, goldenHttptsMd5List[mode], nazamd5.Md5(b))
 
@@ -327,27 +327,27 @@ func entry() {
 }
 
 func compareFile() {
-	r, err := ioutil.ReadFile(rFlvFileName)
+	r, err := os.ReadFile(rFlvFileName)
 	assert.Equal(t, nil, err)
 	Log.Debugf("%s filesize:%d", rFlvFileName, len(r))
 
 	// 检查httpflv
-	w, err := ioutil.ReadFile(wFlvPullFileName)
+	w, err := os.ReadFile(wFlvPullFileName)
 	assert.Equal(t, nil, err)
 	assert.Equal(t, goldenHttpflvLenList[mode], len(w))
 	assert.Equal(t, goldenHttpflvMd5List[mode], nazamd5.Md5(w))
 
 	// 检查rtmp
-	w, err = ioutil.ReadFile(wRtmpPullFileName)
+	w, err = os.ReadFile(wRtmpPullFileName)
 	assert.Equal(t, nil, err)
 	assert.Equal(t, goldenRtmpLenList[mode], len(w))
 	assert.Equal(t, goldenRtmpMd5List[mode], nazamd5.Md5(w))
 
 	// 检查hls的m3u8文件
-	playListM3u8, err := ioutil.ReadFile(wPlaylistM3u8FileName)
+	playListM3u8, err := os.ReadFile(wPlaylistM3u8FileName)
 	assert.Equal(t, nil, err)
 	assert.Equal(t, goldenPlaylistM3u8List[mode], string(playListM3u8))
-	recordM3u8, err := ioutil.ReadFile(wRecordM3u8FileName)
+	recordM3u8, err := os.ReadFile(wRecordM3u8FileName)
 	assert.Equal(t, nil, err)
 	assert.Equal(t, goldenRecordM3u8List[mode], string(recordM3u8))
 
@@ -431,7 +431,7 @@ func httpGet(url string) ([]byte, error) {
 		return nil, err
 	}
 	defer resp.Body.Close()
-	return ioutil.ReadAll(resp.Body)
+	return io.ReadAll(resp.Body)
 }
 
 func httpPost(url string, info interface{}) ([]byte, error) {
@@ -440,7 +440,7 @@ func httpPost(url string, info interface{}) ([]byte, error) {
 		return nil, err
 	}
 	defer resp.Body.Close()
-	return ioutil.ReadAll(resp.Body)
+	return io.ReadAll(resp.Body)
 }
 
 // ---------------------------------------------------------------------------------------------------------------------

@@ -9,13 +9,14 @@
 package innertest
 
 import (
+	"net"
+	"os"
+	"testing"
+
 	"github.com/q191201771/lal/pkg/base"
 	"github.com/q191201771/naza/pkg/bele"
 	"github.com/q191201771/naza/pkg/nazalog"
 	"github.com/q191201771/naza/pkg/nazanet"
-	"io/ioutil"
-	"net"
-	"testing"
 )
 
 // TestRe_PsPubSession
@@ -37,7 +38,7 @@ func TestDump_PsPub(t *testing.T) {
 	filename := "/tmp/record.psdata"
 	isTcpFlag := 1
 
-	b, err := ioutil.ReadFile(filename)
+	b, err := os.ReadFile(filename)
 	if len(b) == 0 || err != nil {
 		return
 	}

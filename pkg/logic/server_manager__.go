@@ -11,7 +11,6 @@ package logic
 import (
 	"flag"
 	"fmt"
-	"io/ioutil"
 	"net/http"
 	_ "net/http/pprof"
 	"os"
@@ -87,7 +86,7 @@ Doc: %s
 			}
 		}
 		var err error
-		rawContent, err = ioutil.ReadFile(confFile)
+		rawContent, err = os.ReadFile(confFile)
 		if err != nil {
 			_, _ = fmt.Fprintf(os.Stderr, "read conf file failed. file=%s err=%+v", confFile, err)
 			base.OsExitAndWaitPressIfWindows(1)

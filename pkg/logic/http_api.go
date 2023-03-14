@@ -12,7 +12,7 @@ import (
 	_ "embed"
 	"encoding/json"
 	"html/template"
-	"io/ioutil"
+	"io"
 	"net"
 	"net/http"
 	"strings"
@@ -261,7 +261,7 @@ func feedback(v interface{}, w http.ResponseWriter) {
 //
 // TODO(chef): [refactor] 搬到naza中 202205
 func unmarshalRequestJsonBody(r *http.Request, info interface{}, keyFieldList ...string) (nazajson.Json, error) {
-	body, err := ioutil.ReadAll(r.Body)
+	body, err := io.ReadAll(r.Body)
 	if err != nil {
 		return nazajson.Json{}, err
 	}

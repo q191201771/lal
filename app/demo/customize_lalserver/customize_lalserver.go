@@ -11,7 +11,6 @@ package main
 import (
 	"flag"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"time"
 
@@ -139,7 +138,7 @@ func showHowToCustomizePub(lals logic.ILalServer) {
 // readAudioPacketsFromFile 从aac es流文件读取所有音频包
 func readAudioPacketsFromFile(filename string) (audioContent []byte, audioPackets []base.AvPacket) {
 	var err error
-	audioContent, err = ioutil.ReadFile(filename)
+	audioContent, err = os.ReadFile(filename)
 	nazalog.Assert(nil, err)
 
 	pos := 0
@@ -170,7 +169,7 @@ func readAudioPacketsFromFile(filename string) (audioContent []byte, audioPacket
 // readVideoPacketsFromFile 从h264 es流文件读取所有视频包
 func readVideoPacketsFromFile(filename string) (videoContent []byte, videoPackets []base.AvPacket) {
 	var err error
-	videoContent, err = ioutil.ReadFile(filename)
+	videoContent, err = os.ReadFile(filename)
 	nazalog.Assert(nil, err)
 
 	timestamp := float32(0)
