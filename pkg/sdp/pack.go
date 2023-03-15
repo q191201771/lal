@@ -21,7 +21,7 @@ import (
 	"github.com/q191201771/lal/pkg/base"
 )
 
-func Pack(vps, sps, pps, asc []byte, audioPt base.AvPacketPt) (ctx LogicContext, err error) {
+func Pack(vps, sps, pps, asc []byte, audioPt base.AvPacketPt, samplingFrequency int) (ctx LogicContext, err error) {
 	// 判断音频、视频是否存在，以及视频是H264还是H265
 	var hasAudio, hasVideo, isHevc, isAac bool
 	if sps != nil && pps != nil {
@@ -31,12 +31,10 @@ func Pack(vps, sps, pps, asc []byte, audioPt base.AvPacketPt) (ctx LogicContext,
 		}
 	}
 
-	var samplingFrequency int
 	if audioPt != base.AvPacketPtUnknown {
 		switch audioPt {
 		case base.AvPacketPtG711U:
 			hasAudio = true
-			samplingFrequency = 8000
 		case base.AvPacketPtAac:
 			if asc != nil {
 				isAac = true

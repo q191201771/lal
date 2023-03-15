@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"github.com/q191201771/lal/pkg/h2645"
+	"github.com/q191201771/lal/pkg/rtmp"
 
 	"github.com/q191201771/lal/pkg/aac"
 	"github.com/q191201771/lal/pkg/avc"
@@ -42,6 +43,7 @@ type Rtmp2RtspRemuxer struct {
 	vps, sps, pps, asc []byte
 	audioPt            base.AvPacketPt
 	videoPt            base.AvPacketPt
+	audioSampleRate    int
 
 	audioSsrc   uint32
 	videoSsrc   uint32
@@ -56,10 +58,11 @@ type OnRtpPacket func(pkt rtprtcp.RtpPacket)
 // @param onRtpPacket: 每次回调为独立的内存块，回调结束后，内部不再使用该内存块
 func NewRtmp2RtspRemuxer(onSdp OnSdp, onRtpPacket OnRtpPacket) *Rtmp2RtspRemuxer {
 	return &Rtmp2RtspRemuxer{
-		onSdp:       onSdp,
-		onRtpPacket: onRtpPacket,
-		audioPt:     base.AvPacketPtUnknown,
-		videoPt:     base.AvPacketPtUnknown,
+		onSdp:           onSdp,
+		onRtpPacket:     onRtpPacket,
+		audioPt:         base.AvPacketPtUnknown,
+		videoPt:         base.AvPacketPtUnknown,
+		audioSampleRate: -1,
 	}
 }
 
@@ -69,6 +72,11 @@ func (r *Rtmp2RtspRemuxer) FeedRtmpMsg(msg base.RtmpMsg) {
 
 	switch msg.Header.MsgTypeId {
 	case base.RtmpTypeIdMetadata:
+		if meta, err := rtmp.ParseMetadata(msg.Payload); err == nil {
+			if samplerate, ok := meta.Find("audiosamplerate").(float64); ok {
+				r.audioSampleRate = int(samplerate)
+			}
+		}
 		return
 	case base.RtmpTypeIdAudio:
 		if len(msg.Payload) <= 2 {
@@ -79,6 +87,9 @@ func (r *Rtmp2RtspRemuxer) FeedRtmpMsg(msg base.RtmpMsg) {
 			switch msg.AudioCodecId() {
 			case base.RtmpSoundFormatG711U:
 				r.audioPt = base.AvPacketPtG711U
+				if r.audioSampleRate < 0 {
+					r.audioSampleRate = 8000
+				}
 			}
 		}
 	case base.RtmpTypeIdVideo:
@@ -143,7 +154,7 @@ func (r *Rtmp2RtspRemuxer) doAnalyze() {
 		}
 
 		// 回调sdp
-		ctx, err := sdp.Pack(r.vps, r.sps, r.pps, r.asc, r.audioPt)
+		ctx, err := sdp.Pack(r.vps, r.sps, r.pps, r.asc, r.audioPt, r.audioSampleRate)
 		Log.Assert(nil, err)
 		r.onSdp(ctx)
 
@@ -220,7 +231,7 @@ func (r *Rtmp2RtspRemuxer) getAudioPacker() *rtprtcp.RtpPacker {
 		switch r.audioPt {
 		case base.AvPacketPtG711U:
 			pp := rtprtcp.NewRtpPackerPayloadPcm()
-			r.audioPacker = rtprtcp.NewRtpPacker(pp, 8000, r.audioSsrc)
+			r.audioPacker = rtprtcp.NewRtpPacker(pp, r.audioSampleRate, r.audioSsrc)
 		case base.AvPacketPtAac:
 			if r.asc == nil {
 				return nil
