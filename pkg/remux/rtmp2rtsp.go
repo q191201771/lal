@@ -88,7 +88,12 @@ func (r *Rtmp2RtspRemuxer) FeedRtmpMsg(msg base.RtmpMsg) {
 			case base.RtmpSoundFormatG711U:
 				r.audioPt = base.AvPacketPtG711U
 				if r.audioSampleRate < 0 {
-					r.audioSampleRate = g711uSampleRate
+					r.audioSampleRate = pcmDefaultSampleRate
+				}
+			case base.RtmpSoundFormatG711A:
+				r.audioPt = base.AvPacketPtG711A
+				if r.audioSampleRate < 0 {
+					r.audioSampleRate = pcmDefaultSampleRate
 				}
 			}
 		}
@@ -151,10 +156,37 @@ func (r *Rtmp2RtspRemuxer) doAnalyze() {
 		}
 		if r.asc != nil {
 			r.audioPt = base.AvPacketPtAac
+			var ascCtx *aac.AscContext
+			ascCtx, err := aac.NewAscContext(r.asc)
+			if err != nil {
+				r.asc = nil
+				Log.Warn("invalid asc")
+				return
+			}
+
+			// aac的采样率以asc为准
+			r.audioSampleRate, err = ascCtx.GetSamplingFrequency()
+			if err != nil {
+				r.asc = nil
+				Log.Warn("invalid asc")
+				return
+			}
 		}
 
 		// 回调sdp
-		ctx, err := sdp.Pack(r.vps, r.sps, r.pps, r.asc, r.audioPt, r.audioSampleRate)
+		videoInfo := sdp.VideoInfo{
+			VideoPt: r.videoPt,
+			Vps:     r.vps,
+			Sps:     r.sps,
+			Pps:     r.pps,
+		}
+
+		audioInfo := sdp.AudioInfo{
+			AudioPt:           r.audioPt,
+			Asc:               r.asc,
+			SamplingFrequency: r.audioSampleRate,
+		}
+		ctx, err := sdp.Pack(videoInfo, audioInfo)
 		Log.Assert(nil, err)
 		r.onSdp(ctx)
 
@@ -229,6 +261,8 @@ func (r *Rtmp2RtspRemuxer) getAudioPacker() *rtprtcp.RtpPacker {
 		r.audioSsrc = rand.Uint32()
 
 		switch r.audioPt {
+		case base.AvPacketPtG711A:
+			fallthrough
 		case base.AvPacketPtG711U:
 			pp := rtprtcp.NewRtpPackerPayloadPcm()
 			r.audioPacker = rtprtcp.NewRtpPacker(pp, r.audioSampleRate, r.audioSsrc)

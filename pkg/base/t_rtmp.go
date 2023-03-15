@@ -88,6 +88,7 @@ const (
 	//     AACPacketType UI8
 	//     Data          UI8[n]
 	// 注意，视频的CodecId是后4位，音频是前4位
+	RtmpSoundFormatG711A uint8 = 7
 	RtmpSoundFormatG711U uint8 = 8
 	RtmpSoundFormatAac   uint8 = 10
 
