@@ -21,6 +21,9 @@ import (
 	"github.com/q191201771/lal/pkg/base"
 )
 
+// Pack
+//
+// @param samplingFrequency: 音频采样率，注意，当前G711U使用这个参数传递，AAC的采样率通过 asc 参数传递 TODO(chef): 考虑 AAC 采样率通过 samplingFrequency 传递 202303
 func Pack(vps, sps, pps, asc []byte, audioPt base.AvPacketPt, samplingFrequency int) (ctx LogicContext, err error) {
 	// 判断音频、视频是否存在，以及视频是H264还是H265
 	var hasAudio, hasVideo, isHevc, isAac bool
