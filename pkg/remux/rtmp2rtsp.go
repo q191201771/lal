@@ -88,7 +88,7 @@ func (r *Rtmp2RtspRemuxer) FeedRtmpMsg(msg base.RtmpMsg) {
 			case base.RtmpSoundFormatG711U:
 				r.audioPt = base.AvPacketPtG711U
 				if r.audioSampleRate < 0 {
-					r.audioSampleRate = 8000
+					r.audioSampleRate = g711uSampleRate
 				}
 			}
 		}
