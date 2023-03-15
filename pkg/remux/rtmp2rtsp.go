@@ -10,9 +10,11 @@ package remux
 
 import (
 	"encoding/hex"
-	"github.com/q191201771/lal/pkg/h2645"
 	"math/rand"
 	"time"
+
+	"github.com/q191201771/lal/pkg/h2645"
+	"github.com/q191201771/lal/pkg/rtmp"
 
 	"github.com/q191201771/lal/pkg/aac"
 	"github.com/q191201771/lal/pkg/avc"
@@ -41,6 +43,7 @@ type Rtmp2RtspRemuxer struct {
 	vps, sps, pps, asc []byte
 	audioPt            base.AvPacketPt
 	videoPt            base.AvPacketPt
+	audioSampleRate    int
 
 	audioSsrc   uint32
 	videoSsrc   uint32
@@ -55,10 +58,11 @@ type OnRtpPacket func(pkt rtprtcp.RtpPacket)
 // @param onRtpPacket: 每次回调为独立的内存块，回调结束后，内部不再使用该内存块
 func NewRtmp2RtspRemuxer(onSdp OnSdp, onRtpPacket OnRtpPacket) *Rtmp2RtspRemuxer {
 	return &Rtmp2RtspRemuxer{
-		onSdp:       onSdp,
-		onRtpPacket: onRtpPacket,
-		audioPt:     base.AvPacketPtUnknown,
-		videoPt:     base.AvPacketPtUnknown,
+		onSdp:           onSdp,
+		onRtpPacket:     onRtpPacket,
+		audioPt:         base.AvPacketPtUnknown,
+		videoPt:         base.AvPacketPtUnknown,
+		audioSampleRate: -1,
 	}
 }
 
@@ -68,11 +72,25 @@ func (r *Rtmp2RtspRemuxer) FeedRtmpMsg(msg base.RtmpMsg) {
 
 	switch msg.Header.MsgTypeId {
 	case base.RtmpTypeIdMetadata:
+		if meta, err := rtmp.ParseMetadata(msg.Payload); err == nil {
+			if samplerate, ok := meta.Find("audiosamplerate").(float64); ok {
+				r.audioSampleRate = int(samplerate)
+			}
+		}
 		return
 	case base.RtmpTypeIdAudio:
 		if len(msg.Payload) <= 2 {
 			Log.Warnf("rtmp msg too short, ignore. header=%+v, payload=%s", msg.Header, hex.Dump(msg.Payload))
 			return
+		}
+		if r.audioPt == base.AvPacketPtUnknown {
+			switch msg.AudioCodecId() {
+			case base.RtmpSoundFormatG711U:
+				r.audioPt = base.AvPacketPtG711U
+				if r.audioSampleRate < 0 {
+					r.audioSampleRate = 8000
+				}
+			}
 		}
 	case base.RtmpTypeIdVideo:
 		if len(msg.Payload) <= 5 {
@@ -136,7 +154,7 @@ func (r *Rtmp2RtspRemuxer) doAnalyze() {
 		}
 
 		// 回调sdp
-		ctx, err := sdp.Pack(r.vps, r.sps, r.pps, r.asc)
+		ctx, err := sdp.Pack(r.vps, r.sps, r.pps, r.asc, r.audioPt, r.audioSampleRate)
 		Log.Assert(nil, err)
 		r.onSdp(ctx)
 
@@ -206,26 +224,32 @@ func (r *Rtmp2RtspRemuxer) remux(msg base.RtmpMsg) {
 }
 
 func (r *Rtmp2RtspRemuxer) getAudioPacker() *rtprtcp.RtpPacker {
-	if r.asc == nil {
-		return nil
-	}
-
 	if r.audioPacker == nil {
 		// TODO(chef): ssrc随机产生，并且整个lal没有在setup信令中传递ssrc
 		r.audioSsrc = rand.Uint32()
 
-		ascCtx, err := aac.NewAscContext(r.asc)
-		if err != nil {
-			Log.Errorf("parse asc failed. err=%+v", err)
-			return nil
-		}
-		clockRate, err := ascCtx.GetSamplingFrequency()
-		if err != nil {
-			Log.Errorf("get sampling frequency failed. err=%+v, asc=%s", err, hex.Dump(r.asc))
-		}
+		switch r.audioPt {
+		case base.AvPacketPtG711U:
+			pp := rtprtcp.NewRtpPackerPayloadPcm()
+			r.audioPacker = rtprtcp.NewRtpPacker(pp, r.audioSampleRate, r.audioSsrc)
+		case base.AvPacketPtAac:
+			if r.asc == nil {
+				return nil
+			}
 
-		pp := rtprtcp.NewRtpPackerPayloadAac()
-		r.audioPacker = rtprtcp.NewRtpPacker(pp, clockRate, r.audioSsrc)
+			ascCtx, err := aac.NewAscContext(r.asc)
+			if err != nil {
+				Log.Errorf("parse asc failed. err=%+v", err)
+				return nil
+			}
+			clockRate, err := ascCtx.GetSamplingFrequency()
+			if err != nil {
+				Log.Errorf("get sampling frequency failed. err=%+v, asc=%s", err, hex.Dump(r.asc))
+			}
+
+			pp := rtprtcp.NewRtpPackerPayloadAac()
+			r.audioPacker = rtprtcp.NewRtpPacker(pp, clockRate, r.audioSsrc)
+		}
 	}
 	return r.audioPacker
 }

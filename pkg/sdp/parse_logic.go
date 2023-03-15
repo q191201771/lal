@@ -129,6 +129,8 @@ func ParseSdp2LogicContext(b []byte) (LogicContext, error) {
 				// 例子:a=rtpmap:8 PCMA/8000/1
 				// rtmpmap中有PCMA字段表示G711A
 				ret.audioPayloadTypeBase = base.AvPacketPtG711A
+			} else if strings.EqualFold(md.ARtpMap.EncodingName, ARtpMapEncodingNameG711U) {
+				ret.audioPayloadTypeBase = base.AvPacketPtG711U
 			} else {
 				if md.M.PT == 8 {
 					// ffmpeg推流情况下不会填充rtpmap字段,m中pt值为8也可以表示是PCMA,采样率默认为8000Hz

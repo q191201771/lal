@@ -21,6 +21,7 @@ type AvPacketPt int
 
 const (
 	AvPacketPtUnknown AvPacketPt = -1
+	AvPacketPtG711U   AvPacketPt = 0  // g711u
 	AvPacketPtG711A   AvPacketPt = 8  // g711a
 	AvPacketPtAvc     AvPacketPt = 96 // h264
 	AvPacketPtHevc    AvPacketPt = 98 // h265
