@@ -52,6 +52,10 @@ a=tool:%s
 		sdpStr += audioSdpStr
 	}
 
+	if videoSdpStr == "" && audioSdpStr == "" {
+		return ctx, fmt.Errorf("invalid video and audio info, sdp:%s", sdpStr)
+	}
+
 	raw := []byte(strings.ReplaceAll(sdpStr, "\n", "\r\n"))
 	ctx, err = ParseSdp2LogicContext(raw)
 	return
