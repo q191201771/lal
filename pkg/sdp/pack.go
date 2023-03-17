@@ -14,53 +14,22 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/q191201771/naza/pkg/nazaerrors"
-
-	"github.com/q191201771/lal/pkg/aac"
-
 	"github.com/q191201771/lal/pkg/base"
 )
 
-// Pack
-//
-// @param samplingFrequency: 音频采样率，注意，当前G711U使用这个参数传递，AAC的采样率通过 asc 参数传递 TODO(chef): 考虑 AAC 采样率通过 samplingFrequency 传递 202303
-func Pack(vps, sps, pps, asc []byte, audioPt base.AvPacketPt, samplingFrequency int) (ctx LogicContext, err error) {
-	// 判断音频、视频是否存在，以及视频是H264还是H265
-	var hasAudio, hasVideo, isHevc, isAac bool
-	if sps != nil && pps != nil {
-		hasVideo = true
-		if vps != nil {
-			isHevc = true
-		}
-	}
+type VideoInfo struct {
+	VideoPt       base.AvPacketPt
+	Vps, Sps, Pps []byte
+}
 
-	if audioPt != base.AvPacketPtUnknown {
-		switch audioPt {
-		case base.AvPacketPtG711U:
-			hasAudio = true
-		case base.AvPacketPtAac:
-			if asc != nil {
-				isAac = true
-				hasAudio = true
-				// 判断AAC的采样率
-				var ascCtx *aac.AscContext
-				ascCtx, err = aac.NewAscContext(asc)
-				if err != nil {
-					return
-				}
-				samplingFrequency, err = ascCtx.GetSamplingFrequency()
-				if err != nil {
-					return
-				}
-			}
-		}
-	}
+type AudioInfo struct {
+	AudioPt           base.AvPacketPt
+	SamplingFrequency int
+	Asc               []byte
+}
 
-	if !hasAudio && !hasVideo {
-		err = nazaerrors.Wrap(base.ErrSdp)
-		return
-	}
-
+func Pack(videoInfo VideoInfo, audioInfo AudioInfo) (ctx LogicContext, err error) {
+	// 组装SDP头部
 	sdpStr := fmt.Sprintf(`v=0
 o=- 0 0 IN IP4 127.0.0.1
 s=No Name
@@ -69,47 +38,83 @@ t=0 0
 a=tool:%s
 `, base.LalPackSdp)
 
+	// 组装视频SDP信息
 	streamid := 0
-
-	if hasVideo {
-		if isHevc {
-			tmpl := `m=video 0 RTP/AVP 98
-a=rtpmap:98 H265/90000
-a=fmtp:98 profile-id=1;sprop-sps=%s;sprop-pps=%s;sprop-vps=%s
-a=control:streamid=%d
-`
-			sdpStr += fmt.Sprintf(tmpl, base64.StdEncoding.EncodeToString(sps), base64.StdEncoding.EncodeToString(pps), base64.StdEncoding.EncodeToString(vps), streamid)
-		} else {
-			tmpl := `m=video 0 RTP/AVP 96
-a=rtpmap:96 H264/90000
-a=fmtp:96 packetization-mode=1; sprop-parameter-sets=%s,%s; profile-level-id=640016
-a=control:streamid=%d
-`
-			sdpStr += fmt.Sprintf(tmpl, base64.StdEncoding.EncodeToString(sps), base64.StdEncoding.EncodeToString(pps), streamid)
-		}
-
+	videoSdpStr := buildVideoSdpInfo(videoInfo, streamid)
+	if videoSdpStr != "" {
+		sdpStr += videoSdpStr
 		streamid++
 	}
 
-	if hasAudio {
-		if isAac {
-			tmpl := `m=audio 0 RTP/AVP 97
-b=AS:128
-a=rtpmap:97 MPEG4-GENERIC/%d/2
-a=fmtp:97 profile-level-id=1;mode=AAC-hbr;sizelength=13;indexlength=3;indexdeltalength=3; config=%s
-a=control:streamid=%d
-`
-			sdpStr += fmt.Sprintf(tmpl, samplingFrequency, hex.EncodeToString(asc), streamid)
-		} else {
-			tmpl := `m=audio 0 RTP/AVP 0
-a=rtpmap:0 PCMU/%d
-a=control:streamid=%d
-`
-			sdpStr += fmt.Sprintf(tmpl, samplingFrequency, streamid)
-		}
+	// 组装音频SDP信息
+	audioSdpStr := buildAudioSdpInfo(audioInfo, streamid)
+	if audioSdpStr != "" {
+		sdpStr += audioSdpStr
+	}
+
+	if videoSdpStr == "" && audioSdpStr == "" {
+		return ctx, fmt.Errorf("invalid video and audio info, sdp:%s", sdpStr)
 	}
 
 	raw := []byte(strings.ReplaceAll(sdpStr, "\n", "\r\n"))
 	ctx, err = ParseSdp2LogicContext(raw)
 	return
+}
+
+func buildVideoSdpInfo(videoInfo VideoInfo, streamid int) string {
+	if videoInfo.VideoPt == base.AvPacketPtAvc {
+		if videoInfo.Sps == nil || videoInfo.Pps == nil {
+			return ""
+		}
+
+		tmpl := `m=video 0 RTP/AVP %d
+a=rtpmap:96 H264/90000
+a=fmtp:96 packetization-mode=1; sprop-parameter-sets=%s,%s; profile-level-id=640016
+a=control:streamid=%d
+`
+		return fmt.Sprintf(tmpl, base.AvPacketPtAvc, base64.StdEncoding.EncodeToString(videoInfo.Sps), base64.StdEncoding.EncodeToString(videoInfo.Pps), streamid)
+	} else if videoInfo.VideoPt == base.AvPacketPtHevc {
+		if videoInfo.Sps == nil || videoInfo.Pps == nil || videoInfo.Vps == nil {
+			return ""
+		}
+
+		tmpl := `m=video 0 RTP/AVP %d
+a=rtpmap:98 H265/90000
+a=fmtp:98 profile-id=1;sprop-sps=%s;sprop-pps=%s;sprop-vps=%s
+a=control:streamid=%d
+`
+		return fmt.Sprintf(tmpl, base.AvPacketPtHevc, base64.StdEncoding.EncodeToString(videoInfo.Sps), base64.StdEncoding.EncodeToString(videoInfo.Pps), base64.StdEncoding.EncodeToString(videoInfo.Vps), streamid)
+	}
+
+	return ""
+}
+
+func buildAudioSdpInfo(audioInfo AudioInfo, streamid int) string {
+	if audioInfo.AudioPt == base.AvPacketPtAac {
+		if audioInfo.Asc == nil {
+			return ""
+		}
+
+		tmpl := `m=audio 0 RTP/AVP %d
+b=AS:128
+a=rtpmap:%d MPEG4-GENERIC/%d/2
+a=fmtp:%d profile-level-id=1;mode=AAC-hbr;sizelength=13;indexlength=3;indexdeltalength=3; config=%s
+a=control:streamid=%d
+`
+		return fmt.Sprintf(tmpl, base.AvPacketPtAac, base.AvPacketPtAac, audioInfo.SamplingFrequency, base.AvPacketPtAac, hex.EncodeToString(audioInfo.Asc), streamid)
+	} else if audioInfo.AudioPt == base.AvPacketPtG711A {
+		tmpl := `m=audio 0 RTP/AVP %d
+a=rtpmap:%d PCMA/%d
+a=control:streamid=%d
+`
+		return fmt.Sprintf(tmpl, base.AvPacketPtG711A, base.AvPacketPtG711A, audioInfo.SamplingFrequency, streamid)
+	} else if audioInfo.AudioPt == base.AvPacketPtG711U {
+		tmpl := `m=audio 0 RTP/AVP %d
+a=rtpmap:%d PCMU/%d
+a=control:streamid=%d
+`
+		return fmt.Sprintf(tmpl, base.AvPacketPtG711U, base.AvPacketPtG711U, audioInfo.SamplingFrequency, streamid)
+	}
+
+	return ""
 }

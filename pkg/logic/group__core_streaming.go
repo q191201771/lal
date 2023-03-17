@@ -402,6 +402,8 @@ func (group *Group) broadcastByRtmpMsg(msg base.RtmpMsg) {
 				}
 			case base.RtmpSoundFormatG711U:
 				group.stat.AudioCodec = base.AudioCodecG711U
+			case base.RtmpSoundFormatG711A:
+				group.stat.AudioCodec = base.AudioCodecG711A
 			}
 		}
 	}
