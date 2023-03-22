@@ -87,3 +87,30 @@ func (pat *Pat) SearchPid(pid uint16) bool {
 	}
 	return false
 }
+
+func WritePat() []byte {
+	ts := make([]byte, 188)
+
+	tsheader := []byte{0x47, 0x40, 0x00, 0x10}
+	copy(ts, tsheader)
+
+	psi := NewPsi()
+	psi.sectionData.header.tableId = TsPsiIdPas
+	psi.sectionData.header.sectionSyntaxIndicator = 1
+	psi.sectionData.section.tableIdExtension = 1
+	psi.sectionData.section.currentNextIndicator = 1
+	psi.sectionData.patData.pes = append(psi.sectionData.patData.pes, PatProgramElement{
+		pn:    1,
+		pmpid: PidPmt,
+	})
+
+	psilen, psiData := psi.Encode()
+	copy(ts[4:], psiData)
+
+	stuffinglen := 188 - 4 - psilen
+	for i := 0; i < stuffinglen; i++ {
+		ts[4+psilen+i] = 0xff
+	}
+
+	return ts
+}
