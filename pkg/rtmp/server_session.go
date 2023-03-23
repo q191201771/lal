@@ -245,7 +245,7 @@ func (s *ServerSession) doMsg(stream *Stream) error {
 
 func (s *ServerSession) doWinAckSize(stream *Stream) error {
 	if stream.msg.Len() < 4 {
-		return base.NewErrRtmpShortBuffer(4, int(stream.msg.Len()), "ClientSession::doProtocolControlMessage")
+		return base.NewErrRtmpShortBuffer(4, int(stream.msg.Len()), "ServerSession::doWinAckSize")
 	}
 
 	s.peerWinAckSize = int(bele.BeUint32(stream.msg.buff.Bytes()))
