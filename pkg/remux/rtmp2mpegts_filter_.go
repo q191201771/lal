@@ -90,7 +90,7 @@ func (q *rtmp2MpegtsFilter) Push(msg base.RtmpMsg) {
 func (q *rtmp2MpegtsFilter) drain() {
 
 	videoType := q.getVideoStreamType()
-	audioType := q.getVideoStreamType()
+	audioType := q.getAudioStreamType()
 	patpmt := mpegts.WritePat()
 	patpmt = append(patpmt, mpegts.WritePmt(videoType, audioType)...)
 	q.observer.onPatPmt(patpmt)
