@@ -17,7 +17,7 @@ There are 3 ways of installing lal:
 
 ### 1. Building from source
 
-First, make sure that Go version >= 1.14
+First, make sure that Go version >= 1.16
 
 For Linux/macOS user:
 
@@ -109,4 +109,4 @@ Bugs, questions, suggestions, anything related or not, feel free to contact me w
 
 MIT, see [License](https://github.com/q191201771/lal/blob/master/LICENSE).
 
-this note updated by yoko, 202209
+this note updated by yoko, 202303
