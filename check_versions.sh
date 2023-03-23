@@ -15,7 +15,7 @@
 # 本地代码会和该版本对比
 # 该变量由我手动更新
 #checked_git_ver="v0.33.0"
-checked_git_ver="11e1be540b742c520991905bd79233c8ff986753"
+checked_git_ver="5dec8415a6cbe76d0ef230a36f25666da024e368"
 
 # 关注的文件
 check_files=(
