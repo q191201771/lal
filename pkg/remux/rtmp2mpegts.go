@@ -10,6 +10,8 @@ package remux
 
 import (
 	"encoding/hex"
+	"math"
+
 	"github.com/q191201771/lal/pkg/aac"
 	"github.com/q191201771/lal/pkg/avc"
 	"github.com/q191201771/lal/pkg/base"
@@ -18,7 +20,6 @@ import (
 	"github.com/q191201771/naza/pkg/bele"
 	"github.com/q191201771/naza/pkg/nazabytes"
 	"github.com/q191201771/naza/pkg/nazalog"
-	"math"
 )
 
 const (
@@ -183,6 +184,9 @@ func (s *Rtmp2MpegtsRemuxer) onPatPmt(b []byte) {
 func (s *Rtmp2MpegtsRemuxer) onPop(msg base.RtmpMsg) {
 	switch msg.Header.MsgTypeId {
 	case base.RtmpTypeIdAudio:
+		if msg.AudioCodecId() != base.RtmpSoundFormatAac {
+			return
+		}
 		s.feedAudio(msg)
 	case base.RtmpTypeIdVideo:
 		s.feedVideo(msg)
