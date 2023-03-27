@@ -1,17 +1,17 @@
 #### v0.34.3 (2022-03)
 
-[feat] rtmp2rtsp: 支持 G711A/G711U
-[opt] rtsp: 兼容G711 SDP，支持RTSP G711间的转发
-[feat] 增加Web页面（基于HTTP-API）
-[fix] rtmp: 修复微信小程序推流卡的问题（绝对时间戳字段应该从属于stream维度而非connection）
-[feat] rtmp: server session支持发送ack
-[opt] rtmp: client session 只使用PeerWinAckSize的值作为是否发送ack的触发条件
-[refactor] using Go embed to load lal.html
-[refactor] remove deprecated io/ioutil packages
-[opt] rtmp: ClientSession支持定制化tls.Config
-[fix] 修复解析配置文件中sub_session_hash_key字段写错的bug
-[log] add log when not caching frame by SingleGopMaxFrameNum
-[chore] 增加检查版本的脚本check_versions.sh
+- [feat] rtmp2rtsp: 支持 G711A/G711U
+- [opt] rtsp: 兼容G711 SDP，支持RTSP G711间的转发
+- [feat] 增加Web页面（基于HTTP-API）
+- [fix] rtmp: 修复微信小程序推流卡的问题（绝对时间戳字段应该从属于stream维度而非connection）
+- [feat] rtmp: server session支持发送ack
+- [opt] rtmp: client session 只使用PeerWinAckSize的值作为是否发送ack的触发条件
+- [refactor] using Go embed to load lal.html
+- [refactor] remove deprecated io/ioutil packages
+- [opt] rtmp: ClientSession支持定制化tls.Config
+- [fix] 修复解析配置文件中sub_session_hash_key字段写错的bug
+- [log] add log when not caching frame by SingleGopMaxFrameNum
+- [chore] 增加检查版本的脚本check_versions.sh
 
 #### v0.33.0 (2022-01)
 
