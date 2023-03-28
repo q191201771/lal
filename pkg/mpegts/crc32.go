@@ -1,3 +1,11 @@
+// Copyright 2023, Chef.  All rights reserved.
+// https://github.com/q191201771/lal
+//
+// Use of this source code is governed by a MIT-style license
+// that can be found in the License file.
+//
+// Author: Chef (191201771@qq.com)
+
 package mpegts
 
 var crc32table [256]uint32 = [256]uint32{
@@ -46,6 +54,9 @@ var crc32table [256]uint32 = [256]uint32{
 	0x6D66B4BC, 0xDA7B75B8, 0x035D36B5, 0xB440F7B1,
 }
 
+// CalcCrc32 供mpegts内部使用的crc32计算函数
+//
+// TODO(chef): [refactor] 检查mpegts使用该crc32是否正确，是否能替换成标准库中的crc32 [202303]
 func CalcCrc32(crc uint32, buffer []byte) uint32 {
 	var i int = 0
 	for i = 0; i < len(buffer); i++ {

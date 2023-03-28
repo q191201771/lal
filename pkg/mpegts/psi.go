@@ -1,3 +1,11 @@
+// Copyright 2023, Chef.  All rights reserved.
+// https://github.com/q191201771/lal
+//
+// Use of this source code is governed by a MIT-style license
+// that can be found in the License file.
+//
+// Author: Chef (191201771@qq.com)
+
 package mpegts
 
 import (
@@ -66,7 +74,7 @@ func NewPsi() *PsiSection {
 	}
 }
 
-func (psi *PsiSection) Encode() (int, []byte) {
+func (psi *PsiSection) Pack() (int, []byte) {
 	psiSection := make([]byte, 1+3+psi.calcPsiSectionLength())
 	bw := nazabits.NewBitWriter(psiSection)
 

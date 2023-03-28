@@ -110,7 +110,7 @@ func (pmt *Pmt) SearchPid(pid uint16) *PmtProgramElement {
 	return nil
 }
 
-func WritePmt(videoStreamType, audioStreamType uint8) []byte {
+func PackPmt(videoStreamType, audioStreamType uint8) []byte {
 	ts := make([]byte, 188)
 	tsheader := []byte{0x47, 0x50, 0x01, 0x10}
 	copy(ts, tsheader)
@@ -136,7 +136,7 @@ func WritePmt(videoStreamType, audioStreamType uint8) []byte {
 		})
 	}
 
-	psilen, psiData := psi.Encode()
+	psilen, psiData := psi.Pack()
 	copy(ts[4:], psiData)
 
 	stuffinglen := 188 - 4 - psilen

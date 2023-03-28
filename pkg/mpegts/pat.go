@@ -88,7 +88,7 @@ func (pat *Pat) SearchPid(pid uint16) bool {
 	return false
 }
 
-func WritePat() []byte {
+func PackPat() []byte {
 	ts := make([]byte, 188)
 
 	tsheader := []byte{0x47, 0x40, 0x00, 0x10}
@@ -104,7 +104,7 @@ func WritePat() []byte {
 		pmpid: PidPmt,
 	})
 
-	psilen, psiData := psi.Encode()
+	psilen, psiData := psi.Pack()
 	copy(ts[4:], psiData)
 
 	stuffinglen := 188 - 4 - psilen

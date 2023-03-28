@@ -11,6 +11,7 @@ package mpegts
 // MPEG: Moving Picture Experts Group
 
 // FixedFragmentHeader 每个TS文件都以固定的PAT，PMT开始
+// TODO(chef): [refactor] 考虑去掉这个fixed变量，目前只在测试中使用 [202303]
 var FixedFragmentHeader = []byte{
 	/* TS */
 	0x47, 0x40, 0x00, 0x10, 0x00,
@@ -71,6 +72,7 @@ var FixedFragmentHeader = []byte{
 }
 
 // FixedFragmentHeaderHevc 每个TS文件都以固定的PAT，PMT开始
+// TODO(chef): [refactor] 考虑去掉这个fixed变量，目前只在测试中使用 [202303]
 var FixedFragmentHeaderHevc = []byte{
 	/* TS */
 	0x47, 0x40, 0x00, 0x10, 0x00,

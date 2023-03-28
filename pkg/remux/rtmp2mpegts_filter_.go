@@ -91,8 +91,8 @@ func (q *rtmp2MpegtsFilter) drain() {
 
 	videoType := q.getVideoStreamType()
 	audioType := q.getAudioStreamType()
-	patpmt := mpegts.WritePat()
-	patpmt = append(patpmt, mpegts.WritePmt(videoType, audioType)...)
+	patpmt := mpegts.PackPat()
+	patpmt = append(patpmt, mpegts.PackPmt(videoType, audioType)...)
 	q.observer.onPatPmt(patpmt)
 
 	for i := range q.data {
