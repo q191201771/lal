@@ -88,15 +88,13 @@ func (q *rtmp2MpegtsFilter) Push(msg base.RtmpMsg) {
 // ---------------------------------------------------------------------------------------------------------------------
 
 func (q *rtmp2MpegtsFilter) drain() {
-	switch q.videoCodecId {
-	case int(base.RtmpCodecIdAvc):
-		q.observer.onPatPmt(mpegts.FixedFragmentHeader)
-	case int(base.RtmpCodecIdHevc):
-		q.observer.onPatPmt(mpegts.FixedFragmentHeaderHevc)
-	default:
-		// TODO(chef) 正确处理只有音频或只有视频的情况 #56
-		q.observer.onPatPmt(mpegts.FixedFragmentHeader)
-	}
+
+	videoType := q.getVideoStreamType()
+	audioType := q.getAudioStreamType()
+	patpmt := mpegts.WritePat()
+	patpmt = append(patpmt, mpegts.WritePmt(videoType, audioType)...)
+	q.observer.onPatPmt(patpmt)
+
 	for i := range q.data {
 		q.observer.onPop(q.data[i])
 	}
@@ -104,4 +102,24 @@ func (q *rtmp2MpegtsFilter) drain() {
 	q.data = nil
 
 	q.done = true
+}
+
+func (q *rtmp2MpegtsFilter) getVideoStreamType() uint8 {
+	switch q.videoCodecId {
+	case int(base.RtmpCodecIdAvc):
+		return mpegts.StreamTypeAac
+	case int(base.RtmpCodecIdHevc):
+		return mpegts.StreamTypeHevc
+	}
+
+	return mpegts.StreamTypeUnknown
+}
+
+func (q *rtmp2MpegtsFilter) getAudioStreamType() uint8 {
+	switch q.audioCodecId {
+	case int(base.RtmpSoundFormatAac):
+		return mpegts.StreamTypeAac
+	}
+
+	return mpegts.StreamTypeUnknown
 }

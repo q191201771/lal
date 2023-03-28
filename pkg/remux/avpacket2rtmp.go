@@ -306,6 +306,22 @@ func (r *AvPacket2RtmpRemuxer) FeedAvPacket(pkt base.AvPacket) {
 			r.emitRtmpAvMsg(true, payload, pkt.Timestamp)
 		}
 
+	case base.AvPacketPtG711A:
+		length := len(pkt.Payload) + 1
+		payload := make([]byte, length)
+		// ffmpeg是固定值
+		payload[0] = 0x72
+		copy(payload[1:], pkt.Payload)
+		r.emitRtmpAvMsg(true, payload, pkt.Timestamp)
+
+	case base.AvPacketPtG711U:
+		length := len(pkt.Payload) + 1
+		payload := make([]byte, length)
+		// ffmpeg是固定值
+		payload[0] = 0x82
+		copy(payload[1:], pkt.Payload)
+		r.emitRtmpAvMsg(true, payload, pkt.Timestamp)
+
 	default:
 		Log.Warnf("unsupported packet. type=%d", pkt.PayloadType)
 	}
