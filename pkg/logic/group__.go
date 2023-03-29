@@ -157,7 +157,7 @@ func NewGroup(appName string, streamName string, config *Config, observer IGroup
 		httpflvGopCache:               remux.NewGopCache("httpflv", uk, config.HttpflvConfig.GopNum, config.HttpflvConfig.SingleGopMaxFrameNum),
 		httptsGopCache:                remux.NewGopCacheMpegts(uk, config.HttptsConfig.GopNum, config.HttptsConfig.SingleGopMaxFrameNum),
 		psPubPrevInactiveCheckTick:    -1,
-		hlsCalcSessionStatIntervalSec: uint32(config.HlsConfig.FragmentDurationMs/1000) * 10,
+		hlsCalcSessionStatIntervalSec: uint32(config.HlsConfig.FragmentDurationMs/100),
 	}
 
 	g.initRelayPushByConfig()
