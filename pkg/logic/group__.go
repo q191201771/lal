@@ -146,18 +146,22 @@ func NewGroup(appName string, streamName string, config *Config, observer IGroup
 			StreamName: streamName,
 			AppName:    appName,
 		},
-		exitChan:                      make(chan struct{}, 1),
-		rtmpSubSessionSet:             make(map[*rtmp.ServerSession]struct{}),
-		httpflvSubSessionSet:          make(map[*httpflv.SubSession]struct{}),
-		httptsSubSessionSet:           make(map[*httpts.SubSession]struct{}),
-		rtspSubSessionSet:             make(map[*rtsp.SubSession]struct{}),
-		waitRtspSubSessionSet:         make(map[*rtsp.SubSession]struct{}),
-		hlsSubSessionSet:              make(map[*hls.SubSession]struct{}),
-		rtmpGopCache:                  remux.NewGopCache("rtmp", uk, config.RtmpConfig.GopNum, config.RtmpConfig.SingleGopMaxFrameNum),
-		httpflvGopCache:               remux.NewGopCache("httpflv", uk, config.HttpflvConfig.GopNum, config.HttpflvConfig.SingleGopMaxFrameNum),
-		httptsGopCache:                remux.NewGopCacheMpegts(uk, config.HttptsConfig.GopNum, config.HttptsConfig.SingleGopMaxFrameNum),
-		psPubPrevInactiveCheckTick:    -1,
-		hlsCalcSessionStatIntervalSec: uint32(config.HlsConfig.FragmentDurationMs/100),
+		exitChan:                   make(chan struct{}, 1),
+		rtmpSubSessionSet:          make(map[*rtmp.ServerSession]struct{}),
+		httpflvSubSessionSet:       make(map[*httpflv.SubSession]struct{}),
+		httptsSubSessionSet:        make(map[*httpts.SubSession]struct{}),
+		rtspSubSessionSet:          make(map[*rtsp.SubSession]struct{}),
+		waitRtspSubSessionSet:      make(map[*rtsp.SubSession]struct{}),
+		hlsSubSessionSet:           make(map[*hls.SubSession]struct{}),
+		rtmpGopCache:               remux.NewGopCache("rtmp", uk, config.RtmpConfig.GopNum, config.RtmpConfig.SingleGopMaxFrameNum),
+		httpflvGopCache:            remux.NewGopCache("httpflv", uk, config.HttpflvConfig.GopNum, config.HttpflvConfig.SingleGopMaxFrameNum),
+		httptsGopCache:             remux.NewGopCacheMpegts(uk, config.HttptsConfig.GopNum, config.HttptsConfig.SingleGopMaxFrameNum),
+		psPubPrevInactiveCheckTick: -1,
+	}
+
+	g.hlsCalcSessionStatIntervalSec = uint32(config.HlsConfig.FragmentDurationMs / 100) // equals to (ms/1000) * 10
+	if g.hlsCalcSessionStatIntervalSec == 0 {
+		g.hlsCalcSessionStatIntervalSec = defaultHlsCalcSessionStatIntervalSec
 	}
 
 	g.initRelayPushByConfig()

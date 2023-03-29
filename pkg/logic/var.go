@@ -28,3 +28,7 @@ var (
 	//
 	checkSessionAliveIntervalSec uint32 = 10
 )
+
+const (
+	defaultHlsCalcSessionStatIntervalSec uint32 = 10
+)
