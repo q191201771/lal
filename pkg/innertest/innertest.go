@@ -463,16 +463,16 @@ var (
 	goldenHlsTsNumList = []int{8, 10, 8}
 	goldenHlsTsLenList = []int{2219152, 525648, 1696512}
 	goldenHlsTsMd5List = []string{
-		"b60463d6cde1f48e33dfa6fc8f15032c",
-		"2eb19ad498688dadf950b3e749985922",
-		"c53351cff80532717b680d098452bf9b",
+		"486042526860724016caac64afd40d92",
+		"f03c5ab24dddd8875f06cdea605cd87c",
+		"e25384bdd92e94157beaf3fd61701452",
 	}
 
 	goldenHttptsLenList = []int{2216332, 522264, 1693880}
 	goldenHttptsMd5List = []string{
-		"3d1c1cd75e09ad04cb8a96db28865692",
-		"0d102b6fb7fc3134e56a07f00292e888",
-		"4bb1b0752e3fb396bffb2c16c38ebfb4",
+		"000f9010b0eca08b7d5211e633e8f29e",
+		"0ec316060f1aeeb1d283b30158c2eeb8",
+		"1872c6ff1bde9fa591eeab8b197e5b1b",
 	}
 )
 

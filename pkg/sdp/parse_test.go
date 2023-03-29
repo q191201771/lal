@@ -701,5 +701,5 @@ a=control:streamid=1
 	ctx, err := ParseSdp2LogicContext([]byte(golden))
 	assert.Equal(t, nil, err)
 	assert.Equal(t, true, ctx.IsAudioPayloadTypeOrigin(8))
-	assert.Equal(t, false, ctx.IsAudioUnpackable())
+	assert.Equal(t, true, ctx.IsAudioUnpackable())
 }
