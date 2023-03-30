@@ -370,7 +370,7 @@ func (s *Rtmp2MpegtsRemuxer) feedVideo(msg base.RtmpMsg) {
 	var frame mpegts.Frame
 	frame.Cc = s.videoCc
 	frame.Dts = dts
-	frame.Pts = frame.Dts + uint64(cts)*90
+	frame.Cts = cts
 	frame.Key = msg.IsVideoKeyNalu()
 	frame.Raw = s.videoOut
 	frame.Pid = mpegts.PidVideo
@@ -498,11 +498,8 @@ func (s *Rtmp2MpegtsRemuxer) adjustDtsPts(frame *mpegts.Frame) {
 		if s.basicVideoDts == math.MaxUint64 {
 			s.basicVideoDts = frame.Dts
 		}
-		if s.basicVideoPts == math.MaxUint64 {
-			s.basicVideoPts = frame.Pts
-		}
 		frame.Dts = subSafe(frame.Dts, s.basicVideoDts, s.uk, frame)
-		frame.Pts = subSafe(frame.Pts, s.basicVideoPts, s.uk, frame)
+		frame.Pts = frame.Dts + uint64(90*frame.Cts)
 	}
 }
 

@@ -11,12 +11,14 @@ package mpegts
 import (
 	"encoding/hex"
 	"fmt"
+
 	"github.com/q191201771/naza/pkg/nazabytes"
 )
 
 // Frame 帧数据，用于打包成mpegts格式的数据
 type Frame struct {
 	Pts uint64 // =(毫秒 * 90)
+	Cts uint32
 	Dts uint64
 	Cc  uint8 // continuity_counter of TS Header
 
