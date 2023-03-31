@@ -10,8 +10,6 @@ package remux
 
 import (
 	"encoding/hex"
-	"math"
-
 	"github.com/q191201771/lal/pkg/aac"
 	"github.com/q191201771/lal/pkg/avc"
 	"github.com/q191201771/lal/pkg/base"
@@ -55,17 +53,14 @@ type IRtmp2MpegtsRemuxerObserver interface {
 type Rtmp2MpegtsRemuxer struct {
 	uk string
 
-	observer      IRtmp2MpegtsRemuxerObserver
-	filter        *rtmp2MpegtsFilter
-	videoOut      []byte // Annexb
-	spspps        []byte // Annexb 也可能是vps+sps+pps
-	ascCtx        *aac.AscContext
-	audioCc       uint8
-	videoCc       uint8
-	basicAudioDts uint64
-	basicAudioPts uint64
-	basicVideoDts uint64
-	basicVideoPts uint64
+	observer        IRtmp2MpegtsRemuxerObserver
+	filter          *rtmp2MpegtsFilter
+	videoOut        []byte // Annexb
+	spspps          []byte // Annexb 也可能是vps+sps+pps
+	ascCtx          *aac.AscContext
+	audioCc         uint8
+	videoCc         uint8
+	timestampFilter Rtmp2MpegtsTimestampFilter
 
 	// audioCacheFrames: 缓存音频packet数据，注意，可能包含多个音频packet
 	//
@@ -110,17 +105,14 @@ type Rtmp2MpegtsRemuxer struct {
 func NewRtmp2MpegtsRemuxer(observer IRtmp2MpegtsRemuxerObserver) *Rtmp2MpegtsRemuxer {
 	uk := base.GenUkRtmp2MpegtsRemuxer()
 	r := &Rtmp2MpegtsRemuxer{
-		uk:            uk,
-		observer:      observer,
-		basicAudioDts: math.MaxUint64,
-		basicAudioPts: math.MaxUint64,
-		basicVideoDts: math.MaxUint64,
-		basicVideoPts: math.MaxUint64,
+		uk:       uk,
+		observer: observer,
 	}
 	r.audioCacheFrames = nil
 	r.videoOut = make([]byte, initialVideoOutBufferSize)
 	r.videoOut = r.videoOut[0:0]
 	r.filter = newRtmp2MpegtsFilter(calcFragmentHeaderQueueSize, r)
+	r.timestampFilter.Init(uk)
 
 	nazalog.Debugf("[%s] NewRtmp2MpegtsRemuxer", r.uk)
 
@@ -454,8 +446,9 @@ func (s *Rtmp2MpegtsRemuxer) resetVideoOutBuffer() {
 }
 
 func (s *Rtmp2MpegtsRemuxer) onFrame(frame *mpegts.Frame) {
-	s.adjustDtsPts(frame)
-	//Log.Debugf("Rtmp2MpegtsRemuxer::onFrame, frame=%s", frame.DebugString())
+	//Log.Debugf("in frame=%s", frame.DebugString())
+	s.timestampFilter.Do(frame)
+	//Log.Debugf("ou frame=%s", frame.DebugString())
 
 	var boundary bool
 
@@ -480,33 +473,4 @@ func (s *Rtmp2MpegtsRemuxer) onFrame(frame *mpegts.Frame) {
 	packets := frame.Pack()
 
 	s.observer.OnTsPackets(packets, frame, boundary)
-}
-
-func (s *Rtmp2MpegtsRemuxer) adjustDtsPts(frame *mpegts.Frame) {
-	// TODO(chef): [refactor] 后续考虑独立成单独的filter，并且考虑在rtmp msg上做这个逻辑 202208
-	// TODO(chef): [fix] b帧回退的情况，以及是否出现比base还小的情况 202208
-	if frame.Sid == mpegts.StreamIdAudio {
-		if s.basicAudioDts == math.MaxUint64 {
-			s.basicAudioDts = frame.Dts
-		}
-		if s.basicAudioPts == math.MaxUint64 {
-			s.basicAudioPts = frame.Pts
-		}
-		frame.Dts = subSafe(frame.Dts, s.basicAudioDts, s.uk, frame)
-		frame.Pts = subSafe(frame.Pts, s.basicAudioPts, s.uk, frame)
-	} else if frame.Sid == mpegts.StreamIdVideo {
-		if s.basicVideoDts == math.MaxUint64 {
-			s.basicVideoDts = frame.Dts
-		}
-		frame.Dts = subSafe(frame.Dts, s.basicVideoDts, s.uk, frame)
-		frame.Pts = frame.Dts + uint64(90*frame.Cts)
-	}
-}
-
-func subSafe(a, b uint64, uk string, frame *mpegts.Frame) uint64 {
-	if a >= b {
-		return a - b
-	}
-	Log.Warnf("[%s] subSafe. a=%d, b=%d, frame=%s", uk, a, b, frame.DebugString())
-	return a
 }
