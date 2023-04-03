@@ -59,6 +59,14 @@ var (
 	ErrRtmpUnexpectedMsg = errors.New("lal.rtmp: unexpected msg")
 )
 
+func NewErrAmfInvalidType(b byte) error {
+	return fmt.Errorf("%w. b=%d", ErrAmfInvalidType, b)
+}
+
+func NewErrRtmpShortBuffer(need, actual int, msg string) error {
+	return fmt.Errorf("%w. need=%d, actual=%d, msg=%s", ErrRtmpShortBuffer, need, actual, msg)
+}
+
 // ----- pkg/rtprtcp ---------------------------------------------------------------------------------------------------
 
 var ErrRtpRtcpShortBuffer = errors.New("lal.rtprtcp: buffer too short")
@@ -66,8 +74,9 @@ var ErrRtpRtcpShortBuffer = errors.New("lal.rtprtcp: buffer too short")
 // ----- pkg/rtsp ------------------------------------------------------------------------------------------------------
 
 var (
-	ErrRtsp                 = errors.New("lal.rtsp: fxxk")
-	ErrRtspClosedByObserver = errors.New("lal.rtsp: close by observer")
+	ErrRtsp                     = errors.New("lal.rtsp: fxxk")
+	ErrRtspClosedByObserver     = errors.New("lal.rtsp: close by observer")
+	ErrRtspUnsupportedTransport = errors.New("lal.rtsp: unsupported Transport")
 )
 
 // ----- pkg/sdp -------------------------------------------------------------------------------------------------------
@@ -91,11 +100,3 @@ var (
 )
 
 // ---------------------------------------------------------------------------------------------------------------------
-
-func NewErrAmfInvalidType(b byte) error {
-	return fmt.Errorf("%w. b=%d", ErrAmfInvalidType, b)
-}
-
-func NewErrRtmpShortBuffer(need, actual int, msg string) error {
-	return fmt.Errorf("%w. need=%d, actual=%d, msg=%s", ErrRtmpShortBuffer, need, actual, msg)
-}

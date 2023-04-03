@@ -39,10 +39,6 @@ const (
 	CcstPushSession
 )
 
-var (
-	ErrUnsupportedTransport = fmt.Errorf("Unsupported Transport")
-)
-
 type ClientCommandSessionOption struct {
 	DoTimeoutMs int
 	OverTcp     bool
@@ -397,7 +393,7 @@ func (session *ClientCommandSession) writeSetup() error {
 		if session.option.OverTcp {
 			if err := session.writeOneSetupTcp(setupUri); err != nil {
 				// 461情况下尝试切换UDP重试
-				if err == ErrUnsupportedTransport {
+				if err == base.ErrRtspUnsupportedTransport {
 					if err := session.writeOneSetup(setupUri); err != nil {
 						return err
 					}
@@ -410,7 +406,7 @@ func (session *ClientCommandSession) writeSetup() error {
 		} else {
 			if err := session.writeOneSetup(setupUri); err != nil {
 				// 461情况尝试切换TCP重试
-				if err == ErrUnsupportedTransport {
+				if err == base.ErrRtspUnsupportedTransport {
 					if err = session.writeOneSetupTcp(setupUri); err != nil {
 						return err
 					}
@@ -464,7 +460,7 @@ func (session *ClientCommandSession) writeOneSetup(setupUri string) error {
 
 	if ctx.StatusCode == "461" {
 		// 切换transport尝试继续
-		err = ErrUnsupportedTransport
+		err = base.ErrRtspUnsupportedTransport
 		return err
 	}
 
@@ -539,7 +535,7 @@ func (session *ClientCommandSession) writeOneSetupTcp(setupUri string) error {
 	}
 
 	if ctx.StatusCode == "461" {
-		err = ErrUnsupportedTransport
+		err = base.ErrRtspUnsupportedTransport
 		return err
 	}
 
