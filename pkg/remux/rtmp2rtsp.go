@@ -160,7 +160,7 @@ func (r *Rtmp2RtspRemuxer) doAnalyze() {
 			ascCtx, err := aac.NewAscContext(r.asc)
 			if err != nil {
 				r.asc = nil
-				Log.Warn("invalid asc")
+				Log.Warnf("invalid asc. asc=%+v, err=%+v", ascCtx, err)
 				return
 			}
 
@@ -168,7 +168,7 @@ func (r *Rtmp2RtspRemuxer) doAnalyze() {
 			r.audioSampleRate, err = ascCtx.GetSamplingFrequency()
 			if err != nil {
 				r.asc = nil
-				Log.Warn("invalid asc")
+				Log.Warnf("invalid asc. asc=%+v, err=%+v", ascCtx, err)
 				return
 			}
 		}
