@@ -253,7 +253,8 @@ func (h *HttpApiServer) notFoundHandler(w http.ResponseWriter, req *http.Request
 func feedback(v interface{}, w http.ResponseWriter) {
 	resp, _ := json.Marshal(v)
 	w.Header().Add("Server", base.LalHttpApiServer)
-	w.Header().Set("Access-Control-Allow-Origin", "*") // 跨域
+	w.Header().Set("Access-Control-Allow-Origin", "*")             // 跨域
+	w.Header().Set("Access-Control-Allow-Headers", "Content-Type") // 跨域补充
 	w.Header().Set("Content-Type", "application/json")
 	_, _ = w.Write(resp)
 }
