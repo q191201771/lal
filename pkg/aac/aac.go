@@ -9,10 +9,8 @@
 package aac
 
 import (
-	"fmt"
-	"github.com/q191201771/naza/pkg/nazalog"
-
 	"github.com/q191201771/naza/pkg/nazaerrors"
+	"github.com/q191201771/naza/pkg/nazalog"
 
 	"github.com/q191201771/lal/pkg/base"
 
@@ -182,14 +180,6 @@ func (ascCtx *AscContext) PackToAdtsHeader(out []byte, frameLength int) error {
 }
 
 func (ascCtx *AscContext) GetSamplingFrequency() (int, error) {
-	// 临时日志，观察不常见的采样率
-	switch ascCtx.SamplingFrequencyIndex {
-	case AscSamplingFrequencyIndex48000, AscSamplingFrequencyIndex44100, AscSamplingFrequencyIndex22050, AscSamplingFrequencyIndex16000:
-		// noop
-	default:
-		nazalog.Warnf("unusual sampling frequency. ascCtx=%+v", ascCtx)
-	}
-
 	switch ascCtx.SamplingFrequencyIndex {
 	case AscSamplingFrequencyIndex96000:
 		return 96000, nil
@@ -203,6 +193,8 @@ func (ascCtx *AscContext) GetSamplingFrequency() (int, error) {
 		return 44100, nil
 	case AscSamplingFrequencyIndex32000:
 		return 32000, nil
+	case AscSamplingFrequencyIndex24000:
+		return 24000, nil
 	case AscSamplingFrequencyIndex22050:
 		return 22050, nil
 	case AscSamplingFrequencyIndex16000:
@@ -216,7 +208,9 @@ func (ascCtx *AscContext) GetSamplingFrequency() (int, error) {
 	case AscSamplingFrequencyIndex7350:
 		return 7350, nil
 	}
-	return -1, fmt.Errorf("%w. asCtx=%+v", base.ErrSamplingFrequencyIndex, ascCtx)
+
+	nazalog.Warnf("GetSamplingFrequency failed. err=%+v, ascCtx=%+v", base.ErrSamplingFrequencyIndex, ascCtx)
+	return -1, base.ErrSamplingFrequencyIndex
 }
 
 type AdtsHeaderContext struct {
