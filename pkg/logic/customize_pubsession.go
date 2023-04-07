@@ -84,7 +84,9 @@ func (ctx *CustomizePubSessionContext) FeedAudioSpecificConfig(asc []byte) error
 		return base.ErrDisposedInStream
 	}
 	//nazalog.Debugf("[%s] FeedAudioSpecificConfig. asc=%s", ctx.uniqueKey, hex.Dump(asc))
-	ctx.dumpFile.WriteWithType(asc, base.DumpTypeCustomizePubAudioSpecificConfigData)
+	if ctx.dumpFile != nil {
+		_ = ctx.dumpFile.WriteWithType(asc, base.DumpTypeCustomizePubAudioSpecificConfigData)
+	}
 	ctx.remuxer.InitWithAvConfig(asc, nil, nil, nil)
 	return nil
 }
@@ -95,7 +97,9 @@ func (ctx *CustomizePubSessionContext) FeedAvPacket(packet base.AvPacket) error 
 		return base.ErrDisposedInStream
 	}
 	//nazalog.Debugf("[%s] FeedAvPacket. packet=%s", ctx.uniqueKey, packet.DebugString())
-	ctx.dumpFile.WriteAvPacket(packet, base.DumpTypeCustomizePubData)
+	if ctx.dumpFile != nil {
+		_ = ctx.dumpFile.WriteAvPacket(packet, base.DumpTypeCustomizePubData)
+	}
 	ctx.remuxer.FeedAvPacket(packet)
 	return nil
 }
