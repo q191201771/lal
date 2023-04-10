@@ -114,7 +114,12 @@ func (r *Rtmp2RtspRemuxer) FeedRtmpMsg(msg base.RtmpMsg) {
 				r.sps, r.pps, err = avc.ParseSpsPpsFromSeqHeader(msg.Payload)
 				Log.Assert(nil, err)
 			} else if msg.IsHevcKeySeqHeader() {
-				r.vps, r.sps, r.pps, err = hevc.ParseVpsSpsPpsFromSeqHeader(msg.Payload)
+				if msg.IsEnhanced() {
+					r.vps, r.sps, r.pps, err = hevc.ParseVpsSpsPpsFromEnhancedSeqHeader(msg.Payload)
+				} else {
+					r.vps, r.sps, r.pps, err = hevc.ParseVpsSpsPpsFromSeqHeader(msg.Payload)
+				}
+
 				Log.Assert(nil, err)
 			}
 			r.doAnalyze()
@@ -232,7 +237,14 @@ func (r *Rtmp2RtspRemuxer) remux(msg base.RtmpMsg) {
 	case base.RtmpTypeIdVideo:
 		packer = r.getVideoPacker()
 		if packer != nil {
-			payload := msg.Payload[5:]
+			var payload []byte
+			if msg.VideoCodecId() == base.RtmpCodecIdHevc && msg.IsEnchanedHevcNalu() {
+				index := msg.GetEnchanedHevcNaluIndex()
+				payload = msg.Payload[index:]
+			} else {
+				payload = msg.Payload[5:]
+			}
+
 			if RtspRemuxerAddSpsPps2KeyFrameFlag {
 				if msg.IsAvcKeyNalu() && r.sps != nil && r.pps != nil {
 					payload = h2645.JoinNaluAvcc(r.sps, r.pps, msg.Payload[9:])

@@ -10,6 +10,7 @@ package remux
 
 import (
 	"encoding/hex"
+
 	"github.com/q191201771/lal/pkg/aac"
 	"github.com/q191201771/lal/pkg/avc"
 	"github.com/q191201771/lal/pkg/base"
@@ -193,7 +194,7 @@ func (s *Rtmp2MpegtsRemuxer) feedVideo(msg base.RtmpMsg) {
 		return
 	}
 
-	codecId := msg.Payload[0] & 0xF
+	codecId := msg.VideoCodecId()
 	if codecId != base.RtmpCodecIdAvc && codecId != base.RtmpCodecIdHevc {
 		return
 	}
@@ -208,9 +209,16 @@ func (s *Rtmp2MpegtsRemuxer) feedVideo(msg base.RtmpMsg) {
 		}
 		return
 	} else if msg.IsHevcKeySeqHeader() {
-		if s.spspps, err = hevc.VpsSpsPpsSeqHeader2Annexb(msg.Payload); err != nil {
-			Log.Errorf("[%s] cache vpsspspps failed. err=%+v", s.uk, err)
+		if msg.IsEnhanced() {
+			if s.spspps, err = hevc.VpsSpsPpsEnhancedSeqHeader2Annexb(msg.Payload); err != nil {
+				Log.Errorf("[%s] cache vpsspspps failed. err=%+v", s.uk, err)
+			}
+		} else {
+			if s.spspps, err = hevc.VpsSpsPpsSeqHeader2Annexb(msg.Payload); err != nil {
+				Log.Errorf("[%s] cache vpsspspps failed. err=%+v", s.uk, err)
+			}
 		}
+
 		return
 	}
 
@@ -221,7 +229,13 @@ func (s *Rtmp2MpegtsRemuxer) feedVideo(msg base.RtmpMsg) {
 	s.resetVideoOutBuffer()
 
 	// msg中可能有多个NALU，逐个获取
-	nals, err := avc.SplitNaluAvcc(msg.Payload[5:])
+	var nals [][]byte
+	if codecId == base.RtmpCodecIdHevc && msg.IsEnchanedHevcNalu() {
+		index := msg.GetEnchanedHevcNaluIndex()
+		nals, err = avc.SplitNaluAvcc(msg.Payload[index:])
+	} else {
+		nals, err = avc.SplitNaluAvcc(msg.Payload[5:])
+	}
 	if err != nil {
 		Log.Errorf("[%s] iterate nalu failed. err=%+v, header=%+v, payload=%s", err, s.uk, msg.Header, hex.Dump(nazabytes.Prefix(msg.Payload, 32)))
 		return

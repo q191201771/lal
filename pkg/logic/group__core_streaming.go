@@ -428,7 +428,14 @@ func (group *Group) broadcastByRtmpMsg(msg base.RtmpMsg) {
 			}
 		}
 		if msg.IsHevcKeySeqHeader() {
-			_, sps, _, err := hevc.ParseVpsSpsPpsFromSeqHeader(msg.Payload)
+			var sps []byte
+			var err error
+			if msg.IsEnhanced() {
+				_, sps, _, err = hevc.ParseVpsSpsPpsFromEnhancedSeqHeader(msg.Payload)
+			} else {
+				_, sps, _, err = hevc.ParseVpsSpsPpsFromSeqHeader(msg.Payload)
+			}
+
 			if err == nil {
 				var ctx hevc.Context
 				err = hevc.ParseSps(sps, &ctx)
