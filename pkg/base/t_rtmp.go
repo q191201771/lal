@@ -11,7 +11,6 @@ package base
 import (
 	"encoding/hex"
 	"fmt"
-
 	"github.com/q191201771/naza/pkg/bele"
 	"github.com/q191201771/naza/pkg/nazabytes"
 )
@@ -77,6 +76,15 @@ const (
 	RtmpExPacketTypeCodedFrames   uint8 = 1 // CompositionTime不为0时有这个类型
 	RtmpExPacketTypeSequenceEnd   uint8 = 2
 	RtmpExPacketTypeCodedFramesX  uint8 = 3
+
+	// RtmpExFrameTypeKeyFrame RtmpExFrameTypeXXX...
+	//
+	// The following FrameType values are defined:
+	// 0 = reserved
+	// 1 = key frame (a seekable frame)
+	// 2 = inter frame (a non-seekable frame)
+	// ...
+	RtmpExFrameTypeKeyFrame uint8 = 1
 
 	RtmpAvcKeyFrame    = RtmpFrameTypeKey<<4 | RtmpCodecIdAvc
 	RtmpHevcKeyFrame   = RtmpFrameTypeKey<<4 | RtmpCodecIdHevc
@@ -155,7 +163,18 @@ func (msg RtmpMsg) IsAvcKeyNalu() bool {
 }
 
 func (msg RtmpMsg) IsHevcKeyNalu() bool {
-	return msg.Header.MsgTypeId == RtmpTypeIdVideo && msg.Payload[0] == RtmpHevcKeyFrame && msg.Payload[1] == RtmpHevcPacketTypeNalu
+	if msg.Header.MsgTypeId != RtmpTypeIdVideo {
+		return false
+	}
+
+	isExtHeader := msg.Payload[0] & 0x80
+	if isExtHeader != 0 {
+		frameType := msg.Payload[0] >> 4 & 0x07
+		packetType := msg.Payload[0] & 0x0F
+		return frameType == RtmpExFrameTypeKeyFrame && packetType != RtmpExPacketTypeSequenceStart
+	}
+
+	return msg.Payload[0] == RtmpHevcKeyFrame && msg.Payload[1] == RtmpHevcPacketTypeNalu
 }
 
 func (msg RtmpMsg) IsEnchanedHevcNalu() bool {
@@ -229,7 +248,41 @@ func (msg RtmpMsg) Pts() uint32 {
 	return msg.Header.TimestampAbs + bele.BeUint24(msg.Payload[2:])
 }
 
+func (msg RtmpMsg) Cts() uint32 {
+	if msg.Header.MsgTypeId == RtmpTypeIdAudio {
+		return bele.BeUint24(msg.Payload[2:])
+	}
+
+	isExtHeader := msg.Payload[0] & 0x80
+	if isExtHeader != 0 {
+		packetType := msg.Payload[0] & 0x0F
+		switch packetType {
+		case RtmpExPacketTypeCodedFrames:
+			return bele.BeUint24(msg.Payload[5:])
+		case RtmpExPacketTypeCodedFramesX:
+			return 0
+		default:
+			Log.Warnf("RtmpMsg.Cts: packetType invalid, packetType=%d", packetType)
+			return 0
+		}
+	}
+
+	return bele.BeUint24(msg.Payload[2:])
+}
+
 func (msg RtmpMsg) DebugString() string {
+	isExtHeader := msg.Payload[0] & 0x80
+	if msg.Header.MsgTypeId == RtmpTypeIdVideo && isExtHeader != 0 {
+		frameType := msg.Payload[0] >> 4 & 0x07
+		packetType := msg.Payload[0] & 0x0F // e.g. RtmpExPacketTypeSequenceStart
+		if isExtHeader != 0 {
+			return fmt.Sprintf("type=%d,len=%d,dts=%d, ext(%d, %d, %d), payload=%s",
+				msg.Header.MsgTypeId, msg.Header.MsgLen, msg.Header.TimestampAbs,
+				isExtHeader, frameType, packetType,
+				hex.Dump(nazabytes.Prefix(msg.Payload, 64)))
+		}
+	}
+
 	return fmt.Sprintf("type=%d,len=%d,dts=%d, payload=%s",
 		msg.Header.MsgTypeId, msg.Header.MsgLen, msg.Header.TimestampAbs, hex.Dump(nazabytes.Prefix(msg.Payload, 64)))
 }

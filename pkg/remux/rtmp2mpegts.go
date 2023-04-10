@@ -16,7 +16,6 @@ import (
 	"github.com/q191201771/lal/pkg/base"
 	"github.com/q191201771/lal/pkg/hevc"
 	"github.com/q191201771/lal/pkg/mpegts"
-	"github.com/q191201771/naza/pkg/bele"
 	"github.com/q191201771/naza/pkg/nazabytes"
 	"github.com/q191201771/naza/pkg/nazalog"
 )
@@ -222,8 +221,6 @@ func (s *Rtmp2MpegtsRemuxer) feedVideo(msg base.RtmpMsg) {
 		return
 	}
 
-	cts := bele.BeUint24(msg.Payload[2:])
-
 	audSent := false
 	spsppsSent := false
 	s.resetVideoOutBuffer()
@@ -376,7 +373,7 @@ func (s *Rtmp2MpegtsRemuxer) feedVideo(msg base.RtmpMsg) {
 	var frame mpegts.Frame
 	frame.Cc = s.videoCc
 	frame.Dts = dts
-	frame.Cts = cts
+	frame.Cts = msg.Cts()
 	frame.Key = msg.IsVideoKeyNalu()
 	frame.Raw = s.videoOut
 	frame.Pid = mpegts.PidVideo
@@ -486,5 +483,6 @@ func (s *Rtmp2MpegtsRemuxer) onFrame(frame *mpegts.Frame) {
 
 	packets := frame.Pack()
 
+	//nazalog.Debugf("> OnTsPackets. frame=%s, boundary=%v, packets=%d", frame.DebugString(), boundary, len(packets))
 	s.observer.OnTsPackets(packets, frame, boundary)
 }

@@ -73,7 +73,7 @@ func (q *rtmp2MpegtsFilter) Push(msg base.RtmpMsg) {
 	case base.RtmpTypeIdAudio:
 		q.audioCodecId = int(msg.Payload[0] >> 4)
 	case base.RtmpTypeIdVideo:
-		q.videoCodecId = int(msg.Payload[0] & 0xF)
+		q.videoCodecId = int(msg.VideoCodecId())
 	}
 
 	if q.videoCodecId != -1 && q.audioCodecId != -1 {
