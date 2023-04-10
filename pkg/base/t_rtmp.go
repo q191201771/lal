@@ -72,6 +72,12 @@ const (
 	RtmpHevcPacketTypeSeqHeader       = RtmpAvcPacketTypeSeqHeader
 	RtmpHevcPacketTypeNalu            = RtmpAvcPacketTypeNalu
 
+	// enhanced-rtmp packetType https://github.com/veovera/enhanced-rtmp
+	RtmpExPacketTypeSequenceStart uint8 = 0
+	RtmpExPacketTypeCodedFrames   uint8 = 1 // CompositionTime不为0时有这个类型
+	RtmpExPacketTypeSequenceEnd   uint8 = 2
+	RtmpExPacketTypeCodedFramesX  uint8 = 3
+
 	RtmpAvcKeyFrame    = RtmpFrameTypeKey<<4 | RtmpCodecIdAvc
 	RtmpHevcKeyFrame   = RtmpFrameTypeKey<<4 | RtmpCodecIdHevc
 	RtmpAvcInterFrame  = RtmpFrameTypeInter<<4 | RtmpCodecIdAvc
@@ -114,7 +120,30 @@ func (msg RtmpMsg) IsAvcKeySeqHeader() bool {
 }
 
 func (msg RtmpMsg) IsHevcKeySeqHeader() bool {
-	return msg.Header.MsgTypeId == RtmpTypeIdVideo && msg.Payload[0] == RtmpHevcKeyFrame && msg.Payload[1] == RtmpHevcPacketTypeSeqHeader
+	if msg.Header.MsgTypeId != RtmpTypeIdVideo {
+		return false
+	}
+
+	isExtHeader := msg.Payload[0] & 0x80
+	if isExtHeader != 0 {
+		packetType := msg.Payload[0] & 0x0f
+		if msg.Payload[1] == 'h' && msg.Payload[2] == 'v' && msg.Payload[3] == 'c' && msg.Payload[4] == '1' && packetType == RtmpExPacketTypeSequenceStart {
+			return true
+		}
+	} else {
+		return msg.Payload[0] == RtmpHevcKeyFrame && msg.Payload[1] == RtmpHevcPacketTypeSeqHeader
+	}
+
+	return false
+}
+
+func (msg RtmpMsg) IsEnhanced() bool {
+	isExtHeader := msg.Payload[0] & 0x80
+	if isExtHeader != 0 {
+		return true
+	}
+
+	return false
 }
 
 func (msg RtmpMsg) IsVideoKeySeqHeader() bool {
@@ -129,6 +158,34 @@ func (msg RtmpMsg) IsHevcKeyNalu() bool {
 	return msg.Header.MsgTypeId == RtmpTypeIdVideo && msg.Payload[0] == RtmpHevcKeyFrame && msg.Payload[1] == RtmpHevcPacketTypeNalu
 }
 
+func (msg RtmpMsg) IsEnchanedHevcNalu() bool {
+	isExtHeader := msg.Payload[0] & 0x80
+	if isExtHeader != 0 {
+		packetType := msg.Payload[0] & 0x0f
+		if packetType == RtmpExPacketTypeCodedFrames || packetType == RtmpExPacketTypeCodedFramesX {
+			return true
+		}
+	}
+
+	return false
+}
+
+func (msg RtmpMsg) GetEnchanedHevcNaluIndex() int {
+	isExtHeader := msg.Payload[0] & 0x80
+	if isExtHeader != 0 {
+		packetType := msg.Payload[0] & 0x0f
+		switch packetType {
+		case RtmpExPacketTypeCodedFrames:
+			// NALU前面有3个字节CompositionTime
+			return 5 + 3
+		case RtmpExPacketTypeCodedFramesX:
+			return 5
+		}
+	}
+
+	return 0
+}
+
 func (msg RtmpMsg) IsVideoKeyNalu() bool {
 	return msg.IsAvcKeyNalu() || msg.IsHevcKeyNalu()
 }
@@ -138,7 +195,16 @@ func (msg RtmpMsg) IsAacSeqHeader() bool {
 }
 
 func (msg RtmpMsg) VideoCodecId() uint8 {
-	return msg.Payload[0] & 0xF
+	isExtHeader := msg.Payload[0] & 0x80
+	if isExtHeader == 0 {
+		return msg.Payload[0] & 0xF
+	}
+
+	if msg.Payload[1] == 'h' && msg.Payload[2] == 'v' && msg.Payload[3] == 'c' && msg.Payload[4] == '1' {
+		return RtmpCodecIdHevc
+	}
+
+	return RtmpCodecIdAvc
 }
 
 func (msg RtmpMsg) AudioCodecId() uint8 {
