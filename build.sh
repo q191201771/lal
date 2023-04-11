@@ -2,6 +2,8 @@
 
 #set -x
 
+go env -w GO111MODULE=on
+
 ROOT_DIR=`pwd`
 OUT_DIR=bin
 

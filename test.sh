@@ -2,6 +2,8 @@
 
 #set -x
 
+go env -w GO111MODULE=on
+
 echo '-----add_src_license-----'
 if command -v add_src_license >/dev/null 2>&1; then
     add_src_license -d ./ -e 191201771@qq.com -n Chef
