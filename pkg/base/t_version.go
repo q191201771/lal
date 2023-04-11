@@ -22,7 +22,7 @@ const LalVersion = "v0.34.3"
 const ConfVersion = "v0.4.1"
 
 // HttpApiVersion lalserver的HTTP-API功能的版本号
-const HttpApiVersion = "v0.4.5"
+const HttpApiVersion = "v0.4.6"
 
 // HttpNotifyVersion lalserver的HTTP-Notify功能的版本号
 const HttpNotifyVersion = "v0.2.2"

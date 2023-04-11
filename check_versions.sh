@@ -14,8 +14,8 @@
 # 已检查的git commit hash id, 或者tag号
 # 本地代码会和该版本对比
 # 该变量由我手动更新
-#checked_git_ver="v0.33.0"
-checked_git_ver="5dec8415a6cbe76d0ef230a36f25666da024e368"
+checked_git_ver="v0.35.4"
+#checked_git_ver="5dec8415a6cbe76d0ef230a36f25666da024e368"
 
 # 关注的文件
 check_files=(
