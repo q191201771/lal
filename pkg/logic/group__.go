@@ -65,6 +65,10 @@ import (
 //                                                                                                                                              -> ...
 //                                                                                                                                              -> ...
 
+type GroupOption struct {
+	onHookSession func(uniqueKey string, streamName string) ICustomizeHookSessionContext
+}
+
 type IGroupObserver interface {
 	CleanupHlsIfNeeded(appName string, streamName string, path string)
 	OnHlsMakeTs(info base.HlsMakeTsInfo)
@@ -77,7 +81,11 @@ type Group struct {
 	appName    string // const after init
 	streamName string // const after init TODO chef: 和stat里的字段重复，可以删除掉
 	config     *Config
-	observer   IGroupObserver
+
+	option                      GroupOption
+	customizeHookSessionContext ICustomizeHookSessionContext
+
+	observer IGroupObserver
 
 	exitChan chan struct{}
 
@@ -133,7 +141,7 @@ type Group struct {
 	rtspPullDumpFile *base.DumpFile
 }
 
-func NewGroup(appName string, streamName string, config *Config, observer IGroupObserver) *Group {
+func NewGroup(appName string, streamName string, config *Config, option GroupOption, observer IGroupObserver) *Group {
 	uk := base.GenUkGroup()
 
 	g := &Group{
@@ -141,6 +149,7 @@ func NewGroup(appName string, streamName string, config *Config, observer IGroup
 		appName:    appName,
 		streamName: streamName,
 		config:     config,
+		option:     option,
 		observer:   observer,
 		stat: base.StatGroup{
 			StreamName: streamName,

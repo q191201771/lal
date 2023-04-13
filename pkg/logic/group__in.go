@@ -361,6 +361,10 @@ func (group *Group) addIn() {
 		group.dummyAudioFilter = remux.NewDummyAudioFilter(group.UniqueKey, group.config.InSessionConfig.AddDummyAudioWaitAudioMs, group.broadcastByRtmpMsg)
 	}
 
+	if group.option.onHookSession != nil {
+		group.customizeHookSessionContext = group.option.onHookSession(group.inSessionUniqueKey(), group.streamName)
+	}
+
 	group.startPushIfNeeded()
 	group.startHlsIfNeeded()
 	group.startRecordFlvIfNeeded(now)
@@ -373,6 +377,11 @@ func (group *Group) delIn() {
 	if group.rtmp2MpegtsRemuxer != nil {
 		group.rtmp2MpegtsRemuxer.Dispose()
 		group.rtmp2MpegtsRemuxer = nil
+	}
+
+	if group.customizeHookSessionContext != nil {
+		group.customizeHookSessionContext.OnStop()
+		group.customizeHookSessionContext = nil
 	}
 
 	group.stopPushIfNeeded()

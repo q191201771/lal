@@ -48,6 +48,8 @@ type ServerManager struct {
 
 	mutex        sync.Mutex
 	groupManager IGroupManager
+
+	onHookSession func(uniqueKey string, streamName string) ICustomizeHookSessionContext
 }
 
 func NewServerManager(modOption ...ModOption) *ServerManager {
@@ -395,6 +397,10 @@ func (sm *ServerManager) DelCustomizePubSession(sessionCtx ICustomizePubSessionC
 	group.DelCustomizePubSession(sessionCtx)
 }
 
+func (sm *ServerManager) WithOnHookSession(onHookSession func(uniqueKey string, streamName string) ICustomizeHookSessionContext) {
+	sm.onHookSession = onHookSession
+}
+
 // ----- implement rtmp.IServerObserver interface -----------------------------------------------------------------------
 
 func (sm *ServerManager) OnRtmpConnect(session *rtmp.ServerSession, opa rtmp.ObjectPairArray) {
@@ -709,7 +715,10 @@ func (sm *ServerManager) CreateGroup(appName string, streamName string) *Group {
 	} else {
 		config = sm.config
 	}
-	return NewGroup(appName, streamName, config, sm)
+	option := GroupOption{
+		onHookSession: sm.onHookSession,
+	}
+	return NewGroup(appName, streamName, config, option, sm)
 }
 
 // ----- implement IGroupObserver interface -----------------------------------------------------------------------------

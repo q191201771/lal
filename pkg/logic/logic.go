@@ -34,6 +34,14 @@ type ILalServer interface {
 	//
 	DelCustomizePubSession(ICustomizePubSessionContext)
 
+	// WithOnHookSession
+	//
+	// hook所有输入到lal server的流。
+	// 二次开发时使用。
+	// 当有流进入lal server时， onHookSession 被调用，业务方应该在回调中返回一个实现了 ICustomizeHookSessionContext 接口的对象。
+	// 后续收到流数据以及流停止时， ICustomizeHookSessionContext 对象的 OnMsg 和 OnStop 方法会被调用。
+	WithOnHookSession(onHookSession func(uniqueKey string, streamName string) ICustomizeHookSessionContext)
+
 	// StatLalInfo StatAllGroup StatGroup CtrlStartPull CtrlKickOutSession
 	//
 	// 一些获取状态、发送控制命令的API。
@@ -65,6 +73,19 @@ type ICustomizePubSessionContext interface {
 
 	UniqueKey() string
 	StreamName() string
+}
+
+// ICustomizeHookSessionContext
+//
+// 业务方实现该接口，从而hook所有输入到lalserver中的流以及流中的数据。
+type ICustomizeHookSessionContext interface {
+	// OnMsg
+	//
+	// 注意，业务方应尽快处理回调消息，否则会阻塞lal server内部处理逻辑。
+	//
+	// @param msg: 注意，业务方不应该修改或持有该内存块，如果有需要，应对该内存块进行拷贝，比如调用 msg.Clone() 生成新的 base.RtmpMsg 再使用
+	OnMsg(msg base.RtmpMsg)
+	OnStop()
 }
 
 // ---------------------------------------------------------------------------------------------------------------------

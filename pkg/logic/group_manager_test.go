@@ -19,7 +19,7 @@ type mockGroupCreator struct {
 
 func (m *mockGroupCreator) CreateGroup(appName, streamName string) *Group {
 	var config Config
-	return NewGroup(appName, streamName, &config, nil)
+	return NewGroup(appName, streamName, &config, GroupOption{}, nil)
 }
 
 var mgc = &mockGroupCreator{}

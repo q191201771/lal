@@ -238,6 +238,10 @@ func (group *Group) broadcastByRtmpMsg(msg base.RtmpMsg) {
 		group.rtmp2RtspRemuxer.FeedRtmpMsg(msg)
 	}
 
+	if group.customizeHookSessionContext != nil {
+		group.customizeHookSessionContext.OnMsg(msg)
+	}
+
 	// # 广播。遍历所有 rtmp sub session，转发数据
 	// ## 如果是新的 sub session，发送已缓存的信息
 	for session := range group.rtmpSubSessionSet {
