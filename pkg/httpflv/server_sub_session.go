@@ -130,8 +130,7 @@ func init() {
 		"Connection: close\r\n" +
 		"Expires: -1\r\n" +
 		"Pragma: no-cache\r\n" +
-		"Access-Control-Allow-Credentials: true\r\n" +
-		"Access-Control-Allow-Origin: *\r\n" +
+		base.CorsHeaders +
 		"\r\n"
 
 	flvHttpResponseHeader = []byte(flvHttpResponseHeaderStr)

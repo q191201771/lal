@@ -108,7 +108,7 @@ func (s *ServerHandler) ServeHTTPWithUrlCtx(resp http.ResponseWriter, req *http.
 				query.Set("session_id", session.sessionIdHash)
 				redirectUrl := urlObj.Path + "?" + query.Encode()
 				resp.Header().Add("Cache-Control", "no-cache")
-				resp.Header().Add("Access-Control-Allow-Origin", "*")
+				base.AddCorsHeaders(resp)
 				http.Redirect(resp, req, redirectUrl, http.StatusFound)
 				return
 			}
@@ -146,7 +146,7 @@ func (s *ServerHandler) ServeHTTPWithUrlCtx(resp http.ResponseWriter, req *http.
 		resp.Header().Add("Server", base.LalHlsTsServer)
 	}
 	resp.Header().Add("Cache-Control", "no-cache")
-	resp.Header().Add("Access-Control-Allow-Origin", "*")
+	base.AddCorsHeaders(resp)
 
 	if sessionIdHash != "" {
 		session := s.getSubSession(sessionIdHash)
@@ -215,9 +215,3 @@ func (s *ServerHandler) runLoop() {
 
 // m3u8文件用这个也行
 //resp.Header().Add("Content-Type", "application/vnd.apple.mpegurl")
-
-//resp.Header().Add("Access-Control-Allow-Origin", "*")
-//resp.Header().Add("Access-Control-Allow-Credentials", "true")
-//resp.Header().Add("Access-Control-Allow-Methods", "*")
-//resp.Header().Add("Access-Control-Allow-Headers", "Content-Type,Access-Token")
-//resp.Header().Add("Access-Control-Allow-Expose-Headers", "*")

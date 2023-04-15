@@ -150,8 +150,7 @@ func UpdateWebSocketHeader(secWebSocketKey string) []byte {
 		"Keep-Alive: timeout=15, max=100\r\n" +
 		"Connection: Upgrade\r\n" +
 		"Upgrade: websocket\r\n" +
-		"Access-Control-Allow-Credentials: true\r\n" +
-		"Access-Control-Allow-Origin: *\r\n" +
+		CorsHeaders +
 		"\r\n"
 	return []byte(webSocketResponseHeaderStr)
 }
