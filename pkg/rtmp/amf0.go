@@ -32,17 +32,17 @@ const (
 	Amf0TypeMarkerString      = uint8(0x02)
 	Amf0TypeMarkerObject      = uint8(0x03)
 	Amf0TypeMarkerNull        = uint8(0x05)
+	Amf0TypeMarkerUndefined   = uint8(0x06)
 	Amf0TypeMarkerEcmaArray   = uint8(0x08)
 	Amf0TypeMarkerObjectEnd   = uint8(0x09) // end for both Object and Array
 	Amf0TypeMarkerStrictArray = uint8(0x0a)
 	Amf0TypeMarkerLongString  = uint8(0x0c)
+	Amf0TypeMarkerUnsupported = uint8(0x0d)
 
 	// 还没用到的类型
 	//Amf0TypeMarkerMovieclip   = uint8(0x04)
-	//Amf0TypeMarkerUndefined   = uint8(0x06)
 	//Amf0TypeMarkerReference   = uint8(0x07)
 	//Amf0TypeMarkerData        = uint8(0x0b)
-	//Amf0TypeMarkerUnsupported = uint8(0x0d)
 	//Amf0TypeMarkerRecordset   = uint8(0x0e)
 	//Amf0TypeMarkerXmlDocument = uint8(0x0f)
 	//Amf0TypeMarkerTypedObject = uint8(0x10)
@@ -271,6 +271,18 @@ func (amf0) ReadNull(b []byte) (int, error) {
 	return 1, nil
 }
 
+func (amf0) ReadUndefinedOrUnsupported(b []byte) (int, error) {
+	if len(b) < 1 {
+		return 0, nazaerrors.Wrap(base.ErrAmfTooShort)
+	}
+	return 1, nil
+}
+
+// ReadObject
+//
+// @return ObjectPairArray: ...
+// @return int: 读取时从 b 消耗的字节大小
+// @return error: ...
 func (amf0) ReadObject(b []byte) (ObjectPairArray, int, error) {
 	if len(b) < 1 {
 		return nil, 0, nazaerrors.Wrap(base.ErrAmfTooShort)
@@ -425,8 +437,14 @@ func (amf0) read(b []byte, index int, k string, ops ObjectPairArray) (ObjectPair
 		}
 		ops = append(ops, ObjectPair{k, v})
 		index += l
+	case Amf0TypeMarkerUndefined, Amf0TypeMarkerUnsupported:
+		l, err := Amf0.ReadUndefinedOrUnsupported(b[index:])
+		if err != nil {
+			return nil, 0, err
+		}
+		index += l
 	default:
-		Log.Errorf("unknown type. vt=%d, hex=%s", vt, hex.Dump(nazabytes.Prefix(b, 4096)))
+		Log.Errorf("unknown type. vt=%d, hex=%s, %s", vt, hex.Dump(nazabytes.Prefix(b, 4096)), hex.Dump(nazabytes.Prefix(b[index:], 4096)))
 		return ops, index, base.NewErrAmfInvalidType(vt)
 	}
 
