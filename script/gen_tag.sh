@@ -11,9 +11,16 @@
 # 3. 执行gen_tag.sh
 
 #set -x
+go env -w GO111MODULE=on
+go env -w GOPROXY=https://goproxy.cn,https://goproxy.io,direct
+export GO111MODULE=on
+export GOPROXY=https://goproxy.cn,https://goproxy.io,direct
+THIS_FILE=$(readlink -f $0)
+THIS_DIR=$(dirname $THIS_FILE)
+ROOT_DIR=${THIS_DIR}/..
 
 # CHANGELOG.md中的版本号
-NewVersion=`cat CHANGELOG.md| grep '#### v' | head -n 1 | awk  '{print $2}'`
+NewVersion=`cat ${ROOT_DIR}/CHANGELOG.md| grep '#### v' | head -n 1 | awk  '{print $2}'`
 echo 'newest version in CHANGELOG.md: ' $NewVersion
 
 # git tag中的版本号
@@ -21,7 +28,7 @@ GitTag=`git tag --sort=version:refname | tail -n 1`
 echo "newest version in git tag: " $GitTag
 
 # 源码中的版本号
-FileVersion=`cat pkg/base/t_version.go | grep 'const LalVersion' | awk -F\" '{print $2}'`
+FileVersion=`cat ${ROOT_DIR}/pkg/base/t_version.go | grep 'const LalVersion' | awk -F\" '{print $2}'`
 echo "newest version in t_version.go: " $FileVersion
 
 # CHANGELOG.md和源码中的不一致，更新源码，并提交修改
@@ -29,8 +36,8 @@ if [ "$NewVersion" == "$FileVersion" ];then
   echo 'same tag, noop.'
 else
   echo 'update t_version.go'
-  gsed -i "/^const LalVersion/cconst LalVersion = \"${NewVersion}\"" pkg/base/t_version.go
-  git add pkg/base/t_version.go
+  gsed -i "/^const LalVersion/cconst LalVersion = \"${NewVersion}\"" ${ROOT_DIR}/pkg/base/t_version.go
+  git add ${ROOT_DIR}/pkg/base/t_version.go
   git commit -m "${NewVersion} -> t_version.go"
   git push
 fi

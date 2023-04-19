@@ -24,10 +24,10 @@ jobs:
           go-version: ${{ matrix.go }}
 
       - name: Build
-        run: ./build.sh
+        run: make build
 
       - name: Test
-        run: ./test.sh
+        run: make test
 
       - name: Upload coverage to Codecov
         run: bash <(curl -s https://codecov.io/bash)

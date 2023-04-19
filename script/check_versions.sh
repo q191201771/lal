@@ -14,7 +14,7 @@
 # 已检查的git commit hash id, 或者tag号
 # 本地代码会和该版本对比
 # 该变量由我手动更新
-checked_git_ver="v0.35.4"
+checked_git_ver="v0.35.41"
 #checked_git_ver="5dec8415a6cbe76d0ef230a36f25666da024e368"
 
 # 关注的文件
@@ -36,8 +36,14 @@ pkg/logic/http_an__lal.html
 
 #######################################################################################################################
 
-#curr_git_ver=`git log --pretty=oneline -n 1 | awk -F ' ' '{print $1}'`
-#echo '[ok] current git version: '$curr_git_ver
+#set -x
+go env -w GO111MODULE=on
+go env -w GOPROXY=https://goproxy.cn,https://goproxy.io,direct
+export GO111MODULE=on
+export GOPROXY=https://goproxy.cn,https://goproxy.io,direct
+THIS_FILE=$(readlink -f $0)
+THIS_DIR=$(dirname $THIS_FILE)
+ROOT_DIR=${THIS_DIR}/..
 
 compare_with_git_ver=$checked_git_ver
 
@@ -57,22 +63,22 @@ done;
 
 
 echo '----------doc conf----------'
-cat pkg/base/t_version.go | grep 'ConfVersion ='
-cat ../lalext/lal_website/ConfigBrief.md| grep 'conf_version' | grep ':'
+cat ${ROOT_DIR}/pkg/base/t_version.go | grep 'ConfVersion ='
+cat ${ROOT_DIR}/../lalext/lal_website/ConfigBrief.md| grep 'conf_version' | grep ':'
 
 echo '----------doc http api----------'
-cat pkg/base/t_version.go | grep 'HttpApiVersion ='
-cat ../lalext/lal_website/HTTPAPI.md| grep 'HttpApiVersion' | grep ':'
+cat ${ROOT_DIR}/pkg/base/t_version.go | grep 'HttpApiVersion ='
+cat ${ROOT_DIR}/../lalext/lal_website/HTTPAPI.md| grep 'HttpApiVersion' | grep ':'
 
 echo '----------doc http notify----------'
-cat pkg/base/t_version.go | grep 'HttpNotifyVersion ='
-cat ../lalext/lal_website/HTTPNotify.md| grep 'HttpNotifyVersion' | grep ':'
+cat ${ROOT_DIR}/pkg/base/t_version.go | grep 'HttpNotifyVersion ='
+cat ${ROOT_DIR}/../lalext/lal_website/HTTPNotify.md| grep 'HttpNotifyVersion' | grep ':'
 
 echo '----------doc http web ui----------'
-cat pkg/base/t_version.go | grep 'HttpWebUiVersion ='
-cat ../lalext/lal_website/http_web_ui.md| grep 'HttpWebUiVersion' | grep ':'
+cat ${ROOT_DIR}/pkg/base/t_version.go | grep 'HttpWebUiVersion ='
+cat ${ROOT_DIR}/../lalext/lal_website/http_web_ui.md| grep 'HttpWebUiVersion' | grep ':'
 
 echo '----------doc go version----------'
-cat go.mod | grep 'go' | grep -v 'module' | grep -v 'require'
-cat README.md | grep 'make sure that Go version'
-cat ../lalext/lal_website/ThirdDeps.md | grep 'Go版本需要'
+cat ${ROOT_DIR}/go.mod | grep 'go' | grep -v 'module' | grep -v 'require'
+cat ${ROOT_DIR}/README.md | grep 'make sure that Go version'
+cat ${ROOT_DIR}/../lalext/lal_website/ThirdDeps.md | grep 'Go版本需要'

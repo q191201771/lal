@@ -15,36 +15,43 @@ MAPPING_GOOS=("linux" "windows" "darwin" "darwin" "linux" "linux")
 MAPPING_GOARCH=( "amd64" "amd64" "amd64" "arm64" "arm" "arm64")
 MAPPING_EXE=("lalserver" "lalserver.exe" "lalserver" "lalserver" "lalserver" "lalserver")
 
+#######################################################################################################################
 
 #set -x
+go env -w GO111MODULE=on
+go env -w GOPROXY=https://goproxy.cn,https://goproxy.io,direct
+export GO111MODULE=on
+export GOPROXY=https://goproxy.cn,https://goproxy.io,direct
+THIS_FILE=$(readlink -f $0)
+THIS_DIR=$(dirname $THIS_FILE)
+ROOT_DIR=${THIS_DIR}/..
 
-ROOT_DIR=`pwd`
-OUT_DIR=release
+OUT_DIR=${ROOT_DIR}/release
 
 v=`git tag --sort=version:refname | tail -n 1`
 prefix=lal_${v}_
 
-rm -rf ${ROOT_DIR}/${OUT_DIR}
+rm -rf ${OUT_DIR}
 
 # 创建目录
 for name in ${NAMES[@]};
 do
-  mkdir -p ${ROOT_DIR}/${OUT_DIR}/${prefix}${name}/bin
-  mkdir -p ${ROOT_DIR}/${OUT_DIR}/${prefix}${name}/conf
+  mkdir -p ${OUT_DIR}/${prefix}${name}/bin
+  mkdir -p ${OUT_DIR}/${prefix}${name}/conf
 done
 
 # README.txt
 for name in ${NAMES[@]};
 do
-  echo ${v} >> ${ROOT_DIR}/${OUT_DIR}/${prefix}${name}/README.txt
-  echo 'github: https://github.com/q191201771/lal ' >> ${ROOT_DIR}/${OUT_DIR}/${prefix}${name}/README.txt
-  echo 'doc: https://pengrl.com/lal ' >> ${ROOT_DIR}/${OUT_DIR}/${prefix}${name}/README.txt
+  echo ${v} >> ${OUT_DIR}/${prefix}${name}/README.txt
+  echo 'github: https://github.com/q191201771/lal ' >> ${OUT_DIR}/${prefix}${name}/README.txt
+  echo 'doc: https://pengrl.com/lal ' >> ${OUT_DIR}/${prefix}${name}/README.txt
 done
 
 # conf/
 for name in ${NAMES[@]};
 do
-  cp conf/lalserver.conf.json conf/cert.pem conf/key.pem ${ROOT_DIR}/${OUT_DIR}/${prefix}${name}/conf
+  cp conf/lalserver.conf.json conf/cert.pem conf/key.pem ${OUT_DIR}/${prefix}${name}/conf
 done
 
 # 编译不同架构和操作系统
@@ -72,11 +79,11 @@ do
   printf "build %s(%s %s)...\n" "${NAMES[$i]}" "${MAPPING_GOOS[$i]}" "${MAPPING_GOARCH[$i]}"
   export GOOS=${MAPPING_GOOS[$i]}
   export GOARCH=${MAPPING_GOARCH[$i]}
-  cd ${ROOT_DIR}/app/lalserver && go build -ldflags "$LDFlags" -o ${ROOT_DIR}/${OUT_DIR}/${prefix}${NAMES[$i]}/bin/${MAPPING_EXE[$i]}
+  cd ${ROOT_DIR}/app/lalserver && go build -ldflags "$LDFlags" -o ${OUT_DIR}/${prefix}${NAMES[$i]}/bin/${MAPPING_EXE[$i]}
 done
 
 # 打zip包
-cd ${ROOT_DIR}/${OUT_DIR}
+cd ${OUT_DIR}
 for name in ${NAMES[@]};
 do
   zip -r ${prefix}${name}.zip ${prefix}${name}

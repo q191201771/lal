@@ -6,7 +6,16 @@
 # hls httpflv rtmp rtprtcp sdp
 # base aac avc hevc
 
-for d in $(go list ./pkg/...); do
+#set -x
+go env -w GO111MODULE=on
+go env -w GOPROXY=https://goproxy.cn,https://goproxy.io,direct
+export GO111MODULE=on
+export GOPROXY=https://goproxy.cn,https://goproxy.io,direct
+THIS_FILE=$(readlink -f $0)
+THIS_DIR=$(dirname $THIS_FILE)
+ROOT_DIR=${THIS_DIR}/..
+
+for d in $(go list ${ROOT_DIR}/pkg/...); do
   echo "-----"$d"-----"
   # 只看依赖lal自身的哪些package
   # package依赖自身这个package的过滤掉
