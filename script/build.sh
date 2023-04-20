@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-#set -x
+set -x
 go env -w GO111MODULE=on
 go env -w GOPROXY=https://goproxy.cn,https://goproxy.io,direct
 export GO111MODULE=on
