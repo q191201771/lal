@@ -119,8 +119,8 @@ type Group struct {
 	rtmpSubSessionSet     map[*rtmp.ServerSession]struct{}
 	httpflvSubSessionSet  map[*httpflv.SubSession]struct{}
 	httptsSubSessionSet   map[*httpts.SubSession]struct{}
-	rtspSubSessionSet     map[*rtsp.SubSession]struct{}
-	waitRtspSubSessionSet map[*rtsp.SubSession]struct{}
+	rtspSubSessionSet     map[*rtsp.SubSession]struct{} // 注意，使用这个容器时，一定要注意是否需要使用 waitRtspSubSessionSet
+	waitRtspSubSessionSet map[*rtsp.SubSession]struct{} // 注意，见 rtspSubSessionSet
 	hlsSubSessionSet      map[*hls.SubSession]struct{}
 	// push
 	pushEnable    bool

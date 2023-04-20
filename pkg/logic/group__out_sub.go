@@ -150,6 +150,7 @@ func (group *Group) delHttptsSubSession(session *httpts.SubSession) {
 
 func (group *Group) delRtspSubSession(session *rtsp.SubSession) {
 	Log.Debugf("[%s] [%s] del rtsp SubSession from group.", group.UniqueKey, session.UniqueKey())
+	delete(group.waitRtspSubSessionSet, session)
 	delete(group.rtspSubSessionSet, session)
 }
 
