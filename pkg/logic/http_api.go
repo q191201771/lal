@@ -131,7 +131,7 @@ func (h *HttpApiServer) ctrlStartRelayPullHandler(w http.ResponseWriter, req *ht
 	}
 
 	if !j.Exist("pull_timeout_ms") {
-		info.PullTimeoutMs = 5000
+		info.PullTimeoutMs = DefaultApiCtrlStartRelayPullReqPullTimeoutMs
 	}
 	if !j.Exist("pull_retry_num") {
 		info.PullRetryNum = base.PullRetryNumNever
@@ -200,7 +200,7 @@ func (h *HttpApiServer) ctrlStartRtpPubHandler(w http.ResponseWriter, req *http.
 	}
 
 	if !j.Exist("timeout_ms") {
-		info.TimeoutMs = 60000
+		info.TimeoutMs = DefaultApiCtrlStartRtpPubReqTimeoutMs
 	}
 	// 不存在时默认0值的，不需要手动写了
 	//if !j.Exist("port") {

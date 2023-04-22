@@ -32,8 +32,8 @@ func main() {
 	inUrl, outUrl, overTcp := parseFlag()
 
 	pushSession := rtmp.NewPushSession(func(option *rtmp.PushSessionOption) {
-		option.PushTimeoutMs = 5000
-		option.WriteAvTimeoutMs = 5000
+		option.PushTimeoutMs = 10000
+		option.WriteAvTimeoutMs = 10000
 	})
 
 	err := pushSession.Push(outUrl)
@@ -45,7 +45,7 @@ func main() {
 		nazalog.Assert(nil, err)
 	})
 	pullSession := rtsp.NewPullSession(remuxer, func(option *rtsp.PullSessionOption) {
-		option.PullTimeoutMs = 5000
+		option.PullTimeoutMs = 10000
 		option.OverTcp = overTcp != 0
 	})
 

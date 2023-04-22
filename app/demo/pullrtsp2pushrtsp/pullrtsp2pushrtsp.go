@@ -62,7 +62,7 @@ func NewRtspTunnel(pullUrl string, pushUrl string, pullOverTcp bool, pushOverTcp
 // @return: 如果为nil，表示任务启动成功，此时数据已经在后台转发
 func (r *RtspTunnel) Start() error {
 	r.pullSession = rtsp.NewPullSession(r, func(option *rtsp.PullSessionOption) {
-		option.PullTimeoutMs = 5000
+		option.PullTimeoutMs = 10000
 		option.OverTcp = r.pullOverTcp
 	})
 	if err := r.pullSession.Pull(r.pullUrl); err != nil {
@@ -73,7 +73,7 @@ func (r *RtspTunnel) Start() error {
 	nazalog.Debugf("[%s] start pull succ. sdp=%s", r.uniqueKey, string(sdpCtx.RawSdp))
 
 	r.pushSession = rtsp.NewPushSession(func(option *rtsp.PushSessionOption) {
-		option.PushTimeoutMs = 5000
+		option.PushTimeoutMs = 10000
 		option.OverTcp = r.pushOverTcp
 	})
 	if err := r.pushSession.Push(r.pushUrl, sdpCtx); err != nil {

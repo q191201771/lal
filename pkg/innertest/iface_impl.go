@@ -23,6 +23,11 @@ import (
 // TODO(chef): 检查所有 interface是否以I开头 202207
 // TODO(chef): 增加 gb28181.PubSession 202207
 
+// pub: rtmp, rtsp, ps, ICustomizePubSessionContext
+// sub: rtmp, rtsp, httpflv, httpts, hls, ICustomizeHookSessionContext
+// pull: rtmp, rtsp, httpflv
+// push: rtmp, rtsp
+
 var (
 	_ base.ISession = &rtmp.ServerSession{}
 	_ base.ISession = &rtsp.PubSession{}

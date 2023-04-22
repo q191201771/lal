@@ -97,8 +97,8 @@ func (group *Group) startPushIfNeeded() {
 
 		go func(u, u2 string) {
 			pushSession := rtmp.NewPushSession(func(option *rtmp.PushSessionOption) {
-				option.PushTimeoutMs = relayPushTimeoutMs
-				option.WriteAvTimeoutMs = relayPushWriteAvTimeoutMs
+				option.PushTimeoutMs = RelayPushTimeoutMs
+				option.WriteAvTimeoutMs = RelayPushWriteAvTimeoutMs
 			})
 			err := pushSession.Push(u2)
 			if err != nil {

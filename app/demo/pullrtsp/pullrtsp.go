@@ -82,7 +82,7 @@ func main() {
 	var observer Observer
 
 	pullSession := rtsp.NewPullSession(&observer, func(option *rtsp.PullSessionOption) {
-		option.PullTimeoutMs = 5000
+		option.PullTimeoutMs = 10000
 		option.OverTcp = overTcp != 0
 	})
 

@@ -69,13 +69,6 @@ type pullProxy struct {
 
 // initRelayPullByConfig 根据配置文件中的静态回源配置来初始化回源设置
 func (group *Group) initRelayPullByConfig() {
-	// 注意，这是配置文件中静态回源的配置值，不是HTTP-API的默认值
-	const (
-		staticRelayPullTimeoutMs                = 5000 //
-		staticRelayPullRetryNum                 = base.PullRetryNumForever
-		staticRelayPullAutoStopPullAfterNoOutMs = base.AutoStopPullAfterNoOutMsImmediately
-	)
-
 	enable := group.config.StaticRelayPullConfig.Enable
 	addr := group.config.StaticRelayPullConfig.Addr
 	appName := group.appName
@@ -93,7 +86,7 @@ func (group *Group) initRelayPullByConfig() {
 
 	group.pullProxy.pullUrl = pullUrl
 	group.pullProxy.staticRelayPullEnable = enable
-	group.pullProxy.pullTimeoutMs = staticRelayPullTimeoutMs
+	group.pullProxy.pullTimeoutMs = StaticRelayPullTimeoutMs
 	group.pullProxy.pullRetryNum = staticRelayPullRetryNum
 	group.pullProxy.autoStopPullAfterNoOutMs = staticRelayPullAutoStopPullAfterNoOutMs
 }

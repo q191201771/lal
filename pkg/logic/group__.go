@@ -435,8 +435,6 @@ func (group *Group) OutSessionNum() int {
 // ---------------------------------------------------------------------------------------------------------------------
 
 // disposeInactiveSessions 关闭不活跃的session
-//
-// TODO chef: [refactor] 梳理和naza.Connection超时重复部分
 func (group *Group) disposeInactiveSessions(tickCount uint32) {
 	if group.psPubSession != nil {
 		if group.psPubTimeoutSec == 0 {
@@ -456,9 +454,9 @@ func (group *Group) disposeInactiveSessions(tickCount uint32) {
 		}
 	}
 
-	// 以下都是以 checkSessionAliveIntervalSec 为间隔的清理逻辑
+	// 以下都是以 CheckSessionAliveIntervalSec 为间隔的清理逻辑
 
-	if tickCount%checkSessionAliveIntervalSec != 0 {
+	if tickCount%CheckSessionAliveIntervalSec != 0 {
 		return
 	}
 
