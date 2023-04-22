@@ -25,13 +25,13 @@ else
     echo 'CHEFNOTICEME gofmt not exist!'
 fi
 
-echo '-----goimports-----'
-if command -v goimports >/dev/null 2>&1; then
-    goimports -l ${ROOT_DIR}
-    goimports -w ${ROOT_DIR}
-else
-    echo 'CHEFNOTICEME goimports not exist!'
-fi
+#echo '-----goimports-----'
+#if command -v goimports >/dev/null 2>&1; then
+#    goimports -l ${ROOT_DIR}
+#    goimports -w ${ROOT_DIR}
+#else
+#    echo 'CHEFNOTICEME goimports not exist!'
+#fi
 
 echo '-----go vet-----'
 for d in $(go list ${ROOT_DIR}/... | grep -v vendor); do
