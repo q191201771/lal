@@ -450,6 +450,9 @@ func (group *Group) broadcastByRtmpMsg(msg base.RtmpMsg) {
 			}
 		}
 	}
+	if msg.Header.MsgTypeId == base.RtmpTypeIdVideo {
+		group.inVideoFpsRecords.Add(nazalog.Clock.Now().Unix(), 1)
+	}
 }
 
 // ---------------------------------------------------------------------------------------------------------------------

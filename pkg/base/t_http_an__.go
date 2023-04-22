@@ -44,6 +44,13 @@ type StatGroup struct {
 	StatPub     StatPub   `json:"pub"`
 	StatSubs    []StatSub `json:"subs"` // TODO(chef): [opt] 增加数量字段，因为这里不一定全部放入
 	StatPull    StatPull  `json:"pull"`
+
+	Fps []RecordPerSec `json:"in_frame_per_sec"`
+}
+
+type RecordPerSec struct {
+	UnixSec int64  `json:"unix_sec"`
+	V       uint32 `json:"v"`
 }
 
 type StatSession struct {
@@ -75,6 +82,11 @@ type StatPull struct {
 	StatSession
 }
 
+type PeriodRecord struct {
+	ringBuf []RecordPerSec
+	nRecord int
+}
+
 // ---------------------------------------------------------------------------------------------------------------------
 
 func Session2StatPub(session ISession) StatPub {
@@ -92,5 +104,63 @@ func Session2StatSub(session ISession) StatSub {
 func Session2StatPull(session ISession) StatPull {
 	return StatPull{
 		session.GetStat(),
+	}
+}
+
+/**
+  @note result s.Fps is not ordered
+*/
+func (s *StatGroup) GetFpsFrom(p *PeriodRecord, nowUnixSec int64) {
+	if s.Fps == nil || cap(s.Fps) < p.nRecord {
+		s.Fps = make([]RecordPerSec, p.nRecord)
+	} else {
+		s.Fps = s.Fps[0:p.nRecord]
+	}
+	nRecord := 0
+	p.nRecord = 0
+	for idx, record := range p.ringBuf {
+		if record.UnixSec == 0 {
+			continue
+		}
+		if record.UnixSec == nowUnixSec {
+			// value at nowUnixSec not completely recorded
+			p.nRecord++
+			continue
+		}
+		s.Fps[nRecord] = record
+		nRecord++
+		p.ringBuf[idx].UnixSec = 0
+	}
+	s.Fps = s.Fps[0:nRecord]
+}
+
+func NewPeriodRecord(bufSize int) PeriodRecord {
+	return PeriodRecord{
+		ringBuf: make([]RecordPerSec, bufSize),
+		nRecord: 0,
+	}
+}
+
+func (p *PeriodRecord) Add(unixSec int64, v uint32) {
+	var index int64
+	var record RecordPerSec
+	index = unixSec % int64(len(p.ringBuf))
+	record = p.ringBuf[index]
+	if record.UnixSec == unixSec {
+		p.ringBuf[index].V = record.V + v
+	} else {
+		if record.UnixSec == 0 {
+			p.nRecord++
+		}
+		p.ringBuf[index].UnixSec = unixSec
+		p.ringBuf[index].V = v
+	}
+	return
+}
+
+func (p *PeriodRecord) Clear() {
+	for idx := range p.ringBuf {
+		p.ringBuf[idx].UnixSec = 0
+		p.ringBuf[idx].V = 0
 	}
 }

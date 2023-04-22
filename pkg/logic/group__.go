@@ -12,6 +12,7 @@ import (
 	"encoding/json"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/q191201771/lal/pkg/gb28181"
 
@@ -135,6 +136,8 @@ type Group struct {
 	//
 	stat base.StatGroup
 	//
+	inVideoFpsRecords base.PeriodRecord
+	//
 	hlsCalcSessionStatIntervalSec uint32
 	//
 	psPubDumpFile    *base.DumpFile
@@ -166,6 +169,7 @@ func NewGroup(appName string, streamName string, config *Config, option GroupOpt
 		httpflvGopCache:            remux.NewGopCache("httpflv", uk, config.HttpflvConfig.GopNum, config.HttpflvConfig.SingleGopMaxFrameNum),
 		httptsGopCache:             remux.NewGopCacheMpegts(uk, config.HttptsConfig.GopNum, config.HttptsConfig.SingleGopMaxFrameNum),
 		psPubPrevInactiveCheckTick: -1,
+		inVideoFpsRecords:          base.NewPeriodRecord(32),
 	}
 
 	g.hlsCalcSessionStatIntervalSec = uint32(config.HlsConfig.FragmentDurationMs / 100) // equals to (ms/1000) * 10
@@ -275,6 +279,7 @@ func (group *Group) GetStat(maxsub int) base.StatGroup {
 
 	if group.rtmpPubSession != nil {
 		group.stat.StatPub = base.Session2StatPub(group.rtmpPubSession)
+		group.stat.GetFpsFrom(&group.inVideoFpsRecords, time.Now().Unix())
 	} else if group.rtspPubSession != nil {
 		group.stat.StatPub = base.Session2StatPub(group.rtspPubSession)
 	} else if group.psPubSession != nil {

@@ -11,11 +11,12 @@ package logic
 import (
 	"errors"
 	"fmt"
+	"strings"
+	"time"
+
 	"github.com/q191201771/lal/pkg/base"
 	"github.com/q191201771/lal/pkg/rtsp"
 	"github.com/q191201771/naza/pkg/nazalog"
-	"strings"
-	"time"
 
 	"github.com/q191201771/lal/pkg/rtmp"
 )
@@ -117,6 +118,7 @@ func (group *Group) resetRelayPullSession() {
 
 func (group *Group) getStatPull() base.StatPull {
 	if group.pullProxy.rtmpSession != nil {
+		group.stat.GetFpsFrom(&group.inVideoFpsRecords, time.Now().Unix())
 		return base.Session2StatPull(group.pullProxy.rtmpSession)
 	}
 	if group.pullProxy.rtspSession != nil {
