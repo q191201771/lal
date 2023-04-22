@@ -1,4 +1,4 @@
-#### v0.35.4 (2022-04)
+#### v0.35.4 (2023-04)
 
 - [feat] rtmp: 推流支持enhanced RTMP
 - [feat] rtsp2rtmp支持G711
@@ -13,7 +13,7 @@
 - [test] unit test for base.DumpFile
 - [chore] 在编译脚本和测试脚本中显示指定开启go mod
 
-#### v0.34.3 (2022-03)
+#### v0.34.3 (2023-03)
 
 - [feat] rtmp2rtsp: 支持 G711A/G711U
 - [opt] rtsp: 兼容G711 SDP，支持RTSP G711间的转发
@@ -28,7 +28,7 @@
 - [log] add log when not caching frame by SingleGopMaxFrameNum
 - [chore] 增加检查版本的脚本check_versions.sh
 
-#### v0.33.0 (2022-01)
+#### v0.33.0 (2023-01)
 
 - [feat] debug dump，支持抓取流数据回放调试
 - [feat] http api & notify: 支持获取hls播放者数量、码率等信息；支持获取hls开始播放、结束播放的事件通知
