@@ -9,6 +9,7 @@
 package rtmp
 
 import (
+	"encoding/hex"
 	"fmt"
 	"net"
 	"strings"
@@ -208,39 +209,48 @@ func (s *ServerSession) handshake() error {
 }
 
 func (s *ServerSession) doMsg(stream *Stream) error {
-	if err := s.writeAcknowledgementIfNeeded(stream); err != nil {
+	var err error
+
+	refForDebugLog := stream.msg.buff.Bytes()
+
+	if err = s.writeAcknowledgementIfNeeded(stream); err != nil {
+		Log.Errorf("[%s] doMsg failed. stream=%s, msg=%s", s.UniqueKey(), stream.toDebugString(), hex.EncodeToString(refForDebugLog))
 		return err
 	}
 
-	//log.Debugf("%d %d %v", stream.header.msgTypeId, stream.msgLen, stream.header)
 	switch stream.header.MsgTypeId {
 	case base.RtmpTypeIdWinAckSize:
-		return s.doWinAckSize(stream)
+		err = s.doWinAckSize(stream)
 	case base.RtmpTypeIdSetChunkSize:
 		// noop
 		// 因为底层的 chunk composer 已经处理过了，这里就不用处理
 	case base.RtmpTypeIdCommandMessageAmf0:
-		return s.doCommandMessage(stream)
+		err = s.doCommandMessage(stream)
 	case base.RtmpTypeIdCommandMessageAmf3:
-		return s.doCommandAmf3Message(stream)
+		err = s.doCommandAmf3Message(stream)
 	case base.RtmpTypeIdMetadata:
-		return s.doDataMessageAmf0(stream)
+		err = s.doDataMessageAmf0(stream)
 	case base.RtmpTypeIdAck:
-		return s.doAck(stream)
+		err = s.doAck(stream)
 	case base.RtmpTypeIdUserControl:
-		s.doUserControl(stream)
+		err = s.doUserControl(stream)
 	case base.RtmpTypeIdAudio:
 		fallthrough
 	case base.RtmpTypeIdVideo:
 		if s.sessionStat.BaseType() != base.SessionBaseTypePubStr {
-			return nazaerrors.Wrap(base.ErrRtmpUnexpectedMsg)
+			err = nazaerrors.Wrap(base.ErrRtmpUnexpectedMsg)
 		}
 		s.avObserver.OnReadRtmpAvMsg(stream.toAvMsg())
 	default:
-		Log.Warnf("[%s] read unknown message. typeid=%d, %s", s.UniqueKey(), stream.header.MsgTypeId, stream.toDebugString())
+		Log.Warnf("[%s] read unknown message. stream=%s, msg=%s", s.UniqueKey(), stream.toDebugString(), hex.EncodeToString(refForDebugLog))
 
 	}
-	return nil
+
+	if err != nil {
+		Log.Errorf("[%s] doMsg failed. stream=%s, msg=%s", s.UniqueKey(), stream.toDebugString(), hex.EncodeToString(refForDebugLog))
+	}
+
+	return err
 }
 
 func (s *ServerSession) doWinAckSize(stream *Stream) error {
@@ -456,8 +466,10 @@ func (s *ServerSession) doPublish(tid int, stream *Stream) (err error) {
 	s.url = fmt.Sprintf("%s/%s", s.tcUrl, s.streamNameWithRawQuery)
 
 	pubType, err := stream.msg.readStringWithType()
+	// 兼容 https://github.com/q191201771/lal/issues/280
+	// 没有 pubType 时，继续走后面的流程
 	if err != nil {
-		return err
+		Log.Warnf("[%s] read pubType failed. err=%s", s.UniqueKey(), err)
 	}
 	Log.Debugf("[%s] pubType=%s", s.UniqueKey(), pubType)
 	Log.Infof("[%s] < R publish('%s')", s.UniqueKey(), s.streamNameWithRawQuery)
