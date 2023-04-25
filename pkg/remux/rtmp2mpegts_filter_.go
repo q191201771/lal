@@ -109,7 +109,7 @@ func (q *rtmp2MpegtsFilter) drain() {
 func (q *rtmp2MpegtsFilter) getVideoStreamType() uint8 {
 	switch q.videoCodecId {
 	case int(base.RtmpCodecIdAvc):
-		return mpegts.StreamTypeAac
+		return mpegts.StreamTypeAvc
 	case int(base.RtmpCodecIdHevc):
 		return mpegts.StreamTypeHevc
 	}
