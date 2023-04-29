@@ -76,7 +76,7 @@ func main() {
 	go showHowToFlvCustomizePub(lals)
 
 	err := lals.RunLoop()
-	nazalog.Infof("server manager done. err=%+v", err)
+	nazalog.Infof("lal server loop done. err=%+v", err)
 }
 
 func parseFlag() string {
