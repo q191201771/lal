@@ -15,7 +15,10 @@ import (
 
 // server_manager__notify.go
 //
-// NotifyHandler部分
+// NotifyHandler部分。
+//
+// 注意，所有Notify回调都异步化在单独的协程中执行。
+// 使得外部的NotifyHandler实现不会影响到内部逻辑的执行。比如避免回调在锁内触发，回调中调用API又再次拿锁的情况。
 //
 
 func (sm *ServerManager) nhInitNotifyHandler() {
