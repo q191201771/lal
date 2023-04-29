@@ -13,8 +13,8 @@ package base
 // ----- request -------------------------------------------------------------------------------------------------------
 
 const (
-	PullRetryNumForever = -1
-	PullRetryNumNever   = 0
+	PullRetryNumForever = -1 // 永远重试
+	PullRetryNumNever   = 0  // 不重试
 
 	AutoStopPullAfterNoOutMsNever       = -1
 	AutoStopPullAfterNoOutMsImmediately = 0
