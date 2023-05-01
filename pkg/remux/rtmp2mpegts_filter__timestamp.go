@@ -45,9 +45,9 @@ func (f *Rtmp2MpegtsTimestampFilter) Do(frame *mpegts.Frame) {
 		}
 		if frame.Dts < f.basicAudioDts {
 			Log.Warnf("[%s] audio dts invalid. dts=%d, base=%d, frame=%s", f.uk, frame.Dts, f.basicAudioDts, frame.DebugString())
-			return
+		} else {
+			frame.Dts -= f.basicAudioDts
 		}
-		frame.Dts -= f.basicAudioDts
 		frame.Pts = frame.Dts + 90*uint64(frame.Cts)
 	} else if frame.Sid == mpegts.StreamIdVideo {
 		if f.basicVideoDts == math.MaxUint64 {
@@ -55,9 +55,9 @@ func (f *Rtmp2MpegtsTimestampFilter) Do(frame *mpegts.Frame) {
 		}
 		if frame.Dts < f.basicVideoDts {
 			Log.Warnf("[%s] video dts invalid. dts=%d, base=%d, frame=%s", f.uk, frame.Dts, f.basicVideoDts, frame.DebugString())
-			return
+		} else {
+			frame.Dts -= f.basicVideoDts
 		}
-		frame.Dts -= f.basicVideoDts
 		frame.Pts = frame.Dts + 90*uint64(frame.Cts)
 	}
 }

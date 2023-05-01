@@ -146,6 +146,7 @@ func (s *Rtmp2MpegtsRemuxer) FlushAudio() {
 	var frame mpegts.Frame
 	frame.Cc = s.audioCc
 	frame.Dts = s.audioCacheFirstFramePts
+	frame.Cts = 0
 	frame.Pts = s.audioCacheFirstFramePts
 	frame.Key = false
 	frame.Raw = s.audioCacheFrames
@@ -374,6 +375,7 @@ func (s *Rtmp2MpegtsRemuxer) feedVideo(msg base.RtmpMsg) {
 	frame.Cc = s.videoCc
 	frame.Dts = dts
 	frame.Cts = msg.Cts()
+	frame.Pts = frame.Dts + 90*uint64(frame.Cts)
 	frame.Key = msg.IsVideoKeyNalu()
 	frame.Raw = s.videoOut
 	frame.Pid = mpegts.PidVideo
