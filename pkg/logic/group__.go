@@ -279,7 +279,6 @@ func (group *Group) GetStat(maxsub int) base.StatGroup {
 
 	if group.rtmpPubSession != nil {
 		group.stat.StatPub = base.Session2StatPub(group.rtmpPubSession)
-		group.stat.GetFpsFrom(&group.inVideoFpsRecords, time.Now().Unix())
 	} else if group.rtspPubSession != nil {
 		group.stat.StatPub = base.Session2StatPub(group.rtspPubSession)
 	} else if group.psPubSession != nil {
@@ -334,6 +333,8 @@ func (group *Group) GetStat(maxsub int) base.StatGroup {
 		}
 		group.stat.StatSubs = append(group.stat.StatSubs, base.Session2StatSub(s))
 	}
+
+	group.stat.GetFpsFrom(&group.inVideoFpsRecords, time.Now().Unix())
 
 	return group.stat
 }
