@@ -122,7 +122,9 @@ func (session *BaseInSession) InitWithSdp(sdpCtx sdp.LogicContext) {
 
 	if session.sdpCtx.IsAudioUnpackable() && session.sdpCtx.IsVideoUnpackable() {
 		session.mu.Lock()
-		session.avPacketQueue = NewAvPacketQueue(session.onAvPacket)
+		if BaseInSessionTimestampFilterFlag {
+			session.avPacketQueue = NewAvPacketQueue(session.onAvPacket)
+		}
 		session.mu.Unlock()
 	}
 

@@ -13,16 +13,19 @@ import (
 	"github.com/q191201771/naza/pkg/circularqueue"
 )
 
-// 处理音频和视频的时间戳：
-// 1. 让音频和视频的时间戳都从0开始（改变原时间戳）
-// 2. 让音频和视频的时间戳交替递增输出（不改变原时间戳）
-
-// 注意，本模块默认音频和视频都存在，如果只有音频或只有视频，则不要使用该模块
-
 const maxQueueSize = 128
 
 type OnAvPacket func(pkt base.AvPacket)
 
+// AvPacketQueue
+//
+// 处理音频和视频的时间戳：
+// 1. 让音频和视频的时间戳都从0开始（改变原时间戳）
+// 2. 让音频和视频的时间戳交替递增输出（不改变原时间戳）
+//
+// 注意，本模块默认音频和视频都存在，如果只有音频或只有视频，则不要使用该模块
+//
+// TODO(chef): [refactor] 重命名为filter 202305
 type AvPacketQueue struct {
 	onAvPacket  OnAvPacket
 	audioBaseTs int64                        // audio base timestamp
