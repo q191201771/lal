@@ -30,10 +30,12 @@ type Rtmp2AvPacketRemuxer struct {
 type Rtmp2AvPacketRemuxerOption struct {
 	// TODO(chef): impl me 202206
 	TryInPlaceFlag bool // 尝试在原有内存上直接修改
+	EraseSeiFlag   bool
 }
 
 var defaultRtmp2AvPacketRemuxerOption = Rtmp2AvPacketRemuxerOption{
 	TryInPlaceFlag: false,
+	EraseSeiFlag:   true,
 }
 
 func NewRtmp2AvPacketRemuxer() *Rtmp2AvPacketRemuxer {
@@ -81,6 +83,7 @@ func (r *Rtmp2AvPacketRemuxer) feedVideo(msg base.RtmpMsg, arg interface{}) erro
 
 	var out []byte
 	var vps, sps, pps []byte
+	appendSpsppsFlag := false
 	err = h2645.IterateNaluAvcc(msg.Payload[5:], func(nal []byte) {
 		nalType := h2645.ParseNaluType(isH264, nal[0])
 
@@ -97,9 +100,20 @@ func (r *Rtmp2AvPacketRemuxer) feedVideo(msg base.RtmpMsg, arg interface{}) erro
 					r.spspps = append(r.spspps, pps...)
 				}
 			} else if nalType == h2645.H264NaluTypeIdrSlice {
-				out = append(out, r.spspps...)
+				if !appendSpsppsFlag {
+					out = append(out, r.spspps...)
+					appendSpsppsFlag = true
+				}
+
 				out = append(out, h2645.NaluStartCode4...)
 				out = append(out, nal...)
+			} else if nalType == h2645.H264NaluTypeSei {
+				if r.option.EraseSeiFlag {
+					// noop
+				} else {
+					out = append(out, h2645.NaluStartCode4...)
+					out = append(out, nal...)
+				}
 			} else {
 				out = append(out, h2645.NaluStartCode4...)
 				out = append(out, nal...)
@@ -121,9 +135,20 @@ func (r *Rtmp2AvPacketRemuxer) feedVideo(msg base.RtmpMsg, arg interface{}) erro
 					r.spspps = append(r.spspps, pps...)
 				}
 			} else if h2645.H265IsIrapNalu(nalType) {
-				out = append(out, r.spspps...)
+				if !appendSpsppsFlag {
+					out = append(out, r.spspps...)
+					appendSpsppsFlag = true
+				}
+
 				out = append(out, h2645.NaluStartCode4...)
 				out = append(out, nal...)
+			} else if nalType == h2645.H265NaluTypeSei {
+				if r.option.EraseSeiFlag {
+					// noop
+				} else {
+					out = append(out, h2645.NaluStartCode4...)
+					out = append(out, nal...)
+				}
 			} else {
 				out = append(out, h2645.NaluStartCode4...)
 				out = append(out, nal...)
