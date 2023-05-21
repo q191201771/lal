@@ -376,35 +376,37 @@
             function requestAllGroup() {
                 httpAsync("/api/stat/all_group", "GET", function(code, resp) {
                     if(code == 200) {
-                        const obj = JSON.parse(resp);
-                        obj["data"]["groups"].sort(allGroupSort);
                         for(let index = allGroupTable.rows.length; index > 0; index--) {
                             allGroupTable.deleteRow(-1);
                         }
 
-                        for(let i=0;i<obj["data"]["groups"].length;i++) {
-                            const group = obj["data"]["groups"][i];
-                            const newRow = allGroupTable.insertRow();
-                            newRow.insertCell(0).innerText = i + 1;
-                            newRow.insertCell(1).innerText = group["app_name"];
-                            newRow.insertCell(2).innerText = group["stream_name"];
-                            newRow.insertCell(3).innerText = group["video_codec"];
-                            newRow.insertCell(4).innerText = group["video_width"];
-                            newRow.insertCell(5).innerText = group["video_height"];
-                            newRow.insertCell(6).innerText = group["audio_codec"];
-                            newRow.insertCell(7).innerText = group["pub"]["session_id"];
-                            newRow.insertCell(8).innerText = group["pub"]["remote_addr"];
-                            newRow.insertCell(9).innerText = group["pub"]["start_time"];
-                            newRow.insertCell(10).innerText = group["pub"]["read_bytes_sum"];
-                            newRow.insertCell(11).innerText = group["pub"]["read_bitrate_kbits"];
-                            newRow.insertCell(12).innerText = group["pub"]["wrote_bytes_sum"];
-                            newRow.insertCell(13).innerText = group["pub"]["write_bitrate_kbits"];
-                            let subsCnt = 0;
-                            if(group["subs"]) {
-                                subsCnt = group["subs"].length;
+                        const obj = JSON.parse(resp);
+                        if(obj["data"]["groups"]) {
+                            obj["data"]["groups"].sort(allGroupSort);
+                            for(let i=0;i<obj["data"]["groups"].length;i++) {
+                                const group = obj["data"]["groups"][i];
+                                const newRow = allGroupTable.insertRow();
+                                newRow.insertCell(0).innerText = i + 1;
+                                newRow.insertCell(1).innerText = group["app_name"];
+                                newRow.insertCell(2).innerText = group["stream_name"];
+                                newRow.insertCell(3).innerText = group["video_codec"];
+                                newRow.insertCell(4).innerText = group["video_width"];
+                                newRow.insertCell(5).innerText = group["video_height"];
+                                newRow.insertCell(6).innerText = group["audio_codec"];
+                                newRow.insertCell(7).innerText = group["pub"]["session_id"];
+                                newRow.insertCell(8).innerText = group["pub"]["remote_addr"];
+                                newRow.insertCell(9).innerText = group["pub"]["start_time"];
+                                newRow.insertCell(10).innerText = group["pub"]["read_bytes_sum"];
+                                newRow.insertCell(11).innerText = group["pub"]["read_bitrate_kbits"];
+                                newRow.insertCell(12).innerText = group["pub"]["wrote_bytes_sum"];
+                                newRow.insertCell(13).innerText = group["pub"]["write_bitrate_kbits"];
+                                let subsCnt = 0;
+                                if(group["subs"]) {
+                                    subsCnt = group["subs"].length;
+                                }
+                                newRow.insertCell(14).innerText = subsCnt;
+                                newRow.addEventListener("click", function() {GroupOpen(group["stream_name"]);});
                             }
-                            newRow.insertCell(14).innerText = subsCnt;
-                            newRow.addEventListener("click", function() {GroupOpen(group["stream_name"]);});
                         }
                         lblAllGroupUpdateTime.innerText = (new Date().toString());
                     }
