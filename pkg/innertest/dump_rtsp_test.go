@@ -13,6 +13,7 @@ import (
 	"github.com/q191201771/lal/pkg/httpflv"
 	"github.com/q191201771/lal/pkg/remux"
 	"github.com/q191201771/lal/pkg/rtprtcp"
+	"github.com/q191201771/lal/pkg/rtsp"
 	"github.com/q191201771/lal/pkg/sdp"
 	"github.com/q191201771/naza/pkg/nazalog"
 	"io"
@@ -47,17 +48,25 @@ func TestDump_Rtsp(t *testing.T) {
 
 	// 初始化remuxer
 	remuxer := remux.NewAvPacket2RtmpRemuxer().WithOnRtmpMsg(func(msg base.RtmpMsg) {
-		nazalog.Debugf("remuxer. %s", msg.DebugString())
+		nazalog.Debugf("< remuxer. %s", msg.DebugString())
 		err = fileWriter.WriteTag(*remux.RtmpMsg2FlvTag(msg))
 		nazalog.Assert(nil, err)
 	})
 
 	var ctx sdp.LogicContext
 	var unpacker rtprtcp.IRtpUnpacker
+	var unpackerVideo rtprtcp.IRtpUnpacker
+	var q *rtsp.AvPacketQueue
 
 	df := base.NewDumpFile()
 	err = df.OpenToRead(filename)
 	nazalog.Assert(nil, err)
+
+	if rtsp.BaseInSessionTimestampFilterFlag {
+		q = rtsp.NewAvPacketQueue(func(pkt base.AvPacket) {
+			remuxer.FeedAvPacket(pkt)
+		})
+	}
 
 	for {
 		m, err := df.ReadOneMessage()
@@ -82,17 +91,33 @@ func TestDump_Rtsp(t *testing.T) {
 
 			remuxer.OnSdp(ctx)
 			unpacker = rtprtcp.DefaultRtpUnpackerFactory(ctx.GetAudioPayloadTypeBase(), ctx.AudioClockRate, 1024, func(pkt base.AvPacket) {
-				nazalog.Debugf("unpacker. %s", pkt.DebugString())
-				remuxer.OnAvPacket(pkt)
+				nazalog.Debugf("audio avpacket. %s", pkt.DebugString())
+				if rtsp.BaseInSessionTimestampFilterFlag {
+					q.Feed(pkt)
+				} else {
+					remuxer.OnAvPacket(pkt)
+				}
+			})
+			unpackerVideo = rtprtcp.DefaultRtpUnpackerFactory(ctx.GetVideoPayloadTypeBase(), ctx.VideoClockRate, 1024, func(pkt base.AvPacket) {
+				nazalog.Debugf("video avpacket. %s", pkt.DebugString())
+				if rtsp.BaseInSessionTimestampFilterFlag {
+					q.Feed(pkt)
+				} else {
+					remuxer.OnAvPacket(pkt)
+				}
 			})
 			continue
 		}
 
 		pkt, err := rtprtcp.ParseRtpPacket(m.Body)
-		nazalog.Debugf("< ParseRtpPacket. %+v, %+v", pkt, err)
 		nazalog.Assert(nil, err)
+		nazalog.Debugf("< ParseRtpPacket. %s", pkt.DebugString())
 		if ctx.IsAudioPayloadTypeOrigin(int(pkt.Header.PacketType)) {
 			unpacker.Feed(pkt)
+		} else if ctx.IsVideoPayloadTypeOrigin(int(pkt.Header.PacketType)) {
+			unpackerVideo.Feed(pkt)
+		} else {
+			nazalog.Errorf("unknown payload type. pt=%d", pkt.Header.PacketType)
 		}
 	}
 }

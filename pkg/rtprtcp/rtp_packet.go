@@ -9,10 +9,13 @@
 package rtprtcp
 
 import (
+	"encoding/hex"
+	"fmt"
 	"github.com/q191201771/lal/pkg/avc"
 	"github.com/q191201771/lal/pkg/base"
 	"github.com/q191201771/lal/pkg/hevc"
 	"github.com/q191201771/naza/pkg/bele"
+	"github.com/q191201771/naza/pkg/nazabytes"
 )
 
 // -----------------------------------
@@ -183,6 +186,10 @@ func (p *RtpPacket) Body() []byte {
 	}
 
 	return p.Raw[p.Header.payloadOffset:]
+}
+
+func (p *RtpPacket) DebugString() string {
+	return fmt.Sprintf("%+v, raw=%s", p.Header, hex.Dump(nazabytes.Prefix(p.Raw, 32)))
 }
 
 // IsAvcHevcBoundary
