@@ -9,33 +9,40 @@
 package rtsp
 
 import (
-	"bytes"
-	"fmt"
+	"github.com/q191201771/naza/pkg/nazalog"
 	"testing"
 
 	"github.com/q191201771/lal/pkg/base"
 	"github.com/q191201771/naza/pkg/assert"
 )
 
-var (
-	diffA = uint32(23)
-	diffV = uint32(40)
-)
-
-var golden = []base.AvPacket{
-	v(0), // 注意一个小细节，音频视频相等时，视频先输出
-	a(0),
-	a(23),
-	v(40),
-	a(46),
-	a(69),
-	v(80),
-	a(92),
-	a(115),
-	v(120),
-}
-
 func TestAvPacketQueue(t *testing.T) {
+	// TODO(chef): 检查该测试函数中TimestampFilterHandleRotateFlag为true的情况下的bad case 202305
+	tfhrf := TimestampFilterHandleRotateFlag
+	defer func() {
+		TimestampFilterHandleRotateFlag = tfhrf
+	}()
+
+	TimestampFilterHandleRotateFlag = false
+
+	var golden = []base.AvPacket{
+		a(0),
+		v(0),
+		a(23),
+		v(40),
+		a(46),
+		a(69),
+		v(80),
+		a(92),
+		a(115),
+		v(120),
+	}
+
+	var (
+		diffA = uint32(23)
+		diffV = uint32(40)
+	)
+
 	var in []base.AvPacket
 
 	// case. 只有音频，且数量小于队列容量
@@ -107,6 +114,7 @@ func TestAvPacketQueue(t *testing.T) {
 		v(4294967294),
 		a(4294967295),
 	}, []base.AvPacket{
+		a(0),
 		v(0),
 	})
 
@@ -117,8 +125,8 @@ func TestAvPacketQueue(t *testing.T) {
 	ab := uint32(4294967295 - diffA*3) // max 4294967295
 	vb := uint32(66666)
 	in = []base.AvPacket{
-		a(ab),           // 0: 0
 		v(vb),           // 0
+		a(ab),           // 0: 0
 		a(ab + diffA),   // 23
 		v(vb + diffV),   // 40
 		a(ab + diffA*2), // 46
@@ -140,9 +148,9 @@ func TestAvPacketQueue(t *testing.T) {
 		{v(0), a(0), a(diffA), v(diffV), a(diffA * 2), a(diffA * 3)},
 		{v(0), a(0), a(diffA), v(diffV), a(diffA * 2), a(diffA * 3), v(diffV * 2)},
 		{v(0), a(0), a(diffA), v(diffV), a(diffA * 2), a(diffA * 3), v(diffV * 2)},
-		{v(0), a(0), a(diffA), v(diffV), a(diffA * 2), a(diffA * 3), v(diffV * 2), v(0)},
-		{v(0), a(0), a(diffA), v(diffV), a(diffA * 2), a(diffA * 3), v(diffV * 2), v(0)},
-		{v(0), a(0), a(diffA), v(diffV), a(diffA * 2), a(diffA * 3), v(diffV * 2), v(0), a(0), a(diffA), v(diffV)},
+		{v(0), a(0), a(diffA), v(diffV), a(diffA * 2), a(diffA * 3), v(diffV * 2), a(0), v(0)},
+		{v(0), a(0), a(diffA), v(diffV), a(diffA * 2), a(diffA * 3), v(diffV * 2), a(0), v(0)},
+		{v(0), a(0), a(diffA), v(diffV), a(diffA * 2), a(diffA * 3), v(diffV * 2), a(0), v(0), a(diffA), v(diffV)},
 	}
 	for i := 0; i < len(in); i++ {
 		out, q := oneCase(t, in[:i+1], expects[i])
@@ -196,6 +204,104 @@ func TestAvPacketQueue(t *testing.T) {
 	}
 }
 
+func TestAvPacketQueue__Rotate(t *testing.T) {
+	tfhrf := TimestampFilterHandleRotateFlag
+	defer func() {
+		TimestampFilterHandleRotateFlag = tfhrf
+	}()
+
+	in := []base.AvPacket{
+		v(4294564),
+		v(4294604),
+		v(4294644),
+		v(4294684),
+
+		v(4294724),
+		v(4294764),
+		v(4294804),
+		v(4294844),
+
+		a(4294756), // [old] out V4294564 4294604 4294644 4294684, A4294756
+
+		v(4294884),
+		v(4294924),
+		v(4294924),
+		v(4294924),
+		v(4294964),
+		v(37), // [old] rotate, out all, except V37
+
+		a(4294916), // [old] out V37
+
+		v(77), // [old] out A4294916
+		v(117),
+		v(157),
+		v(197),
+
+		a(109), // [old] rotate, out all, except A109
+
+		v(237), // [old] out A109
+		v(277),
+		v(317),
+		v(357),
+
+		a(269), // [old] out V237 277 317 357
+
+		v(397), // [old] out A269
+	}
+
+	audioBase := uint32(2551917)
+	videoBase := uint32(2551884)
+
+	expectedOld := []base.AvPacket{
+		v(4294564 - videoBase),
+		v(4294604 - videoBase),
+		v(4294644 - videoBase),
+		v(4294684 - videoBase),
+		a(4294756 - audioBase),
+
+		v(4294724 - videoBase),
+		v(4294764 - videoBase),
+		v(4294804 - videoBase),
+		v(4294844 - videoBase),
+		v(4294884 - videoBase),
+		v(4294924 - videoBase),
+		v(4294924 - videoBase),
+		v(4294924 - videoBase),
+		v(4294964 - videoBase),
+
+		v(37 - 37),
+
+		a(4294916 - 4294916),
+
+		v(77 - 37),
+		v(117 - 37),
+		v(157 - 37),
+		v(197 - 37),
+
+		a(109 - 109),
+
+		v(237 - 237),
+		v(277 - 237),
+		v(317 - 237),
+		v(357 - 237),
+
+		a(269 - 109),
+	}
+
+	expectedNew := []base.AvPacket{
+		v(0), a(0), v(40), v(80), v(120), v(160), a(160), v(200), v(240), v(280), v(320), a(320), v(360), v(360), v(360), v(400), v(440), v(480), a(480),
+	}
+
+	_ = expectedOld
+	//TimestampFilterHandleRotateFlag = false
+	// oneCaseWithHackBase(t, in, expectedOld, int64(audioBase), int64(videoBase))
+
+	TimestampFilterHandleRotateFlag = true
+	oneCaseWithHackBase(t, in, expectedNew, int64(audioBase), int64(videoBase))
+}
+
+// ---------------------------------------------------------------------------------------------------------------------
+
 func a(t uint32) base.AvPacket {
 	return base.AvPacket{
 		PayloadType: base.AvPacketPtAac,
@@ -210,47 +316,29 @@ func v(t uint32) base.AvPacket {
 	}
 }
 
-func oneCase(t *testing.T, in []base.AvPacket, expected []base.AvPacket) (out []base.AvPacket, q *AvPacketQueue) {
-	out, q = calc(in)
+func oneCaseWithHackBase(t *testing.T, in []base.AvPacket, expected []base.AvPacket, audioBase, videoBase int64) (out []base.AvPacket, q *AvPacketQueue) {
+	out, q = calc(in, audioBase, videoBase)
+	nazalog.Debugf("in: %s", packetsReadable(in))
+	nazalog.Debugf("exp: %s", packetsReadable(expected))
+	nazalog.Debugf("out: %s", packetsReadable(out))
+	nazalog.Debugf("remain: %s", packetsReadable(peekQueuePackets(q)))
 	assert.Equal(t, expected, out)
 	return out, q
 }
 
-func calc(in []base.AvPacket) (out []base.AvPacket, q *AvPacketQueue) {
+func oneCase(t *testing.T, in []base.AvPacket, expected []base.AvPacket) (out []base.AvPacket, q *AvPacketQueue) {
+	return oneCaseWithHackBase(t, in, expected, -1, -1)
+}
+
+func calc(in []base.AvPacket, audioBase, videoBase int64) (out []base.AvPacket, q *AvPacketQueue) {
 	q = NewAvPacketQueue(func(pkt base.AvPacket) {
 		out = append(out, pkt)
 	})
+	q.audioBaseTs = audioBase
+	q.videoBaseTs = videoBase
+
 	for _, pkt := range in {
 		q.Feed(pkt)
 	}
 	return out, q
-}
-
-func packetsReadable(pkts []base.AvPacket) string {
-	var buf bytes.Buffer
-	buf.WriteString("[")
-	for _, pkt := range pkts {
-		if pkt.PayloadType == base.AvPacketPtAac {
-			buf.WriteString(fmt.Sprintf(" A(%d) ", pkt.Timestamp))
-		} else {
-			buf.WriteString(fmt.Sprintf(" V(%d) ", pkt.Timestamp))
-		}
-	}
-	buf.WriteString("]")
-	return buf.String()
-}
-
-func peekQueuePackets(q *AvPacketQueue) []base.AvPacket {
-	var out []base.AvPacket
-	for i := 0; i < q.audioQueue.Size(); i++ {
-		pkt, _ := q.audioQueue.At(i)
-		ppkt := pkt.(base.AvPacket)
-		out = append(out, ppkt)
-	}
-	for i := 0; i < q.videoQueue.Size(); i++ {
-		pkt, _ := q.videoQueue.At(i)
-		ppkt := pkt.(base.AvPacket)
-		out = append(out, ppkt)
-	}
-	return out
 }
