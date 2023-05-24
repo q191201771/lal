@@ -570,7 +570,8 @@ func (group *Group) hasSubSession() bool {
 		len(group.httptsSubSessionSet) != 0 ||
 		len(group.rtspSubSessionSet) != 0 ||
 		len(group.waitRtspSubSessionSet) != 0 ||
-		len(group.hlsSubSessionSet) != 0
+		len(group.hlsSubSessionSet) != 0 ||
+		group.customizeHookSessionContext != nil
 }
 
 func (group *Group) hasPushSession() bool {
