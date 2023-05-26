@@ -63,7 +63,7 @@ import (
 var (
 	timestampCheckFlag   = true
 	printStatFlag        = true
-	printEveryTagFlag    = false
+	printEveryTagFlag    = true
 	printMetaData        = true
 	analysisVideoTagFlag = true
 )
@@ -112,7 +112,7 @@ func handleTags(tag httpflv.Tag) bool {
 			nazalog.Debugf("%+v", buf.String())
 		}
 	case httpflv.TagTypeAudio:
-		nazalog.Debugf("header=%+v, body=%s", tag.Header, hex.Dump(nazabytes.Prefix(tag.Payload(), 128)))
+		//nazalog.Debugf("header=%+v, body=%s", tag.Header, hex.Dump(nazabytes.Prefix(tag.Payload(), 128)))
 		brAudio.Add(len(tag.Raw))
 
 		if tag.IsAacSeqHeader() {
@@ -131,6 +131,7 @@ func handleTags(tag httpflv.Tag) bool {
 		prevAudioTs = int64(tag.Header.Timestamp)
 		prevTs = int64(tag.Header.Timestamp)
 	case httpflv.TagTypeVideo:
+		nazalog.Debugf("header=%+v, body=%s", tag.Header, hex.Dump(nazabytes.Prefix(tag.Payload(), 128)))
 		analysisVideoTag(tag)
 
 		videoCts := bele.BeUint24(tag.Raw[13:])
