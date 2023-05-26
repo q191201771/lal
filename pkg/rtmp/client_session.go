@@ -662,7 +662,10 @@ func (s *ClientSession) notifyDoResultSucc() {
 	}
 	s.hasNotifyDoResultSucc = true
 
-	s.conn.ModWriteChanSize(s.option.WriteChanSize)
+	if s.option.WriteChanSize > 0 {
+		s.conn.ModWriteChanSize(s.option.WriteChanSize)
+	}
+
 	//pull有可能还需要小包发送，不使用缓存
 	if s.sessionStat.BaseType() == base.SessionBaseTypePushStr {
 		s.conn.ModWriteBufSize(s.option.WriteBufSize)
