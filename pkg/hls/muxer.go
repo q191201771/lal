@@ -292,6 +292,10 @@ func (m *Muxer) openFragment(ts uint64, discont bool) error {
 
 	m.fragTs = ts
 
+	if m.observer == nil {
+		return nil
+	}
+
 	// nrm said: start fragment with audio to make iPhone happy
 	m.observer.OnFragmentOpen()
 
@@ -342,6 +346,11 @@ func (m *Muxer) closeFragment(isLast bool) error {
 			}
 		}
 	}
+
+	if m.observer == nil {
+		return nil
+	}
+
 	currFrag := m.getClosedFrag()
 	m.observer.OnHlsMakeTs(base.HlsMakeTsInfo{
 		Event:          "close",
