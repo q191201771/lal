@@ -217,7 +217,7 @@ func (r *Rtmp2RtspRemuxer) doAnalyze() {
 func (r *Rtmp2RtspRemuxer) isAnalyzeEnough() bool {
 	// 音视频头都收集好了
 	// 注意，这里故意只判断sps和pps，从而同时支持h264和2h65的情况
-	if r.sps != nil && r.pps != nil && r.asc != nil {
+	if r.sps != nil && r.pps != nil && (r.asc != nil || r.audioPt != base.AvPacketPtUnknown) {
 		return true
 	}
 
