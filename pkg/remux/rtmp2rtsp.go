@@ -73,6 +73,14 @@ func (r *Rtmp2RtspRemuxer) FeedRtmpMsg(msg base.RtmpMsg) {
 	switch msg.Header.MsgTypeId {
 	case base.RtmpTypeIdMetadata:
 		if meta, err := rtmp.ParseMetadata(msg.Payload); err == nil {
+			if audioCodecId, ok := meta.Find("audiocodecid").(float64); ok {
+				switch uint8(audioCodecId) {
+				case base.RtmpSoundFormatG711U:
+					r.audioPt = base.AvPacketPtG711U
+				case base.RtmpSoundFormatG711A:
+					r.audioPt = base.AvPacketPtG711A
+				}
+			}
 			if samplerate, ok := meta.Find("audiosamplerate").(float64); ok {
 				r.audioSampleRate = int(samplerate)
 			}
@@ -209,7 +217,7 @@ func (r *Rtmp2RtspRemuxer) doAnalyze() {
 func (r *Rtmp2RtspRemuxer) isAnalyzeEnough() bool {
 	// 音视频头都收集好了
 	// 注意，这里故意只判断sps和pps，从而同时支持h264和2h65的情况
-	if r.sps != nil && r.pps != nil && r.asc != nil {
+	if r.sps != nil && r.pps != nil && (r.asc != nil || r.audioPt != base.AvPacketPtUnknown) {
 		return true
 	}
 
