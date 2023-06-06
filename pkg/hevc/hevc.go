@@ -103,23 +103,23 @@ type Context struct {
 	PicWidthInLumaSamples  uint32 // sps
 	PicHeightInLumaSamples uint32 // sps
 
-	configurationVersion uint8
+	ConfigurationVersion uint8 // const value: 1
 
-	generalProfileSpace              uint8
-	generalTierFlag                  uint8
-	generalProfileIdc                uint8
-	generalProfileCompatibilityFlags uint32
-	generalConstraintIndicatorFlags  uint64
-	generalLevelIdc                  uint8
+	GeneralProfileSpace              uint8
+	GeneralTierFlag                  uint8
+	GeneralProfileIdc                uint8
+	GeneralProfileCompatibilityFlags uint32 // const value: 0xffffffff
+	GeneralConstraintIndicatorFlags  uint64 // const value: 0xffffffffffff
+	GeneralLevelIdc                  uint8
 
-	lengthSizeMinusOne uint8
+	LengthSizeMinusOne uint8 // const value: 3
 
-	numTemporalLayers uint8
-	temporalIdNested  uint8
+	NumTemporalLayers uint8
+	TemporalIdNested  uint8
 
-	chromaFormat         uint8
-	bitDepthLumaMinus8   uint8
-	bitDepthChromaMinus8 uint8
+	ChromaFormat         uint8
+	BitDepthLumaMinus8   uint8
+	BitDepthChromaMinus8 uint8
 }
 
 func ParseNaluTypeReadable(v uint8) string {
@@ -337,14 +337,14 @@ func BuildSeqHeaderFromVpsSpsPps(vps, sps, pps []byte) ([]byte, error) {
 	// unsigned int(2) general_profile_space;
 	// unsigned int(1) general_tier_flag;
 	// unsigned int(5) general_profile_idc;
-	sh[6] = ctx.generalProfileSpace<<6 | ctx.generalTierFlag<<5 | ctx.generalProfileIdc
+	sh[6] = ctx.GeneralProfileSpace<<6 | ctx.GeneralTierFlag<<5 | ctx.GeneralProfileIdc
 	// unsigned int(32) general_profile_compatibility_flags
-	bele.BePutUint32(sh[7:], ctx.generalProfileCompatibilityFlags)
+	bele.BePutUint32(sh[7:], ctx.GeneralProfileCompatibilityFlags)
 	// unsigned int(48) general_constraint_indicator_flags
-	bele.BePutUint32(sh[11:], uint32(ctx.generalConstraintIndicatorFlags>>16))
-	bele.BePutUint16(sh[15:], uint16(ctx.generalConstraintIndicatorFlags))
+	bele.BePutUint32(sh[11:], uint32(ctx.GeneralConstraintIndicatorFlags>>16))
+	bele.BePutUint16(sh[15:], uint16(ctx.GeneralConstraintIndicatorFlags))
 	// unsigned int(8) general_level_idc;
-	sh[17] = ctx.generalLevelIdc
+	sh[17] = ctx.GeneralLevelIdc
 
 	// bit(4) reserved = ‘1111’b;
 	// unsigned int(12) min_spatial_segmentation_idc;
@@ -355,25 +355,25 @@ func BuildSeqHeaderFromVpsSpsPps(vps, sps, pps []byte) ([]byte, error) {
 	sh[20] = 0xfc
 
 	// bit(6) reserved = ‘111111’b;
-	// unsigned int(2) chromaFormat;
-	sh[21] = ctx.chromaFormat | 0xfc
+	// unsigned int(2) ChromaFormat;
+	sh[21] = ctx.ChromaFormat | 0xfc
 
 	// bit(5) reserved = ‘11111’b;
-	// unsigned int(3) bitDepthLumaMinus8;
-	sh[22] = ctx.bitDepthLumaMinus8 | 0xf8
+	// unsigned int(3) BitDepthLumaMinus8;
+	sh[22] = ctx.BitDepthLumaMinus8 | 0xf8
 
 	// bit(5) reserved = ‘11111’b;
-	// unsigned int(3) bitDepthChromaMinus8;
-	sh[23] = ctx.bitDepthChromaMinus8 | 0xf8
+	// unsigned int(3) BitDepthChromaMinus8;
+	sh[23] = ctx.BitDepthChromaMinus8 | 0xf8
 
 	// bit(16) avgFrameRate;
 	bele.BePutUint16(sh[24:], 0)
 
 	// bit(2) constantFrameRate;
-	// bit(3) numTemporalLayers;
-	// bit(1) temporalIdNested;
+	// bit(3) NumTemporalLayers;
+	// bit(1) TemporalIdNested;
 	// unsigned int(2) lengthSizeMinusOne;
-	sh[26] = 0<<6 | ctx.numTemporalLayers<<3 | ctx.temporalIdNested<<2 | ctx.lengthSizeMinusOne
+	sh[26] = 0<<6 | ctx.NumTemporalLayers<<3 | ctx.TemporalIdNested<<2 | ctx.LengthSizeMinusOne
 
 	// num of vps sps pps
 	sh[27] = 0x03
@@ -418,8 +418,8 @@ func ParseVps(vps []byte, ctx *Context) error {
 	if err != nil {
 		return nazaerrors.Wrap(base.ErrHevc)
 	}
-	if vpsMaxSubLayersMinus1+1 > ctx.numTemporalLayers {
-		ctx.numTemporalLayers = vpsMaxSubLayersMinus1 + 1
+	if vpsMaxSubLayersMinus1+1 > ctx.NumTemporalLayers {
+		ctx.NumTemporalLayers = vpsMaxSubLayersMinus1 + 1
 	}
 
 	// skip
@@ -452,12 +452,12 @@ func ParseSps(sps []byte, ctx *Context) error {
 		return err
 	}
 
-	if spsMaxSubLayersMinus1+1 > ctx.numTemporalLayers {
-		ctx.numTemporalLayers = spsMaxSubLayersMinus1 + 1
+	if spsMaxSubLayersMinus1+1 > ctx.NumTemporalLayers {
+		ctx.NumTemporalLayers = spsMaxSubLayersMinus1 + 1
 	}
 
 	// sps_temporal_id_nesting_flag
-	if ctx.temporalIdNested, err = br.ReadBit(); err != nil {
+	if ctx.TemporalIdNested, err = br.ReadBit(); err != nil {
 		return err
 	}
 
@@ -474,13 +474,14 @@ func ParseSps(sps []byte, ctx *Context) error {
 	if cf, err = br.ReadGolomb(); err != nil {
 		return err
 	}
-	ctx.chromaFormat = uint8(cf)
-	if ctx.chromaFormat == 3 {
+	ctx.ChromaFormat = uint8(cf)
+	if ctx.ChromaFormat == 3 {
 		if _, err = br.ReadBit(); err != nil {
 			return err
 		}
 	}
 
+	// https://github.com/OpenVisualCloud/SVT-HEVC/issues/319
 	if ctx.PicWidthInLumaSamples, err = br.ReadGolomb(); err != nil {
 		return err
 	}
@@ -511,12 +512,12 @@ func ParseSps(sps []byte, ctx *Context) error {
 	if bdlm8, err = br.ReadGolomb(); err != nil {
 		return err
 	}
-	ctx.bitDepthLumaMinus8 = uint8(bdlm8)
+	ctx.BitDepthLumaMinus8 = uint8(bdlm8)
 	var bdcm8 uint32
 	if bdcm8, err = br.ReadGolomb(); err != nil {
 		return err
 	}
-	ctx.bitDepthChromaMinus8 = uint8(bdcm8)
+	ctx.BitDepthChromaMinus8 = uint8(bdcm8)
 
 	_, err = br.ReadGolomb()
 	if err != nil {
@@ -569,22 +570,22 @@ func ParseSps(sps []byte, ctx *Context) error {
 func parsePtl(br *nazabits.BitReader, ctx *Context, maxSubLayersMinus1 uint8) error {
 	var err error
 	var ptl Context
-	if ptl.generalProfileSpace, err = br.ReadBits8(2); err != nil {
+	if ptl.GeneralProfileSpace, err = br.ReadBits8(2); err != nil {
 		return err
 	}
-	if ptl.generalTierFlag, err = br.ReadBit(); err != nil {
+	if ptl.GeneralTierFlag, err = br.ReadBit(); err != nil {
 		return err
 	}
-	if ptl.generalProfileIdc, err = br.ReadBits8(5); err != nil {
+	if ptl.GeneralProfileIdc, err = br.ReadBits8(5); err != nil {
 		return err
 	}
-	if ptl.generalProfileCompatibilityFlags, err = br.ReadBits32(32); err != nil {
+	if ptl.GeneralProfileCompatibilityFlags, err = br.ReadBits32(32); err != nil {
 		return err
 	}
-	if ptl.generalConstraintIndicatorFlags, err = br.ReadBits64(48); err != nil {
+	if ptl.GeneralConstraintIndicatorFlags, err = br.ReadBits64(48); err != nil {
 		return err
 	}
-	if ptl.generalLevelIdc, err = br.ReadBits8(8); err != nil {
+	if ptl.GeneralLevelIdc, err = br.ReadBits8(8); err != nil {
 		return err
 	}
 	updatePtl(ctx, &ptl)
@@ -635,33 +636,33 @@ func parsePtl(br *nazabits.BitReader, ctx *Context, maxSubLayersMinus1 uint8) er
 }
 
 func updatePtl(ctx, ptl *Context) {
-	ctx.generalProfileSpace = ptl.generalProfileSpace
+	ctx.GeneralProfileSpace = ptl.GeneralProfileSpace
 
-	if ptl.generalTierFlag > ctx.generalTierFlag {
-		ctx.generalLevelIdc = ptl.generalLevelIdc
+	if ptl.GeneralTierFlag > ctx.GeneralTierFlag {
+		ctx.GeneralLevelIdc = ptl.GeneralLevelIdc
 
-		ctx.generalTierFlag = ptl.generalTierFlag
+		ctx.GeneralTierFlag = ptl.GeneralTierFlag
 	} else {
-		if ptl.generalLevelIdc > ctx.generalLevelIdc {
-			ctx.generalLevelIdc = ptl.generalLevelIdc
+		if ptl.GeneralLevelIdc > ctx.GeneralLevelIdc {
+			ctx.GeneralLevelIdc = ptl.GeneralLevelIdc
 		}
 	}
 
-	if ptl.generalProfileIdc > ctx.generalProfileIdc {
-		ctx.generalProfileIdc = ptl.generalProfileIdc
+	if ptl.GeneralProfileIdc > ctx.GeneralProfileIdc {
+		ctx.GeneralProfileIdc = ptl.GeneralProfileIdc
 	}
 
-	ctx.generalProfileCompatibilityFlags &= ptl.generalProfileCompatibilityFlags
+	ctx.GeneralProfileCompatibilityFlags &= ptl.GeneralProfileCompatibilityFlags
 
-	ctx.generalConstraintIndicatorFlags &= ptl.generalConstraintIndicatorFlags
+	ctx.GeneralConstraintIndicatorFlags &= ptl.GeneralConstraintIndicatorFlags
 }
 
 func newContext() *Context {
 	return &Context{
-		configurationVersion:             1,
-		lengthSizeMinusOne:               3, // 4 bytes
-		generalProfileCompatibilityFlags: 0xffffffff,
-		generalConstraintIndicatorFlags:  0xffffffffffff,
+		ConfigurationVersion:             1,
+		LengthSizeMinusOne:               3, // 4 bytes
+		GeneralProfileCompatibilityFlags: 0xffffffff,
+		GeneralConstraintIndicatorFlags:  0xffffffffffff,
 	}
 }
 
