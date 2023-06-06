@@ -89,6 +89,8 @@ type Context struct {
 	Level   uint8
 	Width   uint32
 	Height  uint32
+
+	Sps Sps
 }
 
 // DecoderConfigurationRecord

@@ -42,6 +42,8 @@ func ParseSps(payload []byte, ctx *Context) error {
 
 	ctx.Width = (sps.PicWidthInMbsMinusOne+1)*16 - (sps.FrameCropLeftOffset+sps.FrameCropRightOffset)*2
 	ctx.Height = (2-uint32(sps.FrameMbsOnlyFlag))*(sps.PicHeightInMapUnitsMinusOne+1)*16 - (sps.FrameCropTopOffset+sps.FrameCropBottomOffset)*2
+
+	ctx.Sps = sps
 	return nil
 }
 
