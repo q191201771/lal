@@ -9,7 +9,7 @@
 #   2. HTTP-API和HTTP-Notify
 #   3. Web-UI
 #   4. Go版本
-#   5. TODO 依赖版本，目前只有naza
+#   5. 依赖版本，目前只有naza
 
 # 已检查的git commit hash id, 或者tag号
 # 本地代码会和该版本对比
@@ -42,6 +42,14 @@ go env -w GOPROXY=https://goproxy.cn,https://goproxy.io,direct
 export GO111MODULE=on
 export GOPROXY=https://goproxy.cn,https://goproxy.io,direct
 THIS_FILE=$(readlink -f $0)
+# readlink have no -f param in some macos
+if [ $? -ne 0 ]; then
+  cd `dirname $0`
+  TARGET_FILE=`basename $0`
+  PHYS_DIR=`pwd -P`
+  THIS_FILE=$PHYS_DIR/$TARGET_FILE
+  cd -
+fi
 THIS_DIR=$(dirname $THIS_FILE)
 ROOT_DIR=${THIS_DIR}/..
 
@@ -82,3 +90,7 @@ echo '----------doc go version----------'
 cat ${ROOT_DIR}/go.mod | grep 'go' | grep -v 'module' | grep -v 'require'
 cat ${ROOT_DIR}/README.md | grep 'make sure that Go version'
 cat ${ROOT_DIR}/../lalext/lal_website/ThirdDeps.md | grep 'Go版本需要'
+
+echo '----------dep naza----------'
+cat ${ROOT_DIR}/go.mod | grep 'naza'
+head -n 1 ${ROOT_DIR}/../naza/CHANGELOG.md
