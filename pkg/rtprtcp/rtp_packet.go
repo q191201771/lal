@@ -156,8 +156,8 @@ func ParseRtpHeader(b []byte) (h RtpHeader, err error) {
 			return h, base.ErrRtpRtcpShortBuffer
 		}
 
-		offset += int(4 * extensionLength)
 		h.Extensions = b[offset : offset+int(4*extensionLength)]
+		offset += int(4 * extensionLength)
 	}
 
 	if offset >= len(b) {
