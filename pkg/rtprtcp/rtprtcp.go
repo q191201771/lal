@@ -8,4 +8,5 @@
 
 package rtprtcp
 
+// MaxRtpRtcpPacketSize UDP接收时的buffer大小
 const MaxRtpRtcpPacketSize = 1500

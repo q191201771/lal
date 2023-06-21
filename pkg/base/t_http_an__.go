@@ -107,9 +107,9 @@ func Session2StatPull(session ISession) StatPull {
 	}
 }
 
-/**
-  @note result s.Fps is not ordered
-*/
+// GetFpsFrom
+//
+// @note result s.Fps is not ordered
 func (s *StatGroup) GetFpsFrom(p *PeriodRecord, nowUnixSec int64) {
 	if s.Fps == nil || cap(s.Fps) < p.nRecord {
 		s.Fps = make([]RecordPerSec, p.nRecord)

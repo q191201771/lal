@@ -65,9 +65,9 @@ var (
 	RelayPushTimeoutMs        = 10000
 	RelayPushWriteAvTimeoutMs = 10000
 
-	StaticRelayPullTimeoutMs             = 10000
+	StaticRelayPullTimeoutMs = 10000
 
-	DefaultApiCtrlStartRtpPubReqTimeoutMs = 60000
+	DefaultApiCtrlStartRtpPubReqTimeoutMs        = 60000
 	DefaultApiCtrlStartRelayPullReqPullTimeoutMs = 10000
 )
 

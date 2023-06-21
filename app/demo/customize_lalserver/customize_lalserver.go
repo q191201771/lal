@@ -11,6 +11,7 @@ package main
 import (
 	"flag"
 	"fmt"
+	"github.com/q191201771/lal/pkg/rtsp"
 	"os"
 	"time"
 
@@ -56,6 +57,8 @@ func (i *MySession) OnStop() {
 
 func main() {
 	defer nazalog.Sync()
+
+	rtsp.BaseInSessionTimestampFilterFlag = false
 
 	confFilename := parseFlag()
 	lals := logic.NewLalServer(func(option *logic.Option) {

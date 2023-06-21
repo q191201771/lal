@@ -213,7 +213,7 @@ func (session *PubSession) runLoopTcp() error {
 
 		go func() {
 			lb := make([]byte, 2)
-			buf := nazabytes.NewBuffer(1500)
+			buf := nazabytes.NewBuffer(1500) // 初始1500，如果不够会扩容
 			for {
 				if _, rErr := io.ReadFull(conn, lb); rErr != nil {
 					nazalog.Debugf("[%s] read failed. err=%+v", session.UniqueKey(), rErr)

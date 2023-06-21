@@ -36,7 +36,7 @@ import (
 // go test -test.run TestDump_PsPub
 func TestDump_PsPub(t *testing.T) {
 	filename := "/tmp/record.psdata"
-	isTcpFlag := 1
+	isTcpFlag := 0
 
 	b, err := os.ReadFile(filename)
 	if len(b) == 0 || err != nil {
@@ -76,6 +76,9 @@ func testPushFile(addr string, filename string, isTcpFlag int) {
 			break
 		}
 		nazalog.Debugf("%s", m.DebugString())
+		if m.Typ == base.DumpTypeInnerFileHeaderData {
+			continue
+		}
 
 		if isTcpFlag != 0 {
 			bele.BePutUint16(lb, uint16(m.Len))

@@ -57,6 +57,18 @@ const (
 	RtmpFrameTypeKey   uint8 = 1
 	RtmpFrameTypeInter uint8 = 2
 
+	// RtmpCodecIdAvc
+	//
+	// Video tags -> VIDEODATA -> CodecID
+	//
+	// 1: JPEG (currently unused)
+	// 2: Sorenson H.263
+	// 3: Screen video
+	// 4: On2 VP6
+	// 5: On2 VP6 with alpha channel
+	// 6: Screen video version 2
+	// 7: AVC
+	//
 	RtmpCodecIdAvc  uint8 = 7
 	RtmpCodecIdHevc uint8 = 12
 
