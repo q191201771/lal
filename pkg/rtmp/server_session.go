@@ -478,11 +478,11 @@ func (s *ServerSession) doPublish(tid int, stream *Stream) (err error) {
 	if err = s.packer.writeOnStatusPublish(s.conn, Msid1); err != nil {
 		return err
 	}
+	s.sessionStat.SetBaseType(base.SessionBaseTypePubStr)
 
 	// 回复完信令后修改 connection 的属性
 	s.modConnProps()
 
-	s.sessionStat.SetBaseType(base.SessionBaseTypePubStr)
 	err = s.observer.OnNewRtmpPubSession(s)
 	if err != nil {
 		s.DisposeByObserverFlag = true
@@ -520,11 +520,11 @@ func (s *ServerSession) doPlay(tid int, stream *Stream) (err error) {
 	if err := s.packer.writeOnStatusPlay(s.conn, Msid1); err != nil {
 		return err
 	}
+	s.sessionStat.SetBaseType(base.SessionBaseTypeSubStr)
 
 	// 回复完信令后修改 connection 的属性
 	s.modConnProps()
 
-	s.sessionStat.SetBaseType(base.SessionBaseTypeSubStr)
 	err = s.observer.OnNewRtmpSubSession(s)
 	if err != nil {
 		s.DisposeByObserverFlag = true
