@@ -1,3 +1,34 @@
+#### v0.36.7 (2023-07)
+
+- [feat] customize: 支持将流输出给业务方做二次开发
+- [opt] logic: 在业务方WithOnHookSession的情况下，停用auto stop relay pull功能。（业务方如果想auto stop relay pull，可以在业务层自行判断、决定是否stop relay pull） #292
+- [opt] logic: 将NotifyHandler回调异步化到独立协程中 #281
+- [feat] http api中流信息中增加fps字段
+- [fix] rtsp: 播放不存在的rtsp流，超时没有彻底释放
+- [refactor] 整理所有跨域的代码
+- [refactor] 整理所有超时相关的代码
+- [opt] rtsp: 支持处理时间戳翻滚的情况 #281
+- [opt] rtsp: new configable var BaseInSessionTimestampFilterFlag #281
+- [fix] rtp: 修复解析ext扩展数据的bug
+- [fix] mpegts: 转ts时，pmt中的avc标志写错导致vlc无法播放h264编码的视频 #284 #277
+- [fix] rtmp2mpegts: 确保pts有值
+- [fix] hls: fix panic, check IMuxerObserver nil
+- [fix] rtmp: 解析Amf0TypeMarkerUndefined和Amf0TypeMarkerUnsupported
+- [opt] rtmp: 兼容publish信令中没有pubType字段的情况 #280
+- [fix] rtmp: 当ClientSession配置项WriteChanSize为0时，不必要开启异步发送
+- [opt] rtmp2rtsp: 兼容音频格式写在metadata中的情况
+- [feat] remux: Rtmp2AvPacketRemuxer增加参数用于指定是否需要丢弃SEI
+- [fix] remux: Rtmp2AvPacketRemuxer多slice时append sps错误导致花屏
+- [chore] all shell file go to script folder
+- [chore] 所有脚本+x增加执行权限，保证CI正常运行
+- [chore] 修复macos平台readlink没有-f参数导致脚本执行失败的问题
+- [fix] webui: read null when no group
+- [fix] connection: not working set ModWriteChanSize
+- [fix] not working timout for RTMP server session
+- [test] dump rtsp test support video
+- [refactor] hevc: 暴露hevc.Context中的所有字段
+- [refactor] avc: 暴露avc.Context中的Sps结构体字段
+
 #### v0.35.4 (2023-04)
 
 - [feat] rtmp: 推流支持enhanced RTMP
