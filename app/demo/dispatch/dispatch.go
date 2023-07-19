@@ -59,26 +59,6 @@ func OnPubStartHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	nazalog.Infof("[%s] on_pub_start. info=%+v", id, info)
 
-	// 演示如何踢掉session，服务于鉴权失败等场景
-	//if info.UrlParam == "" {
-	//if info.SessionId == "RTMPPUBSUB1" {
-	//	reqServer, exist := config.ServerId2Server[info.ServerId]
-	//	if !exist {
-	//		nazalog.Errorf("[%s] req server id invalid.", id)
-	//		return
-	//	}
-	//	url := fmt.Sprintf("http://%s/api/ctrl/kick_out_session", reqServer.ApiAddr)
-	//	var b base.ApiCtrlKickOutSession
-	//	b.StreamName = info.StreamName
-	//	b.SessionId = info.SessionId
-	//
-	//	nazalog.Infof("[%s] ctrl kick out session. send to %s with %+v", id, reqServer.ApiAddr, b)
-	//	if _, err := nazahttp.PostJson(url, b, nil); err != nil {
-	//		nazalog.Errorf("[%s] post json error. err=%+v", id, err)
-	//	}
-	//	return
-	//}
-
 	if _, exist := config.ServerId2Server[info.ServerId]; !exist {
 		nazalog.Errorf("server id has not config. serverId=%s", info.ServerId)
 		return
@@ -116,6 +96,27 @@ func OnSubStartHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	nazalog.Infof("[%s] on_sub_start. info=%+v", id, info)
+
+	// 演示通过流名称踢掉session，服务于鉴权等场景
+	// 业务方真正使用时，可以通过流名称、用户IP、URL参数等信息，来判断是否需要踢掉session
+	if info.StreamName == "cheftestkick" {
+		reqServer, exist := config.ServerId2Server[info.ServerId]
+		if !exist {
+			nazalog.Errorf("[%s] req server id invalid.", id)
+			return
+		}
+
+		url := fmt.Sprintf("http://%s/api/ctrl/kick_session", reqServer.ApiAddr)
+		var b base.ApiCtrlKickSessionReq
+		b.StreamName = info.StreamName
+		b.SessionId = info.SessionId
+
+		nazalog.Infof("[%s] ctrl kick out session. send to %s with %+v", id, reqServer.ApiAddr, b)
+		if _, err := nazahttp.PostJson(url, b, nil); err != nil {
+			nazalog.Errorf("[%s] post json error. err=%+v", id, err)
+		}
+		return
+	}
 
 	// sub拉流时，判断是否需要触发pull级联拉流
 	// 1. 是内部级联拉流，不需要触发

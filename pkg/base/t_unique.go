@@ -16,7 +16,7 @@ const (
 	UkPreRtmpPushSession            = SessionProtocolRtmpStr + SessionBaseTypePushStr     // "RTMPPUSH"
 	UkPreRtmpPullSession            = SessionProtocolRtmpStr + SessionBaseTypePullStr     // "RTMPPULL"
 	UkPreRtspPubSession             = SessionProtocolRtspStr + SessionBaseTypePubStr      // "RTSPPUB"
-	UkPreRtspSubSession             = SessionProtocolRtspStr + SessionBaseTypePubSubStr   // "RTSPSUB"
+	UkPreRtspSubSession             = SessionProtocolRtspStr + SessionBaseTypeSubStr      // "RTSPSUB"
 	UkPreRtspPushSession            = SessionProtocolRtspStr + SessionBaseTypePushStr     // "RTSPPUSH"
 	UkPreRtspPullSession            = SessionProtocolRtspStr + SessionBaseTypePullStr     // "RTSPPULL"
 	UkPreFlvSubSession              = SessionProtocolFlvStr + SessionBaseTypePubSubStr    // "FLVSUB"

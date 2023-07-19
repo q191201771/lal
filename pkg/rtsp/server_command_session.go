@@ -426,6 +426,8 @@ func (session *ServerCommandSession) handlePlay(requestCtx nazahttp.HttpReqMsgCt
 		return base.ErrRtsp
 	}
 
+	session.subSession.Stage.Store(SubSessionStageReadPlay)
+
 	// TODO(chef): [opt] 上层关闭，可以考虑回复非200状态码再关闭
 	if err := session.observer.OnNewRtspSubSessionPlay(session.subSession); err != nil {
 		return err

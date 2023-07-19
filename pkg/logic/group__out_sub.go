@@ -77,10 +77,11 @@ func (group *Group) HandleNewRtspSubSessionDescribe(session *rtsp.SubSession) (o
 
 	group.mutex.Lock()
 	defer group.mutex.Unlock()
+
+	group.rtspSubSessionSet[session] = struct{}{}
+
 	if group.sdpCtx == nil {
 		Log.Warnf("[%s] [%s] rtsp subSession describe but sdp not exist.", group.UniqueKey, session.UniqueKey())
-
-		group.waitRtspSubSessionSet[session] = struct{}{}
 
 		return true, nil
 	}
@@ -92,8 +93,7 @@ func (group *Group) HandleNewRtspSubSessionPlay(session *rtsp.SubSession) {
 
 	group.mutex.Lock()
 	defer group.mutex.Unlock()
-	delete(group.waitRtspSubSessionSet, session)
-	group.rtspSubSessionSet[session] = struct{}{}
+
 	if group.stat.VideoCodec == "" {
 		session.ShouldWaitVideoKeyFrame = false
 	}
@@ -150,7 +150,7 @@ func (group *Group) delHttptsSubSession(session *httpts.SubSession) {
 
 func (group *Group) delRtspSubSession(session *rtsp.SubSession) {
 	Log.Debugf("[%s] [%s] del rtsp SubSession from group.", group.UniqueKey, session.UniqueKey())
-	delete(group.waitRtspSubSessionSet, session)
+
 	delete(group.rtspSubSessionSet, session)
 }
 

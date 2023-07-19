@@ -180,7 +180,7 @@ func (h *HttpApiServer) ctrlKickSessionHandler(w http.ResponseWriter, req *http.
 		return
 	}
 
-	Log.Infof("http api kick out session. req info=%+v", info)
+	Log.Infof("http api kick session. req info=%+v", info)
 
 	resp := h.sm.CtrlKickSession(info)
 	feedback(resp, w)

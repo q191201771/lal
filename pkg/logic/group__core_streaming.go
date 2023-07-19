@@ -9,6 +9,7 @@
 package logic
 
 import (
+	"github.com/q191201771/lal/pkg/rtsp"
 	"net"
 
 	"github.com/q191201771/lal/pkg/rtmp"
@@ -580,7 +581,9 @@ func (group *Group) writev2RtmpSubSessions(bs net.Buffers) {
 // ---------------------------------------------------------------------------------------------------------------------
 
 func (group *Group) feedWaitRtspSubSessions() {
-	for session := range group.waitRtspSubSessionSet {
-		session.FeedSdp(*group.sdpCtx)
+	for session := range group.rtspSubSessionSet {
+		if session.Stage.Load() == rtsp.SubSessionStageReadDescribe {
+			session.FeedSdp(*group.sdpCtx)
+		}
 	}
 }

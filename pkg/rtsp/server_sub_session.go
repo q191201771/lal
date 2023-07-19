@@ -12,8 +12,17 @@ import (
 	"github.com/q191201771/lal/pkg/base"
 	"github.com/q191201771/lal/pkg/rtprtcp"
 	"github.com/q191201771/lal/pkg/sdp"
+	"github.com/q191201771/naza/pkg/nazaatomic"
 	"github.com/q191201771/naza/pkg/nazaerrors"
 	"github.com/q191201771/naza/pkg/nazanet"
+)
+
+type SubSessionStage int
+
+const (
+	SubSessionStageReadDescribe int32 = 0 // 初时阶段，已收到 describe
+	SubSessionStageWriteSdp           = 1 // 已发送 sdp
+	SubSessionStageReadPlay           = 2 // 已收到 play
 )
 
 type SubSession struct {
@@ -22,6 +31,8 @@ type SubSession struct {
 	baseOutSession *BaseOutSession
 
 	ShouldWaitVideoKeyFrame bool
+
+	Stage nazaatomic.Int32 // 见 SubSessionStageReadDescribe 等常量定义
 }
 
 func NewSubSession(urlCtx base.UrlContext, cmdSession *ServerCommandSession) *SubSession {
@@ -31,6 +42,7 @@ func NewSubSession(urlCtx base.UrlContext, cmdSession *ServerCommandSession) *Su
 
 		ShouldWaitVideoKeyFrame: true,
 	}
+	s.Stage.Store(SubSessionStageReadDescribe)
 	baseOutSession := NewBaseOutSession(base.SessionTypeRtspSub, s)
 	s.baseOutSession = baseOutSession
 	Log.Infof("[%s] lifecycle new rtsp SubSession. session=%p, streamName=%s", s.UniqueKey(), s, urlCtx.LastItemOfPath)
@@ -39,11 +51,13 @@ func NewSubSession(urlCtx base.UrlContext, cmdSession *ServerCommandSession) *Su
 
 // FeedSdp 供上层调用
 func (session *SubSession) FeedSdp(sdpCtx sdp.LogicContext) {
+	session.Stage.Store(SubSessionStageWriteSdp)
 	session.cmdSession.FeedSdp(sdpCtx.RawSdp)
 }
 
 // InitWithSdp 供 ServerCommandSession 调用
 func (session *SubSession) InitWithSdp(sdpCtx sdp.LogicContext) {
+	session.Stage.Store(SubSessionStageWriteSdp)
 	session.baseOutSession.InitWithSdp(sdpCtx)
 }
 
@@ -56,6 +70,11 @@ func (session *SubSession) SetupWithChannel(uri string, rtpChannel, rtcpChannel 
 }
 
 func (session *SubSession) WriteRtpPacket(packet rtprtcp.RtpPacket) {
+	stage := session.Stage.Load()
+	if stage != SubSessionStageReadPlay {
+		//Log.Warnf("[%s] write rtp packet is not as expected, stage is not ready yet.. stage=%d", session.UniqueKey(), stage)
+		return
+	}
 	session.baseOutSession.WriteRtpPacket(packet)
 }
 
