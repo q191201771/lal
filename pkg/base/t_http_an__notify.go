@@ -141,7 +141,6 @@ func session2EventCommonInfo(session ISession) SessionEventCommonInfo {
 	info.Url = session.Url()
 	info.AppName = session.AppName()
 	info.StreamName = session.StreamName()
-	info.Url = session.Url()
 	info.UrlParam = session.RawQuery()
 	info.ReadBytesSum = stat.ReadBytesSum
 	info.WroteBytesSum = stat.WroteBytesSum
