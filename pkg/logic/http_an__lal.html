@@ -499,7 +499,8 @@
             }
 
             function requestGroup() {
-                httpAsync("/api/stat/group?stream_name="+groupName.innerText, "GET", function(code, resp) {
+                let gname = encodeURIComponent(groupName.innerText);
+                httpAsync("/api/stat/group?stream_name="+gname, "GET", function(code, resp) {
                     if(code == 200) {
                         const obj = JSON.parse(resp);
                         for(let index = groupInfoTable.rows.length; index > 0; index--) {
