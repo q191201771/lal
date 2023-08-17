@@ -108,7 +108,7 @@ func (s *ServerHandler) ServeHTTPWithUrlCtx(resp http.ResponseWriter, req *http.
 				query.Set("session_id", session.sessionIdHash)
 				redirectUrl := urlObj.Path + "?" + query.Encode()
 				resp.Header().Add("Cache-Control", "no-cache")
-				base.AddCorsHeaders(resp)
+				base.AddCorsHeaders2HlsIfNeeded(resp)
 				http.Redirect(resp, req, redirectUrl, http.StatusFound)
 				return
 			}
@@ -146,7 +146,7 @@ func (s *ServerHandler) ServeHTTPWithUrlCtx(resp http.ResponseWriter, req *http.
 		resp.Header().Add("Server", base.LalHlsTsServer)
 	}
 	resp.Header().Add("Cache-Control", "no-cache")
-	base.AddCorsHeaders(resp)
+	base.AddCorsHeaders2HlsIfNeeded(resp)
 
 	if sessionIdHash != "" {
 		session := s.getSubSession(sessionIdHash)

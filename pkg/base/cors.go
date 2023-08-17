@@ -16,6 +16,14 @@ var (
 		"Access-Control-Allow-Headers: Content-Type\r\n"
 )
 
+func AddCorsHeaders2HlsIfNeeded(w http.ResponseWriter) {
+	// TODO(chef): [opt] 为其他协议也增加配置项 202308
+
+	if AddCors2HlsFlag {
+		AddCorsHeaders(w)
+	}
+}
+
 func AddCorsHeaders(w http.ResponseWriter) {
 	w.Header().Set("Access-Control-Allow-Credentials", "true")
 	w.Header().Set("Access-Control-Allow-Origin", "*")

@@ -11,3 +11,6 @@ package base
 import "github.com/q191201771/naza/pkg/nazalog"
 
 var Log = nazalog.GetGlobalLogger()
+
+// AddCors2HlsFlag 是否为hls增加跨域相关的http header
+var AddCors2HlsFlag = true
