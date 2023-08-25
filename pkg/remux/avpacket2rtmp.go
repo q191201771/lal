@@ -23,9 +23,10 @@ import (
 //
 // 目前AvPacket来自:
 //
-// - RTSP: sdp以及rtp的合帧包
+// - RTSP:       sdp以及rtp的合帧包
 // - gb28181 ps: rtp的合帧包
-// - customize: 业务方通过接口向lalserver输入的流
+// - customize:  业务方通过接口向lalserver输入的流
+// - ffmpeg:     ffmpeg编码后的数据
 // - 理论上也支持webrtc，后续接入webrtc时再验证
 type AvPacket2RtmpRemuxer struct {
 	option    base.AvPacketStreamOption

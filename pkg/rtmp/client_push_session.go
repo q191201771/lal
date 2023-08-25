@@ -71,11 +71,22 @@ func (s *PushSession) Push(rawUrl string) error {
 
 // Write 发送数据
 //
-// @param msg: 注意，`msg`数据应该是已经打包成rtmp chunk格式的数据。这里的数据就对应socket发送的数据，内部不会再修改数据内容。
-func (s *PushSession) Write(msg []byte) error {
+// @param b:
+//
+//	注意，`b`数据应该是已经打包成rtmp chunk格式的数据。这里的数据就对应socket发送的数据，内部不会再修改数据内容。
+//	如果要发送 base.RtmpMsg 数据，请使用 WriteMsg 函数。
+func (s *PushSession) Write(b []byte) error {
 	// TODO(chef): [opt] 使用Write函数时确保metadata有@SetDataFrame 202207
 
-	return s.core.Write(msg)
+	return s.core.Write(b)
+}
+
+// WriteMsg
+//
+// 内部会根据 msg 的包头字段和包体数据，打包成 rtmp chunk 格式的数据，然后发送。
+// 如果想要自己控制打包过程，请使用 Write 函数直接发送数据。
+func (s *PushSession) WriteMsg(msg base.RtmpMsg) error {
+	return s.Write(Message2Chunks(msg.Payload, &msg.Header))
 }
 
 // Flush 将缓存的数据立即刷新发送
