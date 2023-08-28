@@ -11,6 +11,7 @@ package gb28181
 import (
 	"bytes"
 	"encoding/hex"
+
 	"github.com/q191201771/lal/pkg/base"
 	"github.com/q191201771/lal/pkg/h2645"
 	"github.com/q191201771/lal/pkg/rtprtcp"
@@ -321,6 +322,10 @@ func (p *PsUnpacker) parsePsm(rb []byte, index int) int {
 			switch p.audioStreamType {
 			case StreamTypeAAC:
 				p.audioPayloadType = base.AvPacketPtAac
+			case StreamTypeG711A:
+				p.audioPayloadType = base.AvPacketPtG711A
+			case StreamTypeG711U:
+				p.audioPayloadType = base.AvPacketPtG711U
 			default:
 				p.audioPayloadType = base.AvPacketPtUnknown
 			}
@@ -375,7 +380,7 @@ func (p *PsUnpacker) parseAvStream(code int, rtpts uint32, rb []byte, index int)
 
 	if code == psPackStartCodeAudioStream {
 		// 注意，处理音频的逻辑和处理视频的类似，参考处理视频的注释
-		if p.audioStreamType == StreamTypeAAC {
+		if p.audioStreamType == StreamTypeAAC || p.audioStreamType == StreamTypeG711A || p.audioStreamType == StreamTypeG711U {
 			//nazalog.Debugf("audio code=%d, length=%d, ptsDtsFlag=%d, phdl=%d, pts=%d, dts=%d,type=%d", code, length, ptsDtsFlag, phdl, pts, dts, p.audioStreamType)
 			if pts == -1 {
 				if p.preAudioPts == -1 {
