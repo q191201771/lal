@@ -32,6 +32,7 @@ const (
 	StreamTypeH265          = 0x24
 	StreamTypeAAC           = 0x0f
 	StreamTypeG711A         = 0x90 //PCMA
+	StreamTypeG711U         = 0x91 //PCMU
 	StreamTypeG7221         = 0x92
 	StreamTypeG7231         = 0x93
 	StreamTypeG729          = 0x99
