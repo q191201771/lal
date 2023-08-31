@@ -61,7 +61,8 @@ func (h *HttpServerHandler) ServeSubSession(writer http.ResponseWriter, req *htt
 		isWebSocket  bool
 		webSocketKey string
 	)
-	if req.Header.Get("Connection") == "Upgrade" && req.Header.Get("Upgrade") == "websocket" {
+	// 火狐浏览器 Connection = [keep-alive, Upgrade]
+	if strings.Contains(req.Header.Get("Connection"), "Upgrade") && req.Header.Get("Upgrade") == "websocket" {
 		isWebSocket = true
 		webSocketKey = req.Header.Get("Sec-WebSocket-Key")
 	}
