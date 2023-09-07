@@ -11,7 +11,6 @@ package mpegts
 import (
 	"encoding/hex"
 	"fmt"
-
 	"github.com/q191201771/naza/pkg/nazabytes"
 )
 
@@ -119,11 +118,13 @@ func (frame *Frame) Pack() []byte {
 				packet[3] |= 0x20 // adaptation_field_control 设置Adaptation
 				packet[4] = 7     // adaptation_field_length
 				packet[5] = 0x50  // random_access_indicator + PCR_flag
+
 				pcr := uint64(0)
 				if frame.Dts > delay {
 					pcr = frame.Dts - delay
 				}
 				packPcr(packet[6:], pcr) // using 6 byte
+
 				wpos += 8
 			}
 
