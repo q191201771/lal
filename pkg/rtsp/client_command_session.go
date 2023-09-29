@@ -315,8 +315,6 @@ func (session *ClientCommandSession) runReadLoop() {
 				loopErr = err
 				return
 			}
-		default:
-			// noop
 		}
 
 	}
