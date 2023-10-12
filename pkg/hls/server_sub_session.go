@@ -9,12 +9,13 @@
 package hls
 
 import (
-	"github.com/q191201771/lal/pkg/base"
-	"github.com/q191201771/naza/pkg/connection"
-	"github.com/q191201771/naza/pkg/nazamd5"
 	"net/http"
 	"strings"
 	"time"
+
+	"github.com/q191201771/lal/pkg/base"
+	"github.com/q191201771/naza/pkg/connection"
+	"github.com/q191201771/naza/pkg/nazamd5"
 )
 
 type SubSession struct {
@@ -121,5 +122,14 @@ func GetAppNameFromUrlCtx(urlCtx base.UrlContext, hlsUrlPattern string) string {
 }
 
 func GetStreamNameFromUrlCtx(urlCtx base.UrlContext) string {
-	return urlCtx.GetFilenameWithoutType()
+	filename := urlCtx.LastItemOfPath
+	filetype := urlCtx.GetFileType()
+	if filetype == "m3u8" && (filename == playlistM3u8FileName || filename == recordM3u8FileName) {
+		uriItems := strings.Split(urlCtx.Path, "/")
+		if l := len(uriItems); l >= 2 {
+			return uriItems[len(uriItems)-2]
+		}
+	}
+	fileNameWithoutType := urlCtx.GetFilenameWithoutType()
+	return fileNameWithoutType
 }
