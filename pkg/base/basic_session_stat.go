@@ -82,6 +82,16 @@ func NewBasicSessionStat(sessionType SessionType, remoteAddr string) BasicSessio
 		s.stat.SessionId = GenUkPsPubSession()
 		s.stat.BaseType = SessionBaseTypePubStr
 		s.stat.Protocol = SessionProtocolPsStr
+	case SessionTypeHlsSub:
+		s.stat.SessionId = GenUkHlsSubSession()
+		s.stat.BaseType = SessionBaseTypeSubStr
+		s.stat.Protocol = SessionProtocolHlsStr
+	case SessionTypeTsSub:
+		s.stat.SessionId = GenUkTsSubSession()
+		s.stat.BaseType = SessionBaseTypeSubStr
+		s.stat.Protocol = SessionProtocolTsStr
+	default:
+		nazalog.Errorf("unknown session type: [%d]", sessionType)
 	}
 	return s
 }
