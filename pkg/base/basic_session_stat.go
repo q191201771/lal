@@ -91,7 +91,7 @@ func NewBasicSessionStat(sessionType SessionType, remoteAddr string) BasicSessio
 		s.stat.BaseType = SessionBaseTypeSubStr
 		s.stat.Protocol = SessionProtocolTsStr
 	default:
-		nazalog.Errorf("unknown session type: [d%]", sessionType)
+		nazalog.Errorf("unknown session type: [%d]", sessionType)
 	}
 	return s
 }
