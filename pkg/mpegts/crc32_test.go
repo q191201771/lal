@@ -1,17 +1,11 @@
-// Copyright 2023, Chef.  All rights reserved.
-// https://github.com/q191201771/lal
-//
-// Use of this source code is governed by a MIT-style license
-// that can be found in the License file.
-//
-// Author: Chef (191201771@qq.com)
-
 package mpegts
 
-import "hash/crc32"
+import (
+	"github.com/q191201771/naza/pkg/assert"
+	"testing"
+)
 
-// Table for ISO/IEC 13818-1 CRC-32/MPEG-2
-var crc32table = &crc32.Table{
+var crc32tableTest [256]uint32 = [256]uint32{
 	0x00000000, 0xB71DC104, 0x6E3B8209, 0xD926430D, 0xDC760413, 0x6B6BC517,
 	0xB24D861A, 0x0550471E, 0xB8ED0826, 0x0FF0C922, 0xD6D68A2F, 0x61CB4B2B,
 	0x649B0C35, 0xD386CD31, 0x0AA08E3C, 0xBDBD4F38, 0x70DB114C, 0xC7C6D048,
@@ -57,6 +51,42 @@ var crc32table = &crc32.Table{
 	0x6D66B4BC, 0xDA7B75B8, 0x035D36B5, 0xB440F7B1,
 }
 
-func CalcCrc32(crc uint32, buf []byte) uint32 {
-	return ^crc32.Update(^crc, crc32table, buf)
+// CalcCrc32Test 供mpegts内部使用的crc32计算函数
+//
+// TODO(chef): [refactor] 检查mpegts使用该crc32是否正确，是否能替换成标准库中的crc32 [202303]
+func CalcCrc32Test(crc uint32, buffer []byte) uint32 {
+	for _, b := range buffer {
+		crc = crc32tableTest[(crc^uint32(b))&0xff] ^ (crc >> 8)
+	}
+	return crc
+}
+
+func TestCalcCrc322(t *testing.T) {
+	testCases := []struct {
+		inputBuffer   []byte
+		expectedCrc32 uint32
+	}{
+		{
+			inputBuffer:   []byte{0, 0, 176, 13, 0, 1, 193, 0, 0, 0, 1, 240, 1, 0, 0, 0, 0},
+			expectedCrc32: uint32(0x519702E), // 你的期望CRC32值
+		},
+		{
+			inputBuffer:   []byte{0, 0, 174, 123, 0, 14, 13, 0, 4, 0, 41, 20, 1, 0, 0, 0, 0},
+			expectedCrc32: uint32(0xB2392D92), // 你期望CRC32值
+		},
+		{
+			inputBuffer:   []byte{0, 0, 14, 23, 4, 14, 134, 1, 42, 43, 41, 202, 14, 0, 0, 0, 0},
+			expectedCrc32: uint32(0x38837278), // 你期望CRC32值
+		},
+		// 添加更多测试案例...
+	}
+
+	for _, tc := range testCases {
+		t.Run("", func(t *testing.T) {
+			result := CalcCrc32(0xffffffff, tc.inputBuffer[1:len(tc.inputBuffer)-4])
+			assert.Equal(t, tc.expectedCrc32, result)
+			oldTestResult := CalcCrc32Test(0xffffffff, tc.inputBuffer[1:len(tc.inputBuffer)-4])
+			assert.Equal(t, oldTestResult, result)
+		})
+	}
 }
