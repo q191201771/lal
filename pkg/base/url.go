@@ -74,10 +74,9 @@ func (u *UrlContext) GetFileType() string {
 
 func (u *UrlContext) calcFilenameAndTypeIfNeeded() {
 	if len(u.filenameWithoutType) == 0 || len(u.fileType) == 0 {
-		ss := strings.Split(u.LastItemOfPath, ".")
-		u.filenameWithoutType = ss[0]
-		if len(ss) > 1 {
-			u.fileType = ss[1]
+		if index := strings.LastIndex(u.LastItemOfPath, "."); index != -1 {
+			u.filenameWithoutType = u.LastItemOfPath[:index]
+			u.fileType = u.LastItemOfPath[index+1:]
 		}
 	}
 }
