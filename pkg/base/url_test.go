@@ -10,6 +10,7 @@ package base_test
 
 import (
 	"fmt"
+	"regexp"
 	"testing"
 
 	"github.com/q191201771/lal/pkg/base"
@@ -294,4 +295,28 @@ func testParseRtmpUrlCase2(t *testing.T) {
 	assert.Equal(t, "vhall?vhost=thirdVhost?token=2A317D14t25690", appNameFn(ctx))
 	assert.Equal(t, "rtmp://xxx.net/vhall?vhost=thirdVhost?token=2A317D14t25690", tcUrlFn(ctx))
 	assert.Equal(t, "138521921", streamNameWithRawQueryFn(ctx))
+}
+
+func FuzzGetFilenameWithoutTypeAndGetFileType(f *testing.F) {
+	testcases := []string{
+		"playlist.m3u8",
+		"abcABC123.ts",
+		"192.168.1.68-1699692546341-2.ts",
+	}
+	for _, tc := range testcases {
+		f.Add(tc)
+	}
+	re := regexp.MustCompile(`.+\.[^.]+`)
+	f.Fuzz(func(t *testing.T, orig string) {
+		if !re.MatchString(orig) {
+			return
+		}
+		tmp := base.UrlContext{LastItemOfPath: orig}
+		filenameWithoutType := tmp.GetFilenameWithoutType()
+		fileType := tmp.GetFileType()
+		if orig != filenameWithoutType+"."+fileType {
+			t.Errorf("expected: [%s], actual: [%s.%s]",
+				orig, filenameWithoutType, fileType)
+		}
+	})
 }
