@@ -183,8 +183,10 @@ func (c *ChunkComposer) RunLoop(reader io.Reader, cb OnCompleteMessage) error {
 		if stream.msg.Len() == stream.header.MsgLen {
 			// 对端设置了chunk size
 			if stream.header.MsgTypeId == base.RtmpTypeIdSetChunkSize {
-				val := bele.BeUint32(stream.msg.buff.Bytes())
-				c.SetPeerChunkSize(val)
+				if buf := stream.msg.buff.Bytes(); len(buf) >= 4 {
+					val := bele.BeUint32(buf)
+					c.SetPeerChunkSize(val)
+				}
 			}
 
 			stream.header.Csid = csid
