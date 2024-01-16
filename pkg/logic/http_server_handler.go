@@ -78,6 +78,7 @@ func (h *HttpServerHandler) ServeSubSession(writer http.ResponseWriter, req *htt
 		err = session.RunLoop()
 		Log.Debugf("[%s] httpflv sub session loop done. err=%v", session.UniqueKey(), err)
 		h.observer.OnDelHttpflvSubSession(session)
+		_ = session.Dispose()
 		return
 	}
 
@@ -92,6 +93,7 @@ func (h *HttpServerHandler) ServeSubSession(writer http.ResponseWriter, req *htt
 		err = session.RunLoop()
 		Log.Debugf("[%s] httpts sub session loop done. err=%v", session.UniqueKey(), err)
 		h.observer.OnDelHttptsSubSession(session)
+		_ = session.Dispose()
 		return
 	}
 }
