@@ -102,6 +102,8 @@ type RtspConfig struct {
 	RtspsCertFile       string `json:"rtsps_cert_file"`
 	RtspsKeyFile        string `json:"rtsps_key_file"`
 	OutWaitKeyFrameFlag bool   `json:"out_wait_key_frame_flag"`
+	WsRtspEnable        bool   `json:"ws_rtsp_enable"`
+	WsRtspAddr          string `json:"ws_rtsp_addr"`
 	rtsp.ServerAuthConfig
 }
 

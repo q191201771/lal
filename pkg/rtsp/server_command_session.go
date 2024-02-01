@@ -10,6 +10,7 @@ package rtsp
 
 import (
 	"bufio"
+	"bytes"
 	"fmt"
 	"net"
 	"strings"
@@ -66,10 +67,12 @@ type ServerCommandSession struct {
 	pubSession *PubSession
 	subSession *SubSession
 
-	describeSeq string // only for sub session
+	describeSeq  string // only for sub session
+	isWebSocket  bool
+	websocketKey string
 }
 
-func NewServerCommandSession(observer IServerCommandSessionObserver, conn net.Conn, authConf ServerAuthConfig) *ServerCommandSession {
+func NewServerCommandSession(observer IServerCommandSessionObserver, conn net.Conn, authConf ServerAuthConfig, iswebsocket bool, websocketKey string) *ServerCommandSession {
 	uk := base.GenUkRtspServerCommandSession()
 	s := &ServerCommandSession{
 		uniqueKey: uk,
@@ -79,9 +82,11 @@ func NewServerCommandSession(observer IServerCommandSessionObserver, conn net.Co
 			option.ReadBufSize = serverCommandSessionReadBufSize
 			option.WriteChanSize = serverCommandSessionWriteChanSize
 		}),
+		isWebSocket:  iswebsocket,
+		websocketKey: websocketKey,
 	}
 
-	Log.Infof("[%s] lifecycle new rtsp ServerSession. session=%p, laddr=%s, raddr=%s", uk, s, conn.LocalAddr().String(), conn.RemoteAddr().String())
+	Log.Infof("[%s] lifecycle new rtsp ServerSession. session=%p, laddr=%s, raddr=%s, iswebsocket:%v", uk, s, conn.LocalAddr().String(), conn.RemoteAddr().String(), iswebsocket)
 	return s
 }
 
@@ -102,6 +107,10 @@ func (session *ServerCommandSession) FeedSdp(b []byte) {
 //
 // 使用RTSP TCP命令连接，向对端发送RTP数据
 func (session *ServerCommandSession) WriteInterleavedPacket(packet []byte, channel int) error {
+	if session.isWebSocket {
+		respLen := len(packInterleaved(channel, packet))
+		session.writeWsFrameHeader(respLen)
+	}
 	_, err := session.conn.Write(packInterleaved(channel, packet))
 	return err
 }
@@ -157,28 +166,48 @@ func (session *ServerCommandSession) runCmdLoop() error {
 
 Loop:
 	for {
-		isInterleaved, packet, channel, err := readInterleaved(r)
-		if err != nil {
-			Log.Errorf("[%s] read interleaved error. err=%+v", session.uniqueKey, err)
-			break Loop
-		}
-		if isInterleaved {
-			if session.pubSession != nil {
-				session.pubSession.HandleInterleavedPacket(packet, int(channel))
-			} else if session.subSession != nil {
-				session.subSession.HandleInterleavedPacket(packet, int(channel))
-			} else {
-				Log.Errorf("[%s] read interleaved packet but pub or sub not exist.", session.uniqueKey)
+		var requestCtx nazahttp.HttpReqMsgCtx
+		if session.isWebSocket {
+			// 解析出websocket的body信息
+			payload, err := base.ReadWsPayload(r)
+			if err != nil {
+				Log.Errorf("[%s] read ws payload error. err=%+v", session.uniqueKey, err)
 				break Loop
 			}
-			continue
-		}
 
-		// 读取一个message
-		requestCtx, err := nazahttp.ReadHttpRequestMessage(r)
-		if err != nil {
-			Log.Errorf("[%s] read rtsp message error. err=%+v", session.uniqueKey, err)
-			break Loop
+			// 读取一个message
+			reader := bytes.NewReader(payload)
+			rr := bufio.NewReader(reader)
+			requestCtx, err = nazahttp.ReadHttpRequestMessage(rr)
+			if err != nil {
+				Log.Errorf("[%s] read rtsp message error. err=%+v", session.uniqueKey, err)
+				break Loop
+			}
+		} else {
+			isInterleaved, packet, channel, err := readInterleaved(r)
+			if err != nil {
+				Log.Errorf("[%s] read interleaved error. err=%+v", session.uniqueKey, err)
+				break Loop
+			}
+
+			if isInterleaved {
+				if session.pubSession != nil {
+					session.pubSession.HandleInterleavedPacket(packet, int(channel))
+				} else if session.subSession != nil {
+					session.subSession.HandleInterleavedPacket(packet, int(channel))
+				} else {
+					Log.Errorf("[%s] read interleaved packet but pub or sub not exist.", session.uniqueKey)
+					break Loop
+				}
+				continue
+			}
+
+			// 读取一个message
+			requestCtx, err = nazahttp.ReadHttpRequestMessage(r)
+			if err != nil {
+				Log.Errorf("[%s] read rtsp message error. err=%+v", session.uniqueKey, err)
+				break Loop
+			}
 		}
 
 		Log.Debugf("[%s] read http request. method=%s, uri=%s, version=%s, headers=%+v, body=%s",
@@ -226,6 +255,10 @@ Loop:
 func (session *ServerCommandSession) handleOptions(requestCtx nazahttp.HttpReqMsgCtx) error {
 	Log.Infof("[%s] < R OPTIONS", session.uniqueKey)
 	resp := PackResponseOptions(requestCtx.Headers.Get(HeaderCSeq))
+	if session.isWebSocket {
+		respLen := len([]byte(resp))
+		session.writeWsFrameHeader(respLen)
+	}
 	_, err := session.conn.Write([]byte(resp))
 	return err
 }
@@ -269,6 +302,10 @@ func (session *ServerCommandSession) handleDescribe(requestCtx nazahttp.HttpReqM
 		}
 
 		if authresp != "" {
+			if session.isWebSocket {
+				respLen := len([]byte(authresp))
+				session.writeWsFrameHeader(respLen)
+			}
 			_, err := session.conn.Write([]byte(authresp))
 			return err
 		}
@@ -301,6 +338,10 @@ func (session *ServerCommandSession) feedSdp(rawSdp []byte) error {
 	session.subSession.InitWithSdp(sdpCtx)
 
 	resp := PackResponseDescribe(session.describeSeq, string(rawSdp))
+	if session.isWebSocket {
+		respLen := len([]byte(resp))
+		session.writeWsFrameHeader(respLen)
+	}
 	_, err := session.conn.Write([]byte(resp))
 	return err
 }
@@ -371,6 +412,10 @@ func (session *ServerCommandSession) handleSetup(requestCtx nazahttp.HttpReqMsgC
 		}
 
 		resp := PackResponseSetup(requestCtx.Headers.Get(HeaderCSeq), htv)
+		if session.isWebSocket {
+			respLen := len([]byte(resp))
+			session.writeWsFrameHeader(respLen)
+		}
 		_, err = session.conn.Write([]byte(resp))
 		return err
 	}
@@ -406,6 +451,10 @@ func (session *ServerCommandSession) handleSetup(requestCtx nazahttp.HttpReqMsgC
 	}
 
 	resp := PackResponseSetup(requestCtx.Headers.Get(HeaderCSeq), htv)
+	if session.isWebSocket {
+		respLen := len([]byte(resp))
+		session.writeWsFrameHeader(respLen)
+	}
 	_, err = session.conn.Write([]byte(resp))
 	return err
 }
@@ -433,6 +482,10 @@ func (session *ServerCommandSession) handlePlay(requestCtx nazahttp.HttpReqMsgCt
 		return err
 	}
 	resp := PackResponsePlay(requestCtx.Headers.Get(HeaderCSeq))
+	if session.isWebSocket {
+		respLen := len([]byte(resp))
+		session.writeWsFrameHeader(respLen)
+	}
 	_, err := session.conn.Write([]byte(resp))
 	return err
 }
@@ -440,6 +493,23 @@ func (session *ServerCommandSession) handlePlay(requestCtx nazahttp.HttpReqMsgCt
 func (session *ServerCommandSession) handleTeardown(requestCtx nazahttp.HttpReqMsgCtx) error {
 	Log.Infof("[%s] < R TEARDOWN", session.uniqueKey)
 	resp := PackResponseTeardown(requestCtx.Headers.Get(HeaderCSeq))
+	if session.isWebSocket {
+		respLen := len([]byte(resp))
+		session.writeWsFrameHeader(respLen)
+	}
 	_, err := session.conn.Write([]byte(resp))
 	return err
+}
+
+func (session *ServerCommandSession) writeWsFrameHeader(respLen int) {
+	wsHeader := base.WsHeader{
+		Fin:           true,
+		Rsv1:          false,
+		Rsv2:          false,
+		Rsv3:          false,
+		Opcode:        base.Wso_Binary,
+		PayloadLength: uint64(respLen),
+		Masked:        false,
+	}
+	session.conn.Write(base.MakeWsFrameHeader(wsHeader))
 }

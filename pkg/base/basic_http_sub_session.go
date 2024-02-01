@@ -59,7 +59,7 @@ func (session *BasicHttpSubSession) Dispose() error {
 
 func (session *BasicHttpSubSession) WriteHttpResponseHeader(b []byte) {
 	if session.IsWebSocket {
-		session.write(UpdateWebSocketHeader(session.WebSocketKey))
+		session.write(UpdateWebSocketHeader(session.WebSocketKey, ""))
 	} else {
 		session.write(b)
 	}

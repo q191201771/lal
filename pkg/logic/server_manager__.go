@@ -11,13 +11,14 @@ package logic
 import (
 	"flag"
 	"fmt"
-	"github.com/q191201771/naza/pkg/taskpool"
 	"net/http"
 	_ "net/http/pprof"
 	"os"
 	"path/filepath"
 	"sync"
 	"time"
+
+	"github.com/q191201771/naza/pkg/taskpool"
 
 	"github.com/q191201771/lal/pkg/base"
 	"github.com/q191201771/lal/pkg/hls"
@@ -45,6 +46,7 @@ type ServerManager struct {
 	rtspsServer   *rtsp.Server
 	httpApiServer *HttpApiServer
 	pprofServer   *http.Server
+	wsrtspServer  *rtsp.WebsocketServer
 	exitChan      chan struct{}
 
 	mutex        sync.Mutex
@@ -138,6 +140,9 @@ Doc: %s
 	}
 	if sm.config.RtspConfig.RtspsEnable {
 		sm.rtspsServer = rtsp.NewServer(sm.config.RtspConfig.RtspsAddr, sm, sm.config.RtspConfig.ServerAuthConfig)
+	}
+	if sm.config.RtspConfig.WsRtspEnable {
+		sm.wsrtspServer = rtsp.NewWebsocketServer(sm.config.RtspConfig.WsRtspAddr, sm, sm.config.RtspConfig.ServerAuthConfig)
 	}
 	if sm.config.HttpApiConfig.Enable {
 		sm.httpApiServer = NewHttpApiServer(sm.config.HttpApiConfig.Addr, sm)
@@ -266,6 +271,15 @@ func (sm *ServerManager) RunLoop() error {
 				}
 			}()
 		}
+	}
+
+	if sm.wsrtspServer != nil {
+		go func() {
+			err := sm.wsrtspServer.Listen()
+			if err != nil {
+				Log.Error(err)
+			}
+		}()
 	}
 
 	if sm.httpApiServer != nil {

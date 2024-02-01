@@ -140,7 +140,7 @@ func (s *Server) OnDelRtspSubSession(session *SubSession) {
 // ---------------------------------------------------------------------------------------------------------------------
 
 func (s *Server) handleTcpConnect(conn net.Conn) {
-	session := NewServerCommandSession(s, conn, s.auth)
+	session := NewServerCommandSession(s, conn, s.auth, false, "")
 	s.observer.OnNewRtspSessionConnect(session)
 
 	err := session.RunLoop()
