@@ -60,7 +60,9 @@
     "auth_enable": false,
     "auth_method": 1,
     "username": "q191201771",
-    "password": "pengrl"
+    "password": "pengrl",
+    "ws_rtsp_enable": true,
+    "ws_rtsp_addr": ":5566"
   },
   "record": {
     "enable_flv": false,
