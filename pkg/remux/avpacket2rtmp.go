@@ -300,6 +300,9 @@ func (r *AvPacket2RtmpRemuxer) FeedAvPacket(pkt base.AvPacket) {
 			}
 
 			length := len(pkt.Payload) - 5 // -7+2
+			if length < 7 {
+				return
+			}
 			payload := make([]byte, length)
 			payload[0] = 0xAF
 			payload[1] = base.RtmpAacPacketTypeRaw
