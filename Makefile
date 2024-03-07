@@ -4,15 +4,15 @@ build:
 
 .PHONY: build_for_linux
 build_for_linux:
-	export CGO_ENABLED=0 && export GOS=linux && ./script/build.sh
+	export CGO_ENABLED=0 && export GOOS=linux && ./script/build.sh
 
 .PHONY: build_for_linux_amd64
 build_for_linux_amd64:
-	export CGO_ENABLED=0 && export GOS=linux && export GOARCH=amd64 && ./script/build.sh
+	export CGO_ENABLED=0 && export GOOS=linux && export GOARCH=amd64 && ./script/build.sh
 
 .PHONY: build_for_linux_arm64
 build_for_linux_arm64:
-	export CGO_ENABLED=0 && export GOS=linux && export GOARCH=arm64 && ./script/build.sh
+	export CGO_ENABLED=0 && export GOOS=linux && export GOARCH=arm64 && ./script/build.sh
 
 .PHONY: test
 test:
