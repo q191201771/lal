@@ -66,6 +66,7 @@ if [ -d "./playground" ]; then
   done
 fi
 
-${OUT_DIR}/lalserver -v &&
+#${OUT_DIR}/lalserver -v
+
 ls -lrt ${OUT_DIR} &&
 echo 'build done.'
