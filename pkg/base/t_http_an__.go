@@ -18,6 +18,7 @@ const (
 	AudioCodecAac   = "AAC"
 	AudioCodecG711U = "PCMU"
 	AudioCodecG711A = "PCMA"
+	AudioCodecOpus  = "OPUS"
 
 	// VideoCodecAvc StatGroup.VideoCodec
 	VideoCodecAvc  = "H264"

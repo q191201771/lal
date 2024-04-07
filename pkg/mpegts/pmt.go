@@ -9,6 +9,7 @@
 package mpegts
 
 import (
+	"github.com/q191201771/lal/pkg/base"
 	"github.com/q191201771/naza/pkg/nazabits"
 )
 
@@ -57,9 +58,10 @@ type Pmt struct {
 }
 
 type PmtProgramElement struct {
-	StreamType uint8
-	Pid        uint16
-	Length     uint16
+	StreamType  uint8
+	Pid         uint16
+	Length      uint16
+	Descriptors []Descriptor
 }
 
 func ParsePmt(b []byte) (pmt Pmt) {
@@ -110,7 +112,7 @@ func (pmt *Pmt) SearchPid(pid uint16) *PmtProgramElement {
 	return nil
 }
 
-func PackPmt(videoStreamType, audioStreamType uint8) []byte {
+func PackPmt(videoCodecId, audioCodecId int) []byte {
 	ts := make([]byte, 188)
 	tsheader := []byte{0x47, 0x50, 0x01, 0x10}
 	copy(ts, tsheader)
@@ -122,6 +124,13 @@ func PackPmt(videoStreamType, audioStreamType uint8) []byte {
 	psi.sectionData.section.currentNextIndicator = 1
 	psi.sectionData.pmtData.pcrPid = 0x100
 
+	videoStreamType := StreamTypeUnknown
+	if videoCodecId == int(base.RtmpCodecIdAvc) {
+		videoStreamType = StreamTypeAvc
+	} else if videoCodecId == int(base.RtmpCodecIdHevc) {
+		videoStreamType = StreamTypeHevc
+	}
+
 	if videoStreamType != StreamTypeUnknown {
 		psi.sectionData.pmtData.pes = append(psi.sectionData.pmtData.pes, PmtProgramElement{
 			StreamType: videoStreamType,
@@ -129,11 +138,42 @@ func PackPmt(videoStreamType, audioStreamType uint8) []byte {
 		})
 	}
 
+	audioStreamType := StreamTypeUnknown
+	if audioCodecId == int(base.RtmpSoundFormatAac) {
+		audioStreamType = StreamTypeAac
+	} else if audioCodecId == int(base.RtmpSoundFormatOpus) {
+		audioStreamType = StreamTypePrivate
+	}
+
 	if audioStreamType != StreamTypeUnknown {
-		psi.sectionData.pmtData.pes = append(psi.sectionData.pmtData.pes, PmtProgramElement{
+		pmtEle := PmtProgramElement{
 			StreamType: audioStreamType,
 			Pid:        PidAudio,
-		})
+		}
+
+		if audioCodecId == int(base.RtmpSoundFormatOpus) {
+			descriptor := []Descriptor{
+				{
+					Length: 4,
+					Tag:    DescriptorTagRegistration,
+					Registration: DescriptorRegistration{
+						FormatIdentifier: opusIdentifier,
+					},
+				},
+				{
+					Length: 2,
+					Tag:    DescriptorTagExtension,
+					Extension: DescriptorExtension{
+						Tag:     0x80,
+						Unknown: []uint8{0x02},
+					},
+				},
+			}
+
+			pmtEle.Descriptors = append(pmtEle.Descriptors, descriptor...)
+		}
+
+		psi.sectionData.pmtData.pes = append(psi.sectionData.pmtData.pes, pmtEle)
 	}
 
 	psilen, psiData := psi.Pack()

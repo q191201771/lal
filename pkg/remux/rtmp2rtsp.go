@@ -79,6 +79,8 @@ func (r *Rtmp2RtspRemuxer) FeedRtmpMsg(msg base.RtmpMsg) {
 					r.audioPt = base.AvPacketPtG711U
 				case base.RtmpSoundFormatG711A:
 					r.audioPt = base.AvPacketPtG711A
+				case base.RtmpSoundFormatOpus:
+					r.audioPt = base.AvPacketPtOpus
 				}
 			}
 			if samplerate, ok := meta.Find("audiosamplerate").(float64); ok {
@@ -102,6 +104,11 @@ func (r *Rtmp2RtspRemuxer) FeedRtmpMsg(msg base.RtmpMsg) {
 				r.audioPt = base.AvPacketPtG711A
 				if r.audioSampleRate < 0 {
 					r.audioSampleRate = pcmDefaultSampleRate
+				}
+			case base.RtmpSoundFormatOpus:
+				r.audioPt = base.AvPacketPtOpus
+				if r.audioSampleRate < 0 {
+					r.audioSampleRate = opusDefaultSampleRate
 				}
 			}
 		}
@@ -236,11 +243,19 @@ func (r *Rtmp2RtspRemuxer) remux(msg base.RtmpMsg) {
 	case base.RtmpTypeIdAudio:
 		packer = r.getAudioPacker()
 		if packer != nil {
-			rtppkts = packer.Pack(base.AvPacket{
-				Timestamp:   int64(msg.Header.TimestampAbs),
-				PayloadType: r.audioPt,
-				Payload:     msg.Payload[2:],
-			})
+			if msg.AudioCodecId() == base.RtmpSoundFormatG711A || msg.AudioCodecId() == base.RtmpSoundFormatG711U || msg.AudioCodecId() == base.RtmpSoundFormatOpus {
+				rtppkts = packer.Pack(base.AvPacket{
+					Timestamp:   int64(msg.Header.TimestampAbs),
+					PayloadType: r.audioPt,
+					Payload:     msg.Payload[1:],
+				})
+			} else {
+				rtppkts = packer.Pack(base.AvPacket{
+					Timestamp:   int64(msg.Header.TimestampAbs),
+					PayloadType: r.audioPt,
+					Payload:     msg.Payload[2:],
+				})
+			}
 		}
 	case base.RtmpTypeIdVideo:
 		packer = r.getVideoPacker()
@@ -285,6 +300,9 @@ func (r *Rtmp2RtspRemuxer) getAudioPacker() *rtprtcp.RtpPacker {
 			fallthrough
 		case base.AvPacketPtG711U:
 			pp := rtprtcp.NewRtpPackerPayloadPcm()
+			r.audioPacker = rtprtcp.NewRtpPacker(pp, r.audioSampleRate, r.audioSsrc)
+		case base.AvPacketPtOpus:
+			pp := rtprtcp.NewRtpPackerPayloadOpus()
 			r.audioPacker = rtprtcp.NewRtpPacker(pp, r.audioSampleRate, r.audioSsrc)
 		case base.AvPacketPtAac:
 			if r.asc == nil {

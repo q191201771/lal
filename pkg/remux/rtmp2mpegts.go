@@ -177,7 +177,7 @@ func (s *Rtmp2MpegtsRemuxer) onPatPmt(b []byte) {
 func (s *Rtmp2MpegtsRemuxer) onPop(msg base.RtmpMsg) {
 	switch msg.Header.MsgTypeId {
 	case base.RtmpTypeIdAudio:
-		if msg.AudioCodecId() != base.RtmpSoundFormatAac {
+		if msg.AudioCodecId() != base.RtmpSoundFormatAac && msg.AudioCodecId() != base.RtmpSoundFormatOpus {
 			return
 		}
 		s.feedAudio(msg)
@@ -390,37 +390,41 @@ func (s *Rtmp2MpegtsRemuxer) feedAudio(msg base.RtmpMsg) {
 		Log.Warnf("[%s] rtmp msg too short, ignore. header=%+v, payload=%s", s.uk, msg.Header, hex.Dump(msg.Payload))
 		return
 	}
-	if msg.Payload[0]>>4 != base.RtmpSoundFormatAac {
-		return
-	}
 
 	//Log.Debugf("[%s] hls: feedAudio. dts=%d len=%d", s.uk, msg.Header.TimestampAbs, len(msg.Payload))
 
-	if msg.Payload[1] == base.RtmpAacPacketTypeSeqHeader {
-		if err := s.cacheAacSeqHeader(msg); err != nil {
-			Log.Errorf("[%s] cache aac seq header failed. err=%+v", s.uk, err)
+	if msg.AudioCodecId() == base.RtmpSoundFormatAac {
+		if msg.Payload[1] == base.RtmpAacPacketTypeSeqHeader {
+			if err := s.cacheAacSeqHeader(msg); err != nil {
+				Log.Errorf("[%s] cache aac seq header failed. err=%+v", s.uk, err)
+			}
+			return
 		}
-		return
-	}
 
-	if !s.audioSeqHeaderCached() {
-		Log.Warnf("[%s] feed audio message but aac seq header not exist.", s.uk)
-		return
+		if !s.audioSeqHeaderCached() {
+			Log.Warnf("[%s] feed audio message but aac seq header not exist.", s.uk)
+			return
+		}
 	}
 
 	pts := uint64(msg.Header.TimestampAbs) * 90
+	if msg.AudioCodecId() == base.RtmpSoundFormatAac {
+		if !s.audioCacheEmpty() && s.audioCacheFirstFramePts+maxAudioCacheDelayByAudio < pts {
+			s.FlushAudio()
+		}
 
-	if !s.audioCacheEmpty() && s.audioCacheFirstFramePts+maxAudioCacheDelayByAudio < pts {
+		if s.audioCacheEmpty() {
+			s.audioCacheFirstFramePts = pts
+		}
+
+		adtsHeader := s.ascCtx.PackAdtsHeader(int(msg.Header.MsgLen - 2))
+		s.audioCacheFrames = append(s.audioCacheFrames, adtsHeader...)
+		s.audioCacheFrames = append(s.audioCacheFrames, msg.Payload[2:]...)
+	} else {
+		s.audioCacheFirstFramePts = pts
+		s.audioCacheFrames = append(s.audioCacheFrames, msg.Payload[1:]...)
 		s.FlushAudio()
 	}
-
-	if s.audioCacheEmpty() {
-		s.audioCacheFirstFramePts = pts
-	}
-
-	adtsHeader := s.ascCtx.PackAdtsHeader(int(msg.Header.MsgLen - 2))
-	s.audioCacheFrames = append(s.audioCacheFrames, adtsHeader...)
-	s.audioCacheFrames = append(s.audioCacheFrames, msg.Payload[2:]...)
 }
 
 func (s *Rtmp2MpegtsRemuxer) cacheAacSeqHeader(msg base.RtmpMsg) error {

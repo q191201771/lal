@@ -30,6 +30,36 @@ const (
 	TsPsiIdForbidden      = 0xFF // forbidden
 )
 
+const (
+	DescriptorTagAC3                        = 0x6a
+	DescriptorTagAVCVideo                   = 0x28
+	DescriptorTagComponent                  = 0x50
+	DescriptorTagContent                    = 0x54
+	DescriptorTagDataStreamAlignment        = 0x6
+	DescriptorTagEnhancedAC3                = 0x7a
+	DescriptorTagExtendedEvent              = 0x4e
+	DescriptorTagExtension                  = 0x7f
+	DescriptorTagISO639LanguageAndAudioType = 0xa
+	DescriptorTagLocalTimeOffset            = 0x58
+	DescriptorTagMaximumBitrate             = 0xe
+	DescriptorTagNetworkName                = 0x40
+	DescriptorTagParentalRating             = 0x55
+	DescriptorTagPrivateDataIndicator       = 0xf
+	DescriptorTagPrivateDataSpecifier       = 0x5f
+	DescriptorTagRegistration               = 0x5
+	DescriptorTagService                    = 0x48
+	DescriptorTagShortEvent                 = 0x4d
+	DescriptorTagStreamIdentifier           = 0x52
+	DescriptorTagSubtitling                 = 0x59
+	DescriptorTagTeletext                   = 0x56
+	DescriptorTagVBIData                    = 0x45
+	DescriptorTagVBITeletext                = 0x46
+)
+
+const (
+	opusIdentifier = 0x4f707573 // Opus
+)
+
 type PsiSection struct {
 	pointerFileld uint8
 	sectionData   PsiSectionData
@@ -152,11 +182,56 @@ func (psi *PsiSection) calaPatSectionLength() (length uint16) {
 }
 
 func (psi *PsiSection) calaPmtSectionLength() (length uint16) {
-	// 暂不考虑Program descriptors
 	// Reserved bits(3 bits)+PCR PID(13 bits)+Reserved bits(4 bits)+Program info length(12 bits)
 	length = 4
-	length += uint16(5 * len(psi.sectionData.pmtData.pes))
+
+	for _, pe := range psi.sectionData.pmtData.pes {
+		length += 5
+
+		if len(pe.Descriptors) > 0 {
+			length += psi.calcDescriptorsLength(pe.Descriptors)
+		}
+	}
+
 	return
+}
+
+func (psi *PsiSection) calcDescriptorsLength(ds []Descriptor) uint16 {
+	length := uint16(0)
+	for _, d := range ds {
+		length += 2 // tag and length
+		length += uint16(psi.calcDescriptorLength(d))
+	}
+	return length
+}
+
+func (psi *PsiSection) calcDescriptorLength(d Descriptor) uint8 {
+	if d.Length == 0 {
+		return 0
+	}
+
+	switch d.Tag {
+	case DescriptorTagRegistration:
+		return psi.calcDescriptorRegistrationLength(d.Registration)
+	case DescriptorTagExtension:
+		return psi.calcDescriptorExtensionLength(d.Extension)
+	}
+
+	return 0
+}
+
+func (psi *PsiSection) calcDescriptorRegistrationLength(d DescriptorRegistration) uint8 {
+	return uint8(4 + len(d.AdditionalIdentificationInfo))
+}
+
+func (psi *PsiSection) calcDescriptorExtensionLength(d DescriptorExtension) uint8 {
+	// tag
+	ret := 1
+	if d.Unknown != nil {
+		ret += len(d.Unknown)
+	}
+
+	return uint8(ret)
 }
 
 func (psi *PsiSection) writePatSection(bw *nazabits.BitWriter) {
@@ -179,8 +254,79 @@ func (psi *PsiSection) writePmtSection(bw *nazabits.BitWriter) {
 		bw.WriteBits8(8, pe.StreamType)
 		bw.WriteBits8(3, 0xff)
 		bw.WriteBits16(13, pe.Pid)
-		bw.WriteBits8(4, 0xff)
-		bw.WriteBits16(12, 0)
+		psi.writeDescriptorsWithLength(bw, pe.Descriptors)
 	}
 	return
+}
+
+func (psi *PsiSection) writeDescriptorsWithLength(bw *nazabits.BitWriter, dps []Descriptor) {
+	bw.WriteBits8(4, 0xff)
+
+	infolen := psi.calcDescriptorsLength(dps)
+	bw.WriteBits16(12, infolen)
+
+	for _, dp := range dps {
+		psi.writeDescriptor(bw, dp)
+	}
+}
+
+func (psi *PsiSection) writeDescriptor(bw *nazabits.BitWriter, d Descriptor) {
+	length := psi.calcDescriptorLength(d)
+
+	bw.WriteBits8(8, d.Tag)
+	bw.WriteBits8(8, length)
+
+	switch d.Tag {
+	case DescriptorTagRegistration:
+		psi.writeDescriptorRegistration(bw, d.Registration)
+	case DescriptorTagExtension:
+		psi.writeDescriptorExtension(bw, d.Extension)
+	}
+}
+
+func (psi *PsiSection) writeDescriptorRegistration(bw *nazabits.BitWriter, d DescriptorRegistration) {
+	bw.WriteBits16(16, uint16((d.FormatIdentifier>>16)&0xFFFF))
+	bw.WriteBits16(16, uint16(d.FormatIdentifier&0xFFFF))
+
+	if len(d.AdditionalIdentificationInfo) > 0 {
+		for _, b := range d.AdditionalIdentificationInfo {
+			bw.WriteBits8(8, b)
+		}
+	}
+}
+
+func (psi *PsiSection) writeDescriptorExtension(bw *nazabits.BitWriter, d DescriptorExtension) {
+	bw.WriteBits8(8, d.Tag)
+
+	if len(d.Unknown) > 0 {
+		for _, b := range d.Unknown {
+			bw.WriteBits8(8, b)
+		}
+	}
+}
+
+type Descriptor struct {
+	Length       uint8
+	Tag          uint8
+	Registration DescriptorRegistration
+	Extension    DescriptorExtension
+}
+
+type DescriptorRegistration struct {
+	AdditionalIdentificationInfo []byte
+	FormatIdentifier             uint32
+}
+
+type DescriptorExtension struct {
+	SupplementaryAudio DescriptorExtensionSupplementaryAudio
+	Tag                uint8
+	Unknown            []byte
+}
+
+type DescriptorExtensionSupplementaryAudio struct {
+	EditorialClassification uint8
+	HasLanguageCode         bool
+	LanguageCode            []byte
+	MixType                 bool
+	PrivateData             []byte
 }

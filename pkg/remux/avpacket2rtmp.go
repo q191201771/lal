@@ -326,6 +326,14 @@ func (r *AvPacket2RtmpRemuxer) FeedAvPacket(pkt base.AvPacket) {
 		copy(payload[1:], pkt.Payload)
 		r.emitRtmpAvMsg(true, payload, pkt.Timestamp)
 
+	case base.AvPacketPtOpus:
+		length := len(pkt.Payload) + 1
+		payload := make([]byte, length)
+		// codecid=13, 44kHz、16bits、Stereo
+		payload[0] = 0xdf
+		copy(payload[1:], pkt.Payload)
+		r.emitRtmpAvMsg(true, payload, pkt.Timestamp)
+
 	default:
 		Log.Warnf("unsupported packet. type=%d", pkt.PayloadType)
 	}

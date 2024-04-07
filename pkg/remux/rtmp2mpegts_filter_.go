@@ -90,11 +90,8 @@ func (q *rtmp2MpegtsFilter) Push(msg base.RtmpMsg) {
 // ---------------------------------------------------------------------------------------------------------------------
 
 func (q *rtmp2MpegtsFilter) drain() {
-
-	videoType := q.getVideoStreamType()
-	audioType := q.getAudioStreamType()
 	patpmt := mpegts.PackPat()
-	patpmt = append(patpmt, mpegts.PackPmt(videoType, audioType)...)
+	patpmt = append(patpmt, mpegts.PackPmt(q.videoCodecId, q.audioCodecId)...)
 	q.observer.onPatPmt(patpmt)
 
 	for i := range q.data {
@@ -104,24 +101,4 @@ func (q *rtmp2MpegtsFilter) drain() {
 	q.data = nil
 
 	q.done = true
-}
-
-func (q *rtmp2MpegtsFilter) getVideoStreamType() uint8 {
-	switch q.videoCodecId {
-	case int(base.RtmpCodecIdAvc):
-		return mpegts.StreamTypeAvc
-	case int(base.RtmpCodecIdHevc):
-		return mpegts.StreamTypeHevc
-	}
-
-	return mpegts.StreamTypeUnknown
-}
-
-func (q *rtmp2MpegtsFilter) getAudioStreamType() uint8 {
-	switch q.audioCodecId {
-	case int(base.RtmpSoundFormatAac):
-		return mpegts.StreamTypeAac
-	}
-
-	return mpegts.StreamTypeUnknown
 }
