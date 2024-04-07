@@ -161,6 +161,7 @@ const (
 	// 0x24 HEVC (HEVC video stream as defined in Rec. ITU-T H.265 | ISO/IEC 23008-2  MPEG-H Part 2)
 	// -----------------------------------------------------------------------------
 	StreamTypeUnknown uint8 = 0x00
+	StreamTypePrivate uint8 = 0x06
 	StreamTypeAac     uint8 = 0x0F
 	StreamTypeAvc     uint8 = 0x1B
 	StreamTypeHevc    uint8 = 0x24

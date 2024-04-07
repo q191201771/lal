@@ -114,6 +114,12 @@ a=rtpmap:%d PCMU/%d
 a=control:streamid=%d
 `
 		return fmt.Sprintf(tmpl, base.AvPacketPtG711U, base.AvPacketPtG711U, audioInfo.SamplingFrequency, streamid)
+	} else if audioInfo.AudioPt == base.AvPacketPtOpus {
+		tmpl := `m=audio 0 RTP/AVP %d
+a=rtpmap:%d opus/48000/2
+a=control:streamid=%d
+`
+		return fmt.Sprintf(tmpl, base.AvPacketPtOpus, base.AvPacketPtOpus, streamid)
 	}
 
 	return ""

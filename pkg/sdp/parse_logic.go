@@ -52,7 +52,7 @@ func (lc *LogicContext) IsPayloadTypeOrigin(t int) bool {
 }
 
 func (lc *LogicContext) IsAudioUnpackable() bool {
-	return (lc.audioPayloadTypeBase == base.AvPacketPtAac && lc.Asc != nil) || (lc.audioPayloadTypeBase == base.AvPacketPtG711A) || (lc.audioPayloadTypeBase == base.AvPacketPtG711U)
+	return (lc.audioPayloadTypeBase == base.AvPacketPtAac && lc.Asc != nil) || (lc.audioPayloadTypeBase == base.AvPacketPtG711A) || (lc.audioPayloadTypeBase == base.AvPacketPtG711U) || (lc.audioPayloadTypeBase == base.AvPacketPtOpus)
 }
 
 func (lc *LogicContext) IsVideoUnpackable() bool {
@@ -131,6 +131,8 @@ func ParseSdp2LogicContext(b []byte) (LogicContext, error) {
 				ret.audioPayloadTypeBase = base.AvPacketPtG711A
 			} else if strings.EqualFold(md.ARtpMap.EncodingName, ARtpMapEncodingNameG711U) {
 				ret.audioPayloadTypeBase = base.AvPacketPtG711U
+			} else if strings.EqualFold(md.ARtpMap.EncodingName, ArtpMapEncodingNameOpus) {
+				ret.audioPayloadTypeBase = base.AvPacketPtOpus
 			} else {
 				if md.M.PT == 8 {
 					// ffmpeg推流情况下不会填充rtpmap字段,m中pt值为8也可以表示是PCMA,采样率默认为8000Hz

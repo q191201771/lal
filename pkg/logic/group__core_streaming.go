@@ -9,8 +9,9 @@
 package logic
 
 import (
-	"github.com/q191201771/lal/pkg/rtsp"
 	"net"
+
+	"github.com/q191201771/lal/pkg/rtsp"
 
 	"github.com/q191201771/lal/pkg/rtmp"
 	"github.com/q191201771/naza/pkg/nazalog"
@@ -409,6 +410,8 @@ func (group *Group) broadcastByRtmpMsg(msg base.RtmpMsg) {
 				group.stat.AudioCodec = base.AudioCodecG711U
 			case base.RtmpSoundFormatG711A:
 				group.stat.AudioCodec = base.AudioCodecG711A
+			case base.RtmpSoundFormatOpus:
+				group.stat.AudioCodec = base.AudioCodecOpus
 			}
 		}
 	}

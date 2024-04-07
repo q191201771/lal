@@ -11,6 +11,7 @@ package base
 import (
 	"encoding/hex"
 	"fmt"
+
 	"github.com/q191201771/naza/pkg/bele"
 	"github.com/q191201771/naza/pkg/nazabytes"
 )
@@ -117,6 +118,7 @@ const (
 	RtmpSoundFormatG711A uint8 = 7
 	RtmpSoundFormatG711U uint8 = 8
 	RtmpSoundFormatAac   uint8 = 10
+	RtmpSoundFormatOpus  uint8 = 13
 
 	RtmpAacPacketTypeSeqHeader = 0
 	RtmpAacPacketTypeRaw       = 1

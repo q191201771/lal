@@ -16,4 +16,5 @@ const (
 	ARtpMapEncodingNameAac   = "MPEG4-GENERIC"
 	ARtpMapEncodingNameG711A = "PCMA"
 	ARtpMapEncodingNameG711U = "PCMU"
+	ArtpMapEncodingNameOpus  = "opus"
 )

@@ -12,4 +12,7 @@ package remux
 
 var _ iRtmp2MpegtsFilterObserver = &Rtmp2MpegtsRemuxer{}
 
-const pcmDefaultSampleRate = 8000
+const (
+	pcmDefaultSampleRate  = 8000
+	opusDefaultSampleRate = 48000
+)

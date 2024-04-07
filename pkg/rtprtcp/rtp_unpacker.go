@@ -78,7 +78,7 @@ func DefaultRtpUnpackerFactory(payloadType base.AvPacketPt, clockRate int, maxSi
 		protocol = NewRtpUnpackerAac(payloadType, clockRate, onAvPacket)
 	case base.AvPacketPtG711U:
 		fallthrough
-	case base.AvPacketPtG711A:
+	case base.AvPacketPtG711A, base.AvPacketPtOpus:
 		protocol = NewRtpUnpackerRaw(payloadType, clockRate, onAvPacket)
 	case base.AvPacketPtAvc:
 		fallthrough
