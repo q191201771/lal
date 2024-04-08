@@ -57,7 +57,7 @@ type AvPacket struct {
 }
 
 func (packet *AvPacket) IsAudio() bool {
-	return packet.PayloadType == AvPacketPtAac || packet.PayloadType == AvPacketPtG711A || packet.PayloadType == AvPacketPtG711U
+	return packet.PayloadType == AvPacketPtAac || packet.PayloadType == AvPacketPtG711A || packet.PayloadType == AvPacketPtG711U || packet.PayloadType == AvPacketPtOpus
 }
 
 func (packet *AvPacket) IsVideo() bool {
