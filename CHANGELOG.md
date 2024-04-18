@@ -1,3 +1,28 @@
+### v0.37.4 (2024-04)
+
+- [feat] 支持opus音频编码
+- [feat] rtsp: 支持rtsp-over-websocket播放
+- [feat] ps: demuxer support g711
+- [fix] rtmp: panic in SetChunkSize msg while the length is too short
+- [fix] hls: 修复获取record.m3u8和playlist.m3u8对应的流名称不正确的问题
+- [fix] hls: 修复流名称中带.导致获取流名称错误的问题
+- [fix] ws-flv: 修复火狐浏览器播放ws-flv失败的问题
+- [fix] 修复http sub没有正确释放的问题
+- [fix] mpegts: overflow per
+- [fix] http-api: 修复kick接口无法踢掉rtsp sub session的问题
+- [fix] http-api: 修复hls和ts的protocol和base type字段为空的问题
+- [fix] http-notify: 重复声明变量导致字段值缺失
+- [fix] webui: uri encode stream name
+- [fix] 数据有效性长度检查，防止音频流无数据时panic
+- [fix] BasicSessionStat对连接做非空检查，防止panic
+- [opt] rtmp: PushSession增加WriteMsg函数
+- [opt] hls: 增加变量控制hls是否增加跨域头
+- [perf] rtsp: 优化定时向对端发送get_parameter保活信令的性能
+- [perf] use bytes.Equal instead of bytes.Compare
+- [refactor] mpegts: crc32 replace with the standard library
+- [chore] update the Go version of the whole lal package from 1.16 to 1.18 for using go fuzz
+- [chore] 修复makefile中编译linux版本失败的问题
+
 #### v0.36.7 (2023-07)
 
 - [feat] customize: 支持将流输出给业务方做二次开发

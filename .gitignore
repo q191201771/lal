@@ -1,4 +1,6 @@
 /app/demo/push_rtmp_hook
+/app/demo/parse_ts/
+
 /windows
 
 /.idea
