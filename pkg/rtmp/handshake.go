@@ -262,7 +262,7 @@ func findDigest(b []byte, base int, key []byte) int {
 	digest := make([]byte, keyLen)
 	makeDigestWithoutCenterPart(b, offs, key, digest)
 	// compare origin digest in buffer with calced digest
-	if bytes.Equal(digest, b[offs : offs+keyLen]) {
+	if bytes.Equal(digest, b[offs:offs+keyLen]) {
 		return offs
 	}
 	return -1
