@@ -130,6 +130,10 @@ func (s *BasicSessionStat) GetStat() StatSession {
 }
 
 func (s *BasicSessionStat) GetStatWithConn(conn IStatable) StatSession {
+	if conn == nil {
+		return s.stat
+	}
+
 	connStat := conn.GetStat()
 	s.stat.ReadBytesSum = connStat.ReadBytesSum
 	s.stat.WroteBytesSum = connStat.WroteBytesSum
@@ -141,6 +145,10 @@ func (s *BasicSessionStat) IsAlive() (readAlive, writeAlive bool) {
 }
 
 func (s *BasicSessionStat) IsAliveWitchConn(conn IStatable) (readAlive, writeAlive bool) {
+	if conn == nil {
+		return s.isAlive(0, 0)
+	}
+
 	currStat := conn.GetStat()
 	return s.isAlive(currStat.ReadBytesSum, currStat.WroteBytesSum)
 }
