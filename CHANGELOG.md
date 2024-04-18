@@ -1,4 +1,4 @@
-### v0.37.4 (2024-04)
+#### v0.37.4 (2024-04)
 
 - [feat] 支持opus音频编码
 - [feat] rtsp: 支持rtsp-over-websocket播放
