@@ -23,3 +23,4 @@ rm -rf *.laldump *.log
 rm -rf ./release ./bin ./lal_record ./logs
 find ./pkg -name 'lal_record' | xargs rm -rf
 find ./pkg -name 'logs' | xargs rm -rf
+find . -type f -name "._*.go" -print0 | xargs -0 rm -f
