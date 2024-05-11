@@ -259,7 +259,7 @@ func ParseVpsSpsPpsFromSeqHeaderWithoutMalloc(payload []byte) (vps, sps, pps []b
 	return
 }
 
-// TODO(chef): 函数中 vps 等变量指向的为新申请的内存块，与调用它的函数 ParseVpsSpsPpsFromSeqHeaderWithoutMalloc 语义不相符 202405
+// TODO(chef): 函数中vps/sps/pps变量指向的为新申请的内存块，与调用它的函数ParseVpsSpsPpsFromSeqHeaderWithoutMalloc中的WithoutMalloc语义不相符 202405
 func parseVpsSpsPpsAnnexbFromRecord(payload []byte) (vps, sps, pps []byte, err error) {
 	for i := 0; i < len(payload)-4; {
 		start := bytes.Index(payload[i:], NaluStartCode4)
