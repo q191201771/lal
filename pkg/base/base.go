@@ -21,9 +21,15 @@ import (
 
 var startTime string
 
+var readableTimeLayout = "2006-01-02 15:04:05.999 Z0700 MST"
+
 // ReadableNowTime 当前时间，可读字符串形式
 func ReadableNowTime() string {
-	return time.Now().Format("2006-01-02 15:04:05.999")
+	return time.Now().Format(readableTimeLayout)
+}
+
+func ParseReadableTime(t string) (time.Time, error) {
+	return time.Parse(readableTimeLayout, t)
 }
 
 func GetWd() string {

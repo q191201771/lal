@@ -50,7 +50,7 @@ func NewSubSession(req *http.Request, urlCtx base.UrlContext, hlsUrlPattern, ses
 	session.stat.Protocol = base.SessionProtocolHlsStr
 	session.stat.BaseType = base.SessionBaseTypeSubStr
 	session.stat.RemoteAddr = req.RemoteAddr
-	session.stat.StartTime = time.Now().String()
+	session.stat.StartTime = base.ReadableNowTime()
 
 	// TODO(chef): [refactor] 也许后续可以弄短点，比如前8位或16位 202211
 	session.sessionIdHash = nazamd5.Md5([]byte(session.stat.SessionId + sessionHashKey))
