@@ -314,6 +314,7 @@ func (group *Group) GetStat(maxsub int) base.StatGroup {
 		group.stat.StatSubs = append(group.stat.StatSubs, base.Session2StatSub(s))
 	}
 
+	//Log.Debugf("GetStat. len(group.hlsSubSessionSet)=%d", len(group.hlsSubSessionSet))
 	for s := range group.hlsSubSessionSet {
 		statSubCount++
 		if statSubCount > maxsub {

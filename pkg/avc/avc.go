@@ -10,6 +10,7 @@ package avc
 
 import (
 	"bytes"
+	"encoding/hex"
 	"io"
 
 	"github.com/q191201771/lal/pkg/base"
@@ -317,6 +318,7 @@ func ParseSpsPpsFromSeqHeaderWithoutMalloc(payload []byte) (sps, pps []byte, err
 	numOfPps := int(payload[index] & 0x1F)
 	index++
 	if numOfPps != 1 {
+		Log.Debugf("%s", hex.Dump(nazabytes.Prefix(payload, 128)))
 		return nil, nil, nazaerrors.Wrap(base.ErrAvc)
 	}
 	ppsLength := int(bele.BeUint16(payload[index:]))
