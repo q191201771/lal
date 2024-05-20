@@ -11,6 +11,7 @@ package logic
 import (
 	"flag"
 	"fmt"
+	"net"
 	"net/http"
 	_ "net/http/pprof"
 	"os"
@@ -55,6 +56,8 @@ type ServerManager struct {
 	onHookSession func(uniqueKey string, streamName string) ICustomizeHookSessionContext
 
 	notifyHandlerThread taskpool.Pool
+
+	ipBlacklist IpBlacklist
 }
 
 func NewServerManager(modOption ...ModOption) *ServerManager {
@@ -812,6 +815,7 @@ func (sm *ServerManager) serveHls(writer http.ResponseWriter, req *http.Request)
 		Log.Errorf("parse url. err=%+v", err)
 		return
 	}
+
 	if urlCtx.GetFileType() == "m3u8" {
 		// TODO(chef): [refactor] 需要整理，这里使用 hls.PathStrategy 不太好 202207
 		streamName := hls.PathStrategy.GetRequestInfo(urlCtx, sm.config.HlsConfig.OutPath).StreamName
@@ -819,6 +823,21 @@ func (sm *ServerManager) serveHls(writer http.ResponseWriter, req *http.Request)
 			Log.Errorf("simple auth failed. err=%+v", err)
 			return
 		}
+	}
+
+	remoteIp, _, err := net.SplitHostPort(req.RemoteAddr)
+	if err != nil {
+		Log.Warnf("SplitHostPort failed. addr=%s, err=%+v", req.RemoteAddr, err)
+		return
+	}
+
+	if sm.ipBlacklist.Has(remoteIp) {
+		//Log.Warnf("found %s in ip blacklist, so do not serve this request.", remoteIp)
+
+		sm.hlsServerHandler.CloseSubSessionIfExist(req)
+
+		writer.WriteHeader(http.StatusNotFound)
+		return
 	}
 
 	sm.hlsServerHandler.ServeHTTP(writer, req)
