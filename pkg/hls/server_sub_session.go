@@ -9,6 +9,7 @@
 package hls
 
 import (
+	"github.com/q191201771/naza/pkg/nazaatomic"
 	"net/http"
 	"strings"
 	"time"
@@ -29,6 +30,8 @@ type SubSession struct {
 	stat     base.StatSession
 	prevStat connection.Stat
 	currStat connection.StatAtomic
+
+	disposedFlag nazaatomic.Bool
 }
 
 func (s *SubSession) UniqueKey() string {
@@ -105,8 +108,16 @@ func (s *SubSession) IsExpired() bool {
 	return s.LastRequestTime.Add(s.timeout).Before(time.Now())
 }
 
+func (s *SubSession) IsDisposed() bool {
+	return s.disposedFlag.Load()
+}
+
 func (s *SubSession) KeepAlive() {
 	s.LastRequestTime = time.Now()
+}
+
+func (s *SubSession) Dispose() {
+	s.disposedFlag.Store(true)
 }
 
 func GetAppNameFromUrlCtx(urlCtx base.UrlContext, hlsUrlPattern string) string {

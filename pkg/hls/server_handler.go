@@ -80,14 +80,17 @@ func (s *ServerHandler) ServeHTTPWithUrlCtx(resp http.ResponseWriter, req *http.
 	if s.isSubSessionModeEnable() {
 		sessionIdHash = urlObj.Query().Get("session_id")
 		if filetype == "ts" && sessionIdHash != "" {
-			// 注意，为了增强容错性，不管是session_id字段无效，还是session_id为空，我们都依然返回ts文件内容给播放端
 			if sessionIdHash != "" {
 				err = s.keepSessionAlive(sessionIdHash)
 				if err != nil {
 					Log.Warnf("keepSessionAlive failed. session=%s, err=%+v", sessionIdHash, err)
+					resp.WriteHeader(http.StatusNotFound)
+					return
 				}
 			} else {
-				// noop
+				Log.Warnf("session_id not exist. session=%s, err=%+v", sessionIdHash, err)
+				resp.WriteHeader(http.StatusNotFound)
+				return
 			}
 		} else if filetype == "m3u8" {
 			neededRedirect := false
@@ -96,7 +99,8 @@ func (s *ServerHandler) ServeHTTPWithUrlCtx(resp http.ResponseWriter, req *http.
 				err = s.keepSessionAlive(sessionIdHash)
 				if err != nil {
 					Log.Warnf("keepSessionAlive failed. session=%s, err=%+v", sessionIdHash, err)
-					neededRedirect = true
+					resp.WriteHeader(http.StatusNotFound)
+					return
 				}
 			} else {
 				neededRedirect = true
@@ -201,7 +205,7 @@ func (s *ServerHandler) clearExpireSession() {
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
 	for sessionIdHash, session := range s.sessionMap {
-		if session.IsExpired() {
+		if session.IsExpired() || session.IsDisposed() {
 			delete(s.sessionMap, sessionIdHash)
 			s.observer.OnDelHlsSubSession(session)
 		}

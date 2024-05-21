@@ -379,6 +379,13 @@ func (group *Group) KickSession(sessionId string) bool {
 				return true
 			}
 		}
+	} else if strings.HasPrefix(sessionId, base.UkPreHlsSubSession) {
+		for s := range group.hlsSubSessionSet {
+			if s.UniqueKey() == sessionId {
+				s.Dispose()
+				return true
+			}
+		}
 	} else {
 		Log.Errorf("[%s] kick session while session id format invalid. %s", group.UniqueKey, sessionId)
 	}
