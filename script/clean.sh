@@ -20,7 +20,8 @@ ROOT_DIR=${THIS_DIR}/..
 cd ${ROOT_DIR}
 rm -rf coverage.txt
 rm -rf *.laldump *.log
-rm -rf ./release ./bin ./lal_record ./logs
+rm -rf ./release ./bin ./lal_record ./logs 
+rm -rf ./._lal_record ./._logs ./conf/._*.json
 find ./pkg -name 'lal_record' | xargs rm -rf
 find ./pkg -name 'logs' | xargs rm -rf
 find . -type f -name "._*.go" -print0 | xargs -0 rm -f
