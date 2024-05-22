@@ -136,6 +136,8 @@ type Option struct {
 
 	// Authentication
 	// This interface make authenticate customizable so that we can implement any authenticate strategy like jwt...
+	//
+	// 这是一个同步接口，回调函数处于内部的处理逻辑与锁中
 	Authentication IAuthentication
 }
 
