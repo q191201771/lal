@@ -62,6 +62,7 @@ func (h *HttpApiServer) RunLoop() error {
 	mux.HandleFunc("/api/ctrl/stop_relay_pull", h.ctrlStopRelayPullHandler)
 	mux.HandleFunc("/api/ctrl/kick_session", h.ctrlKickSessionHandler)
 	mux.HandleFunc("/api/ctrl/start_rtp_pub", h.ctrlStartRtpPubHandler)
+	mux.HandleFunc("/api/ctrl/add_ip_blacklist", h.ctrlAddIpBlacklistHandler)
 	// 所有没有注册路由的走下面这个处理函数
 	mux.HandleFunc("/", h.notFoundHandler)
 
@@ -213,6 +214,25 @@ func (h *HttpApiServer) ctrlStartRtpPubHandler(w http.ResponseWriter, req *http.
 	Log.Infof("http api start rtp pub. req info=%+v", info)
 
 	resp := h.sm.CtrlStartRtpPub(info)
+	feedback(resp, w)
+}
+
+func (h *HttpApiServer) ctrlAddIpBlacklistHandler(w http.ResponseWriter, req *http.Request) {
+	var v base.ApiCtrlAddIpBlacklistResp
+	var info base.ApiCtrlAddIpBlacklistReq
+
+	_, err := unmarshalRequestJsonBody(req, &info, "ip", "duration_sec")
+	if err != nil {
+		Log.Warnf("http api add ip blacklist error. err=%+v", err)
+		v.ErrorCode = base.ErrorCodeParamMissing
+		v.Desp = base.DespParamMissing
+		feedback(v, w)
+		return
+	}
+
+	Log.Infof("http api add ip blacklist. req info=%+v", info)
+
+	resp := h.sm.CtrlAddIpBlacklist(info)
 	feedback(resp, w)
 }
 

@@ -135,6 +135,17 @@ func (sm *ServerManager) CtrlKickSession(info base.ApiCtrlKickSessionReq) (ret b
 	return
 }
 
+func (sm *ServerManager) CtrlAddIpBlacklist(info base.ApiCtrlAddIpBlacklistReq) (ret base.ApiCtrlAddIpBlacklistResp) {
+	sm.mutex.Lock()
+	defer sm.mutex.Unlock()
+
+	sm.ipBlacklist.Add(info.Ip, info.DurationSec)
+
+	ret.ErrorCode = base.ErrorCodeSucc
+	ret.Desp = base.DespSucc
+	return
+}
+
 func (sm *ServerManager) CtrlStartRtpPub(info base.ApiCtrlStartRtpPubReq) (ret base.ApiCtrlStartRtpPubResp) {
 	sm.mutex.Lock()
 	defer sm.mutex.Unlock()

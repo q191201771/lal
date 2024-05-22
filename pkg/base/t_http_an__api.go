@@ -46,6 +46,11 @@ type ApiCtrlStartRtpPubReq struct {
 	DebugDumpPacket string `json:"debug_dump_packet"`
 }
 
+type ApiCtrlAddIpBlacklistReq struct {
+	Ip          string `json:"ip"`
+	DurationSec int    `json:"duration_sec"`
+}
+
 // ----- response ------------------------------------------------------------------------------------------------------
 
 const (
@@ -119,4 +124,8 @@ type ApiCtrlStartRtpPubResp struct {
 		SessionId  string `json:"session_id"`
 		Port       int    `json:"port"`
 	} `json:"data"`
+}
+
+type ApiCtrlAddIpBlacklistResp struct {
+	ApiRespBasic
 }
