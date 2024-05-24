@@ -31,7 +31,6 @@ func kickSession(serverId, streamName, sessionId string) {
 	if _, err := nazahttp.PostJson(url, b, nil); err != nil {
 		nazalog.Errorf("[%s] post json error. err=%+v", serverId, err)
 	}
-	return
 }
 
 func addIpBlacklist(serverId, ip string, durationSec int) {
@@ -50,5 +49,21 @@ func addIpBlacklist(serverId, ip string, durationSec int) {
 	if _, err := nazahttp.PostJson(url, b, nil); err != nil {
 		nazalog.Errorf("[%s] post json error. err=%+v", serverId, err)
 	}
-	return
+}
+
+func startRelayPull(reqId, reqApiAddr, pubRtmpAddr, appName, streamName string) {
+	// TODO(chef): 还没有测试新的接口start_relay_pull，只是保证可以编译通过
+	url := fmt.Sprintf("http://%s/api/ctrl/start_relay_pull", reqApiAddr)
+	var b base.ApiCtrlStartRelayPullReq
+	b.Url = fmt.Sprintf("%s://%s/%s/%s?%s", "rtmp", pubRtmpAddr, appName, streamName, config.PullSecretParam)
+	//b.Protocol = base.ProtocolRtmp
+	//b.Addr = pubServer.RtmpAddr
+	//b.AppName = info.AppName
+	//b.StreamName = info.StreamName
+	//b.UrlParam = config.PullSecretParam
+
+	nazalog.Infof("[%s] startRelayPull. send to %s with %+v", reqId, reqApiAddr, b)
+	if _, err := nazahttp.PostJson(url, b, nil); err != nil {
+		nazalog.Errorf("[%s] post json error. err=%+v", reqId, err)
+	}
 }
