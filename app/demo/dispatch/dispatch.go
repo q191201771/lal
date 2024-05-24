@@ -235,44 +235,6 @@ func logHandler(w http.ResponseWriter, r *http.Request) {
 	nazalog.Infof("r=%+v, body=%s", r, b)
 }
 
-func kickSession(serverId, streamName, sessionId string) {
-	reqServer, exist := config.ServerId2Server[serverId]
-	if !exist {
-		nazalog.Errorf("[%s] req server id invalid.", serverId)
-		return
-	}
-
-	url := fmt.Sprintf("http://%s/api/ctrl/kick_session", reqServer.ApiAddr)
-	var b base.ApiCtrlKickSessionReq
-	b.StreamName = streamName
-	b.SessionId = sessionId
-
-	nazalog.Infof("[%s] kickSession. send to %s with %+v", serverId, reqServer.ApiAddr, b)
-	if _, err := nazahttp.PostJson(url, b, nil); err != nil {
-		nazalog.Errorf("[%s] post json error. err=%+v", serverId, err)
-	}
-	return
-}
-
-func addIpBlacklist(serverId, ip string, durationSec int) {
-	reqServer, exist := config.ServerId2Server[serverId]
-	if !exist {
-		nazalog.Errorf("[%s] req server id invalid.", serverId)
-		return
-	}
-
-	url := fmt.Sprintf("http://%s/api/ctrl/add_ip_blacklist", reqServer.ApiAddr)
-	var b base.ApiCtrlAddIpBlacklistReq
-	b.Ip = ip
-	b.DurationSec = durationSec
-
-	nazalog.Infof("[%s] addIpBlacklist. send to %s with %+v", serverId, reqServer.ApiAddr, b)
-	if _, err := nazahttp.PostJson(url, b, nil); err != nil {
-		nazalog.Errorf("[%s] post json error. err=%+v", serverId, err)
-	}
-	return
-}
-
 func parseFlag() string {
 	cf := flag.String("c", "", "specify conf file")
 	flag.Parse()
