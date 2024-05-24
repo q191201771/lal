@@ -1,0 +1,17 @@
+{
+  "listen_addr": ":10101",
+  "servers": {
+    "1": {
+      "rtmp_addr": "127.0.0.1:19350",
+      "api_addr": "127.0.0.1:8083"
+    },
+    "2": {
+      "rtmp_addr": "127.0.0.1:19550",
+      "api_addr": "127.0.0.1:8283"
+    }
+  },
+  "pull_secret_param": "lal_cluster_inner_pull=1",
+  "server_timeout_sec": 30,
+  "max_sub_session_per_ip": -1,
+  "max_sub_duration_sec": -1
+}

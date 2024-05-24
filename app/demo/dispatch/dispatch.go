@@ -9,11 +9,15 @@
 package main
 
 import (
+	"encoding/json"
+	"flag"
 	"fmt"
 	"io"
 	"net"
 	"net/http"
+	"os"
 	"strings"
+	"time"
 
 	"github.com/q191201771/lal/app/demo/dispatch/datamanager"
 	"github.com/q191201771/lal/pkg/base"
@@ -30,22 +34,6 @@ import (
 // 你可以将流推送至任意一个节点，并从任意一个节点拉流，
 // 同一路流，推流和拉流可以在不同的节点。
 //
-
-var config = Config{
-	ListenAddr: ":10101",
-	ServerId2Server: map[string]Server{
-		"1": {
-			RtmpAddr: "127.0.0.1:19350",
-			ApiAddr:  "127.0.0.1:8083",
-		},
-		"2": {
-			RtmpAddr: "127.0.0.1:19550",
-			ApiAddr:  "127.0.0.1:8283",
-		},
-	},
-	PullSecretParam:  "lal_cluster_inner_pull=1",
-	ServerTimeoutSec: 30,
-}
 
 var dataManager datamanager.DataManger
 
@@ -100,21 +88,7 @@ func OnSubStartHandler(w http.ResponseWriter, r *http.Request) {
 	// 演示通过流名称踢掉session，服务于鉴权等场景
 	// 业务方真正使用时，可以通过流名称、用户IP、URL参数等信息，来判断是否需要踢掉session
 	if info.StreamName == "cheftestkick" {
-		reqServer, exist := config.ServerId2Server[info.ServerId]
-		if !exist {
-			nazalog.Errorf("[%s] req server id invalid.", id)
-			return
-		}
-
-		url := fmt.Sprintf("http://%s/api/ctrl/kick_session", reqServer.ApiAddr)
-		var b base.ApiCtrlKickSessionReq
-		b.StreamName = info.StreamName
-		b.SessionId = info.SessionId
-
-		nazalog.Infof("[%s] ctrl kick out session. send to %s with %+v", id, reqServer.ApiAddr, b)
-		if _, err := nazahttp.PostJson(url, b, nil); err != nil {
-			nazalog.Errorf("[%s] post json error. err=%+v", id, err)
-		}
+		kickSession(info.ServerId, info.StreamName, info.SessionId)
 		return
 	}
 
@@ -126,7 +100,7 @@ func OnSubStartHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	// 2. 汇报的节点已经存在输入流，不需要触发
 	if info.HasInSession {
-		nazalog.Infof("[%s] in not empty, ignore.", id)
+		nazalog.Infof("[%s] has in session in the same node, ignore.", id)
 		return
 	}
 
@@ -148,6 +122,7 @@ func OnSubStartHandler(w http.ResponseWriter, r *http.Request) {
 	nazalog.Assert(true, exist)
 
 	// 向汇报节点，发送pull级联拉流的命令，其中包含pub所在节点信息
+	// TODO(chef): start_relay_pull封装成函数，所有的http请求都应该封装成函数 202405
 	// TODO(chef): 还没有测试新的接口start_relay_pull，只是保证可以编译通过
 	url := fmt.Sprintf("http://%s/api/ctrl/start_relay_pull", reqServer.ApiAddr)
 	var b base.ApiCtrlStartRelayPullReq
@@ -193,11 +168,115 @@ func OnUpdateHandler(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	dataManager.UpdatePub(info.ServerId, streamNameList)
+
+	if config.MaxSubSessionPerIp > 0 {
+		ip2SubSessions := make(map[string][]base.StatSub)
+		sessionId2StreamName := make(map[string]string)
+		for _, g := range info.Groups {
+			for _, sub := range g.StatSubs {
+				host, _, err := net.SplitHostPort(sub.RemoteAddr)
+				if err != nil {
+					nazalog.Warnf("split host port failed. remote addr=%s", sub.RemoteAddr)
+					continue
+				}
+				ip2SubSessions[host] = append(ip2SubSessions[host], sub)
+				sessionId2StreamName[sub.SessionId] = g.StreamName
+			}
+		}
+		for ip, subs := range ip2SubSessions {
+			if len(subs) > config.MaxSubSessionPerIp {
+				nazalog.Debugf("close session. ip=%s, session count=%d", ip, len(subs))
+				for _, sub := range subs {
+					if sub.Protocol == base.SessionProtocolHlsStr {
+						host, _, err := net.SplitHostPort(sub.RemoteAddr)
+						if err != nil {
+							nazalog.Warnf("split host port failed. remote addr=%s", sub.RemoteAddr)
+							continue
+						}
+						addIpBlacklist(info.ServerId, host, 60)
+					} else {
+						kickSession(info.ServerId, sessionId2StreamName[sub.SessionId], sub.SessionId)
+					}
+				}
+			}
+		}
+	}
+
+	if config.MaxSubDurationSec > 0 {
+		now := time.Now()
+		for _, g := range info.Groups {
+			for _, sub := range g.StatSubs {
+				st, err := base.ParseReadableTime(sub.StartTime)
+				if err != nil {
+					nazalog.Warnf("parse readable time failed. start time=%s, err=%+v", sub.StartTime, err)
+					continue
+				}
+				diff := int(now.Sub(st).Seconds())
+				if diff > config.MaxSubDurationSec {
+					nazalog.Infof("close session. sub session start time=%s, diff=%d", sub.StartTime, diff)
+					if sub.Protocol == base.SessionProtocolHlsStr {
+						host, _, err := net.SplitHostPort(sub.RemoteAddr)
+						if err != nil {
+							nazalog.Warnf("split host port failed. remote addr=%s", sub.RemoteAddr)
+							continue
+						}
+						addIpBlacklist(info.ServerId, host, 60)
+					} else {
+						kickSession(info.ServerId, g.StreamName, sub.SessionId)
+					}
+				}
+			}
+		}
+	}
 }
 
 func logHandler(w http.ResponseWriter, r *http.Request) {
 	b, _ := io.ReadAll(r.Body)
 	nazalog.Infof("r=%+v, body=%s", r, b)
+}
+
+func kickSession(serverId, streamName, sessionId string) {
+	reqServer, exist := config.ServerId2Server[serverId]
+	if !exist {
+		nazalog.Errorf("[%s] req server id invalid.", serverId)
+		return
+	}
+
+	url := fmt.Sprintf("http://%s/api/ctrl/kick_session", reqServer.ApiAddr)
+	var b base.ApiCtrlKickSessionReq
+	b.StreamName = streamName
+	b.SessionId = sessionId
+
+	nazalog.Infof("[%s] kickSession. send to %s with %+v", serverId, reqServer.ApiAddr, b)
+	if _, err := nazahttp.PostJson(url, b, nil); err != nil {
+		nazalog.Errorf("[%s] post json error. err=%+v", serverId, err)
+	}
+	return
+}
+
+func addIpBlacklist(serverId, ip string, durationSec int) {
+	reqServer, exist := config.ServerId2Server[serverId]
+	if !exist {
+		nazalog.Errorf("[%s] req server id invalid.", serverId)
+		return
+	}
+
+	url := fmt.Sprintf("http://%s/api/ctrl/add_ip_blacklist", reqServer.ApiAddr)
+	var b base.ApiCtrlAddIpBlacklistReq
+	b.Ip = ip
+	b.DurationSec = durationSec
+
+	nazalog.Infof("[%s] addIpBlacklist. send to %s with %+v", serverId, reqServer.ApiAddr, b)
+	if _, err := nazahttp.PostJson(url, b, nil); err != nil {
+		nazalog.Errorf("[%s] post json error. err=%+v", serverId, err)
+	}
+	return
+}
+
+func parseFlag() string {
+	cf := flag.String("c", "", "specify conf file")
+	flag.Parse()
+	return *cf
 }
 
 func main() {
@@ -207,8 +286,17 @@ func main() {
 	defer nazalog.Sync()
 	base.LogoutStartInfo()
 
+	confFilename := parseFlag()
+	rawContent := base.WrapReadConfigFile(confFilename, DefaultConfFilenameList, nil)
+	if err := json.Unmarshal(rawContent, &config); err != nil {
+		_, _ = fmt.Fprintf(os.Stderr, "unmarshal conf file failed. raw content=%s err=%+v", rawContent, err)
+		base.OsExitAndWaitPressIfWindows(1)
+	}
+	nazalog.Infof("config=%+v", config)
+
 	dataManager = datamanager.NewDataManager(datamanager.DmtMemory, config.ServerTimeoutSec)
 
+	nazalog.Infof("> start http server. addr=%s", config.ListenAddr)
 	l, err := net.Listen("tcp", config.ListenAddr)
 	nazalog.Assert(nil, err)
 
