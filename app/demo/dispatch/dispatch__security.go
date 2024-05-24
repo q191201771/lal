@@ -16,65 +16,62 @@ import (
 )
 
 func securityMaxSubSessionPerIp(info base.UpdateInfo) {
-	if config.MaxSubSessionPerIp > 0 {
-		ip2SubSessions := make(map[string][]base.StatSub)
-		sessionId2StreamName := make(map[string]string)
-		for _, g := range info.Groups {
-			for _, sub := range g.StatSubs {
-				host, _, err := net.SplitHostPort(sub.RemoteAddr)
-				if err != nil {
-					nazalog.Warnf("split host port failed. remote addr=%s", sub.RemoteAddr)
-					continue
-				}
-				ip2SubSessions[host] = append(ip2SubSessions[host], sub)
-				sessionId2StreamName[sub.SessionId] = g.StreamName
+	if config.MaxSubSessionPerIp <= 0 {
+		return
+	}
+
+	ip2SubSessions := make(map[string][]base.StatSub)
+	sessionId2StreamName := make(map[string]string)
+	for _, g := range info.Groups {
+		for _, sub := range g.StatSubs {
+			host, _, err := net.SplitHostPort(sub.RemoteAddr)
+			if err != nil {
+				nazalog.Warnf("split host port failed. remote addr=%s", sub.RemoteAddr)
+				continue
 			}
+			ip2SubSessions[host] = append(ip2SubSessions[host], sub)
+			sessionId2StreamName[sub.SessionId] = g.StreamName
 		}
-		for ip, subs := range ip2SubSessions {
-			if len(subs) > config.MaxSubSessionPerIp {
-				nazalog.Debugf("close session. ip=%s, session count=%d", ip, len(subs))
-				for _, sub := range subs {
-					if sub.Protocol == base.SessionProtocolHlsStr {
-						host, _, err := net.SplitHostPort(sub.RemoteAddr)
-						if err != nil {
-							nazalog.Warnf("split host port failed. remote addr=%s", sub.RemoteAddr)
-							continue
-						}
-						addIpBlacklist(info.ServerId, host, 60)
-					} else {
-						kickSession(info.ServerId, sessionId2StreamName[sub.SessionId], sub.SessionId)
-					}
-				}
-			}
+	}
+
+	for ip, subs := range ip2SubSessions {
+		if len(subs) <= config.MaxSubSessionPerIp {
+			continue
+		}
+		nazalog.Debugf("close session. ip=%s, session count=%d", ip, len(subs))
+		for _, sub := range subs {
+			//if sub.Protocol == base.SessionProtocolHlsStr {
+			//	host, _, err := net.SplitHostPort(sub.RemoteAddr)
+			//	if err != nil {
+			//		nazalog.Warnf("split host port failed. remote addr=%s", sub.RemoteAddr)
+			//		continue
+			//	}
+			//	addIpBlacklist(info.ServerId, host, 60)
+			//}
+			kickSession(info.ServerId, sessionId2StreamName[sub.SessionId], sub.SessionId)
 		}
 	}
 }
 
 func securityMaxSubDurationSec(info base.UpdateInfo) {
-	if config.MaxSubDurationSec > 0 {
-		now := time.Now()
-		for _, g := range info.Groups {
-			for _, sub := range g.StatSubs {
-				st, err := base.ParseReadableTime(sub.StartTime)
-				if err != nil {
-					nazalog.Warnf("parse readable time failed. start time=%s, err=%+v", sub.StartTime, err)
-					continue
-				}
-				diff := int(now.Sub(st).Seconds())
-				if diff > config.MaxSubDurationSec {
-					nazalog.Infof("close session. sub session start time=%s, diff=%d", sub.StartTime, diff)
-					if sub.Protocol == base.SessionProtocolHlsStr {
-						host, _, err := net.SplitHostPort(sub.RemoteAddr)
-						if err != nil {
-							nazalog.Warnf("split host port failed. remote addr=%s", sub.RemoteAddr)
-							continue
-						}
-						addIpBlacklist(info.ServerId, host, 60)
-					} else {
-						kickSession(info.ServerId, g.StreamName, sub.SessionId)
-					}
-				}
+	if config.MaxSubDurationSec <= 0 {
+		return
+	}
+
+	now := time.Now()
+	for _, g := range info.Groups {
+		for _, sub := range g.StatSubs {
+			st, err := base.ParseReadableTime(sub.StartTime)
+			if err != nil {
+				nazalog.Warnf("parse readable time failed. start time=%s, err=%+v", sub.StartTime, err)
+				continue
 			}
+			diff := int(now.Sub(st).Seconds())
+			if diff <= config.MaxSubDurationSec {
+				continue
+			}
+			nazalog.Infof("close session. sub session start time=%s, diff=%d", sub.StartTime, diff)
+			kickSession(info.ServerId, g.StreamName, sub.SessionId)
 		}
 	}
 }
