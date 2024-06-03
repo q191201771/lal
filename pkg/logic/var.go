@@ -60,7 +60,8 @@ var (
 	// 对于输出型session，检查一定时间内，是否没有发送数据。
 	// 注意，socket阻塞无法发送和上层没有向该session喂入数据都算没有发送数据。
 	//
-	CheckSessionAliveIntervalSec uint32 = 10
+	//CheckSessionAliveIntervalSec uint32 = 10
+	CheckSessionAliveIntervalSec uint32 = 120
 
 	RelayPushTimeoutMs        = 10000
 	RelayPushWriteAvTimeoutMs = 10000
