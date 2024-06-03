@@ -51,18 +51,6 @@ var (
 	// - rtsp pull: rtsp.PullSessionOption.PullTimeoutMs
 	// - httpflv pull: httpflv.PullSessionOption.PullTimeoutMs ReadTimeoutMs
 
-	// CheckSessionAliveIntervalSec
-	//
-	// 检查session是否有数据传输的时间间隔，该间隔内没有数据传输的session将被关闭。
-	//
-	// 对于输入型session，检查一定时间内，是否没有收到数据。
-	//
-	// 对于输出型session，检查一定时间内，是否没有发送数据。
-	// 注意，socket阻塞无法发送和上层没有向该session喂入数据都算没有发送数据。
-	//
-	//CheckSessionAliveIntervalSec uint32 = 10
-	CheckSessionAliveIntervalSec uint32 = 120
-
 	RelayPushTimeoutMs        = 10000
 	RelayPushWriteAvTimeoutMs = 10000
 

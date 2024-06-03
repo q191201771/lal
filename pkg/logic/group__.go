@@ -452,7 +452,7 @@ func (group *Group) disposeInactiveSessions(tickCount uint32) {
 
 	// 以下都是以 CheckSessionAliveIntervalSec 为间隔的清理逻辑
 
-	if tickCount%CheckSessionAliveIntervalSec != 0 {
+	if tickCount%base.LogicCheckSessionAliveIntervalSec != 0 {
 		return
 	}
 

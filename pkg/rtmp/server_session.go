@@ -537,7 +537,7 @@ func (s *ServerSession) modConnProps() {
 
 	switch s.sessionStat.BaseType() {
 	case base.SessionBaseTypePubStr:
-		s.conn.ModReadTimeoutMs(serverSessionReadAvTimeoutMs)
+		s.conn.ModReadTimeoutMs(base.RtmpServerSessionReadAvTimeoutMs)
 	case base.SessionBaseTypeSubStr:
 		s.conn.ModWriteTimeoutMs(serverSessionWriteAvTimeoutMs)
 	}
