@@ -9,8 +9,6 @@
 package logic
 
 import (
-	"path/filepath"
-
 	"github.com/q191201771/lal/pkg/base"
 )
 
@@ -146,19 +144,6 @@ var defaultOption = Option{
 }
 
 type ModOption func(option *Option)
-
-// DefaultConfFilenameList 没有指定配置文件时，按顺序作为优先级，找到第一个存在的并使用
-var DefaultConfFilenameList = []string{
-	filepath.FromSlash("lalserver.conf.json"),
-	filepath.FromSlash("./conf/lalserver.conf.json"),
-	filepath.FromSlash("../lalserver.conf.json"),
-	filepath.FromSlash("../conf/lalserver.conf.json"),
-	filepath.FromSlash("../../lalserver.conf.json"),
-	filepath.FromSlash("../../conf/lalserver.conf.json"),
-	filepath.FromSlash("../../../lalserver.conf.json"),
-	filepath.FromSlash("../../../conf/lalserver.conf.json"),
-	filepath.FromSlash("lal/conf/lalserver.conf.json"),
-}
 
 // ---------------------------------------------------------------------------------------------------------------------
 

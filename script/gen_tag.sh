@@ -36,7 +36,7 @@ GitTag=`git tag --sort=version:refname | tail -n 1`
 echo "newest version in git tag: " $GitTag
 
 # 源码中的版本号
-FileVersion=`cat ${ROOT_DIR}/pkg/base/t_version.go | grep 'const LalVersion' | awk -F\" '{print $2}'`
+FileVersion=`cat ${ROOT_DIR}/pkg/base/t_version.go | grep 'var LalVersion' | awk -F\" '{print $2}'`
 echo "newest version in t_version.go: " $FileVersion
 
 # CHANGELOG.md和源码中的不一致，更新源码，并提交修改
@@ -44,7 +44,7 @@ if [ "$NewVersion" == "$FileVersion" ];then
   echo 'same tag, noop.'
 else
   echo 'update t_version.go'
-  gsed -i "/^const LalVersion/cconst LalVersion = \"${NewVersion}\"" ${ROOT_DIR}/pkg/base/t_version.go
+  gsed -i "/^var LalVersion/cvar LalVersion = \"${NewVersion}\"" ${ROOT_DIR}/pkg/base/t_version.go
   git add ${ROOT_DIR}/pkg/base/t_version.go
   git commit -m "${NewVersion} -> t_version.go"
   git push

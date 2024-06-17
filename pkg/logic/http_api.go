@@ -265,7 +265,7 @@ func (h *HttpApiServer) webUIHandler(w http.ResponseWriter, req *http.Request) {
 func (h *HttpApiServer) notFoundHandler(w http.ResponseWriter, req *http.Request) {
 	Log.Warnf("invalid http-api request. uri=%s, raddr=%s", req.RequestURI, req.RemoteAddr)
 	//w.WriteHeader(http.StatusNotFound)
-	feedback(base.ApiNotFoundResp, w)
+	feedback(base.ApiNotFoundRespFn(), w)
 }
 
 // ---------------------------------------------------------------------------------------------------------------------

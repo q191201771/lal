@@ -58,7 +58,6 @@ const (
 	DespSucc      = "succ"
 
 	ErrorCodePageNotFound = 404
-	DespPageNotFound      = "page not found, check this document out: https://pengrl.com/lal/#/HTTPAPI"
 
 	ErrorCodeGroupNotFound   = 1001
 	DespGroupNotFound        = "group not found"
@@ -76,9 +75,11 @@ type ApiRespBasic struct {
 	Desp      string `json:"desp"`
 }
 
-var ApiNotFoundResp = ApiRespBasic{
-	ErrorCode: ErrorCodePageNotFound,
-	Desp:      DespPageNotFound,
+func ApiNotFoundRespFn() ApiRespBasic {
+	return ApiRespBasic{
+		ErrorCode: ErrorCodePageNotFound,
+		Desp:      DespPageNotFound,
+	}
 }
 
 type ApiStatLalInfoResp struct {

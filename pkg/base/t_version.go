@@ -8,7 +8,11 @@
 
 package base
 
-import "strings"
+import (
+	"fmt"
+	"path/filepath"
+	"strings"
+)
 
 // 版本信息相关
 // lal的一部分版本信息使用了naza.bininfo
@@ -16,27 +20,38 @@ import "strings"
 // 并且将这些信息打入可执行文件、日志、各协议中的标准版本字段中
 
 // LalVersion 整个lal工程的版本号。注意，该变量由外部脚本修改维护，不要手动在代码中修改
-const LalVersion = "v0.37.4"
+var LalVersion = "v0.37.4"
 
 // ConfVersion lalserver的配置文件的版本号
-const ConfVersion = "v0.4.1"
+var ConfVersion = "v0.4.1"
 
 // HttpApiVersion lalserver的HTTP-API功能的版本号
-const HttpApiVersion = "v0.4.8"
+var HttpApiVersion = "v0.4.8"
 
 // HttpNotifyVersion lalserver的HTTP-Notify功能的版本号
-const HttpNotifyVersion = "v0.2.4"
+var HttpNotifyVersion = "v0.2.4"
 
-const HttpWebUiVersion = "v0.0.3"
+var HttpWebUiVersion = "v0.0.3"
 
 var (
-	LalLibraryName = "lal"
-	LalGithubRepo  = "github.com/q191201771/lal"
-	LalGithubSite  = "https://github.com/q191201771/lal"
-	LalDocSite     = "https://pengrl.com/lal"
+	LalLibraryName    = "lal"
+	LalGithubRepo     = "github.com/q191201771/lal"
+	LalGithubSite     = "https://github.com/q191201771/lal"
+	LalDocSite        = "https://pengrl.com/lal"
+	LalDocSiteHTTPAPI = "https://pengrl.com/lal/#/HTTPAPI"
+
+	LalDefaultConfigFilename = "lalserver.conf.json"
+
+	LalLogo = `
+    __    ___    __
+   / /   /   |  / /
+  / /   / /| | / /
+ / /___/ ___ |/ /___
+/_____/_/  |_/_____/
+`
 
 	// LalFullInfo e.g. lal v0.12.3 (github.com/q191201771/lal)
-	LalFullInfo = LalLibraryName + " " + LalVersion + " (" + LalGithubRepo + ")"
+	LalFullInfo string
 
 	// LalVersionDot e.g. 0.12.3
 	LalVersionDot string
@@ -90,6 +105,21 @@ var (
 
 	// LalRtspRealm e.g. lal
 	LalRtspRealm string
+
+	LalRtmpRandom1528Buf []byte
+
+	LalFlvHttpResponseHeader []byte
+
+	LalTsHttpResponseHeader []byte
+
+	// LalRtspResponseOptionsTmpl CSeq
+	// rfc2326 10.1 OPTIONS
+	LalRtspResponseOptionsTmpl string
+
+	// LalDefaultConfFilenameList 没有指定配置文件时，按顺序作为优先级，找到第一个存在的并使用
+	LalDefaultConfFilenameList []string
+
+	DespPageNotFound string
 )
 
 // - rtmp handshake random buf
@@ -122,7 +152,30 @@ var (
 // - http api
 //     - `server:`
 
-func init() {
+func MockVersion(
+	lalVersion, confVersion, httpApiVersion, httpNotifyVersion, httpWebUiVersion,
+	lalLibraryName, lalGithubRepo, lalGithubSite, lalDocSite, lalDocSiteHTTPAPI,
+	lalDefaultConfigFilename, lalLogo string) {
+	LalVersion = lalVersion
+	ConfVersion = confVersion
+	HttpApiVersion = httpApiVersion
+	HttpNotifyVersion = httpNotifyVersion
+	HttpWebUiVersion = httpWebUiVersion
+
+	LalLibraryName = lalLibraryName
+	LalGithubRepo = lalGithubRepo
+	LalGithubSite = lalGithubSite
+	LalDocSite = lalDocSite
+	LalDocSiteHTTPAPI = lalDocSiteHTTPAPI
+
+	LalDefaultConfigFilename = lalDefaultConfigFilename
+	LalLogo = lalLogo
+
+	initial()
+}
+
+func initial() {
+	LalFullInfo = LalLibraryName + " " + LalVersion + " (" + LalGithubRepo + ")"
 	LalVersionDot = strings.TrimPrefix(LalVersion, "v")
 	LalVersionComma = strings.Replace(LalVersionDot, ".", ",", -1)
 
@@ -145,4 +198,54 @@ func init() {
 	LalPackSdp = LalLibraryName + " " + LalVersionDot
 
 	LalRtspRealm = LalLibraryName
+
+	DespPageNotFound = "page not found, check this document out: " + LalDocSiteHTTPAPI
+
+	LalRtmpRandom1528Buf = make([]byte, 1528)
+	hack := []byte(fmt.Sprintf("random buf of rtmp handshake gen by %s", LalRtmpHandshakeWaterMark))
+	for i := 0; i < 1528; i += len(hack) {
+		copy(LalRtmpRandom1528Buf[i:], hack)
+	}
+
+	LalFlvHttpResponseHeader = []byte("HTTP/1.1 200 OK\r\n" +
+		"Server: " + LalHttpflvSubSessionServer + "\r\n" +
+		"Cache-Control: no-cache\r\n" +
+		"Content-Type: video/x-flv\r\n" +
+		"Connection: close\r\n" +
+		"Expires: -1\r\n" +
+		"Pragma: no-cache\r\n" +
+		CorsHeaders +
+		"\r\n")
+
+	LalTsHttpResponseHeader = []byte("HTTP/1.1 200 OK\r\n" +
+		"Server: " + LalHttptsSubSessionServer + "\r\n" +
+		"Cache-Control: no-cache\r\n" +
+		"Content-Type: video/mp2t\r\n" +
+		"Connection: close\r\n" +
+		"Expires: -1\r\n" +
+		"Pragma: no-cache\r\n" +
+		CorsHeaders +
+		"\r\n")
+
+	LalRtspResponseOptionsTmpl = "RTSP/1.0 200 OK\r\n" +
+		"Server: " + LalRtspOptionsResponseServer + "\r\n" +
+		"CSeq: %s\r\n" +
+		"Public: DESCRIBE, ANNOUNCE, SETUP, PLAY, PAUSE, RECORD, TEARDOWN\r\n" +
+		"\r\n"
+
+	LalDefaultConfFilenameList = []string{
+		filepath.FromSlash(LalDefaultConfigFilename),
+		filepath.FromSlash("./conf/" + LalDefaultConfigFilename),
+		filepath.FromSlash("../" + LalDefaultConfigFilename),
+		filepath.FromSlash("../conf/" + LalDefaultConfigFilename),
+		filepath.FromSlash("../../" + LalDefaultConfigFilename),
+		filepath.FromSlash("../../conf/" + LalDefaultConfigFilename),
+		filepath.FromSlash("../../../" + LalDefaultConfigFilename),
+		filepath.FromSlash("../../../conf/" + LalDefaultConfigFilename),
+		filepath.FromSlash("lal/conf/" + LalDefaultConfigFilename),
+	}
+}
+
+func init() {
+	initial()
 }

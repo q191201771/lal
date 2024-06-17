@@ -16,8 +16,6 @@ import (
 	"github.com/q191201771/naza/pkg/connection"
 )
 
-var flvHttpResponseHeader []byte
-
 type SubSession struct {
 	core                    *base.BasicHttpSubSession
 	IsFresh                 bool
@@ -62,7 +60,7 @@ func (session *SubSession) Dispose() error {
 
 func (session *SubSession) WriteHttpResponseHeader() {
 	Log.Debugf("[%s] > W http response header.", session.core.UniqueKey())
-	session.core.WriteHttpResponseHeader(flvHttpResponseHeader)
+	session.core.WriteHttpResponseHeader(base.LalFlvHttpResponseHeader)
 }
 
 func (session *SubSession) WriteFlvHeader() {
@@ -118,20 +116,4 @@ func (session *SubSession) GetStat() base.StatSession {
 
 func (session *SubSession) IsAlive() (readAlive, writeAlive bool) {
 	return session.core.IsAlive()
-}
-
-// ---------------------------------------------------------------------------------------------------------------------
-
-func init() {
-	flvHttpResponseHeaderStr := "HTTP/1.1 200 OK\r\n" +
-		"Server: " + base.LalHttpflvSubSessionServer + "\r\n" +
-		"Cache-Control: no-cache\r\n" +
-		"Content-Type: video/x-flv\r\n" +
-		"Connection: close\r\n" +
-		"Expires: -1\r\n" +
-		"Pragma: no-cache\r\n" +
-		base.CorsHeaders +
-		"\r\n"
-
-	flvHttpResponseHeader = []byte(flvHttpResponseHeaderStr)
 }

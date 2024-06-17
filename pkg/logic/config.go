@@ -249,13 +249,7 @@ func LoadConfAndInitLog(rawContent []byte) *Config {
 	Log.Info("initial log succ.")
 
 	// 打印Logo
-	Log.Info(`
-    __    ___    __
-   / /   /   |  / /
-  / /   / /| | / /
- / /___/ ___ |/ /___
-/_____/_/  |_/_____/
-`)
+	Log.Info(base.LalLogo)
 
 	// 检查配置版本号是否匹配
 	if config.ConfVersion != base.ConfVersion {

@@ -15,8 +15,6 @@ import (
 	"github.com/q191201771/naza/pkg/connection"
 )
 
-var tsHttpResponseHeader []byte
-
 type SubSession struct {
 	core               *base.BasicHttpSubSession
 	IsFresh            bool
@@ -60,7 +58,7 @@ func (session *SubSession) Dispose() error {
 
 func (session *SubSession) WriteHttpResponseHeader() {
 	Log.Debugf("[%s] > W http response header.", session.core.UniqueKey())
-	session.core.WriteHttpResponseHeader(tsHttpResponseHeader)
+	session.core.WriteHttpResponseHeader(base.LalTsHttpResponseHeader)
 }
 
 func (session *SubSession) Write(b []byte) {
@@ -109,18 +107,4 @@ func (session *SubSession) GetStat() base.StatSession {
 
 func (session *SubSession) IsAlive() (readAlive, writeAlive bool) {
 	return session.core.IsAlive()
-}
-
-func init() {
-	tsHttpResponseHeaderStr := "HTTP/1.1 200 OK\r\n" +
-		"Server: " + base.LalHttptsSubSessionServer + "\r\n" +
-		"Cache-Control: no-cache\r\n" +
-		"Content-Type: video/mp2t\r\n" +
-		"Connection: close\r\n" +
-		"Expires: -1\r\n" +
-		"Pragma: no-cache\r\n" +
-		base.CorsHeaders +
-		"\r\n"
-
-	tsHttpResponseHeader = []byte(tsHttpResponseHeaderStr)
 }

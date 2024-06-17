@@ -72,14 +72,14 @@ func NewServerManager(modOption ...ModOption) *ServerManager {
 
 	rawContent := sm.option.ConfRawContent
 	if len(rawContent) == 0 {
-		rawContent = base.WrapReadConfigFile(sm.option.ConfFilename, DefaultConfFilenameList, func() {
+		rawContent = base.WrapReadConfigFile(sm.option.ConfFilename, base.LalDefaultConfFilenameList, func() {
 			_, _ = fmt.Fprintf(os.Stderr, `
 Example:
   %s -c %s
 
 Github: %s
 Doc: %s
-`, os.Args[0], filepath.FromSlash("./conf/lalserver.conf.json"), base.LalGithubSite, base.LalDocSite)
+`, os.Args[0], filepath.FromSlash("./conf/"+base.LalDefaultConfigFilename), base.LalGithubSite, base.LalDocSite)
 		})
 	}
 	sm.config = LoadConfAndInitLog(rawContent)

@@ -12,7 +12,6 @@ import (
 	"bytes"
 	"crypto/hmac"
 	"crypto/sha256"
-	"fmt"
 	"io"
 	"time"
 
@@ -290,13 +289,5 @@ func makeDigest(b []byte, key []byte) []byte {
 }
 
 func random1528(out []byte) {
-	copy(out, random1528Buf)
-}
-
-func init() {
-	random1528Buf = make([]byte, 1528)
-	hack := []byte(fmt.Sprintf("random buf of rtmp handshake gen by %s", base.LalRtmpHandshakeWaterMark))
-	for i := 0; i < 1528; i += len(hack) {
-		copy(random1528Buf[i:], hack)
-	}
+	copy(out, base.LalRtmpRandom1528Buf)
 }

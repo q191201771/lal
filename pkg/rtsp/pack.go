@@ -15,15 +15,6 @@ import (
 	"github.com/q191201771/lal/pkg/base"
 )
 
-// rfc2326 10.1 OPTIONS
-
-// ResponseOptionsTmpl CSeq
-var ResponseOptionsTmpl = "RTSP/1.0 200 OK\r\n" +
-	"Server: " + base.LalRtspOptionsResponseServer + "\r\n" +
-	"CSeq: %s\r\n" +
-	"Public: DESCRIBE, ANNOUNCE, SETUP, PLAY, PAUSE, RECORD, TEARDOWN\r\n" +
-	"\r\n"
-
 // rfc2326 10.3 ANNOUNCE
 //var RequestAnnounceTmpl = "not impl"
 
@@ -84,7 +75,7 @@ var ResponseAuthorizedTmpl = "RTSP/1.0 401 Unauthorized\r\n" +
 	"\r\n"
 
 func PackResponseOptions(cseq string) string {
-	return fmt.Sprintf(ResponseOptionsTmpl, cseq)
+	return fmt.Sprintf(base.LalRtspResponseOptionsTmpl, cseq)
 }
 
 func PackResponseAnnounce(cseq string) string {
