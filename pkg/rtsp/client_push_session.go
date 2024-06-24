@@ -129,6 +129,8 @@ func (session *PushSession) WaitChan() <-chan error {
 }
 
 // ---------------------------------------------------------------------------------------------------------------------
+// ISessionUrlContext interface
+// ---------------------------------------------------------------------------------------------------------------------
 
 // Url 文档请参考： interface ISessionUrlContext
 func (session *PushSession) Url() string {
@@ -150,12 +152,18 @@ func (session *PushSession) RawQuery() string {
 	return session.cmdSession.RawQuery()
 }
 
+// ---------------------------------------------------------------------------------------------------------------------
+// ISessionUrlContext IObject
+// ---------------------------------------------------------------------------------------------------------------------
+
 // UniqueKey 文档请参考： interface IObject
 func (session *PushSession) UniqueKey() string {
 	return session.baseOutSession.UniqueKey()
 }
 
-// ----- ISessionStat --------------------------------------------------------------------------------------------------
+// ---------------------------------------------------------------------------------------------------------------------
+// ISessionStat IObject
+// ---------------------------------------------------------------------------------------------------------------------
 
 // GetStat 文档请参考： interface ISessionStat
 func (session *PushSession) GetStat() base.StatSession {
@@ -175,41 +183,49 @@ func (session *PushSession) IsAlive() (readAlive, writeAlive bool) {
 }
 
 // ---------------------------------------------------------------------------------------------------------------------
+// ISessionStat IClientCommandSessionObserver
+// ---------------------------------------------------------------------------------------------------------------------
 
-// OnConnectResult IClientCommandSessionObserver, callback by ClientCommandSession
+// OnConnectResult callback by ClientCommandSession
 func (session *PushSession) OnConnectResult() {
 	// noop
 }
 
-// OnDescribeResponse IClientCommandSessionObserver, callback by ClientCommandSession
+// OnDescribeResponse callback by ClientCommandSession
 func (session *PushSession) OnDescribeResponse(sdpCtx sdp.LogicContext) {
 	// noop
 }
 
-// OnSetupWithConn IClientCommandSessionObserver, callback by ClientCommandSession
+// OnSetupWithConn callback by ClientCommandSession
 func (session *PushSession) OnSetupWithConn(uri string, rtpConn, rtcpConn *nazanet.UdpConnection) {
 	_ = session.baseOutSession.SetupWithConn(uri, rtpConn, rtcpConn)
 }
 
-// OnSetupWithChannel IClientCommandSessionObserver, callback by ClientCommandSession
+// OnSetupWithChannel callback by ClientCommandSession
 func (session *PushSession) OnSetupWithChannel(uri string, rtpChannel, rtcpChannel int) {
 	_ = session.baseOutSession.SetupWithChannel(uri, rtpChannel, rtcpChannel)
 }
 
-// OnSetupResult IClientCommandSessionObserver, callback by ClientCommandSession
+// OnSetupResult callback by ClientCommandSession
 func (session *PushSession) OnSetupResult() {
 	// noop
 }
 
-// OnInterleavedPacket IClientCommandSessionObserver, callback by ClientCommandSession
+// OnInterleavedPacket callback by ClientCommandSession
 func (session *PushSession) OnInterleavedPacket(packet []byte, channel int) {
 	session.baseOutSession.HandleInterleavedPacket(packet, channel)
 }
 
-// WriteInterleavedPacket IInterleavedPacketWriter, callback by BaseOutSession
+// ---------------------------------------------------------------------------------------------------------------------
+// ISessionStat IInterleavedPacketWriter
+// ---------------------------------------------------------------------------------------------------------------------
+
+// WriteInterleavedPacket callback by BaseOutSession
 func (session *PushSession) WriteInterleavedPacket(packet []byte, channel int) error {
 	return session.cmdSession.WriteInterleavedPacket(packet, channel)
 }
+
+// ---------------------------------------------------------------------------------------------------------------------
 
 func (session *PushSession) dispose(err error) error {
 	var retErr error

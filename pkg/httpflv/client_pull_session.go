@@ -107,6 +107,8 @@ func (session *PullSession) WaitChan() <-chan error {
 }
 
 // ---------------------------------------------------------------------------------------------------------------------
+// ISessionUrlContext interface
+// ---------------------------------------------------------------------------------------------------------------------
 
 // Url 文档请参考： interface ISessionUrlContext
 func (session *PullSession) Url() string {
@@ -128,12 +130,18 @@ func (session *PullSession) RawQuery() string {
 	return session.urlCtx.RawQuery
 }
 
+// ---------------------------------------------------------------------------------------------------------------------
+// IObject interface
+// ---------------------------------------------------------------------------------------------------------------------
+
 // UniqueKey 文档请参考： interface IObject
 func (session *PullSession) UniqueKey() string {
 	return session.sessionStat.UniqueKey()
 }
 
-// ----- ISessionStat --------------------------------------------------------------------------------------------------
+// ---------------------------------------------------------------------------------------------------------------------
+// ISessionStat interface
+// ---------------------------------------------------------------------------------------------------------------------
 
 // UpdateStat 文档请参考： interface ISessionStat
 func (session *PullSession) UpdateStat(intervalSec uint32) {
