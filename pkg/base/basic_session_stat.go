@@ -78,6 +78,10 @@ func NewBasicSessionStat(sessionType SessionType, remoteAddr string) BasicSessio
 		s.stat.SessionId = GenUkFlvSubSession()
 		s.stat.BaseType = SessionBaseTypeSubStr
 		s.stat.Protocol = SessionProtocolFlvStr
+	case SessionTypeFlvPull:
+		s.stat.SessionId = GenUkFlvPullSession()
+		s.stat.BaseType = SessionBaseTypePullStr
+		s.stat.Protocol = SessionProtocolFlvStr
 	case SessionTypePsPub:
 		s.stat.SessionId = GenUkPsPubSession()
 		s.stat.BaseType = SessionBaseTypePubStr
