@@ -64,6 +64,7 @@ func (session *PushSession) Push(rawUrl string, sdpCtx sdp.LogicContext) error {
 	session.cmdSession.InitWithSdp(sdpCtx)
 	session.baseOutSession.InitWithSdp(sdpCtx)
 	if err := session.cmdSession.Do(rawUrl); err != nil {
+		_ = session.dispose(err)
 		return err
 	}
 

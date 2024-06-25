@@ -78,6 +78,7 @@ func (session *PullSession) WithOnDescribeResponse(onDescribeResponse func()) *P
 func (session *PullSession) Pull(rawUrl string) error {
 	Log.Debugf("[%s] pull. url=%s", session.UniqueKey(), rawUrl)
 	if err := session.cmdSession.Do(rawUrl); err != nil {
+		_ = session.dispose(err)
 		return err
 	}
 

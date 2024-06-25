@@ -176,11 +176,12 @@ func main() {
 	}()
 
 	if strings.HasPrefix(in, "http") || strings.HasPrefix(in, "https") {
-		session := httpflv.NewPullSession()
-		// TODO(chef): [refactor] 统一 PullSession 和 FilePump 的回调格式 202211
-		err := session.Pull(in, func(tag httpflv.Tag) {
+		session := httpflv.NewPullSession().WithOnReadFlvTag(func(tag httpflv.Tag) {
 			handleTags(tag)
 		})
+
+		// TODO(chef): [refactor] 统一 PullSession 和 FilePump 的回调格式 202211
+		err := session.Start(in)
 		nazalog.Assert(nil, err)
 
 		// 临时测试一下主动关闭client session

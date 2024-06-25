@@ -162,6 +162,9 @@ func (s *ClientSession) Do(rawUrl string) error {
 	}
 
 	err := s.doContext(ctx)
+	if err != nil {
+		_ = s.dispose(err)
+	}
 
 	return err
 }
