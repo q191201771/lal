@@ -85,29 +85,15 @@ func (session *PullSession) WithOnReadFlvTag(onReadFlvTag OnReadFlvTag) *PullSes
 //  1. `http://{domain}/{app_name}/{stream_name}.flv`
 //  2. `http://{ip}/{domain}/{app_name}/{stream_name}.flv`
 func (session *PullSession) Start(rawUrl string) error {
-	return session.Pull(rawUrl, session.onReadFlvTag)
+	if session.onReadFlvTag == nil {
+		Log.Warnf("[%s] Start. onReadFlvTag not set.", session.UniqueKey())
+	}
+	return session.pull(rawUrl)
 }
 
 // Pull deprecated. use Start instead.
 func (session *PullSession) Pull(rawUrl string, onReadFlvTag OnReadFlvTag) error {
-	Log.Debugf("[%s] pull. url=%s", session.UniqueKey(), rawUrl)
-
-	var (
-		ctx    context.Context
-		cancel context.CancelFunc
-	)
-	if session.option.PullTimeoutMs == 0 {
-		ctx, cancel = context.WithCancel(context.Background())
-	} else {
-		ctx, cancel = context.WithTimeout(context.Background(), time.Duration(session.option.PullTimeoutMs)*time.Millisecond)
-	}
-	defer cancel()
-
-	err := session.pullContext(ctx, rawUrl, onReadFlvTag)
-	if err != nil {
-		_ = session.dispose(err)
-	}
-	return err
+	return session.WithOnReadFlvTag(onReadFlvTag).Start(rawUrl)
 }
 
 // ---------------------------------------------------------------------------------------------------------------------
