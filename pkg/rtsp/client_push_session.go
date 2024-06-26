@@ -32,6 +32,8 @@ type PushSession struct {
 	cmdSession     *ClientCommandSession
 	baseOutSession *BaseOutSession
 
+	sdpCtx *sdp.LogicContext
+
 	disposeOnce sync.Once
 	waitChan    chan error
 }
@@ -58,57 +60,24 @@ func NewPushSession(modOptions ...ModPushSessionOption) *PushSession {
 	return s
 }
 
-// Push 阻塞直到和对端完成推流前，握手部分的工作（也即收到RTSP Record response），或者发生错误
-func (session *PushSession) Push(rawUrl string, sdpCtx sdp.LogicContext) error {
-	Log.Debugf("[%s] push. url=%s", session.UniqueKey(), rawUrl)
-	session.cmdSession.InitWithSdp(sdpCtx)
-	session.baseOutSession.InitWithSdp(sdpCtx)
-	if err := session.cmdSession.Do(rawUrl); err != nil {
-		_ = session.dispose(err)
-		return err
+func (session *PushSession) WithSdpLogicContext(sdpCtx sdp.LogicContext) *PushSession {
+	session.sdpCtx = &sdp.LogicContext{}
+	*session.sdpCtx = sdpCtx
+	return session
+}
+
+// Start 阻塞直到和对端完成推流前，握手部分的工作（也即收到RTSP Record response），或者发生错误
+func (session *PushSession) Start(rawUrl string) error {
+	if session.sdpCtx == nil {
+		Log.Errorf("[%s] sdp logic context not set.", session)
+		return base.ErrRtsp
 	}
+	return session.push(rawUrl)
+}
 
-	go func() {
-		var cmdSessionDisposed, baseInSessionDisposed bool
-		var retErr error
-		var retErrFlag bool
-	LOOP:
-		for {
-			var err error
-			select {
-			case err = <-session.cmdSession.WaitChan():
-				if err != nil {
-					_ = session.baseOutSession.Dispose()
-				}
-				if cmdSessionDisposed {
-					Log.Errorf("[%s] cmd session disposed already.", session.UniqueKey())
-				}
-				cmdSessionDisposed = true
-			case err = <-session.baseOutSession.WaitChan():
-				// err是nil时，表示是被PullSession::Dispose主动销毁，那么cmdSession也会被销毁，就不需要我们再调用cmdSession.Dispose了
-				if err != nil {
-					_ = session.cmdSession.Dispose()
-				}
-				if baseInSessionDisposed {
-					Log.Errorf("[%s] base in session disposed already.", session.UniqueKey())
-				}
-				baseInSessionDisposed = true
-			} // select loop
-
-			// 第一个错误作为返回值
-			if !retErrFlag {
-				retErr = err
-				retErrFlag = true
-			}
-			if cmdSessionDisposed && baseInSessionDisposed {
-				break LOOP
-			}
-		} // for loop
-
-		session.waitChan <- retErr
-	}()
-
-	return nil
+// Push deprecated. use WithSdpLogicContext and Start instead.
+func (session *PushSession) Push(rawUrl string, sdpCtx sdp.LogicContext) error {
+	return session.WithSdpLogicContext(sdpCtx).Start(rawUrl)
 }
 
 func (session *PushSession) WriteRtpPacket(packet rtprtcp.RtpPacket) error {
@@ -227,6 +196,58 @@ func (session *PushSession) WriteInterleavedPacket(packet []byte, channel int) e
 }
 
 // ---------------------------------------------------------------------------------------------------------------------
+
+func (session *PushSession) push(rawUrl string) error {
+	Log.Debugf("[%s] push. url=%s", session.UniqueKey(), rawUrl)
+	session.cmdSession.InitWithSdp(*session.sdpCtx)
+	session.baseOutSession.InitWithSdp(*session.sdpCtx)
+	if err := session.cmdSession.Do(rawUrl); err != nil {
+		_ = session.dispose(err)
+		return err
+	}
+
+	go func() {
+		var cmdSessionDisposed, baseInSessionDisposed bool
+		var retErr error
+		var retErrFlag bool
+	LOOP:
+		for {
+			var err error
+			select {
+			case err = <-session.cmdSession.WaitChan():
+				if err != nil {
+					_ = session.baseOutSession.Dispose()
+				}
+				if cmdSessionDisposed {
+					Log.Errorf("[%s] cmd session disposed already.", session.UniqueKey())
+				}
+				cmdSessionDisposed = true
+			case err = <-session.baseOutSession.WaitChan():
+				// err是nil时，表示是被PullSession::Dispose主动销毁，那么cmdSession也会被销毁，就不需要我们再调用cmdSession.Dispose了
+				if err != nil {
+					_ = session.cmdSession.Dispose()
+				}
+				if baseInSessionDisposed {
+					Log.Errorf("[%s] base in session disposed already.", session.UniqueKey())
+				}
+				baseInSessionDisposed = true
+			} // select loop
+
+			// 第一个错误作为返回值
+			if !retErrFlag {
+				retErr = err
+				retErrFlag = true
+			}
+			if cmdSessionDisposed && baseInSessionDisposed {
+				break LOOP
+			}
+		} // for loop
+
+		session.waitChan <- retErr
+	}()
+
+	return nil
+}
 
 func (session *PushSession) dispose(err error) error {
 	var retErr error

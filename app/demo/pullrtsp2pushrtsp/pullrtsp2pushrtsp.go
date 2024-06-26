@@ -75,8 +75,8 @@ func (r *RtspTunnel) Start() error {
 	r.pushSession = rtsp.NewPushSession(func(option *rtsp.PushSessionOption) {
 		option.PushTimeoutMs = 10000
 		option.OverTcp = r.pushOverTcp
-	})
-	if err := r.pushSession.Push(r.pushUrl, sdpCtx); err != nil {
+	}).WithSdpLogicContext(sdpCtx)
+	if err := r.pushSession.Start(r.pushUrl); err != nil {
 		nazalog.Errorf("[%s] start push failed. err=%+v, url=%s", r.uniqueKey, err, r.pushUrl)
 		return err
 	}

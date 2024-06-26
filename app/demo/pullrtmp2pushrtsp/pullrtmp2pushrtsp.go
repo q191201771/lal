@@ -39,7 +39,7 @@ func main() {
 		func(sdpCtx sdp.LogicContext) {
 			// remuxer完成前期工作，生成sdp并开始push
 			nazalog.Info("start push.")
-			err := pushSession.Push(outRtspUrl, sdpCtx)
+			err := pushSession.WithSdpLogicContext(sdpCtx).Start(outRtspUrl)
 			nazalog.Assert(nil, err)
 			nazalog.Info("push succ.")
 
