@@ -249,7 +249,7 @@ func (group *Group) pullIfNeeded() (string, error) {
 	go func(rtPullUrl string, rtIsPullByRtmp bool, rtRtmpSession *rtmp.PullSession, rtRtspSession *rtsp.PullSession) {
 		if rtIsPullByRtmp {
 			// TODO(chef): 处理数据回调，是否应该等待Add成功之后。避免竞态条件中途加入了其他in session
-			err := rtRtmpSession.Pull(rtPullUrl)
+			err := rtRtmpSession.Start(rtPullUrl)
 			if err != nil {
 				Log.Errorf("[%s] relay pull fail. err=%v", rtRtmpSession.UniqueKey(), err)
 				group.DelRtmpPullSession(rtRtmpSession)
@@ -262,7 +262,7 @@ func (group *Group) pullIfNeeded() (string, error) {
 			return
 		}
 
-		err := rtRtspSession.Pull(rtPullUrl)
+		err := rtRtspSession.Start(rtPullUrl)
 		if err != nil {
 			Log.Errorf("[%s] relay pull fail. err=%v", rtRtspSession.UniqueKey(), err)
 			group.DelRtspPullSession(rtRtspSession)

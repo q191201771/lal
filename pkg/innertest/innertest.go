@@ -220,7 +220,7 @@ func entry() {
 			assert.Equal(t, nil, err)
 			rtmpPullTagCount.Increment()
 		})
-		err := rtmpPullSession.Pull(rtmpPullUrl)
+		err := rtmpPullSession.Start(rtmpPullUrl)
 		Log.Assert(nil, err)
 		err = <-rtmpPullSession.WaitChan()
 		Log.Debug(err)
@@ -262,7 +262,7 @@ func entry() {
 		rtspPullSession = rtsp.NewPullSession(&rtspPullObserver, func(option *rtsp.PullSessionOption) {
 			option.PullTimeoutMs = 10000
 		})
-		err := rtspPullSession.Pull(rtspPullUrl)
+		err := rtspPullSession.Start(rtspPullUrl)
 		assert.Equal(t, nil, err)
 		entryWaitGroup.Done()
 	}()
@@ -273,7 +273,7 @@ func entry() {
 		option.WriteBufSize = 4096
 		//option.WriteChanSize = 1024
 	})
-	err = pushSession.Push(pushUrl)
+	err = pushSession.Start(pushUrl)
 	assert.Equal(t, nil, err)
 
 	for _, tag := range tags {

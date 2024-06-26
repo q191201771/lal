@@ -108,7 +108,7 @@ func (session *ClientCommandSession) InitWithSdp(sdpCtx sdp.LogicContext) {
 	session.sdpCtx = sdpCtx
 }
 
-func (session *ClientCommandSession) Do(rawUrl string) error {
+func (session *ClientCommandSession) Start(rawUrl string) error {
 	var (
 		ctx    context.Context
 		cancel context.CancelFunc

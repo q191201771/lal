@@ -65,7 +65,7 @@ func (r *RtspTunnel) Start() error {
 		option.PullTimeoutMs = 10000
 		option.OverTcp = r.pullOverTcp
 	})
-	if err := r.pullSession.Pull(r.pullUrl); err != nil {
+	if err := r.pullSession.Start(r.pullUrl); err != nil {
 		nazalog.Errorf("[%s] start pull failed. err=%+v, url=%s", r.uniqueKey, err, r.pullUrl)
 		return err
 	}

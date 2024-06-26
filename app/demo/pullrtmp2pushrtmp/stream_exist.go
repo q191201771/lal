@@ -51,7 +51,7 @@ func StreamExist(url string) error {
 	defer s.Dispose()
 
 	go func() {
-		err := s.Pull(url)
+		err := s.Start(url)
 		if err != nil {
 			errChan <- err
 		}

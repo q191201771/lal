@@ -100,7 +100,7 @@ func (group *Group) startPushIfNeeded() {
 				option.PushTimeoutMs = RelayPushTimeoutMs
 				option.WriteAvTimeoutMs = RelayPushWriteAvTimeoutMs
 			})
-			err := pushSession.Push(u2)
+			err := pushSession.Start(u2)
 			if err != nil {
 				Log.Errorf("[%s] relay push done. err=%v", pushSession.UniqueKey(), err)
 				group.DelRtmpPushSession(u, pushSession)

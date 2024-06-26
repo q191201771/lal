@@ -52,7 +52,7 @@ func main() {
 	pullSession := rtmp.NewPullSession().WithOnReadRtmpAvMsg(remuxer.FeedRtmpMsg)
 
 	nazalog.Info("start pull.")
-	err := pullSession.Pull(inRtmpUrl)
+	err := pullSession.Start(inRtmpUrl)
 	nazalog.Assert(nil, err)
 	nazalog.Info("pull succ.")
 

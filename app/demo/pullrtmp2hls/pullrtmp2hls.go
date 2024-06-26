@@ -54,7 +54,7 @@ func main() {
 		option.PullTimeoutMs = 10000
 		option.ReadAvTimeoutMs = 10000
 	}).WithOnReadRtmpAvMsg(rtmp2Mpegts.FeedRtmpMessage)
-	err = pullSession.Pull(url)
+	err = pullSession.Start(url)
 
 	if err != nil {
 		nazalog.Fatalf("pull rtmp failed. err=%+v", err)

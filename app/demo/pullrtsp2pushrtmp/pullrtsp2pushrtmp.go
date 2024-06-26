@@ -36,7 +36,7 @@ func main() {
 		option.WriteAvTimeoutMs = 10000
 	})
 
-	err := pushSession.Push(outUrl)
+	err := pushSession.Start(outUrl)
 	nazalog.Assert(nil, err)
 	defer pushSession.Dispose()
 
@@ -49,7 +49,7 @@ func main() {
 		option.OverTcp = overTcp != 0
 	})
 
-	err = pullSession.Pull(inUrl)
+	err = pullSession.Start(inUrl)
 	nazalog.Assert(nil, err)
 	defer pullSession.Dispose()
 

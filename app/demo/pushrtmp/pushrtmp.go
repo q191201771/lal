@@ -96,7 +96,7 @@ func push(tags []httpflv.Tag, url string, isRecursive bool) {
 		option.WriteChanSize = 0
 	})
 
-	if err := ps.Push(url); err != nil {
+	if err := ps.Start(url); err != nil {
 		nazalog.Errorf("push failed. err=%v", err)
 		return
 	}

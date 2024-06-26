@@ -201,7 +201,7 @@ func (session *PushSession) push(rawUrl string) error {
 	Log.Debugf("[%s] push. url=%s", session.UniqueKey(), rawUrl)
 	session.cmdSession.InitWithSdp(*session.sdpCtx)
 	session.baseOutSession.InitWithSdp(*session.sdpCtx)
-	if err := session.cmdSession.Do(rawUrl); err != nil {
+	if err := session.cmdSession.Start(rawUrl); err != nil {
 		_ = session.dispose(err)
 		return err
 	}

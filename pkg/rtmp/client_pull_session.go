@@ -72,7 +72,7 @@ func NewPullSession(modOptions ...ModPullSessionOption) *PullSession {
 
 // WithOnPullSucc Pull成功
 //
-// 如果你想保证绝对时序，在 WithOnReadRtmpAvMsg 回调音视频数据前，做一些操作，那么使用这个回调替代 Pull 返回成功
+// 如果你想保证绝对时序，在 WithOnReadRtmpAvMsg 回调音视频数据前，做一些操作，那么使用这个回调替代 Start 返回成功
 func (s *PullSession) WithOnPullSucc(onPullResult func()) *PullSession {
 	s.core.onDoResult = onPullResult
 	return s
@@ -96,9 +96,14 @@ func (s *PullSession) WithOnReadRtmpAvMsg(onReadRtmpAvMsg OnReadRtmpAvMsg) *Pull
 	return s
 }
 
-// Pull 阻塞直到和对端完成拉流前的所有准备工作（也即收到RTMP Play response），或者发生错误
+// Start 阻塞直到和对端完成拉流前的所有准备工作（也即收到RTMP Play response），或者发生错误
+func (s *PullSession) Start(rawUrl string) error {
+	return s.core.Start(rawUrl)
+}
+
+// Pull deprecated. use Start instead.
 func (s *PullSession) Pull(rawUrl string) error {
-	return s.core.Do(rawUrl)
+	return s.Start(rawUrl)
 }
 
 // ---------------------------------------------------------------------------------------------------------------------

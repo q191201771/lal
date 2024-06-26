@@ -201,7 +201,7 @@ func (t *Tunnel) Start() (ret ErrorCode) {
 		})
 		nazalog.Infof("[%s] start push. [%s] url=%s", t.uk, pushSession.UniqueKey(), outUrl)
 
-		err := pushSession.Push(outUrl)
+		err := pushSession.Start(outUrl)
 		// 只有有一个失败就直接退出
 		if err != nil {
 			nazalog.Errorf("[%s] push error. [%s] err=%+v", t.uk, pushSession.UniqueKey(), err)
@@ -223,7 +223,7 @@ func (t *Tunnel) Start() (ret ErrorCode) {
 	})
 	nazalog.Infof("[%s] start pull. [%s] url=%s", t.uk, t.pullSession.UniqueKey(), t.inUrl)
 
-	err := t.pullSession.Pull(t.inUrl)
+	err := t.pullSession.Start(t.inUrl)
 	// pull失败就直接退出
 	if err != nil {
 		nazalog.Errorf("[%s] pull error. [%s] err=%+v", t.uk, t.pullSession.UniqueKey(), err)

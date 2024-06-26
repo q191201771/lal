@@ -74,10 +74,10 @@ func (session *PullSession) WithOnDescribeResponse(onDescribeResponse func()) *P
 	return session
 }
 
-// Pull 阻塞直到和对端完成拉流前，握手部分的工作（也即收到RTSP Play response），或者发生错误
-func (session *PullSession) Pull(rawUrl string) error {
+// Start 阻塞直到和对端完成拉流前，握手部分的工作（也即收到RTSP Play response），或者发生错误
+func (session *PullSession) Start(rawUrl string) error {
 	Log.Debugf("[%s] pull. url=%s", session.UniqueKey(), rawUrl)
-	if err := session.cmdSession.Do(rawUrl); err != nil {
+	if err := session.cmdSession.Start(rawUrl); err != nil {
 		_ = session.dispose(err)
 		return err
 	}
@@ -126,6 +126,11 @@ func (session *PullSession) Pull(rawUrl string) error {
 	}()
 
 	return nil
+}
+
+// Pull deprecated. use Start instead.
+func (session *PullSession) Pull(rawUrl string) error {
+	return session.Start(rawUrl)
 }
 
 func (session *PullSession) GetSdp() sdp.LogicContext {

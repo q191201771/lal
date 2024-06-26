@@ -86,7 +86,7 @@ func main() {
 		option.OverTcp = overTcp != 0
 	})
 
-	err = pullSession.Pull(inUrl)
+	err = pullSession.Start(inUrl)
 	nazalog.Assert(nil, err)
 
 	go func() {

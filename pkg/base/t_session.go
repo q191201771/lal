@@ -95,16 +95,31 @@ type IServerSession interface {
 
 // ---------------------------------------------------------------------------------------------------------------------
 
+// IClientSessionLifecycle
+//
+// 常规正确调用流程：
+//
+// New -> WithXXX -> Start -> Read/Write -> Dispose
+//
+// Start之前，不调用Read, Write, WaitChan函数
+// Start, Read, Write返回失败或者WaitChan返回错误时，直接调用Dispose，之后尽量不再使用这个session
 type IClientSessionLifecycle interface {
-	// Dispose 主动关闭session时调用
+	Start(rawUrl string) error
+
+	// Dispose
 	//
-	// 注意，只有Start（具体session的Start类型函数一般命令为Push和Pull）成功后的session才能调用，否则行为未定义
+	// 关闭session，主要是在主动关闭时调用。
 	//
-	// Dispose可在任意协程内调用
+	// - 可以在任意协程内调用。
+	// - 可以调用多次。
 	//
-	// 注意，目前Dispose允许调用多次，但是未来可能不对该表现做保证
+	// - 理论上可以在Start之前调用，但请尽量避免。
+	// - 不能和Start并发调用。
+	// - Start失败后可以不调用Dispose。
 	//
 	// Dispose后，调用Write函数将返回错误
+	//
+	// - TODO 如果Read或Write函数返回错误，可以不调用Dispose。
 	//
 	// @return 可以通过返回值判断调用Dispose前，session是否已经被关闭了 TODO(chef) 这个返回值没有太大意义，后面可能会删掉
 	//

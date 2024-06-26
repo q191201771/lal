@@ -104,7 +104,7 @@ func pull(url string, filename string) {
 		}
 	})
 
-	err = session.Pull(url)
+	err = session.Start(url)
 	if err != nil {
 		nazalog.Errorf("pull failed. err=%+v", err)
 		return
