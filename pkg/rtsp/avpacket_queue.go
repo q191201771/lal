@@ -154,8 +154,7 @@ func (a *AvPacketQueue) adjustTs(pkt *base.AvPacket) {
 
 // Feed 注意，调用方保证，音频相较于音频，视频相较于视频，时间戳是线性递增的。
 func (a *AvPacketQueue) Feed(pkt base.AvPacket) {
-	Log.Debugf("[AVQ] Feed. t=%d, ts=%d, Q(%d,%d), %s, base(%d,%d)",
-		pkt.PayloadType, pkt.Timestamp, a.audioQueue.Size(), a.videoQueue.Size(), packetsReadable(peekQueuePackets(a)), a.audioBaseTs, a.videoBaseTs)
+	//Log.Debugf("[AVQ] Feed. t=%d, ts=%d, Q(%d,%d), %s, base(%d,%d)", pkt.PayloadType, pkt.Timestamp, a.audioQueue.Size(), a.videoQueue.Size(), packetsReadable(peekQueuePackets(a)), a.audioBaseTs, a.videoBaseTs)
 
 	if TimestampFilterHandleRotateFlag {
 		a.adjustTsHandleRotate(&pkt)
@@ -171,21 +170,21 @@ func (a *AvPacketQueue) Feed(pkt base.AvPacket) {
 		vvpkt := vpkt.(base.AvPacket)
 		if aapkt.Timestamp < vvpkt.Timestamp {
 			_, _ = a.audioQueue.PopFront()
-			Log.Debugf("[AVQ] pop audio by video. a=%d, v=%d", aapkt.Timestamp, vvpkt.Timestamp)
+			//Log.Debugf("[AVQ] pop audio by video. a=%d, v=%d", aapkt.Timestamp, vvpkt.Timestamp)
 			a.onAvPacket(aapkt)
 		} else if aapkt.Timestamp > vvpkt.Timestamp {
 			_, _ = a.videoQueue.PopFront()
-			Log.Debugf("[AVQ] pop video by audio. a=%d, v=%d", aapkt.Timestamp, vvpkt.Timestamp)
+			//Log.Debugf("[AVQ] pop video by audio. a=%d, v=%d", aapkt.Timestamp, vvpkt.Timestamp)
 			a.onAvPacket(vvpkt)
 		} else {
 			// 相等时，我们把早加入的先输出
 			if pkt.IsAudio() {
 				_, _ = a.videoQueue.PopFront()
-				Log.Debugf("[AVQ] pop video by audio. a=%d, v=%d", aapkt.Timestamp, vvpkt.Timestamp)
+				//Log.Debugf("[AVQ] pop video by audio. a=%d, v=%d", aapkt.Timestamp, vvpkt.Timestamp)
 				a.onAvPacket(vvpkt)
 			} else {
 				_, _ = a.audioQueue.PopFront()
-				Log.Debugf("[AVQ] pop audio by video. a=%d, v=%d", aapkt.Timestamp, vvpkt.Timestamp)
+				//Log.Debugf("[AVQ] pop audio by video. a=%d, v=%d", aapkt.Timestamp, vvpkt.Timestamp)
 				a.onAvPacket(aapkt)
 			}
 		}
@@ -223,7 +222,7 @@ func (a *AvPacketQueue) PopAllByForce() {
 }
 
 func (a *AvPacketQueue) popAllAudio() {
-	Log.Debugf("[AVQ] pop all audio. audioQueue=%d, videoQueue=%d", a.audioQueue.Size(), a.videoQueue.Size())
+	//Log.Debugf("[AVQ] pop all audio. audioQueue=%d, videoQueue=%d", a.audioQueue.Size(), a.videoQueue.Size())
 	for !a.audioQueue.Empty() {
 		pkt, _ := a.audioQueue.Front()
 		ppkt := pkt.(base.AvPacket)
@@ -233,7 +232,7 @@ func (a *AvPacketQueue) popAllAudio() {
 }
 
 func (a *AvPacketQueue) popAllVideo() {
-	Log.Debugf("[AVQ] pop all video. audioQueue=%d, videoQueue=%d", a.audioQueue.Size(), a.videoQueue.Size())
+	//Log.Debugf("[AVQ] pop all video. audioQueue=%d, videoQueue=%d", a.audioQueue.Size(), a.videoQueue.Size())
 	for !a.videoQueue.Empty() {
 		pkt, _ := a.videoQueue.Front()
 		ppkt := pkt.(base.AvPacket)
