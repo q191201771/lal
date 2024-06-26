@@ -92,12 +92,12 @@ func main() {
 
 	switch pullType {
 	case PullTypeHttpflv:
-		httpflvPullSession = httpflv.NewPullSession()
-		err = httpflvPullSession.Pull(pullUrl, func(tag httpflv.Tag) {
+		httpflvPullSession = httpflv.NewPullSession().WithOnReadFlvTag(func(tag httpflv.Tag) {
 			handleReadPayloadFn(tag.Payload())
 		})
-		if err != nil {
+		if err = httpflvPullSession.Start(pullUrl); err != nil {
 			nazalog.Fatalf("pull flv failed. err=%+v", err)
+			return
 		}
 		nazalog.Info("pull flv succ.")
 		defer httpflvPullSession.Dispose()

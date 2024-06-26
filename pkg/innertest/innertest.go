@@ -232,13 +232,13 @@ func entry() {
 		var flvErr error
 		httpflvPullSession = httpflv.NewPullSession(func(option *httpflv.PullSessionOption) {
 			option.ReadTimeoutMs = 10000
-		})
-		err := httpflvPullSession.Pull(httpflvPullUrl, func(tag httpflv.Tag) {
-			err := httpFlvWriter.WriteTag(tag)
-			assert.Equal(t, nil, err)
+		}).WithOnReadFlvTag(func(tag httpflv.Tag) {
+			errWrite := httpFlvWriter.WriteTag(tag)
+			assert.Equal(t, nil, errWrite)
 			httpflvPullTagCount.Increment()
 		})
-		Log.Assert(nil, err)
+		errStart := httpflvPullSession.Start(httpflvPullUrl)
+		Log.Assert(nil, errStart)
 		flvErr = <-httpflvPullSession.WaitChan()
 		Log.Debug(flvErr)
 

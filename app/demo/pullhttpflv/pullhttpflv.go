@@ -37,8 +37,7 @@ func main() {
 
 	defer flvfile.Close()
 
-	session := httpflv.NewPullSession()
-	err = session.Pull(url, func(tag httpflv.Tag) {
+	session := httpflv.NewPullSession().WithOnReadFlvTag(func(tag httpflv.Tag) {
 		if tag.Header.Type == httpflv.TagTypeMetadata {
 			// TODO(chef): httpflv.PullSession支持返回flv header，可供业务方选择使用 202210
 			// 根据metadata填写flv头
@@ -69,6 +68,8 @@ func main() {
 
 		flvfile.Write(tag.Raw)
 	})
+
+	err = session.Start(url)
 	nazalog.Assert(nil, err)
 	err = <-session.WaitChan()
 	nazalog.Assert(nil, err)

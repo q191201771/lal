@@ -91,7 +91,7 @@ func (session *PullSession) Start(rawUrl string) error {
 	return session.pull(rawUrl)
 }
 
-// Pull deprecated. use Start instead.
+// Pull deprecated. use WithOnReadFlvTag and Start instead.
 func (session *PullSession) Pull(rawUrl string, onReadFlvTag OnReadFlvTag) error {
 	return session.WithOnReadFlvTag(onReadFlvTag).Start(rawUrl)
 }
