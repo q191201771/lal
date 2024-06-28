@@ -23,6 +23,7 @@ const (
 	AvPacketPtUnknown AvPacketPt = -1
 	AvPacketPtG711U   AvPacketPt = 0   // g711u
 	AvPacketPtG711A   AvPacketPt = 8   // g711a
+	AvPacketPtMp2     AvPacketPt = 14  // mp2
 	AvPacketPtAvc     AvPacketPt = 96  // h264
 	AvPacketPtHevc    AvPacketPt = 98  // h265
 	AvPacketPtAac     AvPacketPt = 97  // aac

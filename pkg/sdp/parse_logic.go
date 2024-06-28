@@ -134,23 +134,30 @@ func ParseSdp2LogicContext(b []byte) (LogicContext, error) {
 			} else if strings.EqualFold(md.ARtpMap.EncodingName, ArtpMapEncodingNameOpus) {
 				ret.audioPayloadTypeBase = base.AvPacketPtOpus
 			} else {
-				if md.M.PT == 8 {
-					// ffmpeg推流情况下不会填充rtpmap字段,m中pt值为8也可以表示是PCMA,采样率默认为8000Hz
-					// RFC3551中表明G711A固定pt值为8
-					ret.audioPayloadTypeBase = base.AvPacketPtG711A
-					ret.audioPayloadTypeOrigin = 8
+				// ffmpeg推流情况下不会填充rtpmap字段,m中pt值为8也可以表示是PCMA,采样率默认为8000Hz
+				// RFC3551中表明G711A固定pt值为8
+				if md.M.PT == MediaDescPayloadTypeG711U {
+					ret.audioPayloadTypeBase = base.AvPacketPtG711U
+					ret.audioPayloadTypeOrigin = MediaDescPayloadTypeG711U
 					if ret.AudioClockRate == 0 {
 						ret.AudioClockRate = 8000
 					}
-				} else if md.M.PT == 0 {
-					// ffmpeg推流情况下不会填充rtpmap字段,m中pt值为8也可以表示是PCMU,采样率默认为8000Hz
-					// RFC3551中表明G711U固定pt值为0
-					ret.audioPayloadTypeBase = base.AvPacketPtG711U
-					ret.audioPayloadTypeOrigin = 0
+				} else if md.M.PT == MediaDescPayloadTypeG711A {
+					ret.audioPayloadTypeBase = base.AvPacketPtG711A
+					ret.audioPayloadTypeOrigin = MediaDescPayloadTypeG711A
+					if ret.AudioClockRate == 0 {
+						ret.AudioClockRate = 8000
+					}
+				} else if md.M.PT == MediaDescPayloadTypeMp2 {
+					ret.audioPayloadTypeBase = base.AvPacketPtMp2
+					ret.audioPayloadTypeOrigin = MediaDescPayloadTypeMp2
 					if ret.AudioClockRate == 0 {
 						ret.AudioClockRate = 8000
 					}
 				} else {
+					if md.M.PT != 0 {
+						Log.Warnf("unknown audio payload type. pt=%d", md.M.PT)
+					}
 					ret.audioPayloadTypeBase = base.AvPacketPtUnknown
 				}
 			}

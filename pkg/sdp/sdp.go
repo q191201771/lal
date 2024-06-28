@@ -8,6 +8,8 @@
 
 package sdp
 
+import "github.com/q191201771/lal/pkg/base"
+
 // rfc4566
 
 const (
@@ -17,4 +19,10 @@ const (
 	ARtpMapEncodingNameG711A = "PCMA"
 	ARtpMapEncodingNameG711U = "PCMU"
 	ArtpMapEncodingNameOpus  = "opus"
+)
+
+const (
+	MediaDescPayloadTypeG711U = int(base.AvPacketPtG711U)
+	MediaDescPayloadTypeG711A = int(base.AvPacketPtG711A)
+	MediaDescPayloadTypeMp2   = int(base.AvPacketPtMp2)
 )

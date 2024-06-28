@@ -359,7 +359,7 @@ func (session *BaseInSession) handleRtpPacket(b []byte) error {
 
 	packetType := int(b[1] & 0x7F)
 	if !session.sdpCtx.IsPayloadTypeOrigin(packetType) {
-		Log.Errorf("[%s] handleRtpPacket but type invalid. type=%d", session.UniqueKey(), packetType)
+		//Log.Errorf("[%s] handleRtpPacket but type invalid. type=%d", session.UniqueKey(), packetType)
 		return nazaerrors.Wrap(base.ErrRtsp)
 	}
 
