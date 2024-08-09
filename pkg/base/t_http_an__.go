@@ -8,6 +8,11 @@
 
 package base
 
+import (
+	"sort"
+	"sync"
+)
+
 // t_http_an__.go
 //
 // http-api和http-notify的共用部分
@@ -84,6 +89,7 @@ type StatPull struct {
 }
 
 type PeriodRecord struct {
+	mu sync.Mutex
 	ringBuf []RecordPerSec
 	//nRecord int
 }
@@ -119,9 +125,13 @@ func (s *StatGroup) GetFpsFrom(p *PeriodRecord, nowUnixSec int64) {
 	// 新的要解决的问题：
 	// 1 获取过的，还可以再次获取 [DONE]
 	// 2.1 去除 nRecord 字段，避免竞态 [DONE]
-	// 2 数据是排序好的
+	// 2.2 加锁，保护 ringBuf [DONE]
+	// 2 数据是排序好的 [DONE]
 	// 3 增加字段，最近1秒，5秒，10秒等时间段的fps
 	// 4 考虑和bitrate等字段语义统一，详细的数据可以是detail样式的字段
+
+	p.mu.Lock()
+	defer p.mu.Unlock()
 
 	//if s.Fps == nil || cap(s.Fps) < p.nRecord {
 	//	s.Fps = make([]RecordPerSec, p.nRecord)
@@ -129,7 +139,7 @@ func (s *StatGroup) GetFpsFrom(p *PeriodRecord, nowUnixSec int64) {
 	//	s.Fps = s.Fps[0:p.nRecord]
 	//}
 
-	if s.Fps == nil {
+	if s.Fps == nil || len(s.Fps) < len(p.ringBuf) {
 		s.Fps = make([]RecordPerSec, len(p.ringBuf))
 	}
 
@@ -149,6 +159,10 @@ func (s *StatGroup) GetFpsFrom(p *PeriodRecord, nowUnixSec int64) {
 		//p.ringBuf[idx].UnixSec = 0
 	}
 	s.Fps = s.Fps[0:nRecord]
+
+	sort.Slice(s.Fps, func(i, j int) bool {
+		return s.Fps[i].UnixSec > s.Fps[j].UnixSec
+	})
 }
 
 func NewPeriodRecord(bufSize int) PeriodRecord {
@@ -159,6 +173,9 @@ func NewPeriodRecord(bufSize int) PeriodRecord {
 }
 
 func (p *PeriodRecord) Add(unixSec int64, v uint32) {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+
 	var index int64
 	var record RecordPerSec
 	index = unixSec % int64(len(p.ringBuf))
@@ -175,9 +192,9 @@ func (p *PeriodRecord) Add(unixSec int64, v uint32) {
 	return
 }
 
-func (p *PeriodRecord) Clear() {
-	for idx := range p.ringBuf {
-		p.ringBuf[idx].UnixSec = 0
-		p.ringBuf[idx].V = 0
-	}
-}
+//func (p *PeriodRecord) Clear() {
+//	for idx := range p.ringBuf {
+//		p.ringBuf[idx].UnixSec = 0
+//		p.ringBuf[idx].V = 0
+//	}
+//}
