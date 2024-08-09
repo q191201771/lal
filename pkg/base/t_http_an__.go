@@ -112,25 +112,36 @@ func Session2StatPull(session ISession) StatPull {
 //
 // @note result s.Fps is not ordered
 func (s *StatGroup) GetFpsFrom(p *PeriodRecord, nowUnixSec int64) {
+	// s.Fps 是输出，p 是输入
+	// p.nRecord 是有数据的元素个数，但是如果 nowUnixSec 和元素的 UnixSec 相等，那么这个元素的数据还没有完全记录，这个元素需要被忽略
+	// 当前的实现，把 p.nRecord 和 元素的 UnixSec 重置了，也就是被GetFpsFrom获取过的元素，下次将不被获取
+	//
+	// 新的要解决的问题：
+	// 1 获取过的，还可以再次获取
+	// 2 数据是排序好的
+	// 3 增加字段，最近1秒，5秒，10秒等时间段的fps
+	// 4 考虑和bitrate等字段语义统一，详细的数据可以是detail样式的字段
+
 	if s.Fps == nil || cap(s.Fps) < p.nRecord {
 		s.Fps = make([]RecordPerSec, p.nRecord)
 	} else {
 		s.Fps = s.Fps[0:p.nRecord]
 	}
+
 	nRecord := 0
-	p.nRecord = 0
-	for idx, record := range p.ringBuf {
+	//p.nRecord = 0
+	for _, record := range p.ringBuf {
 		if record.UnixSec == 0 {
 			continue
 		}
 		if record.UnixSec == nowUnixSec {
 			// value at nowUnixSec not completely recorded
-			p.nRecord++
+			//p.nRecord++
 			continue
 		}
 		s.Fps[nRecord] = record
 		nRecord++
-		p.ringBuf[idx].UnixSec = 0
+		//p.ringBuf[idx].UnixSec = 0
 	}
 	s.Fps = s.Fps[0:nRecord]
 }
