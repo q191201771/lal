@@ -2,6 +2,9 @@
 
 /app/demo/push_rtmp_hook
 /app/demo/parse_ts/
+/app/demo/tytsp/
+/app/demo/parse_mp4/
+/app/demo/udp_server/
 
 /windows
 
