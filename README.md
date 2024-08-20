@@ -64,6 +64,39 @@ $docker build -t lal .
 $docker run -it -p 1935:1935 -p 8080:8080 -p 4433:4433 -p 5544:5544 -p 8083:8083 -p 8084:8084 -p 30000-30100:30000-30100/udp lal /lal/bin/lalserver -c /lal/conf/lalserver.conf.json
 ```
 
+option 3, Use docker-compose
+
+Create a `docker-compose.yml` file with the following content:
+
+```yaml
+version: "3.9"
+services:
+    lalserver:
+    image: q191201771/lal
+    container_name: lalserver
+    ports:
+        - "1935:1935"
+        - "8080:8080"
+        - "4433:4433"
+        - "5544:5544"
+        - "8083:8083"
+        - "8084:8084"
+        - "30000-30100:30000-30100/udp"
+    command: /lal/bin/lalserver -c /lal/conf/lalserver.conf.json
+```
+
+Run the following command to start the service:
+
+```bash
+docker-compose up
+```
+
+Or run it in the background with:
+
+```bash
+docker-compose up -d
+```
+
 ## Using
 
 Running lalserver:
