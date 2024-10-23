@@ -26,19 +26,19 @@ var LalVersion = "v0.37.4"
 var ConfVersion = "v0.4.1"
 
 // HttpApiVersion lalserver的HTTP-API功能的版本号
-var HttpApiVersion = "v0.4.8"
+var HttpApiVersion = "v0.4.9"
 
 // HttpNotifyVersion lalserver的HTTP-Notify功能的版本号
-var HttpNotifyVersion = "v0.2.4"
+var HttpNotifyVersion = "v0.2.5"
 
 var HttpWebUiVersion = "v0.0.3"
 
 var (
 	LalLibraryName    = "lal"
-	LalGithubRepo     = "github.com/q191201771/lal"
-	LalGithubSite     = "https://github.com/q191201771/lal"
-	LalDocSite        = "https://pengrl.com/lal"
-	LalDocSiteHTTPAPI = "https://pengrl.com/lal/#/HTTPAPI"
+	LalGithubRepo     = "lal"
+	LalGithubSite     = "lal"
+	LalDocSite        = "lal"
+	LalDocSiteHTTPAPI = "lal"
 
 	LalDefaultConfigFilename = "lalserver.conf.json"
 
